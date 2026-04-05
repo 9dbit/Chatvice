@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,11 +11,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   MessageSquare, Bot, HeadphonesIcon, Send, Search, User, Download, 
   Hand, ArrowLeft, Clock, Edit, Check, X, Loader2, RefreshCw, AlertCircle,
   CheckCircle2, Circle, XCircle, Filter, ShoppingBag, Plus, ImageIcon, Video, FileText,
-  ExternalLink, Maximize2, Minimize2, MapPin, Volume2, VolumeX, Monitor, Globe, Smartphone, Radio
+  ExternalLink, Maximize2, Minimize2, MapPin, Volume2, VolumeX, Monitor, Globe, Smartphone, Radio,
+  Languages
 } from "lucide-react";
 import {
   SiAndroid, SiApple, SiLinux,
@@ -233,6 +236,23 @@ interface PreviewContent {
   title?: string;
 }
 
+const TRANSLATE_LANGUAGES = [
+  { code: "id", name: "Indonesian" },
+  { code: "en", name: "English" },
+  { code: "zh", name: "Chinese" },
+  { code: "ms", name: "Malay" },
+  { code: "ar", name: "Arabic" },
+  { code: "ko", name: "Korean" },
+  { code: "ja", name: "Japanese" },
+  { code: "th", name: "Thai" },
+  { code: "hi", name: "Hindi" },
+  { code: "es", name: "Spanish" },
+  { code: "fr", name: "French" },
+  { code: "de", name: "German" },
+  { code: "pt", name: "Portuguese" },
+  { code: "ru", name: "Russian" },
+];
+
 export default function SessionsPage() {
   const { data: authData } = useQuery<{ authenticated: boolean; merchantId?: string }>({
     queryKey: ["/api/auth/me"],
@@ -287,10 +307,29 @@ export default function SessionsPage() {
     localStorage.setItem("sessionSoundEnabled", String(soundEnabled));
   }, [soundEnabled]);
   
+  // Auto-translate state
+  const [autoTranslateEnabled, setAutoTranslateEnabled] = useState(false);
+  const [translateLang, setTranslateLang] = useState("Indonesian");
+  const [translations, setTranslations] = useState<Map<string, string>>(new Map());
+  const [translatingIds, setTranslatingIds] = useState<Set<string>>(new Set());
+  const [isSendingWithTranslate, setIsSendingWithTranslate] = useState(false);
+  const translationFetchingRef = useRef<Set<string>>(new Set());
+  const translationsDoneRef = useRef<Set<string>>(new Set()); // IDs that already have a result
+
   // Clear preview when session changes
   useEffect(() => {
     setPreviewContent(null);
     setIsPreviewExpanded(false);
+  }, [selectedSession]);
+
+  // Reset auto-translate state when switching sessions
+  useEffect(() => {
+    setAutoTranslateEnabled(false);
+    setTranslateLang("Indonesian");
+    setTranslations(new Map());
+    setTranslatingIds(new Set());
+    translationFetchingRef.current.clear();
+    translationsDoneRef.current.clear();
   }, [selectedSession]);
 
   const { data: sessions, isLoading: sessionsLoading } = useQuery<SessionWithPreview[]>({
@@ -523,11 +562,52 @@ export default function SessionsPage() {
     return null;
   };
 
+  // Fetch a single translation and cache it; skips if already fetched or in-progress
+  const fetchTranslation = useCallback(async (id: string, text: string, lang: string) => {
+    if (!text?.trim() || translationFetchingRef.current.has(id) || translationsDoneRef.current.has(id)) return;
+    translationFetchingRef.current.add(id);
+    setTranslatingIds(prev => new Set([...prev, id]));
+    try {
+      const res = await apiRequest("POST", "/api/translate", { text, targetLang: lang });
+      const data = await res.json();
+      if (data.translated) {
+        translationsDoneRef.current.add(id);
+        setTranslations(prev => new Map([...prev, [id, data.translated]]));
+      }
+    } catch {
+      // silently ignore translation errors so UI continues working
+    } finally {
+      translationFetchingRef.current.delete(id);
+      setTranslatingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+    }
+  }, []);
+
+  // Clear translations when language changes or translate is toggled off/on
+  useEffect(() => {
+    setTranslations(new Map());
+    setTranslatingIds(new Set());
+    translationFetchingRef.current.clear();
+    translationsDoneRef.current.clear();
+  }, [translateLang, autoTranslateEnabled]);
+
+  // Fetch translations for all loaded messages when translate is ON
+  useEffect(() => {
+    if (!autoTranslateEnabled || !messages || messages.length === 0) return;
+    messages.forEach(msg => {
+      const id = String(msg.id);
+      if (msg.content?.trim() && msg.from !== "system") {
+        fetchTranslation(id, msg.content, translateLang);
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoTranslateEnabled, translateLang, messages?.length, fetchTranslation]);
+
   const sendMessageMutation = useMutation({
-    mutationFn: async (message: string) => {
+    mutationFn: async ({ message, payload }: { message: string; payload?: Record<string, unknown> }) => {
       return apiRequest("POST", "/api/session/send-message", {
         sessionId: selectedSession,
         message,
+        ...(payload ? { payload } : {}),
       });
     },
     onSuccess: () => {
@@ -745,9 +825,41 @@ export default function SessionsPage() {
     return Array.from(ipMap.values());
   })() : undefined;
 
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      sendMessageMutation.mutate(newMessage.trim());
+  const handleSendMessage = async () => {
+    const text = newMessage.trim();
+    if (!text) return;
+
+    if (autoTranslateEnabled && selectedSessionData?.mode === "HUMAN") {
+      setIsSendingWithTranslate(true);
+      try {
+        // Gather recent customer messages as context for language detection
+        const contextText = (messages || [])
+          .filter(m => m.from === "customer" || m.from === "user")
+          .slice(-3)
+          .map(m => m.content)
+          .join("\n");
+
+        const res = await apiRequest("POST", "/api/translate", {
+          text,
+          targetLang: "auto",
+          contextText: contextText || undefined,
+        });
+        const data = await res.json();
+        const translatedText: string = data.translated || text;
+
+        if (translatedText && translatedText !== text) {
+          sendMessageMutation.mutate({ message: translatedText, payload: { originalText: text } });
+        } else {
+          sendMessageMutation.mutate({ message: text });
+        }
+      } catch {
+        // Fallback to sending original on error
+        sendMessageMutation.mutate({ message: text });
+      } finally {
+        setIsSendingWithTranslate(false);
+      }
+    } else {
+      sendMessageMutation.mutate({ message: text });
     }
   };
 
@@ -1124,6 +1236,46 @@ export default function SessionsPage() {
                           >
                             <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           </Button>
+                          {/* Auto-translate toggle */}
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center gap-1" data-testid="auto-translate-controls">
+                                <Switch
+                                  id="auto-translate-toggle"
+                                  checked={autoTranslateEnabled}
+                                  onCheckedChange={setAutoTranslateEnabled}
+                                  className="scale-75 origin-center"
+                                  data-testid="switch-auto-translate"
+                                />
+                                <label
+                                  htmlFor="auto-translate-toggle"
+                                  className="hidden sm:flex items-center gap-0.5 text-[11px] text-muted-foreground cursor-pointer select-none"
+                                >
+                                  <Languages className="w-3 h-3" />
+                                </label>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                              <p>Auto Translate</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          {autoTranslateEnabled && (
+                            <Select value={translateLang} onValueChange={setTranslateLang}>
+                              <SelectTrigger
+                                className="h-7 sm:h-8 text-[11px] sm:text-xs w-24 sm:w-28 px-1.5 sm:px-2"
+                                data-testid="select-translate-lang"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {TRANSLATE_LANGUAGES.map(lang => (
+                                  <SelectItem key={lang.code} value={lang.name} className="text-xs">
+                                    {lang.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                           {selectedSessionData?.mode === "AI" ? (
                             <Button
                               size="sm"
@@ -1394,6 +1546,12 @@ export default function SessionsPage() {
                                       </div>
                                     );
                                   })()}
+                                  {/* "Originally sent as" — shows supervisor's pre-translate original text */}
+                                  {msg.from === "supervisor" && (msg as any).payload?.originalText && (
+                                    <p className="text-[10px] mt-1.5 pt-1 border-t border-primary-foreground/20 text-primary-foreground/50 italic leading-snug">
+                                      Originally: {(msg as any).payload.originalText}
+                                    </p>
+                                  )}
                                   <p className={`text-[10px] mt-1 ${msg.from === "user" ? "text-muted-foreground" : "text-primary-foreground/60"}`}>
                                     {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
                                   </p>
@@ -1433,6 +1591,24 @@ export default function SessionsPage() {
                                 </Avatar>
                               )}
                             </div>
+                            {/* Auto-translate: show translated text below message bubble */}
+                            {autoTranslateEnabled && msg.content?.trim() && msg.from !== "system" && (
+                              <div className={`flex mt-0.5 ${isCustomerMessage ? "justify-start pl-12" : "justify-end pr-12"}`}>
+                                <div className="flex items-start gap-1 text-[11px] text-muted-foreground italic max-w-[75%]">
+                                  {translatingIds.has(String(msg.id)) ? (
+                                    <>
+                                      <Loader2 className="w-3 h-3 mt-0.5 flex-shrink-0 animate-spin" />
+                                      <span>Translating…</span>
+                                    </>
+                                  ) : translations.has(String(msg.id)) ? (
+                                    <>
+                                      <Languages className="w-3 h-3 mt-0.5 flex-shrink-0 text-muted-foreground/70" />
+                                      <span className="leading-snug">{translations.get(String(msg.id))}</span>
+                                    </>
+                                  ) : null}
+                                </div>
+                              </div>
+                            )}
                             {/* Product Cards Display - show when AI message matches product triggers */}
                             {!isCustomerMessage && (msg.from === "chatvice" || msg.from === "bot" || msg.from === "ai") && 
                              shouldShowProductsForMessage(msg.content) && productCards.filter(c => c.isActive).length > 0 && (
@@ -1715,11 +1891,15 @@ export default function SessionsPage() {
                         </div>
                         <Button
                           onClick={handleSendMessage}
-                          disabled={sendMessageMutation.isPending || !newMessage.trim() || showQuickReplyPopup}
+                          disabled={sendMessageMutation.isPending || isSendingWithTranslate || !newMessage.trim() || showQuickReplyPopup}
                           className="h-9"
                           data-testid="button-send-message"
                         >
-                          <Send className="w-4 h-4" />
+                          {(sendMessageMutation.isPending || isSendingWithTranslate) ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Send className="w-4 h-4" />
+                          )}
                         </Button>
                       </div>
                       {quickReplies.length > 0 && (

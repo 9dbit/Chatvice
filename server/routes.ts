@@ -446,6 +446,9 @@ async function notifySupervisors(merchantId: string, sessionId: string, reason: 
 // Round-robin agent assignment tracking per merchant
 const lastAssignedAgentIndex: Map<string, number> = new Map();
 
+// Rate limiter for /api/translate: max 60 calls per merchantId per minute
+const translateRateLimit: Map<string, { count: number; resetAt: number }> = new Map();
+
 // Find previous agent for returning user (by customerName or deviceFingerprint)
 async function findPreviousAgentForUser(merchantId: string, customerName?: string, deviceFingerprint?: string): Promise<string | null> {
   if (!customerName && !deviceFingerprint) {
@@ -7761,6 +7764,56 @@ Rules:
     } catch (error) {
       console.error("[Takeover] Error:", error);
       res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // POST /api/translate — translate text via OpenAI, rate-limited per merchant
+  app.post("/api/translate", requireMerchantOrSupervisor, async (req, res) => {
+    try {
+      const { text, targetLang, contextText } = req.body;
+      const merchantId = req.session.merchantId!;
+
+      if (!text || typeof text !== "string" || !targetLang || typeof targetLang !== "string") {
+        return res.status(400).json({ error: "text and targetLang are required" });
+      }
+
+      // Rate limit: 60 requests per merchant per minute
+      const now = Date.now();
+      const rl = translateRateLimit.get(merchantId);
+      if (rl && now < rl.resetAt) {
+        if (rl.count >= 60) {
+          return res.status(429).json({ error: "Rate limit exceeded. Please wait a moment." });
+        }
+        rl.count++;
+      } else {
+        translateRateLimit.set(merchantId, { count: 1, resetAt: now + 60_000 });
+      }
+
+      let systemPrompt: string;
+      if (targetLang === "auto" && contextText) {
+        // Detect language from context and translate the input to that language
+        systemPrompt =
+          `You are a precise translation assistant. Detect the language used in the Context below, then translate the Input text into that same language. Return ONLY the translated text — no explanations, no labels, no quotes.\n\nContext (example of the target language):\n${String(contextText).slice(0, 400)}`;
+      } else {
+        systemPrompt =
+          `You are a precise translation assistant. Translate the following text into ${targetLang}. Return ONLY the translated text — no explanations, no labels, no quotes.`;
+      }
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: text.slice(0, 2000) },
+        ],
+        temperature: 0.1,
+        max_tokens: 1000,
+      });
+
+      const translated = completion.choices[0]?.message?.content?.trim() || text;
+      return res.json({ translated });
+    } catch (error) {
+      console.error("[Translate] Error:", error);
+      return res.status(500).json({ error: "Translation failed" });
     }
   });
 
