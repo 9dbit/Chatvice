@@ -124,6 +124,18 @@ function getInitials(name: string): string {
   return (parts[0]?.[0] || "C").toUpperCase();
 }
 
+function isIpAddress(value: string | null | undefined): boolean {
+  if (!value) return false;
+  const ipv4 = /^(\d{1,3}\.){3}\d{1,3}$/;
+  const ipv6 = /^[0-9a-fA-F:]+:[0-9a-fA-F:]*$/;
+  return ipv4.test(value.trim()) || ipv6.test(value.trim());
+}
+
+function getVisitorDisplayName(customerName: string | null | undefined): string {
+  if (!customerName || isIpAddress(customerName)) return "Visitor";
+  return customerName;
+}
+
 function CountryFlag({ code, name }: { code?: string | null; name?: string | null }) {
   if (!code || code === "xx" || code === "XX") return null;
   const lower = code.toLowerCase();
@@ -706,11 +718,12 @@ export default function SessionsPage() {
     return bTime - aTime;
   });
 
-  // Merge sessions with the same client IP into a single list entry (show most recent; badge shows count)
+  // Merge sessions from the same browser (deviceFingerprint) into a single list entry (show most recent; badge shows count).
+  // Using deviceFingerprint instead of clientIp prevents customers on shared IPs/NATs from being collapsed together.
   const displayedSessions = sortedSessions ? (() => {
     const ipMap = new Map<string, SessionWithPreview & { sessionCount: number }>();
     for (const session of sortedSessions) {
-      const key = session.clientIp || session.id;
+      const key = session.deviceFingerprint || session.id;
       const existing = ipMap.get(key);
       if (!existing) {
         ipMap.set(key, { ...session, sessionCount: 1 });
@@ -946,12 +959,12 @@ export default function SessionsPage() {
                             <div className="relative flex-shrink-0">
                               <Avatar className={`h-9 w-9 ${session.visitorSession ? 'ring-2 ring-primary/40' : ''}`}>
                                 {session.customerAvatarUrl ? (
-                                  <AvatarImage src={session.customerAvatarUrl} alt={session.customerName || "Customer"} />
+                                  <AvatarImage src={session.customerAvatarUrl} alt={getVisitorDisplayName(session.customerName)} />
                                 ) : null}
-                                <AvatarFallback className={`${getAvatarColor(session.customerName || "Customer")} text-white text-xs font-semibold`}>
+                                <AvatarFallback className={`${getAvatarColor(getVisitorDisplayName(session.customerName))} text-white text-xs font-semibold`}>
                                   {session.visitorSession
                                     ? <Radio className="w-4 h-4 text-white" />
-                                    : getInitials(session.customerName || "Customer")}
+                                    : getInitials(getVisitorDisplayName(session.customerName))}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="absolute -bottom-0.5 -right-0.5">
@@ -964,7 +977,7 @@ export default function SessionsPage() {
                                 <div className="flex items-center gap-1.5 min-w-0">
                                   <CountryFlag code={session.countryCode} name={session.countryName} />
                                   <span className="text-sm font-semibold truncate font-mono">
-                                    {session.clientIp || session.customerName || "Customer"}
+                                    {session.clientIp || getVisitorDisplayName(session.customerName)}
                                   </span>
                                   <div className="flex items-center gap-1 flex-shrink-0">
                                     <DeviceIcon userAgent={session.userAgent} />
@@ -988,8 +1001,8 @@ export default function SessionsPage() {
                                     : ""}
                                 </span>
                               </div>
-                              {/* Row 2: Customer name */}
-                              {session.customerName && (
+                              {/* Row 2: Customer name (suppressed when customerName is an IP address since Row 1 already shows clientIp) */}
+                              {session.customerName && !isIpAddress(session.customerName) && (
                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                   <span className="truncate">{session.customerName}</span>
                                 </div>
@@ -1055,15 +1068,15 @@ export default function SessionsPage() {
                       {/* Customer avatar with colored initials */}
                       <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
                         {selectedSessionData?.customerAvatarUrl ? (
-                          <AvatarImage src={selectedSessionData.customerAvatarUrl} alt={selectedSessionData?.customerName || "Customer"} />
+                          <AvatarImage src={selectedSessionData.customerAvatarUrl} alt={getVisitorDisplayName(selectedSessionData?.customerName)} />
                         ) : null}
-                        <AvatarFallback className={`${getAvatarColor(selectedSessionData?.customerName || "Customer")} text-white text-sm font-semibold`}>
-                          {getInitials(selectedSessionData?.customerName || "Customer")}
+                        <AvatarFallback className={`${getAvatarColor(getVisitorDisplayName(selectedSessionData?.customerName))} text-white text-sm font-semibold`}>
+                          {getInitials(getVisitorDisplayName(selectedSessionData?.customerName))}
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
                         <CardTitle className="text-sm sm:text-base truncate" data-testid="text-selected-customer">
-                          {selectedSessionData?.customerName || "Customer"}
+                          {getVisitorDisplayName(selectedSessionData?.customerName)}
                         </CardTitle>
                         {/* Client info row: flag + IP + device + OS + browser + country */}
                         <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
@@ -1168,10 +1181,10 @@ export default function SessionsPage() {
                               {isCustomerMessage && (
                                 <Avatar className="h-10 w-10 flex-shrink-0">
                                   {selectedSessionData?.customerAvatarUrl ? (
-                                    <AvatarImage src={selectedSessionData.customerAvatarUrl} alt={selectedSessionData?.customerName || "Customer"} />
+                                    <AvatarImage src={selectedSessionData.customerAvatarUrl} alt={getVisitorDisplayName(selectedSessionData?.customerName)} />
                                   ) : null}
-                                  <AvatarFallback className={`${getAvatarColor(selectedSessionData?.customerName || "Customer")} text-white text-sm font-semibold`}>
-                                    {getInitials(selectedSessionData?.customerName || "Customer")}
+                                  <AvatarFallback className={`${getAvatarColor(getVisitorDisplayName(selectedSessionData?.customerName))} text-white text-sm font-semibold`}>
+                                    {getInitials(getVisitorDisplayName(selectedSessionData?.customerName))}
                                   </AvatarFallback>
                                 </Avatar>
                               )}
@@ -1192,7 +1205,7 @@ export default function SessionsPage() {
                                   {/* Customer name on customer messages */}
                                   {isCustomerMessage && (
                                     <p className="text-[10px] font-medium mb-1 text-foreground/70">
-                                      {selectedSessionData?.customerName || "Customer"}
+                                      {getVisitorDisplayName(selectedSessionData?.customerName)}
                                     </p>
                                   )}
                                   {/* AI/Supervisor name on their messages */}
