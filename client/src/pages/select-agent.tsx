@@ -17,7 +17,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Bot, Plus, Sparkles, ArrowRight, CheckCircle2, Camera, Loader2 } from "lucide-react";
+import { Bot, Plus, ArrowRight, CheckCircle2, Camera, Loader2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Agent, Merchant } from "@shared/schema";
 
 const agentSchema = z.object({
@@ -138,8 +139,9 @@ export default function SelectAgentPage() {
   };
 
   const handleContinue = () => {
-    if (selectedAgentId) {
-      selectAgentMutation.mutate(selectedAgentId);
+    const agentId = selectedAgentId || merchant?.activeAgentId || agents?.[0]?.id;
+    if (agentId) {
+      selectAgentMutation.mutate(agentId);
     }
   };
 
@@ -166,7 +168,7 @@ export default function SelectAgentPage() {
           <header className="flex items-center justify-between gap-4 px-4 border-b border-border h-14 bg-background">
             <div className="flex items-center gap-4">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
-              <span className="font-medium">Select Agent</span>
+              <span className="font-medium">Your Agents</span>
             </div>
             <ThemeToggle />
           </header>
@@ -210,83 +212,88 @@ export default function SelectAgentPage() {
             <div className="relative z-10 p-4 sm:p-6" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 0px))' }}>
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
-                <div className="w-full max-w-4xl">
-                  <Skeleton className="h-12 w-64 mb-8" />
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="w-full max-w-lg">
+                  <Skeleton className="h-8 w-48 mb-2" />
+                  <Skeleton className="h-4 w-72 mb-6" />
+                  <div className="flex flex-col gap-2">
                     {[1, 2, 3].map((i) => (
-                      <Skeleton key={i} className="h-48 w-full" />
+                      <Skeleton key={i} className="h-16 w-full" />
                     ))}
                   </div>
                 </div>
               </div>
             ) : (
               <div className="flex flex-col min-h-[calc(100vh-3.5rem)] sm:min-h-[calc(100vh-8rem)] justify-end sm:justify-center pb-20 sm:pb-0" style={{ paddingBottom: 'max(5rem, calc(env(safe-area-inset-bottom, 0px) + 3rem))' }}>
-                <div className="w-full max-w-4xl mx-auto">
-                  <div className="text-left mb-4 sm:mb-8">
+                <div className="w-full max-w-lg mx-auto">
+                  <div className="text-left mb-4 sm:mb-6">
                     <h1 className="text-2xl sm:text-3xl font-bold mb-2" data-testid="text-select-agent-title">
-                      {hasAgents ? "Select Your AI Agent" : "Create Your First AI Agent"}
+                      {hasAgents ? "Your Agents" : "Create Your First AI Agent"}
                     </h1>
                     <p className="text-muted-foreground max-w-md">
                       {hasAgents
-                        ? "Choose which AI agent will handle your customer conversations."
+                        ? "Select an agent to activate, or create a new one."
                         : "Get started by creating an AI agent that will represent your business."}
                     </p>
                   </div>
 
                   {hasAgents ? (
                     <>
-                      <div className="grid gap-2 sm:gap-4 grid-cols-2 lg:grid-cols-3 mb-4 sm:mb-8">
-                        {agents.map((agent) => (
-                          <Card
-                            key={agent.id}
-                            className={`cursor-pointer transition-all hover-elevate bg-background/70 backdrop-blur-md border-white/20 ${
-                              selectedAgentId === agent.id
-                                ? "border-primary ring-2 ring-primary/20"
-                                : ""
-                            }`}
-                            onClick={() => setSelectedAgentId(agent.id)}
-                            data-testid={`agent-select-card-${agent.id}`}
-                          >
-                            <CardHeader className="flex flex-row items-start gap-2 sm:gap-3 p-2.5 sm:p-6">
-                              {agent.photoUrl && (
-                                <Avatar className="w-8 h-8 sm:w-12 sm:h-12 shrink-0">
-                                  <AvatarImage src={agent.photoUrl} />
-                                </Avatar>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <CardTitle className="text-sm sm:text-lg flex items-center gap-1 sm:gap-2">
-                                  <span className="truncate">{agent.name}</span>
-                                  {selectedAgentId === agent.id && (
-                                    <CheckCircle2 className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-primary shrink-0" />
+                      <ScrollArea className="max-h-[40vh] mb-4">
+                        <div className="flex flex-col gap-2 pr-1">
+                          {agents.map((agent) => {
+                            const isSelected = selectedAgentId === agent.id;
+                            return (
+                              <Card
+                                key={agent.id}
+                                className={`cursor-pointer transition-all hover-elevate bg-background/70 backdrop-blur-md border-white/20 ${
+                                  isSelected ? "border-primary ring-2 ring-primary/20" : ""
+                                }`}
+                                onClick={() => setSelectedAgentId(agent.id)}
+                                data-testid={`agent-select-card-${agent.id}`}
+                              >
+                                <CardHeader className="flex flex-row items-center gap-3 p-3">
+                                  <Avatar className="w-10 h-10 shrink-0">
+                                    {agent.photoUrl && <AvatarImage src={agent.photoUrl} />}
+                                    <AvatarFallback className="bg-muted">
+                                      <Bot className="w-5 h-5 text-muted-foreground" />
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1 min-w-0">
+                                    <CardTitle className="text-sm font-semibold truncate">
+                                      {agent.name}
+                                    </CardTitle>
+                                    <CardDescription className="line-clamp-1 text-xs mt-0.5">
+                                      {agent.description || "No description provided."}
+                                    </CardDescription>
+                                  </div>
+                                  {isSelected && (
+                                    <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
                                   )}
-                                </CardTitle>
-                                <CardDescription className="line-clamp-1 sm:line-clamp-2 text-[10px] sm:text-sm">
-                                  {agent.description || "No description provided."}
-                                </CardDescription>
+                                </CardHeader>
+                              </Card>
+                            );
+                          })}
+
+                          <Card
+                            className="cursor-pointer border-dashed hover-elevate bg-background/70 backdrop-blur-md border-white/20"
+                            onClick={() => setIsDialogOpen(true)}
+                            data-testid="button-create-new-agent"
+                          >
+                            <CardContent className="flex items-center gap-3 py-3 px-3">
+                              <div className="w-10 h-10 rounded-full bg-muted/70 flex items-center justify-center shrink-0">
+                                <Plus className="w-4 h-4 text-muted-foreground" />
                               </div>
-                            </CardHeader>
+                              <p className="font-medium text-sm">Create New Agent</p>
+                            </CardContent>
                           </Card>
-                        ))}
+                        </div>
+                      </ScrollArea>
 
-                        <Card
-                          className="cursor-pointer border-dashed hover-elevate bg-background/70 backdrop-blur-md border-white/20"
-                          onClick={() => setIsDialogOpen(true)}
-                          data-testid="button-create-new-agent"
-                        >
-                          <CardContent className="flex flex-col items-center justify-center h-full py-4 sm:py-12">
-                            <div className="w-7 h-7 sm:w-12 sm:h-12 rounded-full bg-muted/70 flex items-center justify-center mb-1.5 sm:mb-3">
-                              <Plus className="w-3.5 h-3.5 sm:w-6 sm:h-6 text-muted-foreground" />
-                            </div>
-                            <p className="font-medium text-xs sm:text-base">Create New Agent</p>
-                          </CardContent>
-                        </Card>
-                      </div>
-
-                      <div className="flex justify-center">
+                      <div className="flex justify-start">
                         <Button
                           size="lg"
                           onClick={handleContinue}
-                          disabled={!selectedAgentId || selectAgentMutation.isPending}
+                          disabled={!hasAgents || selectAgentMutation.isPending}
                           data-testid="button-continue-dashboard"
                         >
                           {selectAgentMutation.isPending ? "Saving..." : "Continue to Dashboard"}
