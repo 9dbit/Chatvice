@@ -1,3 +1,4 @@
+import { Component, type ReactNode } from "react";
 import { Route, Switch, useLocation, Redirect, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -5,7 +6,39 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AIHelpBubble } from "@/components/ai-help-bubble";
 import { MerchantNotificationCenter } from "@/components/merchant-notification-center";
-import { ChevronRight, Home, Loader2 } from "lucide-react";
+import { ChevronRight, Home, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
+
+class PageErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      const msg = (this.state.error as Error).message || "Unknown error";
+      return (
+        <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
+          <AlertTriangle className="w-10 h-10 text-destructive" />
+          <div>
+            <p className="font-semibold text-lg">Something went wrong loading this page.</p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-md font-mono break-all">{msg}</p>
+          </div>
+          <button
+            onClick={() => { this.setState({ error: null }); window.location.reload(); }}
+            className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:opacity-90"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Reload page
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import DashboardOverview from "./overview";
 import SessionsPage from "./sessions";
 import KnowledgePage from "./knowledge";
@@ -136,6 +169,7 @@ export default function DashboardLayout() {
             </div>
           </header>
           <main className="flex-1 overflow-auto p-3 sm:p-6 bg-background">
+            <PageErrorBoundary>
             <Switch>
               <Route path="/dashboard" component={DashboardOverview} />
               <Route path="/dashboard/profile" component={ProfilePage} />
@@ -170,6 +204,7 @@ export default function DashboardLayout() {
                 <Redirect to="/dashboard/knowledge" />
               </Route>
             </Switch>
+            </PageErrorBoundary>
           </main>
           <AIHelpBubble />
         </div>
