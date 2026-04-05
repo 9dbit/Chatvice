@@ -331,7 +331,7 @@ export default function SessionsPage() {
     setIsPreviewExpanded(false);
   }, [selectedSession]);
 
-  // Reset auto-translate state when switching sessions
+  // Reset auto-translate and auto-refine state when switching sessions
   useEffect(() => {
     setAutoTranslateEnabled(false);
     setTranslateLang("Indonesian");
@@ -339,6 +339,11 @@ export default function SessionsPage() {
     setTranslatingIds(new Set());
     translationFetchingRef.current.clear();
     translationsDoneRef.current.clear();
+    // Clear any pending refine suggestion so stale state doesn't carry over
+    setAutoRefineEnabled(false);
+    setRefineSuggestion(null);
+    setRefineOriginalText(null);
+    setIsRefining(false);
   }, [selectedSession]);
 
   const { data: sessions, isLoading: sessionsLoading } = useQuery<SessionWithPreview[]>({
@@ -2069,6 +2074,7 @@ export default function SessionsPage() {
                             value={newMessage}
                             onChange={handleMessageInputChange}
                             onKeyDown={handleKeyPress}
+                            disabled={isRefining || refineSuggestion !== null}
                             className="h-9"
                             data-testid="input-send-message"
                           />
