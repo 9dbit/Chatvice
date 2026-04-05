@@ -172,44 +172,9 @@ export default function SelectAgentPage() {
             </div>
             <ThemeToggle />
           </header>
-          <main className="flex-1 overflow-auto relative bg-white dark:bg-zinc-950">
-            {/* Solid base background - light for light mode, dark for dark mode */}
-            <div className="absolute inset-0 bg-white dark:bg-zinc-950" />
-            {/* Video Background - Responsive with light/dark mode support */}
-            <div className="absolute inset-0 overflow-hidden">
-              {/* Desktop Video - Zero Gravity Particles */}
-              <video
-                autoPlay
-                loop
-                muted
-                playsInline
-                preload="auto"
-                disablePictureInPicture
-                data-testid="video-bg-desktop"
-                className="hidden sm:block w-full h-full object-cover object-center opacity-80 dark:invert-0 invert dark:hue-rotate-0 hue-rotate-180"
-                style={{ WebkitTransform: 'translateZ(0)' }}
-              >
-                <source src="/agent-bg-desktop.mp4" type="video/mp4" />
-              </video>
-              {/* Mobile Video - Zero Gravity Particles */}
-              <video
-                autoPlay
-                loop
-                muted
-                playsInline
-                preload="auto"
-                disablePictureInPicture
-                data-testid="video-bg-mobile"
-                className="sm:hidden w-full h-full object-cover object-center opacity-80 dark:invert-0 invert dark:hue-rotate-0 hue-rotate-180"
-                style={{ WebkitTransform: 'translateZ(0)' }}
-              >
-                <source src="/agent-bg-mobile.mp4" type="video/mp4" />
-              </video>
-              {/* Subtle overlay for text readability - adapts to light/dark mode */}
-              <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-transparent to-white/50 dark:from-zinc-950/30 dark:via-transparent dark:to-zinc-950/50" />
-            </div>
+          <main className="flex-1 overflow-auto bg-background">
 
-            <div className="relative z-10 p-4 sm:p-6" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 0px))' }}>
+            <div className="p-4 sm:p-6" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 0px))' }}>
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="w-full max-w-lg">

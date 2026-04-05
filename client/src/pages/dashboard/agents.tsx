@@ -282,35 +282,8 @@ export default function AgentsPage() {
   const hasNoAgents = !agents || agents.length === 0;
 
   return (
-    <div className={`${hasNoAgents ? 'relative min-h-[calc(100vh-8rem)]' : 'space-y-4 sm:space-y-6'}`}>
-      {/* Video Background for empty state - Responsive */}
-      {hasNoAgents && (
-        <div className="absolute inset-0 overflow-hidden -m-4 sm:-m-6">
-          {/* Desktop Video */}
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="hidden sm:block w-full h-full object-cover object-center"
-          >
-            <source src="/agent-bg-desktop.mp4" type="video/mp4" />
-          </video>
-          {/* Mobile Video */}
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="sm:hidden w-full h-full object-cover object-center"
-          >
-            <source src="/agent-bg-mobile.mp4" type="video/mp4" />
-          </video>
-          <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px]" />
-        </div>
-      )}
+    <div className="space-y-4 sm:space-y-6">
 
-      <div className={`${hasNoAgents ? 'relative z-10 p-4 sm:p-6' : ''} space-y-4 sm:space-y-6`}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold">AI Agents</h1>
@@ -946,7 +919,7 @@ export default function AgentsPage() {
         </Card>
       )}
 
-      <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2">
         {agents && agents.length > 0 ? (
           agents.map((agent) => {
             return (
@@ -955,21 +928,21 @@ export default function AgentsPage() {
               className="hover-elevate transition-all" 
               data-testid={`agent-card-${agent.id}`}
             >
-              <CardHeader className="flex flex-row items-start justify-between gap-2 sm:gap-4 p-4 sm:p-6">
-                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                  <Avatar className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0">
+              <CardHeader className="flex flex-row items-start justify-between gap-4 p-6">
+                <div className="flex items-center gap-4 min-w-0">
+                  <Avatar className="w-14 h-14 flex-shrink-0">
                     <AvatarImage src={agent.photoUrl || ""} />
                     <AvatarFallback className="bg-gradient-to-br from-primary to-primary/60">
-                      <Bot className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" />
+                      <Bot className="w-7 h-7 text-primary-foreground" />
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
-                    <CardTitle className="text-base sm:text-lg truncate">{agent.name}</CardTitle>
+                    <CardTitle className="text-lg truncate">{agent.name}</CardTitle>
                     <div className="flex items-center gap-2 mt-1">
                       {agent.isActive ? (
-                        <Badge variant="default" className="text-[10px] sm:text-xs">Active</Badge>
+                        <Badge variant="default" className="text-xs">Active</Badge>
                       ) : (
-                        <Badge variant="secondary" className="text-[10px] sm:text-xs">Inactive</Badge>
+                        <Badge variant="secondary" className="text-xs">Inactive</Badge>
                       )}
                     </div>
                   </div>
@@ -980,8 +953,8 @@ export default function AgentsPage() {
                   data-testid={`switch-agent-${agent.id}`}
                 />
               </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
-                <p className="text-xs sm:text-sm text-muted-foreground mb-3 line-clamp-2">
+              <CardContent className="p-6 pt-0">
+                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
                   {agent.description || "No description provided."}
                 </p>
                 
@@ -1091,7 +1064,6 @@ export default function AgentsPage() {
             </CardContent>
           </Card>
         )}
-      </div>
       </div>
 
       <PlanLimitPopup
