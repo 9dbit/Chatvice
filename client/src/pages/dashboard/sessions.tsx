@@ -1420,7 +1420,7 @@ export default function SessionsPage() {
                                     data-testid="button-export-transcript-mobile"
                                   >
                                     <Download className="w-3.5 h-3.5" />
-                                    Export
+                                    Export transcript
                                   </Button>
                                 </div>
                                 <div className="border-t" />
