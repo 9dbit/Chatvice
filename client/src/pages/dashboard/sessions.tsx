@@ -1022,45 +1022,45 @@ export default function SessionsPage() {
             </div>
             <p className="text-muted-foreground text-xs sm:text-sm hidden sm:block">View and manage customer conversations</p>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs flex-wrap">
+          <div className="flex items-center gap-1 sm:gap-3 text-[9px] sm:text-xs flex-wrap">
             <button
               onClick={() => setStatusFilter(statusFilter === "angry" ? "all" : "angry")}
-              className={`flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded border cursor-pointer select-none transition-colors ${statusFilter === "angry" ? "bg-red-500/30 border-red-500/50" : "bg-red-500/10 border-red-500/20 hover:bg-red-500/20"}`}
+              className={`flex items-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 py-0 sm:py-0.5 rounded border cursor-pointer select-none transition-colors ${statusFilter === "angry" ? "bg-red-500/30 border-red-500/50" : "bg-red-500/10 border-red-500/20 hover:bg-red-500/20"}`}
               title="Filter: Alert"
               data-testid="button-filter-angry"
             >
               <StatusDot status="angry" />
-              <span className="text-red-600 dark:text-red-400">Alert</span>
+              <span className="hidden sm:inline text-red-600 dark:text-red-400">Alert</span>
               <span data-testid="text-count-angry">{statusCounts.angry}</span>
             </button>
             <button
               onClick={() => setStatusFilter(statusFilter === "active" ? "all" : "active")}
-              className={`flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded border cursor-pointer select-none transition-colors ${statusFilter === "active" ? "bg-green-500/30 border-green-500/50" : "bg-green-500/10 border-green-500/20 hover:bg-green-500/20"}`}
+              className={`flex items-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 py-0 sm:py-0.5 rounded border cursor-pointer select-none transition-colors ${statusFilter === "active" ? "bg-green-500/30 border-green-500/50" : "bg-green-500/10 border-green-500/20 hover:bg-green-500/20"}`}
               title="Filter: Active"
               data-testid="button-filter-active"
             >
               <StatusDot status="active" />
-              <span className="text-green-600 dark:text-green-400">Active</span>
+              <span className="hidden sm:inline text-green-600 dark:text-green-400">Active</span>
               <span data-testid="text-count-active">{statusCounts.active}</span>
             </button>
             <button
               onClick={() => setStatusFilter(statusFilter === "needs_response" ? "all" : "needs_response")}
-              className={`flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded border cursor-pointer select-none transition-colors ${statusFilter === "needs_response" ? "bg-orange-500/30 border-orange-500/50" : "bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/20"}`}
+              className={`flex items-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 py-0 sm:py-0.5 rounded border cursor-pointer select-none transition-colors ${statusFilter === "needs_response" ? "bg-orange-500/30 border-orange-500/50" : "bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/20"}`}
               title="Filter: Pending"
               data-testid="button-filter-needs-response"
             >
               <StatusDot status="needs_response" />
-              <span className="text-orange-600 dark:text-orange-400">Pending</span>
+              <span className="hidden sm:inline text-orange-600 dark:text-orange-400">Pending</span>
               <span data-testid="text-count-needs-response">{statusCounts.needsResponse}</span>
             </button>
             <button
               onClick={() => setStatusFilter(statusFilter === "ended" ? "all" : "ended")}
-              className={`flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded border cursor-pointer select-none transition-colors ${statusFilter === "ended" ? "bg-gray-500/30 border-gray-500/50" : "bg-gray-500/10 border-gray-500/20 hover:bg-gray-500/20"}`}
+              className={`flex items-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 py-0 sm:py-0.5 rounded border cursor-pointer select-none transition-colors ${statusFilter === "ended" ? "bg-gray-500/30 border-gray-500/50" : "bg-gray-500/10 border-gray-500/20 hover:bg-gray-500/20"}`}
               title="Filter: Finished"
               data-testid="button-filter-ended"
             >
               <StatusDot status="ended" />
-              <span className="text-gray-600 dark:text-gray-400">Finished</span>
+              <span className="hidden sm:inline text-gray-600 dark:text-gray-400">Finished</span>
               <span data-testid="text-count-ended">{statusCounts.ended}</span>
             </button>
             <Button
