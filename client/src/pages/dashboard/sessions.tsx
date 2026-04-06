@@ -1069,33 +1069,37 @@ export default function SessionsPage() {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
         <div className={`lg:col-span-5 xl:col-span-4 flex flex-col min-h-0 ${selectedSession ? 'hidden lg:flex' : 'flex'}`}>
           <Card className="flex flex-col h-full">
-            <CardHeader className="flex-shrink-0 py-3 px-4 space-y-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search sessions..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9"
-                  data-testid="input-search-sessions"
-                />
+            <CardHeader className="flex-shrink-0 py-3 px-4">
+              <div className="flex items-center gap-2">
+                <div className="relative w-[30%] flex-shrink-0">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search sessions..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 h-9"
+                    data-testid="input-search-sessions"
+                  />
+                </div>
+                {agents && agents.length > 0 && (
+                  <div className="flex-1 min-w-0">
+                    <Select value={agentFilter} onValueChange={setAgentFilter}>
+                      <SelectTrigger className="h-9 w-full" data-testid="select-agent-filter">
+                        <Filter className="w-4 h-4 mr-2 text-muted-foreground flex-shrink-0" />
+                        <SelectValue placeholder="All Agents" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Agents</SelectItem>
+                        {agents.map((agent) => (
+                          <SelectItem key={agent.id} value={agent.id}>
+                            {agent.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
-              {agents && agents.length > 0 && (
-                <Select value={agentFilter} onValueChange={setAgentFilter}>
-                  <SelectTrigger className="h-9" data-testid="select-agent-filter">
-                    <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
-                    <SelectValue placeholder="Filter by agent" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Agents</SelectItem>
-                    {agents.map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id}>
-                        {agent.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden p-0">
               <ScrollArea className="h-full">
