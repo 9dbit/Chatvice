@@ -1932,11 +1932,12 @@ export default function SessionsPage() {
                               size="sm"
                               variant="outline"
                               className="flex-1 h-8 gap-1.5"
-                              onClick={() => {
+                              onClick={async () => {
                                 const original = refineOriginalText ?? "";
                                 setRefineSuggestion(null);
                                 setRefineOriginalText(null);
-                                setNewMessage(original);
+                                setNewMessage("");
+                                await dispatchSend(original);
                               }}
                               data-testid="button-refine-reject"
                             >
