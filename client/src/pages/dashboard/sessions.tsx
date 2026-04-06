@@ -1246,18 +1246,10 @@ export default function SessionsPage() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <CardTitle className="text-sm sm:text-base truncate" data-testid="text-selected-customer">
-                            {getVisitorDisplayName(selectedSessionData?.customerName)}
-                          </CardTitle>
-                          {selectedSessionData?.lastActivity && (
-                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground flex-shrink-0">
-                              <Clock className="w-3 h-3" />
-                              {formatDistanceToNow(new Date(selectedSessionData.lastActivity), { addSuffix: true })}
-                            </span>
-                          )}
-                        </div>
-                        {/* Client info row: flag + IP + device + OS + browser + country */}
+                        <CardTitle className="text-sm sm:text-base truncate" data-testid="text-selected-customer">
+                          {getVisitorDisplayName(selectedSessionData?.customerName)}
+                        </CardTitle>
+                        {/* Client info row: flag + IP + device + OS + browser */}
                         <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                           <CountryFlag code={selectedSessionData?.countryCode} name={selectedSessionData?.countryName} />
                           {selectedSessionData?.clientIp && (
@@ -1269,7 +1261,7 @@ export default function SessionsPage() {
                           <OsIcon userAgent={selectedSessionData?.userAgent} size="md" />
                           <BrowserIcon userAgent={selectedSessionData?.userAgent} size="md" />
                           {selectedSessionData?.countryName && selectedSessionData.countryCode !== "xx" && selectedSessionData.countryCode !== "XX" && (
-                            <span className="text-[11px] sm:text-xs text-muted-foreground">
+                            <span className="hidden sm:inline text-[11px] sm:text-xs text-muted-foreground">
                               {selectedSessionData.countryName}
                             </span>
                           )}
@@ -1285,10 +1277,10 @@ export default function SessionsPage() {
                             variant="ghost"
                             onClick={() => refetchMessages()}
                             title="Refresh"
-                            className="h-7 w-7 sm:h-8 sm:w-8"
+                            className="hidden sm:flex h-8 w-8"
                             data-testid="button-refresh-messages"
                           >
-                            <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                            <RefreshCw className="w-4 h-4" />
                           </Button>
 
                           {/* Desktop: Auto Refine toggle (hidden on mobile) */}
@@ -1400,6 +1392,30 @@ export default function SessionsPage() {
                             </PopoverTrigger>
                             <PopoverContent side="bottom" align="end" className="w-60 p-3">
                               <div className="flex flex-col gap-3">
+                                {/* Quick actions: Refresh + Export */}
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="flex-1 gap-1.5"
+                                    onClick={() => { refetchMessages(); setShowMobileSettings(false); }}
+                                    data-testid="button-refresh-messages-mobile"
+                                  >
+                                    <RefreshCw className="w-3.5 h-3.5" />
+                                    Refresh
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="flex-1 gap-1.5"
+                                    onClick={() => { handleExportTranscript(); setShowMobileSettings(false); }}
+                                    data-testid="button-export-transcript-mobile"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                    Export
+                                  </Button>
+                                </div>
+                                <div className="border-t" />
                                 {/* Auto Translate */}
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-1.5">
@@ -1477,10 +1493,10 @@ export default function SessionsPage() {
                             variant="ghost"
                             onClick={handleExportTranscript}
                             title="Export"
-                            className="h-7 w-7 sm:h-8 sm:w-8"
+                            className="hidden sm:flex h-8 w-8"
                             data-testid="button-export-transcript"
                           >
-                            <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                            <Download className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
@@ -1864,6 +1880,13 @@ export default function SessionsPage() {
                       )}
                     </div>
                   </ScrollArea>
+                  {/* Last active — mobile only, shown just above the input */}
+                  {selectedSessionData?.lastActivity && (
+                    <div className="flex sm:hidden items-center gap-1 px-3 py-1 border-t text-[11px] text-muted-foreground">
+                      <Clock className="w-3 h-3 flex-shrink-0" />
+                      <span>Last active {formatDistanceToNow(new Date(selectedSessionData.lastActivity), { addSuffix: true })}</span>
+                    </div>
+                  )}
                   {selectedSessionData?.mode === "HUMAN" && (
                     <div className="flex-shrink-0 p-3 border-t bg-background relative">
                       <input
@@ -2127,11 +2150,6 @@ export default function SessionsPage() {
                           )}
                         </Button>
                       </div>
-                      {quickReplies.length > 0 && (
-                        <p className="text-xs text-muted-foreground mt-1.5">
-                          Type "/" to see quick replies
-                        </p>
-                      )}
                     </div>
                   )}
                 </CardContent>
