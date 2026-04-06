@@ -188,18 +188,20 @@ function BrowserIcon({ userAgent, size = "sm" }: { userAgent?: string | null; si
   return <Globe className={`${cls} text-muted-foreground`} />;
 }
 
-function HandlerAvatar({ mode, supervisorPhoto, agentPhoto, size = "md" }: { 
+function HandlerAvatar({ mode, supervisorPhoto, agentPhoto, size = "md", className: extraClass }: { 
   mode: "AI" | "HUMAN";
   supervisorPhoto?: string | null;
   agentPhoto?: string | null;
   size?: "sm" | "md";
+  className?: string;
 }) {
   const avatarCls = size === "sm" ? "h-8 w-8 border border-primary/20" : "h-12 w-12 border-2 border-primary/20";
   const iconCls  = size === "sm" ? "h-4 w-4" : "h-6 w-6";
+  const combinedCls = extraClass ? `${avatarCls} ${extraClass}` : avatarCls;
 
   if (mode === "HUMAN") {
     return (
-      <Avatar className={`${avatarCls} border-primary/20`}>
+      <Avatar className={`${combinedCls} border-primary/20`}>
         {supervisorPhoto ? (
           <AvatarImage src={supervisorPhoto} alt="Supervisor" />
         ) : null}
@@ -211,7 +213,7 @@ function HandlerAvatar({ mode, supervisorPhoto, agentPhoto, size = "md" }: {
   }
   
   return (
-    <Avatar className={`${avatarCls} border-secondary/20`}>
+    <Avatar className={`${combinedCls} border-secondary/20`}>
       {agentPhoto ? (
         <AvatarImage src={agentPhoto} alt="AI Agent" />
       ) : null}
@@ -1022,10 +1024,10 @@ export default function SessionsPage() {
             </div>
             <p className="text-muted-foreground text-xs sm:text-sm hidden sm:block">View and manage customer conversations</p>
           </div>
-          <div className="flex items-center gap-1 sm:gap-3 text-[9px] sm:text-xs flex-wrap">
+          <div className={`${selectedSession ? 'hidden' : 'flex'} sm:flex items-center gap-1 sm:gap-3 text-[8px] sm:text-xs flex-wrap`}>
             <button
               onClick={() => setStatusFilter(statusFilter === "angry" ? "all" : "angry")}
-              className={`flex items-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 py-0 sm:py-0.5 rounded border cursor-pointer select-none transition-colors ${statusFilter === "angry" ? "bg-red-500/30 border-red-500/50" : "bg-red-500/10 border-red-500/20 hover:bg-red-500/20"}`}
+              className={`flex items-center gap-0.5 sm:gap-1.5 px-0.5 sm:px-2 py-0 sm:py-0.5 rounded border cursor-pointer select-none transition-colors ${statusFilter === "angry" ? "bg-red-500/30 border-red-500/50" : "bg-red-500/10 border-red-500/20 hover:bg-red-500/20"}`}
               title="Filter: Alert"
               data-testid="button-filter-angry"
             >
@@ -1035,7 +1037,7 @@ export default function SessionsPage() {
             </button>
             <button
               onClick={() => setStatusFilter(statusFilter === "active" ? "all" : "active")}
-              className={`flex items-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 py-0 sm:py-0.5 rounded border cursor-pointer select-none transition-colors ${statusFilter === "active" ? "bg-green-500/30 border-green-500/50" : "bg-green-500/10 border-green-500/20 hover:bg-green-500/20"}`}
+              className={`flex items-center gap-0.5 sm:gap-1.5 px-0.5 sm:px-2 py-0 sm:py-0.5 rounded border cursor-pointer select-none transition-colors ${statusFilter === "active" ? "bg-green-500/30 border-green-500/50" : "bg-green-500/10 border-green-500/20 hover:bg-green-500/20"}`}
               title="Filter: Active"
               data-testid="button-filter-active"
             >
@@ -1045,7 +1047,7 @@ export default function SessionsPage() {
             </button>
             <button
               onClick={() => setStatusFilter(statusFilter === "needs_response" ? "all" : "needs_response")}
-              className={`flex items-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 py-0 sm:py-0.5 rounded border cursor-pointer select-none transition-colors ${statusFilter === "needs_response" ? "bg-orange-500/30 border-orange-500/50" : "bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/20"}`}
+              className={`flex items-center gap-0.5 sm:gap-1.5 px-0.5 sm:px-2 py-0 sm:py-0.5 rounded border cursor-pointer select-none transition-colors ${statusFilter === "needs_response" ? "bg-orange-500/30 border-orange-500/50" : "bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/20"}`}
               title="Filter: Pending"
               data-testid="button-filter-needs-response"
             >
@@ -1055,7 +1057,7 @@ export default function SessionsPage() {
             </button>
             <button
               onClick={() => setStatusFilter(statusFilter === "ended" ? "all" : "ended")}
-              className={`flex items-center gap-0.5 sm:gap-1.5 px-1 sm:px-2 py-0 sm:py-0.5 rounded border cursor-pointer select-none transition-colors ${statusFilter === "ended" ? "bg-gray-500/30 border-gray-500/50" : "bg-gray-500/10 border-gray-500/20 hover:bg-gray-500/20"}`}
+              className={`flex items-center gap-0.5 sm:gap-1.5 px-0.5 sm:px-2 py-0 sm:py-0.5 rounded border cursor-pointer select-none transition-colors ${statusFilter === "ended" ? "bg-gray-500/30 border-gray-500/50" : "bg-gray-500/10 border-gray-500/20 hover:bg-gray-500/20"}`}
               title="Filter: Finished"
               data-testid="button-filter-ended"
             >
@@ -1073,9 +1075,9 @@ export default function SessionsPage() {
             >
               {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             </Button>
-            {/* Handler avatar + name: right of sound button, right-aligned */}
+            {/* Handler avatar + name: right of sound button, right-aligned (desktop only; mobile shows it in chat header) */}
             {selectedSession && selectedSessionData && (
-              <div className="flex items-center gap-1.5 ml-auto" data-testid="handler-identity">
+              <div className="hidden sm:flex items-center gap-1.5 ml-auto" data-testid="handler-identity">
                 <HandlerAvatar
                   size="sm"
                   mode={selectedSessionData.mode as "AI" | "HUMAN"}
@@ -1098,7 +1100,7 @@ export default function SessionsPage() {
           <Card className="flex flex-col h-full">
             <CardHeader className="flex-shrink-0 py-3 px-4">
               <div className="flex items-center gap-2">
-                <div className="relative w-[30%] flex-shrink-0">
+                <div className="relative w-[60%] flex-shrink-0">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     placeholder="Search sessions..."
@@ -1130,7 +1132,7 @@ export default function SessionsPage() {
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden p-0">
               <ScrollArea className="h-full">
-                <div className="px-2 pb-2 space-y-1">
+                <div className="pb-2 divide-y divide-border/40">
                   {sessionsLoading ? (
                     <>
                       {[1, 2, 3, 4, 5].map((i) => (
@@ -1146,9 +1148,9 @@ export default function SessionsPage() {
                         <button
                           key={session.id}
                           onClick={() => setSelectedSession(session.id)}
-                          className={`w-full p-2.5 rounded-lg text-left transition-colors hover-elevate ${
+                          className={`w-full px-3 py-2.5 text-left transition-colors hover-elevate ${
                             isSelected
-                              ? "bg-primary/10 border border-primary/30"
+                              ? "bg-primary/10"
                               : "hover:bg-muted/80"
                           }`}
                           data-testid={`button-session-${session.id}`}
@@ -1309,6 +1311,30 @@ export default function SessionsPage() {
                     </div>
                     {/* RIGHT: action buttons */}
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                      {/* Mobile-only: agent/supervisor avatar in chat header */}
+                      {selectedSessionData && (
+                        <div className="flex sm:hidden">
+                          {selectedSessionData.mode === "HUMAN" ? (
+                            <Avatar className="h-10 w-10 border border-primary/20">
+                              {getSupervisorPhoto(selectedSessionData.supervisorId, selectedSessionData.agentId) ? (
+                                <AvatarImage src={getSupervisorPhoto(selectedSessionData.supervisorId, selectedSessionData.agentId)!} alt="Supervisor" />
+                              ) : null}
+                              <AvatarFallback className="bg-primary/10">
+                                <HeadphonesIcon className="h-5 w-5 text-primary" />
+                              </AvatarFallback>
+                            </Avatar>
+                          ) : (
+                            <Avatar className="h-10 w-10 border border-secondary/20">
+                              {getAgentPhoto(selectedSessionData.agentId) ? (
+                                <AvatarImage src={getAgentPhoto(selectedSessionData.agentId)!} alt="AI Agent" />
+                              ) : null}
+                              <AvatarFallback className="bg-secondary">
+                                <Bot className="h-5 w-5 text-secondary-foreground" />
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                        </div>
+                      )}
                       <div className="flex flex-col items-end gap-1">
                         <div className="flex items-center gap-1 sm:gap-1.5">
                           <Button
@@ -1544,7 +1570,7 @@ export default function SessionsPage() {
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col p-0 overflow-hidden min-h-0">
                   <ScrollArea className="flex-1">
-                    <div className="p-4 space-y-3 overflow-x-hidden">
+                    <div className="p-4 space-y-1.5 overflow-x-hidden">
                       {messagesLoading ? (
                         <>
                           {[1, 2, 3].map((i) => (
@@ -1556,13 +1582,13 @@ export default function SessionsPage() {
                           {messages.map((msg, index) => {
                             const isCustomerMessage = msg.from === "customer" || msg.from === "user";
                             return (
-                            <div key={msg.id || index} className="space-y-2">
+                            <div key={msg.id || index} className="space-y-1">
                             <div
                               className={`flex gap-2.5 ${isCustomerMessage ? "justify-start" : "justify-end"} group`}
                             >
-                              {/* Customer avatar on left */}
+                              {/* Customer avatar on left (hidden on mobile) */}
                               {isCustomerMessage && (
-                                <Avatar className="h-10 w-10 flex-shrink-0">
+                                <Avatar className="hidden sm:flex h-10 w-10 flex-shrink-0">
                                   {selectedSessionData?.customerAvatarUrl ? (
                                     <AvatarImage src={selectedSessionData.customerAvatarUrl} alt={getVisitorDisplayName(selectedSessionData?.customerName)} />
                                   ) : null}
@@ -1585,21 +1611,31 @@ export default function SessionsPage() {
                                     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
                                   } : undefined}
                                 >
-                                  {/* Customer name on customer messages */}
+                                  {/* Customer name + timestamp on same row */}
                                   {isCustomerMessage && (
-                                    <p className="text-[10px] font-medium mb-1 text-foreground/70">
-                                      {getVisitorDisplayName(selectedSessionData?.customerName)}
-                                    </p>
+                                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                                      <span className="text-[10px] font-medium text-foreground/70 truncate">
+                                        {getVisitorDisplayName(selectedSessionData?.customerName)}
+                                      </span>
+                                      <span className="text-[10px] text-muted-foreground whitespace-nowrap flex-shrink-0">
+                                        {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
+                                      </span>
+                                    </div>
                                   )}
-                                  {/* AI/Supervisor name on their messages */}
+                                  {/* AI/Supervisor name + timestamp on same row */}
                                   {!isCustomerMessage && msg.from !== "system" && (
-                                    <p className="text-[10px] font-medium mb-1 text-primary-foreground/80">
-                                      {msg.from === "chatvice" || msg.from === "bot" || msg.from === "ai"
-                                        ? getAgentName(selectedSessionData?.agentId)
-                                        : msg.from === "supervisor" 
-                                          ? getSupervisorName(selectedSessionData?.supervisorId, selectedSessionData?.agentId) || "Supervisor"
-                                          : getAgentName(selectedSessionData?.agentId)}
-                                    </p>
+                                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                                      <span className="text-[10px] font-medium text-primary-foreground/80 truncate">
+                                        {msg.from === "chatvice" || msg.from === "bot" || msg.from === "ai"
+                                          ? getAgentName(selectedSessionData?.agentId)
+                                          : msg.from === "supervisor"
+                                            ? getSupervisorName(selectedSessionData?.supervisorId, selectedSessionData?.agentId) || "Supervisor"
+                                            : getAgentName(selectedSessionData?.agentId)}
+                                      </span>
+                                      <span className="text-[10px] text-primary-foreground/60 whitespace-nowrap flex-shrink-0">
+                                        {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
+                                      </span>
+                                    </div>
                                   )}
                                   {!((msg as any).messageType === "media" && ((msg as any).payload?.url || (msg as any).payload?.mediaUrl)) && 
                                    !((msg as any).messageType === "product_offer" && (msg as any).payload?.productCard) && (
@@ -1782,9 +1818,12 @@ export default function SessionsPage() {
                                       </p>
                                     ) : null;
                                   })()}
-                                  <p className={`text-[10px] mt-1 ${msg.from === "user" ? "text-muted-foreground" : "text-primary-foreground/60"}`}>
-                                    {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
-                                  </p>
+                                  {/* Standalone timestamp only for system messages (others have it inline with name) */}
+                                  {msg.from === "system" && (
+                                    <p className="text-[10px] mt-1 text-muted-foreground">
+                                      {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""}
+                                    </p>
+                                  )}
                                 </div>
                                 {msg.from === "chatvice" && (
                                   <Button
@@ -1799,9 +1838,9 @@ export default function SessionsPage() {
                                   </Button>
                                 )}
                               </div>
-                              {/* Agent/Supervisor avatar on right */}
+                              {/* Agent/Supervisor avatar on right (hidden on mobile) */}
                               {!isCustomerMessage && (
-                                <Avatar className="h-10 w-10 flex-shrink-0">
+                                <Avatar className="hidden sm:flex h-10 w-10 flex-shrink-0">
                                   {msg.from === "chatvice" || msg.from === "bot" || msg.from === "ai" ? (
                                     getAgentPhoto(selectedSessionData?.agentId) ? (
                                       <AvatarImage src={getAgentPhoto(selectedSessionData?.agentId)!} alt="AI" />
@@ -1823,7 +1862,7 @@ export default function SessionsPage() {
                             </div>
                             {/* Auto-translate: show translated text below message bubble */}
                             {autoTranslateEnabled && msg.content?.trim() && (
-                              <div className={`flex mt-0.5 ${isCustomerMessage ? "justify-start pl-12" : "justify-end pr-[50px]"}`}>
+                              <div className={`flex mt-0.5 ${isCustomerMessage ? "justify-start pl-0 sm:pl-12" : "justify-end pr-0 sm:pr-[50px]"}`}>
                                 <div className="flex items-start gap-1 text-[11px] text-muted-foreground italic max-w-[75%] min-w-0">
                                   {translatingIds.has(String(msg.id)) ? (
                                     <>
