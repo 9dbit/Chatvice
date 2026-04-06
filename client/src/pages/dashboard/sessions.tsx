@@ -1517,7 +1517,7 @@ export default function SessionsPage() {
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col p-0 overflow-hidden min-h-0">
                   <ScrollArea className="flex-1">
-                    <div className="p-4 space-y-3">
+                    <div className="p-4 space-y-3 overflow-x-hidden">
                       {messagesLoading ? (
                         <>
                           {[1, 2, 3].map((i) => (
@@ -1544,7 +1544,7 @@ export default function SessionsPage() {
                                   </AvatarFallback>
                                 </Avatar>
                               )}
-                              <div className="relative max-w-[75%]">
+                              <div className="relative max-w-[75%] min-w-0">
                                 <div
                                   className={`p-2.5 ${
                                     isCustomerMessage
@@ -1796,8 +1796,8 @@ export default function SessionsPage() {
                             </div>
                             {/* Auto-translate: show translated text below message bubble */}
                             {autoTranslateEnabled && msg.content?.trim() && (
-                              <div className={`flex mt-0.5 ${isCustomerMessage ? "justify-start pl-12" : "justify-end pr-12"}`}>
-                                <div className="flex items-start gap-1 text-[11px] text-muted-foreground italic max-w-[75%]">
+                              <div className={`flex mt-0.5 ${isCustomerMessage ? "justify-start pl-12" : "justify-end pr-[50px]"}`}>
+                                <div className="flex items-start gap-1 text-[11px] text-muted-foreground italic max-w-[75%] min-w-0">
                                   {translatingIds.has(String(msg.id)) ? (
                                     <>
                                       <Loader2 className="w-3 h-3 mt-0.5 flex-shrink-0 animate-spin" />
@@ -1806,7 +1806,6 @@ export default function SessionsPage() {
                                   ) : translations.has(String(msg.id)) ? (
                                     <>
                                       <Languages className="w-3 h-3 mt-0.5 flex-shrink-0 text-muted-foreground/70" />
-                                      <span className="not-italic font-medium text-muted-foreground/60 mr-0.5">Translated:</span>
                                       <span className="leading-snug">{translations.get(String(msg.id))}</span>
                                     </>
                                   ) : null}
