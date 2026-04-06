@@ -1075,9 +1075,9 @@ export default function SessionsPage() {
             >
               {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             </Button>
-            {/* Handler avatar + name: right of sound button, right-aligned (desktop only; mobile shows it in chat header) */}
+            {/* Handler avatar + name: right of sound button, right-aligned */}
             {selectedSession && selectedSessionData && (
-              <div className="hidden sm:flex items-center gap-1.5 ml-auto" data-testid="handler-identity">
+              <div className="flex items-center gap-1.5 ml-auto" data-testid="handler-identity">
                 <HandlerAvatar
                   size="sm"
                   mode={selectedSessionData.mode as "AI" | "HUMAN"}
@@ -1311,18 +1311,6 @@ export default function SessionsPage() {
                     </div>
                     {/* RIGHT: action buttons */}
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                      {/* Mobile-only: agent/supervisor avatar in chat header (matches visitor avatar size h-10) */}
-                      {selectedSessionData && (
-                        <div className="flex sm:hidden">
-                          <HandlerAvatar
-                            size="md"
-                            className="h-10 w-10 border border-primary/20"
-                            mode={selectedSessionData.mode as "AI" | "HUMAN"}
-                            agentPhoto={getAgentPhoto(selectedSessionData.agentId)}
-                            supervisorPhoto={getSupervisorPhoto(selectedSessionData.supervisorId, selectedSessionData.agentId)}
-                          />
-                        </div>
-                      )}
                       <div className="flex flex-col items-end gap-1">
                         <div className="flex items-center gap-1 sm:gap-1.5">
                           <Button
@@ -1437,10 +1425,10 @@ export default function SessionsPage() {
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                className="flex sm:hidden h-7 w-7"
+                                className="flex sm:hidden h-9 w-9"
                                 data-testid="button-mobile-settings"
                               >
-                                <Settings2 className="w-3.5 h-3.5" />
+                                <Settings2 className="w-5 h-5" />
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent side="bottom" align="end" className="w-72 p-3">
@@ -1570,7 +1558,7 @@ export default function SessionsPage() {
                           {messages.map((msg, index) => {
                             const isCustomerMessage = msg.from === "customer" || msg.from === "user";
                             return (
-                            <div key={msg.id || index} className="space-y-1">
+                            <div key={msg.id || index} className="space-y-0.5">
                             <div
                               className={`flex gap-2.5 ${isCustomerMessage ? "justify-start" : "justify-end"} group`}
                             >

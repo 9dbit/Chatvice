@@ -158,7 +158,7 @@ export default function DashboardLayout() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4 border-b border-border h-12 sm:h-14">
+          <header className="sticky top-0 z-50 shrink-0 flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4 border-b border-border bg-background h-12 sm:h-14">
             <div className="flex items-center gap-2 sm:gap-4">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
               <Breadcrumb location={location} />
