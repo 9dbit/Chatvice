@@ -822,46 +822,44 @@ export default function SessionsPage() {
       ? sortedSessions
       : sortedSessions?.filter(s => getSessionStatus(s) === statusFilter);
 
-  // Merge sessions from the same browser (deviceFingerprint) into a single list entry (show most recent; badge shows count).
-  // Using deviceFingerprint instead of clientIp prevents customers on shared IPs/NATs from being collapsed together.
+  // Group sessions by deviceFingerprint, but only collapse empty visitor-only sessions.
+  // Real chat sessions (those with at least one message) are always shown as separate list entries —
+  // even if multiple sessions share the same browser fingerprint — so no conversation is ever hidden.
   const displayedSessions = statusFilteredSessions ? (() => {
-    const ipMap = new Map<string, SessionWithPreview & { sessionCount: number }>();
+    const fpMap = new Map<string, SessionWithPreview[]>();
     for (const session of statusFilteredSessions) {
       const key = session.deviceFingerprint || session.id;
-      const existing = ipMap.get(key);
-      if (!existing) {
-        ipMap.set(key, { ...session, sessionCount: 1 });
+      const group = fpMap.get(key) || [];
+      group.push(session);
+      fpMap.set(key, group);
+    }
+
+    const result: (SessionWithPreview & { sessionCount: number })[] = [];
+    for (const [, group] of fpMap) {
+      const withMessages    = group.filter(s => !!(s.lastQuestion || s.lastMessage));
+      const withoutMessages = group.filter(s => !(s.lastQuestion  || s.lastMessage));
+
+      if (withMessages.length > 0) {
+        // Show every session that has real messages as its own entry.
+        withMessages.forEach(s => result.push({ ...s, sessionCount: 1 }));
+        // Empty visitor sessions from the same device are suppressed — they have no content to show.
       } else {
-        // Prefer the session with "better" status (lower statusOrder) then more recent activity.
-        // IMPORTANT: Always prefer sessions with actual messages over visitor-only tracking sessions
-        // (which can be "active" but have no messages, causing a blank chat panel when clicked).
-        const statusOrder = { needs_response: 0, angry: 1, active: 2, ended: 3 };
-        const existingRank = statusOrder[getSessionStatus(existing) as keyof typeof statusOrder] ?? 3;
-        const newRank     = statusOrder[getSessionStatus(session)  as keyof typeof statusOrder] ?? 3;
-        const existingTime = existing.lastActivity ? new Date(existing.lastActivity).getTime() : 0;
-        const newTime      = session.lastActivity  ? new Date(session.lastActivity).getTime()  : 0;
-        const count = existing.sessionCount + 1;
-        const existingHasMessages = !!(existing.lastQuestion || existing.lastMessage);
-        const newHasMessages      = !!(session.lastQuestion  || session.lastMessage);
-        let shouldReplace = false;
-        if (newHasMessages && !existingHasMessages) {
-          // New session has messages but existing doesn't — always prefer the one with messages
-          shouldReplace = true;
-        } else if (!newHasMessages && existingHasMessages) {
-          // Existing has messages but new doesn't — keep existing
-          shouldReplace = false;
-        } else {
-          // Both have messages or both have none — fall back to status + recency comparison
-          shouldReplace = newRank < existingRank || (newRank === existingRank && newTime > existingTime);
-        }
-        if (shouldReplace) {
-          ipMap.set(key, { ...session, sessionCount: count });
-        } else {
-          existing.sessionCount = count;
-        }
+        // All sessions from this device are visitor-only (no messages). Collapse into the most recent.
+        const best = [...withoutMessages].sort((a, b) => {
+          const aT = a.lastActivity ? new Date(a.lastActivity).getTime() : 0;
+          const bT = b.lastActivity ? new Date(b.lastActivity).getTime() : 0;
+          return bT - aT;
+        })[0];
+        result.push({ ...best, sessionCount: group.length });
       }
     }
-    return Array.from(ipMap.values());
+
+    // Re-sort the flat list by last activity (most recent first).
+    return result.sort((a, b) => {
+      const aT = a.lastActivity ? new Date(a.lastActivity).getTime() : 0;
+      const bT = b.lastActivity ? new Date(b.lastActivity).getTime() : 0;
+      return bT - aT;
+    });
   })() : undefined;
 
   // Sends the final text (after refine/translate decisions) via the mutation
