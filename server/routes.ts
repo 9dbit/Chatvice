@@ -16636,14 +16636,15 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         orderBy: [desc(sessions.lastActivity)],
       });
       
-      // Only treat as a returning user if they have a real customer name
-      // (not an auto-generated visitor placeholder like "VisitorXYZ")
-      if (previousSession?.customerName && !previousSession.customerName.startsWith("Visitor")) {
+      // Only treat as a returning user if they have a real, non-empty customer name
+      // (not an auto-generated visitor placeholder like "VisitorXYZ" in any casing)
+      const prevName = previousSession?.customerName?.trim();
+      if (prevName && !prevName.toLowerCase().startsWith("visitor")) {
         return res.json({
           found: false,
           returningUser: true,
-          previousName: previousSession.customerName,
-          previousPhone: previousSession.customerPhone || null,
+          previousName: prevName,
+          previousPhone: previousSession!.customerPhone || null,
         });
       }
       
