@@ -197,7 +197,7 @@ function HandlerAvatar({ mode, supervisorPhoto, agentPhoto, size = "md", classNa
 }) {
   const avatarCls = size === "sm" ? "h-8 w-8 border border-primary/20" : "h-12 w-12 border-2 border-primary/20";
   const iconCls  = size === "sm" ? "h-4 w-4" : "h-6 w-6";
-  const combinedCls = extraClass ? `${avatarCls} ${extraClass}` : avatarCls;
+  const combinedCls = extraClass ?? avatarCls;
 
   if (mode === "HUMAN") {
     return (
@@ -1311,28 +1311,16 @@ export default function SessionsPage() {
                     </div>
                     {/* RIGHT: action buttons */}
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                      {/* Mobile-only: agent/supervisor avatar in chat header */}
+                      {/* Mobile-only: agent/supervisor avatar in chat header (matches visitor avatar size h-10) */}
                       {selectedSessionData && (
                         <div className="flex sm:hidden">
-                          {selectedSessionData.mode === "HUMAN" ? (
-                            <Avatar className="h-10 w-10 border border-primary/20">
-                              {getSupervisorPhoto(selectedSessionData.supervisorId, selectedSessionData.agentId) ? (
-                                <AvatarImage src={getSupervisorPhoto(selectedSessionData.supervisorId, selectedSessionData.agentId)!} alt="Supervisor" />
-                              ) : null}
-                              <AvatarFallback className="bg-primary/10">
-                                <HeadphonesIcon className="h-5 w-5 text-primary" />
-                              </AvatarFallback>
-                            </Avatar>
-                          ) : (
-                            <Avatar className="h-10 w-10 border border-secondary/20">
-                              {getAgentPhoto(selectedSessionData.agentId) ? (
-                                <AvatarImage src={getAgentPhoto(selectedSessionData.agentId)!} alt="AI Agent" />
-                              ) : null}
-                              <AvatarFallback className="bg-secondary">
-                                <Bot className="h-5 w-5 text-secondary-foreground" />
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
+                          <HandlerAvatar
+                            size="md"
+                            className="h-10 w-10 border border-primary/20"
+                            mode={selectedSessionData.mode as "AI" | "HUMAN"}
+                            agentPhoto={getAgentPhoto(selectedSessionData.agentId)}
+                            supervisorPhoto={getSupervisorPhoto(selectedSessionData.supervisorId, selectedSessionData.agentId)}
+                          />
                         </div>
                       )}
                       <div className="flex flex-col items-end gap-1">
