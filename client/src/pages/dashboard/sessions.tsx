@@ -1246,9 +1246,17 @@ export default function SessionsPage() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
-                        <CardTitle className="text-sm sm:text-base truncate" data-testid="text-selected-customer">
-                          {getVisitorDisplayName(selectedSessionData?.customerName)}
-                        </CardTitle>
+                        <div className="flex items-center justify-between gap-2">
+                          <CardTitle className="text-sm sm:text-base truncate" data-testid="text-selected-customer">
+                            {getVisitorDisplayName(selectedSessionData?.customerName)}
+                          </CardTitle>
+                          {selectedSessionData?.lastActivity && (
+                            <span className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground flex-shrink-0">
+                              <Clock className="w-3 h-3" />
+                              {formatDistanceToNow(new Date(selectedSessionData.lastActivity), { addSuffix: true })}
+                            </span>
+                          )}
+                        </div>
                         {/* Client info row: flag + IP + device + OS + browser */}
                         <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                           <CountryFlag code={selectedSessionData?.countryCode} name={selectedSessionData?.countryName} />
