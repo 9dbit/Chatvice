@@ -16618,7 +16618,36 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         });
       }
       
-      res.json({ found: false });
+      // No active session — check if this is a returning user with a previous closed/ended session.
+      // This allows the widget to greet them by name and offer to continue or start fresh.
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const previousSession = await db.query.sessions.findFirst({
+        where: and(
+          eq(sessions.merchantId, resolvedMerchantId),
+          eq(sessions.deviceFingerprint, deviceFingerprint),
+          or(
+            eq(sessions.status, "ended"),
+            eq(sessions.status, "closed"),
+            eq(sessions.status, "archived")
+          ),
+          isNotNull(sessions.customerName),
+          gte(sessions.lastActivity, thirtyDaysAgo)
+        ),
+        orderBy: [desc(sessions.lastActivity)],
+      });
+      
+      // Only treat as a returning user if they have a real customer name
+      // (not an auto-generated visitor placeholder like "VisitorXYZ")
+      if (previousSession?.customerName && !previousSession.customerName.startsWith("Visitor")) {
+        return res.json({
+          found: false,
+          returningUser: true,
+          previousName: previousSession.customerName,
+          previousPhone: previousSession.customerPhone || null,
+        });
+      }
+      
+      res.json({ found: false, returningUser: false });
     } catch (error) {
       console.error("Error finding session:", error);
       res.json({ found: false });

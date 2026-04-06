@@ -426,6 +426,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   // Session can be resumed from existing session (24-hour persistence for all widgets)
   const [isCheckingSession, setIsCheckingSession] = useState(!previewMode && !isVisitorSession);
   const [resumedSessionId, setResumedSessionId] = useState<string | null>(null);
+  // Returning visitor: previous closed session found — show "continue as [name]?" screen
+  const [returningUser, setReturningUser] = useState<{ name: string; phone: string | null } | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   
@@ -634,7 +636,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         const data = await response.json();
         
         if (data.found && data.sessionId && data.customerName) {
-          // Resume existing session
+          // Resume existing active session
           setResumedSessionId(data.sessionId);
           setCustomerName(data.customerName);
           setHasSubmittedName(true);
@@ -643,6 +645,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             sessionStorage.setItem(`${customerNameKey}_${data.sessionId}`, data.customerName);
             sessionStorage.setItem(`${customerNameKey}_${data.sessionId}_submitted`, "true");
           } catch {}
+        } else if (data.returningUser && data.previousName) {
+          // Previous closed session found — show confirmation screen instead of blank form
+          setReturningUser({ name: data.previousName, phone: data.previousPhone || null });
+          setHasSubmittedName(false);
         } else {
           // No session found - clear any stale submitted flags
           setHasSubmittedName(false);
@@ -2559,7 +2565,102 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
           <div className="h-11 w-full rounded-md animate-pulse mt-2" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }} />
         </div>
-      ) : !hasSubmittedName && !serverMessages?.length ? (
+      ) : returningUser && !hasSubmittedName ? (
+        /* Returning visitor confirmation screen */
+        <div
+          className="flex-1 min-h-0 flex flex-col items-center justify-center p-6 gap-5"
+          style={frostedBodyStyle}
+        >
+          {/* Avatar icon */}
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center shrink-0"
+            style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : `${primaryColor}22` }}
+          >
+            <User className="w-8 h-8" style={{ color: primaryColor }} />
+          </div>
+
+          {/* Greeting text */}
+          <div className="text-center space-y-1">
+            <p
+              className="text-sm"
+              style={{ color: widgetIsDark ? 'rgba(255,255,255,0.55)' : '#6b7280' }}
+            >
+              Welcome back!
+            </p>
+            <p
+              className="text-sm font-medium"
+              style={{ color: widgetIsDark ? 'rgba(255,255,255,0.8)' : '#374151' }}
+            >
+              You are recognized as
+            </p>
+            <p
+              className="text-xl font-bold mt-0.5"
+              style={{ color: primaryColor }}
+            >
+              {returningUser.name}
+            </p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="w-full flex flex-col gap-2 mt-1">
+            <button
+              data-testid="button-continue-as-returning-user"
+              disabled={startChatMutation.isPending}
+              onClick={() => {
+                setNameInputValue(returningUser.name);
+                if (returningUser.phone) {
+                  // We have the previous phone — start the session immediately
+                  startChatMutation.mutate({
+                    name: returningUser.name,
+                    phone: returningUser.phone,
+                    email: "",
+                    initialMessage: "Hello, I have a question",
+                    welcomeDescription: merchantConfig?.welcomeDescription || "",
+                    isQuickQuestion: false,
+                  });
+                } else {
+                  // No stored phone — pre-fill the name and show the regular form so they can enter phone
+                  setReturningUser(null);
+                  setHasSubmittedName(false);
+                }
+              }}
+              style={{
+                backgroundColor: startChatMutation.isPending ? `${primaryColor}99` : primaryColor,
+                color: '#ffffff',
+                borderRadius: 8,
+                padding: '11px 16px',
+                fontWeight: 600,
+                fontSize: 14,
+                border: 'none',
+                cursor: startChatMutation.isPending ? 'not-allowed' : 'pointer',
+                width: '100%',
+              }}
+            >
+              {startChatMutation.isPending ? 'Starting...' : `Continue as ${returningUser.name}`}
+            </button>
+            <button
+              data-testid="button-start-new-chat"
+              disabled={startChatMutation.isPending}
+              onClick={() => {
+                setReturningUser(null);
+                setHasSubmittedName(false);
+              }}
+              style={{
+                backgroundColor: 'transparent',
+                color: widgetIsDark ? 'rgba(255,255,255,0.65)' : '#6b7280',
+                borderRadius: 8,
+                padding: '11px 16px',
+                fontSize: 14,
+                border: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)'}`,
+                cursor: startChatMutation.isPending ? 'not-allowed' : 'pointer',
+                width: '100%',
+              }}
+            >
+              Start New Chat
+            </button>
+          </div>
+        </div>
+      ) : !hasSubmittedName && !serverMessages?.length && !returningUser ? (
         <div 
           className="flex-1 min-h-0 flex flex-col"
           style={frostedBodyStyle}
