@@ -1003,7 +1003,7 @@ export default function SessionsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-2 sm:mb-4">
           <div>
             <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2 sm:gap-3" data-testid="text-page-title">
+              <h1 className="hidden sm:flex text-xl sm:text-2xl font-bold items-center gap-2 sm:gap-3" data-testid="text-page-title">
                 Chat Sessions
                 {(statusCounts.needsResponse > 0 || statusCounts.angry > 0) && (
                   <span className="relative flex h-2.5 w-2.5 sm:h-3 sm:w-3">
@@ -1402,7 +1402,7 @@ export default function SessionsPage() {
                                 <Settings2 className="w-3.5 h-3.5" />
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent side="bottom" align="end" className="w-60 p-3">
+                            <PopoverContent side="bottom" align="end" className="w-72 p-3">
                               <div className="flex flex-col gap-3">
                                 {/* Quick actions: Refresh + Export */}
                                 <div className="flex gap-2">

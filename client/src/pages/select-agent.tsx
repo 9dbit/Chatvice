@@ -188,7 +188,7 @@ export default function SelectAgentPage() {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col min-h-[calc(100vh-3.5rem)] sm:min-h-[calc(100vh-8rem)] justify-end sm:justify-center pb-20 sm:pb-0" style={{ paddingBottom: 'max(5rem, calc(env(safe-area-inset-bottom, 0px) + 3rem))' }}>
+              <div className="flex flex-col min-h-[calc(100vh-3.5rem)] sm:min-h-[calc(100vh-8rem)] justify-center pb-20 sm:pb-0" style={{ paddingBottom: 'max(5rem, calc(env(safe-area-inset-bottom, 0px) + 3rem))' }}>
                 <div className="w-full max-w-lg mx-auto">
                   <div className="text-left mb-4 sm:mb-6">
                     <h1 className="text-2xl sm:text-3xl font-bold mb-2" data-testid="text-select-agent-title">
