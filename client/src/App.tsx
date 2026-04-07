@@ -237,7 +237,7 @@ function MainRouter() {
       <Route path="/topup" component={TopupPage} />
       <Route path="/demo" component={DemoWidgetPage} />
       <Route path="/cal/:token" component={StaffCalendarPage} />
-      <Route path="/booking/:merchantSlug" component={PublicCalendarPage} />
+      <Route path="/cal/pub/:merchantSlug" component={PublicCalendarPage} />
 
       {/* Customer Chat App Routes (also accessible via /chat/ for backwards compatibility) */}
       <Route path="/chat/login" component={CustomerLoginPage} />

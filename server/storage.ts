@@ -564,7 +564,9 @@ export interface IStorage {
   // Addon Configs
   getAddonConfigs(): Promise<AddonConfig[]>;
   getAddonConfig(addonType: string): Promise<AddonConfig | undefined>;
+  getAddonConfigById(id: number): Promise<AddonConfig | undefined>;
   upsertAddonConfig(data: InsertAddonConfig): Promise<AddonConfig>;
+  updateAddonConfigById(id: number, data: Partial<{ monthlyPriceUsd: number; isEnabled: boolean; name: string; description: string | null }>): Promise<AddonConfig | undefined>;
 
   // Merchant Addons
   getMerchantAddons(merchantId: string): Promise<MerchantAddon[]>;
@@ -4112,6 +4114,11 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
+  async getAddonConfigById(id: number): Promise<AddonConfig | undefined> {
+    const [row] = await db.select().from(addonConfigs).where(eq(addonConfigs.id, id));
+    return row;
+  }
+
   async upsertAddonConfig(data: InsertAddonConfig): Promise<AddonConfig> {
     const existing = await this.getAddonConfig(data.addonType);
     if (existing) {
@@ -4119,6 +4126,11 @@ export class DatabaseStorage implements IStorage {
       return row;
     }
     const [row] = await db.insert(addonConfigs).values(data).returning();
+    return row;
+  }
+
+  async updateAddonConfigById(id: number, data: Partial<{ monthlyPriceUsd: number; isEnabled: boolean; name: string; description: string | null }>): Promise<AddonConfig | undefined> {
+    const [row] = await db.update(addonConfigs).set(data).where(eq(addonConfigs.id, id)).returning();
     return row;
   }
 

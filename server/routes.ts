@@ -933,6 +933,38 @@ ${sheetData}
     console.error("Error fetching product catalog:", error);
   }
 
+  // Check if merchant has appointment scheduling addon active
+  let appointmentSignals = "";
+  try {
+    const appointmentAddon = await storage.getMerchantAddon(merchantId, "appointment_scheduling");
+    if (appointmentAddon && appointmentAddon.isActive) {
+      const slug = merchant?.widgetSlug || merchantId;
+      appointmentSignals = `
+APPOINTMENT SCHEDULING:
+This merchant uses an AI appointment scheduling system. When customers ask about booking, scheduling, availability, or appointments:
+
+1. To CHECK AVAILABILITY, include this signal in your response:
+   [CHECK_AVAILABILITY]
+   This will trigger a real-time slot lookup and display available times to the customer.
+
+2. To INITIATE BOOKING after customer confirms a slot, include:
+   [BOOK_APPOINTMENT:YYYY-MM-DD:HH:MM:providerName]
+   Replace the fields with the actual chosen date, time (24-hour), and provider/staff name.
+
+3. You may also direct customers to the public booking calendar:
+   [LINK:Buka Kalender Booking:https://${process.env.REPLIT_DOMAINS?.split(',')[0] || 'chatvice.app'}/cal/pub/${slug}]
+
+KAPAN GUNAKAN:
+- Customer bertanya "bisa booking?", "jadwal tersedia?", "kapan bisa ketemu?", "ada slot?", "mau janji temu" → gunakan [CHECK_AVAILABILITY]
+- Customer sudah memilih slot dan konfirmasi → gunakan [BOOK_APPOINTMENT:...]
+- Customer minta link/kalender → sertakan LINK ke public calendar
+
+PENTING: JANGAN mengarang waktu/tanggal ketersediaan. SELALU gunakan [CHECK_AVAILABILITY] untuk cek slot real-time.`;
+    }
+  } catch (_err) {
+    // Appointment signals are optional — skip on error
+  }
+
   // Build system message with base behavior + custom instructions
   const systemMessage = `You are ${agentName}, a friendly and helpful AI Customer Service Agent for ${companyName}.
 You are professional yet approachable, and always aim to help customers effectively.
@@ -1249,7 +1281,7 @@ Contoh penggunaan tag:
 
 PENTING: Nama produk di tag HARUS SAMA PERSIS dengan nama di katalog (case-insensitive).
 PENTING: JANGAN PERNAH merekomendasikan produk yang SUDAH ditampilkan sebelumnya.
-` : ""}
+` : ""}${appointmentSignals ? `\n${appointmentSignals}` : ""}
 Relevant Company Information:
 ${knowledgeContext || "No specific knowledge base configured yet."}
 
@@ -23430,10 +23462,36 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  app.patch("/api/admin/addon-configs/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+      const { monthlyPriceUsd, isEnabled, name, description } = req.body;
+      const updated = await storage.updateAddonConfigById(id, { monthlyPriceUsd, isEnabled, name, description });
+      if (!updated) return res.status(404).json({ error: "Addon config not found" });
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to update addon config" });
+    }
+  });
+
   app.get("/api/admin/addon-configs/subscribers", requireAdmin, async (req, res) => {
     try {
-      const subscribers = await storage.getAllMerchantAddons();
-      res.json(subscribers);
+      const allAddons = await storage.getAllMerchantAddons();
+      const merchants = await storage.getAllMerchants();
+      const merchantMap = new Map(merchants.map((m: any) => [m.id, m]));
+      const result = allAddons.map(addon => {
+        const merchant = merchantMap.get(addon.merchantId) as any;
+        return {
+          merchantId: addon.merchantId,
+          businessName: merchant?.businessName || merchant?.name || "Unknown",
+          email: merchant?.email || "",
+          addonType: addon.addonType,
+          isActive: addon.isActive,
+          subscribedAt: addon.subscribedAt,
+        };
+      });
+      res.json(result);
     } catch (err) {
       res.status(500).json({ error: "Failed to fetch subscribers" });
     }

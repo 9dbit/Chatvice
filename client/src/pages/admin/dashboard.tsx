@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { AdditionalServicesTab } from "@/components/admin/AdditionalServicesTab";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Redirect, Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -370,6 +371,7 @@ export default function AdminDashboard() {
     { id: "affiliates", label: "Affiliates", icon: Share2 },
     { id: "withdrawals", label: "Withdrawals", icon: Wallet },
     { id: "knowledge-templates", label: "Knowledge Templates", icon: BookOpen },
+    { id: "additional-services", label: "Additional Services", icon: Sparkles },
     { id: "blog-management", label: "Blog Management", icon: FileText },
     { id: "activity-logs", label: "Activity Logs", icon: Activity },
     { id: "user-data", label: "Customer Data", icon: Users },
@@ -568,6 +570,8 @@ export default function AdminDashboard() {
             {activeTab === "withdrawals" && <WithdrawalsTab toast={toast} />}
             
             {activeTab === "knowledge-templates" && <KnowledgeTemplatesTab toast={toast} />}
+            
+            {activeTab === "additional-services" && <AdditionalServicesTabWrapper toast={toast} />}
             
             {activeTab === "blog-management" && <BlogManagementTab toast={toast} />}
             
@@ -12436,6 +12440,10 @@ function KnowledgeTemplatesTab({ toast }: { toast: any }) {
       </Dialog>
     </div>
   );
+}
+
+function AdditionalServicesTabWrapper({ toast }: { toast: any }) {
+  return <AdditionalServicesTab toast={toast} />;
 }
 
 function BlogManagementTab({ toast }: { toast: any }) {

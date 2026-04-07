@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import {
   Calendar, Plus, Pencil, Trash2, Loader2, Users, Settings, Link as LinkIcon,
-  Copy, CheckCircle, Clock, ChevronLeft, ChevronRight, X, User, Layers
+  Copy, CheckCircle, Clock, ChevronLeft, ChevronRight, X, User, Layers, CalendarOff, Share2
 } from "lucide-react";
 import { Redirect } from "wouter";
 
@@ -221,6 +221,194 @@ function ServiceForm({ onSave, onCancel, divisions, initial }: { onSave: (data: 
   );
 }
 
+interface ProviderSchedule {
+  id: number;
+  providerId: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isActive: boolean;
+  breakStart: string | null;
+  breakEnd: string | null;
+}
+
+interface ProviderBlockedDate {
+  id: number;
+  providerId: string;
+  blockedDate: string;
+  reason: string | null;
+}
+
+const DAY_NAMES = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+
+function SchedulePanel({ provider }: { provider: AppointmentProvider }) {
+  const { toast } = useToast();
+  const [newBlockedDate, setNewBlockedDate] = useState("");
+  const [newBlockedReason, setNewBlockedReason] = useState("");
+
+  const { data: schedules = [], isLoading: schedulesLoading } = useQuery<ProviderSchedule[]>({
+    queryKey: ["/api/merchant/appointment-providers", provider.id, "schedules"],
+    queryFn: () => fetch(`/api/merchant/appointment-providers/${provider.id}/schedules`, { credentials: "include" }).then(r => r.json()),
+  });
+
+  const { data: blockedDates = [], isLoading: blockedLoading } = useQuery<ProviderBlockedDate[]>({
+    queryKey: ["/api/merchant/appointment-providers", provider.id, "blocked-dates"],
+    queryFn: () => fetch(`/api/merchant/appointment-providers/${provider.id}/blocked-dates`, { credentials: "include" }).then(r => r.json()),
+  });
+
+  const localSchedules = Array.from({ length: 7 }, (_, dow) => {
+    const existing = schedules.find(s => s.dayOfWeek === dow);
+    return existing || { id: -1, providerId: provider.id, dayOfWeek: dow, startTime: "08:00", endTime: "17:00", isActive: false, breakStart: null, breakEnd: null };
+  });
+
+  const saveSchedulesMutation = useMutation({
+    mutationFn: (rows: any[]) =>
+      apiRequest("PUT", `/api/merchant/appointment-providers/${provider.id}/schedules`, { schedules: rows }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-providers", provider.id, "schedules"] });
+      toast({ title: "Jadwal disimpan" });
+    },
+    onError: () => toast({ title: "Gagal menyimpan jadwal", variant: "destructive" }),
+  });
+
+  const addBlockedDate = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", `/api/merchant/appointment-providers/${provider.id}/blocked-dates`, { blockedDate: newBlockedDate, reason: newBlockedReason || null }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-providers", provider.id, "blocked-dates"] });
+      setNewBlockedDate("");
+      setNewBlockedReason("");
+      toast({ title: "Tanggal tutup ditambahkan" });
+    },
+    onError: () => toast({ title: "Gagal menambah tanggal tutup", variant: "destructive" }),
+  });
+
+  const removeBlockedDate = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/merchant/appointment-providers/blocked-dates/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-providers", provider.id, "blocked-dates"] });
+      toast({ title: "Tanggal tutup dihapus" });
+    },
+    onError: () => toast({ title: "Gagal", variant: "destructive" }),
+  });
+
+  const [editSchedules, setEditSchedules] = useState<typeof localSchedules | null>(null);
+  const working = editSchedules || localSchedules;
+
+  const toggleDay = (dow: number) => {
+    const current = editSchedules || localSchedules;
+    setEditSchedules(current.map(s => s.dayOfWeek === dow ? { ...s, isActive: !s.isActive } : s));
+  };
+
+  const updateTime = (dow: number, field: "startTime" | "endTime" | "breakStart" | "breakEnd", val: string) => {
+    const current = editSchedules || localSchedules;
+    setEditSchedules(current.map(s => s.dayOfWeek === dow ? { ...s, [field]: val || null } : s));
+  };
+
+  const handleSave = () => {
+    const rows = (editSchedules || localSchedules).map(s => ({
+      dayOfWeek: s.dayOfWeek,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      isActive: s.isActive,
+      breakStart: s.breakStart || null,
+      breakEnd: s.breakEnd || null,
+    }));
+    saveSchedulesMutation.mutate(rows);
+  };
+
+  if (schedulesLoading) return <div className="flex items-center gap-2 py-4"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm text-muted-foreground">Memuat jadwal...</span></div>;
+
+  return (
+    <div className="space-y-6">
+      {/* Weekly Schedule */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-medium flex items-center gap-2"><Clock className="w-4 h-4" /> Jadwal Mingguan</h4>
+          <Button size="sm" onClick={handleSave} disabled={saveSchedulesMutation.isPending} data-testid={`button-save-schedule-${provider.id}`}>
+            {saveSchedulesMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+            Simpan Jadwal
+          </Button>
+        </div>
+        <div className="space-y-2">
+          {working.map(s => (
+            <div key={s.dayOfWeek} className="flex items-center gap-3 flex-wrap" data-testid={`row-schedule-${provider.id}-${s.dayOfWeek}`}>
+              <div className="flex items-center gap-2 w-28">
+                <Switch
+                  checked={s.isActive}
+                  onCheckedChange={() => toggleDay(s.dayOfWeek)}
+                  data-testid={`switch-schedule-${provider.id}-${s.dayOfWeek}`}
+                />
+                <span className={`text-sm ${s.isActive ? "font-medium" : "text-muted-foreground"}`}>{DAY_NAMES[s.dayOfWeek]}</span>
+              </div>
+              {s.isActive && (
+                <>
+                  <div className="flex items-center gap-1">
+                    <Input type="time" value={s.startTime} onChange={e => updateTime(s.dayOfWeek, "startTime", e.target.value)} className="w-28 text-sm" data-testid={`input-start-${provider.id}-${s.dayOfWeek}`} />
+                    <span className="text-muted-foreground text-xs">—</span>
+                    <Input type="time" value={s.endTime} onChange={e => updateTime(s.dayOfWeek, "endTime", e.target.value)} className="w-28 text-sm" data-testid={`input-end-${provider.id}-${s.dayOfWeek}`} />
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span>Istirahat:</span>
+                    <Input type="time" value={s.breakStart || ""} onChange={e => updateTime(s.dayOfWeek, "breakStart", e.target.value)} className="w-24 text-xs" placeholder="—" data-testid={`input-break-start-${provider.id}-${s.dayOfWeek}`} />
+                    <span>—</span>
+                    <Input type="time" value={s.breakEnd || ""} onChange={e => updateTime(s.dayOfWeek, "breakEnd", e.target.value)} className="w-24 text-xs" placeholder="—" data-testid={`input-break-end-${provider.id}-${s.dayOfWeek}`} />
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Blocked Dates */}
+      <div>
+        <h4 className="text-sm font-medium flex items-center gap-2 mb-3"><CalendarOff className="w-4 h-4" /> Tanggal Tutup</h4>
+        <div className="flex gap-2 flex-wrap mb-3">
+          <Input
+            type="date"
+            value={newBlockedDate}
+            onChange={e => setNewBlockedDate(e.target.value)}
+            className="w-40 text-sm"
+            data-testid={`input-blocked-date-${provider.id}`}
+          />
+          <Input
+            value={newBlockedReason}
+            onChange={e => setNewBlockedReason(e.target.value)}
+            placeholder="Alasan (opsional)"
+            className="flex-1 min-w-32 text-sm"
+            data-testid={`input-blocked-reason-${provider.id}`}
+          />
+          <Button size="sm" onClick={() => addBlockedDate.mutate()} disabled={!newBlockedDate || addBlockedDate.isPending} data-testid={`button-add-blocked-${provider.id}`}>
+            {addBlockedDate.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+          </Button>
+        </div>
+        {blockedLoading ? (
+          <div className="text-sm text-muted-foreground">Memuat...</div>
+        ) : blockedDates.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Belum ada tanggal tutup.</p>
+        ) : (
+          <div className="space-y-1">
+            {blockedDates.map(bd => (
+              <div key={bd.id} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md border text-sm" data-testid={`row-blocked-${bd.id}`}>
+                <div>
+                  <span className="font-medium">{bd.blockedDate}</span>
+                  {bd.reason && <span className="text-muted-foreground ml-2 text-xs">{bd.reason}</span>}
+                </div>
+                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeBlockedDate.mutate(bd.id)} data-testid={`button-remove-blocked-${bd.id}`}>
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CalendarView({ appointments, providers, divisions, services, currentMonth, onMonthChange }: {
   appointments: Appointment[];
   providers: AppointmentProvider[];
@@ -365,9 +553,13 @@ export default function AppointmentsPage() {
   const [providerDialog, setProviderDialog] = useState<{ open: boolean; editing?: AppointmentProvider }>({ open: false });
   const [serviceDialog, setServiceDialog] = useState<{ open: boolean; editing?: AppointmentService }>({ open: false });
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedPublicLink, setCopiedPublicLink] = useState(false);
+  const [expandedSchedule, setExpandedSchedule] = useState<string | null>(null);
 
   const { data: addons = [] } = useQuery<MerchantAddon[]>({ queryKey: ["/api/merchant/addons"] });
   const appointmentAddon = addons.find(a => a.addonType === "appointment_scheduling" && a.isActive);
+
+  const { data: merchantSlugData } = useQuery<{ merchantId: string; slug: string }>({ queryKey: ["/api/merchant/slug"] });
 
   const { data: appointments = [], isLoading: apptLoading } = useQuery<Appointment[]>({
     queryKey: ["/api/merchant/appointments", currentMonth],
@@ -458,12 +650,24 @@ export default function AppointmentsPage() {
     ? `${window.location.origin}/cal/${appointmentAddon.calendarToken}`
     : null;
 
+  const publicCalendarLink = merchantSlugData?.slug
+    ? `${window.location.origin}/cal/pub/${merchantSlugData.slug}`
+    : null;
+
   const copyCalendarLink = () => {
     if (!calendarLink) return;
     navigator.clipboard.writeText(calendarLink);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
     toast({ title: "Link disalin!" });
+  };
+
+  const copyPublicLink = () => {
+    if (!publicCalendarLink) return;
+    navigator.clipboard.writeText(publicCalendarLink);
+    setCopiedPublicLink(true);
+    setTimeout(() => setCopiedPublicLink(false), 2000);
+    toast({ title: "Link publik disalin!" });
   };
 
   return (
@@ -632,30 +836,50 @@ export default function AppointmentsPage() {
                   <div className="space-y-2">
                     {providers.map(prov => {
                       const div = divisions.find(d => d.id === prov.divisionId);
+                      const scheduleOpen = expandedSchedule === prov.id;
                       return (
-                        <div key={prov.id} className="flex items-center justify-between gap-2 p-3 border rounded-md" data-testid={`row-provider-${prov.id}`}>
-                          <div>
-                            <div className="font-medium text-sm flex items-center gap-2">
-                              {prov.name}
-                              {!prov.isActive && <Badge variant="outline" className="text-xs">Nonaktif</Badge>}
+                        <div key={prov.id} className="border rounded-md" data-testid={`row-provider-${prov.id}`}>
+                          <div className="flex items-center justify-between gap-2 p-3">
+                            <div>
+                              <div className="font-medium text-sm flex items-center gap-2">
+                                {prov.name}
+                                {!prov.isActive && <Badge variant="outline" className="text-xs">Nonaktif</Badge>}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {div ? div.name : ""}
+                                {prov.phone ? ` · ${prov.phone}` : ""}
+                              </div>
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              {div ? div.name : ""}
-                              {prov.phone ? ` · ${prov.phone}` : ""}
+                            <div className="flex gap-1 items-center">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={scheduleOpen ? "text-primary" : "text-muted-foreground"}
+                                onClick={() => setExpandedSchedule(scheduleOpen ? null : prov.id)}
+                                data-testid={`button-schedule-${prov.id}`}
+                              >
+                                <Clock className="w-3.5 h-3.5 mr-1" />
+                                Jadwal
+                              </Button>
+                              <Dialog open={providerDialog.open && providerDialog.editing?.id === prov.id} onOpenChange={open => setProviderDialog({ open, editing: open ? prov : undefined })}>
+                                <DialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" data-testid={`button-edit-provider-${prov.id}`}><Pencil className="w-3.5 h-3.5" /></Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader><DialogTitle>Edit Staf</DialogTitle></DialogHeader>
+                                  <ProviderForm divisions={divisions} initial={prov} onSave={data => updateProvider.mutate({ id: prov.id, data })} onCancel={() => setProviderDialog({ open: false })} />
+                                </DialogContent>
+                              </Dialog>
+                              <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteProvider.mutate(prov.id)} data-testid={`button-delete-provider-${prov.id}`}><Trash2 className="w-3.5 h-3.5" /></Button>
                             </div>
                           </div>
-                          <div className="flex gap-1">
-                            <Dialog open={providerDialog.open && providerDialog.editing?.id === prov.id} onOpenChange={open => setProviderDialog({ open, editing: open ? prov : undefined })}>
-                              <DialogTrigger asChild>
-                                <Button variant="ghost" size="icon" data-testid={`button-edit-provider-${prov.id}`}><Pencil className="w-3.5 h-3.5" /></Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader><DialogTitle>Edit Staf</DialogTitle></DialogHeader>
-                                <ProviderForm divisions={divisions} initial={prov} onSave={data => updateProvider.mutate({ id: prov.id, data })} onCancel={() => setProviderDialog({ open: false })} />
-                              </DialogContent>
-                            </Dialog>
-                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteProvider.mutate(prov.id)} data-testid={`button-delete-provider-${prov.id}`}><Trash2 className="w-3.5 h-3.5" /></Button>
-                          </div>
+                          {scheduleOpen && (
+                            <div className="px-4 pb-4 border-t">
+                              <div className="pt-4">
+                                <SchedulePanel provider={prov} />
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -725,42 +949,88 @@ export default function AppointmentsPage() {
 
         {/* ── SHARED LINK TAB ── */}
         <TabsContent value="link">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <LinkIcon className="w-4 h-4" />
-                Link Kalender Internal
-              </CardTitle>
-              <CardDescription>
-                Bagikan link ini kepada staf Anda. Mereka dapat melihat jadwal booking tanpa perlu login. Link bersifat view-only — pengeditan hanya bisa dilakukan dari dashboard ini.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {calendarLink ? (
-                <>
-                  <div className="flex gap-2">
-                    <Input value={calendarLink} readOnly className="font-mono text-sm" data-testid="input-calendar-link" />
-                    <Button variant="outline" onClick={copyCalendarLink} data-testid="button-copy-calendar-link">
-                      {copiedLink ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+          <div className="space-y-4">
+            {/* Internal staff calendar link */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <LinkIcon className="w-4 h-4" />
+                  Link Kalender Internal (Staf)
+                </CardTitle>
+                <CardDescription>
+                  Bagikan link ini kepada staf Anda. Mereka dapat melihat jadwal booking tanpa perlu login. Link bersifat view-only.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {calendarLink ? (
+                  <>
+                    <div className="flex gap-2">
+                      <Input value={calendarLink} readOnly className="font-mono text-sm" data-testid="input-calendar-link" />
+                      <Button variant="outline" onClick={copyCalendarLink} data-testid="button-copy-calendar-link">
+                        {copiedLink ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Link ini unik dan aman. Jika perlu mengganti link (misalnya keamanan), hubungi dukungan.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => window.open(calendarLink, "_blank")} data-testid="button-open-calendar">
+                      Buka Kalender
                     </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Link ini unik dan aman. Jika perlu mengganti link (misalnya keamanan), hubungi dukungan.
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.open(calendarLink, "_blank")}
-                    data-testid="button-open-calendar"
-                  >
-                    Buka Kalender
-                  </Button>
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">Link kalender tidak tersedia.</p>
-              )}
-            </CardContent>
-          </Card>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Link kalender tidak tersedia.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Public booking calendar link */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Share2 className="w-4 h-4" />
+                  Link Kalender Publik (Pelanggan)
+                </CardTitle>
+                <CardDescription>
+                  Link ini bisa dibagikan kepada pelanggan untuk melihat ketersediaan slot. Tidak menampilkan data pribadi.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {publicCalendarLink ? (
+                  <>
+                    <div className="flex gap-2">
+                      <Input value={publicCalendarLink} readOnly className="font-mono text-sm" data-testid="input-public-calendar-link" />
+                      <Button variant="outline" onClick={copyPublicLink} data-testid="button-copy-public-calendar-link">
+                        {copiedPublicLink ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      URL publik menggunakan slug bisnis Anda. Pelanggan dapat melihat waktu yang sudah dipesan (tanpa detail).
+                    </p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => window.open(publicCalendarLink, "_blank")} data-testid="button-open-public-calendar">
+                        Buka Kalender Publik
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (publicCalendarLink) {
+                            const waMsg = encodeURIComponent(`Hei! Cek jadwal ketersediaan booking kami di sini: ${publicCalendarLink}`);
+                            window.open(`https://wa.me/?text=${waMsg}`, "_blank");
+                          }
+                        }}
+                        data-testid="button-share-wa-public"
+                      >
+                        Bagikan via WhatsApp
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Link publik tidak tersedia. Pastikan slug bisnis sudah diatur.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
