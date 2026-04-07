@@ -68,6 +68,8 @@ import AffiliatePage from "./affiliate";
 import LeadsPage from "./leads";
 import DataUsagePage from "./data-usage";
 import ProactiveChatPage from "./proactive-chat";
+import AdditionalServicesPage from "./additional-services";
+import AppointmentsPage from "./appointments";
 import type { Merchant } from "@shared/schema";
 
 const pageNames: Record<string, string> = {
@@ -100,6 +102,8 @@ const pageNames: Record<string, string> = {
   "chat-monitoring": "Chat Monitoring",
   "data-usage": "Data Usage",
   "proactive-chat": "Proactive Chat",
+  "additional-services": "Layanan Tambahan",
+  "appointments": "Janji Temu",
 };
 
 function Breadcrumb({ location }: { location: string }) {
@@ -200,6 +204,8 @@ export default function DashboardLayout() {
               <Route path="/dashboard/data-usage" component={DataUsagePage} />
               <Route path="/dashboard/proactive-chat" component={ProactiveChatPage} />
               <Route path="/dashboard/leads" component={LeadsPage} />
+              <Route path="/dashboard/additional-services" component={AdditionalServicesPage} />
+              <Route path="/dashboard/appointments" component={AppointmentsPage} />
               <Route path="/dashboard/help-articles">
                 <Redirect to="/dashboard/knowledge" />
               </Route>

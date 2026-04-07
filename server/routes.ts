@@ -23405,6 +23405,460 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // ADDON CONFIGS (admin-managed)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  app.get("/api/admin/addon-configs", requireAdmin, async (req, res) => {
+    try {
+      const configs = await storage.getAddonConfigs();
+      res.json(configs);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch addon configs" });
+    }
+  });
+
+  app.put("/api/admin/addon-configs/:addonType", requireAdmin, async (req, res) => {
+    try {
+      const { addonType } = req.params;
+      const { name, description, monthlyPriceUsd, isEnabled } = req.body;
+      const config = await storage.upsertAddonConfig({ addonType, name, description, monthlyPriceUsd, isEnabled });
+      res.json(config);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to update addon config" });
+    }
+  });
+
+  app.get("/api/addon-configs", async (req, res) => {
+    try {
+      const configs = await storage.getAddonConfigs();
+      res.json(configs.filter(c => c.isEnabled));
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch addon configs" });
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // MERCHANT ADDONS (subscriptions)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  app.get("/api/merchant/addons", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const addons = await storage.getMerchantAddons(merchantId);
+      res.json(addons);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch addons" });
+    }
+  });
+
+  app.post("/api/merchant/addons/subscribe", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { addonType } = req.body;
+      if (!addonType) return res.status(400).json({ error: "addonType required" });
+
+      const existing = await storage.getMerchantAddon(merchantId, addonType);
+      if (existing) {
+        if (existing.isActive) return res.status(409).json({ error: "Already subscribed" });
+        const updated = await storage.updateMerchantAddon(existing.id, { isActive: true, subscribedAt: new Date() });
+        return res.json(updated);
+      }
+
+      const addonConfig = await storage.getAddonConfig(addonType);
+      if (!addonConfig || !addonConfig.isEnabled) return res.status(404).json({ error: "Addon not available" });
+
+      const addonId = "ma_" + crypto.randomBytes(8).toString("hex");
+      let calendarToken: string | undefined;
+      if (addonType === "appointment_scheduling") {
+        calendarToken = crypto.randomBytes(16).toString("hex");
+      }
+
+      const addon = await storage.createMerchantAddon({
+        id: addonId,
+        merchantId,
+        addonType,
+        isActive: true,
+        calendarToken: calendarToken || null,
+      });
+      res.status(201).json(addon);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to subscribe to addon" });
+    }
+  });
+
+  app.delete("/api/merchant/addons/:addonType", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { addonType } = req.params;
+      const addon = await storage.getMerchantAddon(merchantId, addonType);
+      if (!addon) return res.status(404).json({ error: "Addon not found" });
+      await storage.updateMerchantAddon(addon.id, { isActive: false });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to cancel addon" });
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // APPOINTMENT DIVISIONS
+  // ════════════════════════════════════════════════════════════════════════════
+
+  app.get("/api/merchant/appointment-divisions", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const divisions = await storage.getAppointmentDivisions(merchantId);
+      res.json(divisions);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch divisions" });
+    }
+  });
+
+  app.post("/api/merchant/appointment-divisions", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { name, description, location, isActive, sortOrder } = req.body;
+      if (!name) return res.status(400).json({ error: "name required" });
+      const id = "div_" + crypto.randomBytes(8).toString("hex");
+      const division = await storage.createAppointmentDivision({ id, merchantId, name, description, location, isActive: isActive ?? true, sortOrder: sortOrder ?? 0 });
+      res.status(201).json(division);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to create division" });
+    }
+  });
+
+  app.patch("/api/merchant/appointment-divisions/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { id } = req.params;
+      const existing = await storage.getAppointmentDivision(id);
+      if (!existing || existing.merchantId !== merchantId) return res.status(404).json({ error: "Division not found" });
+      const updated = await storage.updateAppointmentDivision(id, req.body);
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to update division" });
+    }
+  });
+
+  app.delete("/api/merchant/appointment-divisions/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { id } = req.params;
+      const existing = await storage.getAppointmentDivision(id);
+      if (!existing || existing.merchantId !== merchantId) return res.status(404).json({ error: "Division not found" });
+      await storage.deleteAppointmentDivision(id);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to delete division" });
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // APPOINTMENT PROVIDERS
+  // ════════════════════════════════════════════════════════════════════════════
+
+  app.get("/api/merchant/appointment-providers", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const divisionId = req.query.divisionId as string | undefined;
+      const providers = await storage.getAppointmentProviders(merchantId, divisionId);
+      res.json(providers);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch providers" });
+    }
+  });
+
+  app.post("/api/merchant/appointment-providers", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { name, divisionId, email, phone, isActive } = req.body;
+      if (!name) return res.status(400).json({ error: "name required" });
+      const id = "prv_" + crypto.randomBytes(8).toString("hex");
+      const provider = await storage.createAppointmentProvider({ id, merchantId, name, divisionId: divisionId || null, email: email || null, phone: phone || null, isActive: isActive ?? true });
+      res.status(201).json(provider);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to create provider" });
+    }
+  });
+
+  app.patch("/api/merchant/appointment-providers/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { id } = req.params;
+      const existing = await storage.getAppointmentProvider(id);
+      if (!existing || existing.merchantId !== merchantId) return res.status(404).json({ error: "Provider not found" });
+      const updated = await storage.updateAppointmentProvider(id, req.body);
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to update provider" });
+    }
+  });
+
+  app.delete("/api/merchant/appointment-providers/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { id } = req.params;
+      const existing = await storage.getAppointmentProvider(id);
+      if (!existing || existing.merchantId !== merchantId) return res.status(404).json({ error: "Provider not found" });
+      await storage.deleteAppointmentProvider(id);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to delete provider" });
+    }
+  });
+
+  // Provider Schedules
+  app.get("/api/merchant/appointment-providers/:providerId/schedules", requireMerchant, async (req, res) => {
+    try {
+      const { providerId } = req.params;
+      const schedules = await storage.getProviderSchedules(providerId);
+      res.json(schedules);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch schedules" });
+    }
+  });
+
+  app.put("/api/merchant/appointment-providers/:providerId/schedules", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { providerId } = req.params;
+      const { schedules } = req.body;
+      const rows = await storage.setProviderSchedules(providerId, merchantId, schedules || []);
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to save schedules" });
+    }
+  });
+
+  // Provider Blocked Dates
+  app.get("/api/merchant/appointment-providers/:providerId/blocked-dates", requireMerchant, async (req, res) => {
+    try {
+      const { providerId } = req.params;
+      const dates = await storage.getProviderBlockedDates(providerId);
+      res.json(dates);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch blocked dates" });
+    }
+  });
+
+  app.post("/api/merchant/appointment-providers/:providerId/blocked-dates", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { providerId } = req.params;
+      const { blockedDate, reason } = req.body;
+      if (!blockedDate) return res.status(400).json({ error: "blockedDate required" });
+      const date = await storage.addProviderBlockedDate({ providerId, merchantId, blockedDate, reason: reason || null });
+      res.status(201).json(date);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to add blocked date" });
+    }
+  });
+
+  app.delete("/api/merchant/appointment-providers/blocked-dates/:id", requireMerchant, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.removeProviderBlockedDate(id);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to remove blocked date" });
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // APPOINTMENT SERVICES
+  // ════════════════════════════════════════════════════════════════════════════
+
+  app.get("/api/merchant/appointment-services", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const services = await storage.getAppointmentServices(merchantId);
+      res.json(services);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch services" });
+    }
+  });
+
+  app.post("/api/merchant/appointment-services", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { name, description, durationMinutes, priceIdr, divisionId, isActive, sortOrder } = req.body;
+      if (!name) return res.status(400).json({ error: "name required" });
+      const id = "svc_" + crypto.randomBytes(8).toString("hex");
+      const service = await storage.createAppointmentService({ id, merchantId, name, description: description || null, durationMinutes: durationMinutes ?? 60, priceIdr: priceIdr || null, divisionId: divisionId || null, isActive: isActive ?? true, sortOrder: sortOrder ?? 0 });
+      res.status(201).json(service);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to create service" });
+    }
+  });
+
+  app.patch("/api/merchant/appointment-services/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { id } = req.params;
+      const existing = await storage.getAppointmentService(id);
+      if (!existing || existing.merchantId !== merchantId) return res.status(404).json({ error: "Service not found" });
+      const updated = await storage.updateAppointmentService(id, req.body);
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to update service" });
+    }
+  });
+
+  app.delete("/api/merchant/appointment-services/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { id } = req.params;
+      const existing = await storage.getAppointmentService(id);
+      if (!existing || existing.merchantId !== merchantId) return res.status(404).json({ error: "Service not found" });
+      await storage.deleteAppointmentService(id);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to delete service" });
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // APPOINTMENTS (bookings)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  app.get("/api/merchant/appointments", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { date, providerId, status, month } = req.query as Record<string, string>;
+      const appts = await storage.getAppointments(merchantId, { date, providerId, status, month });
+      res.json(appts);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch appointments" });
+    }
+  });
+
+  app.post("/api/merchant/appointments", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { serviceId, providerId, divisionId, sessionId, customerName, customerPhone, customerEmail, appointmentDate, appointmentTime, endTime, notes } = req.body;
+      if (!customerName || !appointmentDate || !appointmentTime) {
+        return res.status(400).json({ error: "customerName, appointmentDate, appointmentTime required" });
+      }
+      const id = "apt_" + crypto.randomBytes(8).toString("hex");
+      const bookingCode = "APT-" + crypto.randomBytes(3).toString("hex").toUpperCase();
+      const appt = await storage.createAppointment({ id, merchantId, serviceId: serviceId || null, providerId: providerId || null, divisionId: divisionId || null, sessionId: sessionId || null, customerName, customerPhone: customerPhone || null, customerEmail: customerEmail || null, appointmentDate, appointmentTime, endTime: endTime || null, notes: notes || null, bookingCode, status: "pending" });
+      res.status(201).json(appt);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to create appointment" });
+    }
+  });
+
+  app.patch("/api/merchant/appointments/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { id } = req.params;
+      const existing = await storage.getAppointment(id);
+      if (!existing || existing.merchantId !== merchantId) return res.status(404).json({ error: "Appointment not found" });
+      const updated = await storage.updateAppointment(id, req.body);
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to update appointment" });
+    }
+  });
+
+  app.delete("/api/merchant/appointments/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { id } = req.params;
+      const existing = await storage.getAppointment(id);
+      if (!existing || existing.merchantId !== merchantId) return res.status(404).json({ error: "Appointment not found" });
+      await storage.cancelAppointment(id);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to cancel appointment" });
+    }
+  });
+
+  // Check availability for a provider on a date
+  app.get("/api/merchant/appointments/availability", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { providerId, date, durationMinutes } = req.query as Record<string, string>;
+      if (!providerId || !date) return res.status(400).json({ error: "providerId and date required" });
+
+      const duration = parseInt(durationMinutes || "60");
+      const schedules = await storage.getProviderSchedules(providerId);
+      const blockedDates = await storage.getProviderBlockedDates(providerId);
+      const existingAppts = await storage.getAppointments(merchantId, { providerId, date, status: "confirmed" });
+
+      const dayOfWeek = new Date(date + "T00:00:00").getDay();
+      const todaySchedule = schedules.find(s => s.dayOfWeek === dayOfWeek && s.isActive);
+      const isBlocked = blockedDates.some(b => b.blockedDate === date);
+
+      if (!todaySchedule || isBlocked) return res.json({ slots: [] });
+
+      const slots: string[] = [];
+      const [startH, startM] = todaySchedule.startTime.split(":").map(Number);
+      const [endH, endM] = todaySchedule.endTime.split(":").map(Number);
+      let cursor = startH * 60 + startM;
+      const endCursor = endH * 60 + endM;
+      const breakStart = todaySchedule.breakStart ? todaySchedule.breakStart.split(":").map(Number) : null;
+      const breakEnd = todaySchedule.breakEnd ? todaySchedule.breakEnd.split(":").map(Number) : null;
+      const breakStartMins = breakStart ? breakStart[0] * 60 + breakStart[1] : null;
+      const breakEndMins = breakEnd ? breakEnd[0] * 60 + breakEnd[1] : null;
+
+      while (cursor + duration <= endCursor) {
+        if (breakStartMins && breakEndMins && cursor >= breakStartMins && cursor < breakEndMins) {
+          cursor = breakEndMins;
+          continue;
+        }
+        const timeStr = `${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`;
+        const slotEnd = cursor + duration;
+        const conflict = existingAppts.some(a => {
+          const [aH, aM] = a.appointmentTime.split(":").map(Number);
+          const aStart = aH * 60 + aM;
+          const [eH, eM] = (a.endTime || a.appointmentTime).split(":").map(Number);
+          const aEnd = eH * 60 + eM || aStart + duration;
+          return cursor < aEnd && slotEnd > aStart;
+        });
+        if (!conflict) slots.push(timeStr);
+        cursor += 30;
+      }
+      res.json({ slots });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to check availability" });
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // INTERNAL STAFF CALENDAR (token-based, no auth required)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  app.get("/api/internal/calendar/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const { month } = req.query as { month?: string };
+
+      const addon = await storage.getMerchantAddonByCalendarToken(token);
+      if (!addon || !addon.isActive) return res.status(404).json({ error: "Invalid calendar link" });
+
+      const merchantId = addon.merchantId;
+      const merchant = await storage.getMerchant(merchantId);
+      const targetMonth = month || new Date().toISOString().substring(0, 7);
+
+      const appts = await storage.getAppointments(merchantId, { month: targetMonth });
+      const divisions = await storage.getAppointmentDivisions(merchantId);
+      const providers = await storage.getAppointmentProviders(merchantId);
+      const services = await storage.getAppointmentServices(merchantId);
+
+      res.json({
+        merchant: { id: merchant?.id, companyName: merchant?.companyName, phone: merchant?.phoneNumber },
+        appointments: appts,
+        divisions,
+        providers,
+        services,
+        month: targetMonth,
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load calendar" });
+    }
+  });
+
   // ─── Auto-register Telegram webhooks on startup for configured merchants ───
   (async () => {
     try {

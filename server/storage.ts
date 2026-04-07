@@ -1,4 +1,13 @@
 import {
+  type AddonConfig, type InsertAddonConfig,
+  type MerchantAddon, type InsertMerchantAddon,
+  type AppointmentDivision, type InsertAppointmentDivision,
+  type AppointmentProvider, type InsertAppointmentProvider,
+  type AppointmentService, type InsertAppointmentService,
+  type ProviderSchedule, type InsertProviderSchedule,
+  type ProviderBlockedDate, type InsertProviderBlockedDate,
+  type Appointment, type InsertAppointment,
+  addonConfigs, merchantAddons, appointmentDivisions, appointmentProviders, appointmentServices, providerSchedules, providerBlockedDates, appointments,
   type Merchant, type InsertMerchant,
   type Supervisor, type InsertSupervisor,
   type Session, type InsertSession,
@@ -551,6 +560,59 @@ export interface IStorage {
   createBlogGenerationLog(data: InsertBlogGenerationLog): Promise<BlogGenerationLog>;
   getBlogGenerationLogs(limit?: number): Promise<BlogGenerationLog[]>;
   countBlogPosts(): Promise<number>;
+
+  // Addon Configs
+  getAddonConfigs(): Promise<AddonConfig[]>;
+  getAddonConfig(addonType: string): Promise<AddonConfig | undefined>;
+  upsertAddonConfig(data: InsertAddonConfig): Promise<AddonConfig>;
+
+  // Merchant Addons
+  getMerchantAddons(merchantId: string): Promise<MerchantAddon[]>;
+  getMerchantAddon(merchantId: string, addonType: string): Promise<MerchantAddon | undefined>;
+  getMerchantAddonByCalendarToken(token: string): Promise<MerchantAddon | undefined>;
+  createMerchantAddon(data: InsertMerchantAddon): Promise<MerchantAddon>;
+  updateMerchantAddon(id: string, data: Partial<MerchantAddon>): Promise<MerchantAddon | undefined>;
+  deleteMerchantAddon(id: string): Promise<boolean>;
+
+  // Appointment Divisions
+  getAppointmentDivisions(merchantId: string): Promise<AppointmentDivision[]>;
+  getAppointmentDivision(id: string): Promise<AppointmentDivision | undefined>;
+  createAppointmentDivision(data: InsertAppointmentDivision): Promise<AppointmentDivision>;
+  updateAppointmentDivision(id: string, data: Partial<AppointmentDivision>): Promise<AppointmentDivision | undefined>;
+  deleteAppointmentDivision(id: string): Promise<boolean>;
+
+  // Appointment Providers
+  getAppointmentProviders(merchantId: string, divisionId?: string): Promise<AppointmentProvider[]>;
+  getAppointmentProvider(id: string): Promise<AppointmentProvider | undefined>;
+  createAppointmentProvider(data: InsertAppointmentProvider): Promise<AppointmentProvider>;
+  updateAppointmentProvider(id: string, data: Partial<AppointmentProvider>): Promise<AppointmentProvider | undefined>;
+  deleteAppointmentProvider(id: string): Promise<boolean>;
+
+  // Appointment Services
+  getAppointmentServices(merchantId: string): Promise<AppointmentService[]>;
+  getAppointmentService(id: string): Promise<AppointmentService | undefined>;
+  createAppointmentService(data: InsertAppointmentService): Promise<AppointmentService>;
+  updateAppointmentService(id: string, data: Partial<AppointmentService>): Promise<AppointmentService | undefined>;
+  deleteAppointmentService(id: string): Promise<boolean>;
+
+  // Provider Schedules
+  getProviderSchedules(providerId: string): Promise<ProviderSchedule[]>;
+  getProviderSchedulesByMerchant(merchantId: string): Promise<ProviderSchedule[]>;
+  setProviderSchedules(providerId: string, merchantId: string, schedules: Omit<InsertProviderSchedule, 'providerId' | 'merchantId'>[]): Promise<ProviderSchedule[]>;
+
+  // Provider Blocked Dates
+  getProviderBlockedDates(providerId: string): Promise<ProviderBlockedDate[]>;
+  addProviderBlockedDate(data: InsertProviderBlockedDate): Promise<ProviderBlockedDate>;
+  removeProviderBlockedDate(id: number): Promise<boolean>;
+
+  // Appointments
+  getAppointments(merchantId: string, options?: { date?: string; providerId?: string; status?: string; month?: string }): Promise<Appointment[]>;
+  getAppointment(id: string): Promise<Appointment | undefined>;
+  getAppointmentByBookingCode(bookingCode: string): Promise<Appointment | undefined>;
+  createAppointment(data: InsertAppointment): Promise<Appointment>;
+  updateAppointment(id: string, data: Partial<Appointment>): Promise<Appointment | undefined>;
+  cancelAppointment(id: string): Promise<Appointment | undefined>;
+  getAppointmentsBySession(sessionId: string): Promise<Appointment[]>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -4036,6 +4098,213 @@ export class DatabaseStorage implements IStorage {
   async countBlogPosts(): Promise<number> {
     const [result] = await db.select({ cnt: count() }).from(blogPosts);
     return result?.cnt ?? 0;
+  }
+
+  // ── Addon Configs ──────────────────────────────────────────────────────────
+  async getAddonConfigs(): Promise<AddonConfig[]> {
+    return db.select().from(addonConfigs).orderBy(addonConfigs.id);
+  }
+
+  async getAddonConfig(addonType: string): Promise<AddonConfig | undefined> {
+    const [row] = await db.select().from(addonConfigs).where(eq(addonConfigs.addonType, addonType));
+    return row;
+  }
+
+  async upsertAddonConfig(data: InsertAddonConfig): Promise<AddonConfig> {
+    const existing = await this.getAddonConfig(data.addonType);
+    if (existing) {
+      const [row] = await db.update(addonConfigs).set(data).where(eq(addonConfigs.addonType, data.addonType)).returning();
+      return row;
+    }
+    const [row] = await db.insert(addonConfigs).values(data).returning();
+    return row;
+  }
+
+  // ── Merchant Addons ────────────────────────────────────────────────────────
+  async getMerchantAddons(merchantId: string): Promise<MerchantAddon[]> {
+    return db.select().from(merchantAddons).where(eq(merchantAddons.merchantId, merchantId));
+  }
+
+  async getMerchantAddon(merchantId: string, addonType: string): Promise<MerchantAddon | undefined> {
+    const [row] = await db.select().from(merchantAddons)
+      .where(and(eq(merchantAddons.merchantId, merchantId), eq(merchantAddons.addonType, addonType)));
+    return row;
+  }
+
+  async getMerchantAddonByCalendarToken(token: string): Promise<MerchantAddon | undefined> {
+    const [row] = await db.select().from(merchantAddons).where(eq(merchantAddons.calendarToken, token));
+    return row;
+  }
+
+  async createMerchantAddon(data: InsertMerchantAddon): Promise<MerchantAddon> {
+    const [row] = await db.insert(merchantAddons).values(data).returning();
+    return row;
+  }
+
+  async updateMerchantAddon(id: string, data: Partial<MerchantAddon>): Promise<MerchantAddon | undefined> {
+    const [row] = await db.update(merchantAddons).set(data).where(eq(merchantAddons.id, id)).returning();
+    return row;
+  }
+
+  async deleteMerchantAddon(id: string): Promise<boolean> {
+    const result = await db.delete(merchantAddons).where(eq(merchantAddons.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // ── Appointment Divisions ──────────────────────────────────────────────────
+  async getAppointmentDivisions(merchantId: string): Promise<AppointmentDivision[]> {
+    return db.select().from(appointmentDivisions)
+      .where(eq(appointmentDivisions.merchantId, merchantId))
+      .orderBy(appointmentDivisions.sortOrder, appointmentDivisions.name);
+  }
+
+  async getAppointmentDivision(id: string): Promise<AppointmentDivision | undefined> {
+    const [row] = await db.select().from(appointmentDivisions).where(eq(appointmentDivisions.id, id));
+    return row;
+  }
+
+  async createAppointmentDivision(data: InsertAppointmentDivision): Promise<AppointmentDivision> {
+    const [row] = await db.insert(appointmentDivisions).values(data).returning();
+    return row;
+  }
+
+  async updateAppointmentDivision(id: string, data: Partial<AppointmentDivision>): Promise<AppointmentDivision | undefined> {
+    const [row] = await db.update(appointmentDivisions).set(data).where(eq(appointmentDivisions.id, id)).returning();
+    return row;
+  }
+
+  async deleteAppointmentDivision(id: string): Promise<boolean> {
+    const result = await db.delete(appointmentDivisions).where(eq(appointmentDivisions.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // ── Appointment Providers ──────────────────────────────────────────────────
+  async getAppointmentProviders(merchantId: string, divisionId?: string): Promise<AppointmentProvider[]> {
+    if (divisionId) {
+      return db.select().from(appointmentProviders)
+        .where(and(eq(appointmentProviders.merchantId, merchantId), eq(appointmentProviders.divisionId, divisionId)))
+        .orderBy(appointmentProviders.name);
+    }
+    return db.select().from(appointmentProviders)
+      .where(eq(appointmentProviders.merchantId, merchantId))
+      .orderBy(appointmentProviders.name);
+  }
+
+  async getAppointmentProvider(id: string): Promise<AppointmentProvider | undefined> {
+    const [row] = await db.select().from(appointmentProviders).where(eq(appointmentProviders.id, id));
+    return row;
+  }
+
+  async createAppointmentProvider(data: InsertAppointmentProvider): Promise<AppointmentProvider> {
+    const [row] = await db.insert(appointmentProviders).values(data).returning();
+    return row;
+  }
+
+  async updateAppointmentProvider(id: string, data: Partial<AppointmentProvider>): Promise<AppointmentProvider | undefined> {
+    const [row] = await db.update(appointmentProviders).set(data).where(eq(appointmentProviders.id, id)).returning();
+    return row;
+  }
+
+  async deleteAppointmentProvider(id: string): Promise<boolean> {
+    const result = await db.delete(appointmentProviders).where(eq(appointmentProviders.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // ── Appointment Services ───────────────────────────────────────────────────
+  async getAppointmentServices(merchantId: string): Promise<AppointmentService[]> {
+    return db.select().from(appointmentServices)
+      .where(eq(appointmentServices.merchantId, merchantId))
+      .orderBy(appointmentServices.sortOrder, appointmentServices.name);
+  }
+
+  async getAppointmentService(id: string): Promise<AppointmentService | undefined> {
+    const [row] = await db.select().from(appointmentServices).where(eq(appointmentServices.id, id));
+    return row;
+  }
+
+  async createAppointmentService(data: InsertAppointmentService): Promise<AppointmentService> {
+    const [row] = await db.insert(appointmentServices).values(data).returning();
+    return row;
+  }
+
+  async updateAppointmentService(id: string, data: Partial<AppointmentService>): Promise<AppointmentService | undefined> {
+    const [row] = await db.update(appointmentServices).set(data).where(eq(appointmentServices.id, id)).returning();
+    return row;
+  }
+
+  async deleteAppointmentService(id: string): Promise<boolean> {
+    const result = await db.delete(appointmentServices).where(eq(appointmentServices.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // ── Provider Schedules ─────────────────────────────────────────────────────
+  async getProviderSchedules(providerId: string): Promise<ProviderSchedule[]> {
+    return db.select().from(providerSchedules).where(eq(providerSchedules.providerId, providerId)).orderBy(providerSchedules.dayOfWeek);
+  }
+
+  async getProviderSchedulesByMerchant(merchantId: string): Promise<ProviderSchedule[]> {
+    return db.select().from(providerSchedules).where(eq(providerSchedules.merchantId, merchantId));
+  }
+
+  async setProviderSchedules(providerId: string, merchantId: string, schedules: Omit<InsertProviderSchedule, 'providerId' | 'merchantId'>[]): Promise<ProviderSchedule[]> {
+    await db.delete(providerSchedules).where(eq(providerSchedules.providerId, providerId));
+    if (schedules.length === 0) return [];
+    const rows = await db.insert(providerSchedules).values(schedules.map(s => ({ ...s, providerId, merchantId }))).returning();
+    return rows;
+  }
+
+  // ── Provider Blocked Dates ─────────────────────────────────────────────────
+  async getProviderBlockedDates(providerId: string): Promise<ProviderBlockedDate[]> {
+    return db.select().from(providerBlockedDates).where(eq(providerBlockedDates.providerId, providerId)).orderBy(providerBlockedDates.blockedDate);
+  }
+
+  async addProviderBlockedDate(data: InsertProviderBlockedDate): Promise<ProviderBlockedDate> {
+    const [row] = await db.insert(providerBlockedDates).values(data).returning();
+    return row;
+  }
+
+  async removeProviderBlockedDate(id: number): Promise<boolean> {
+    const result = await db.delete(providerBlockedDates).where(eq(providerBlockedDates.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // ── Appointments ───────────────────────────────────────────────────────────
+  async getAppointments(merchantId: string, options: { date?: string; providerId?: string; status?: string; month?: string } = {}): Promise<Appointment[]> {
+    const conditions = [eq(appointments.merchantId, merchantId)];
+    if (options.date) conditions.push(eq(appointments.appointmentDate, options.date));
+    if (options.providerId) conditions.push(eq(appointments.providerId, options.providerId));
+    if (options.status) conditions.push(eq(appointments.status, options.status));
+    if (options.month) conditions.push(sql`LEFT(${appointments.appointmentDate}, 7) = ${options.month}`);
+    return db.select().from(appointments).where(and(...conditions)).orderBy(appointments.appointmentDate, appointments.appointmentTime);
+  }
+
+  async getAppointment(id: string): Promise<Appointment | undefined> {
+    const [row] = await db.select().from(appointments).where(eq(appointments.id, id));
+    return row;
+  }
+
+  async getAppointmentByBookingCode(bookingCode: string): Promise<Appointment | undefined> {
+    const [row] = await db.select().from(appointments).where(eq(appointments.bookingCode, bookingCode));
+    return row;
+  }
+
+  async createAppointment(data: InsertAppointment): Promise<Appointment> {
+    const [row] = await db.insert(appointments).values(data).returning();
+    return row;
+  }
+
+  async updateAppointment(id: string, data: Partial<Appointment>): Promise<Appointment | undefined> {
+    const [row] = await db.update(appointments).set({ ...data, updatedAt: new Date() }).where(eq(appointments.id, id)).returning();
+    return row;
+  }
+
+  async cancelAppointment(id: string): Promise<Appointment | undefined> {
+    const [row] = await db.update(appointments).set({ status: 'cancelled', updatedAt: new Date() }).where(eq(appointments.id, id)).returning();
+    return row;
+  }
+
+  async getAppointmentsBySession(sessionId: string): Promise<Appointment[]> {
+    return db.select().from(appointments).where(eq(appointments.sessionId, sessionId)).orderBy(desc(appointments.createdAt));
   }
 }
 

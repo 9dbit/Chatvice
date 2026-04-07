@@ -2410,3 +2410,151 @@ export const insertBlogGenerationLogSchema = createInsertSchema(blogGenerationLo
 export type InsertBlogGenerationLog = z.infer<typeof insertBlogGenerationLogSchema>;
 export type BlogGenerationLog = typeof blogGenerationLogs.$inferSelect;
 
+// ─── Addon Configs (admin-managed addon catalog) ─────────────────────────────
+export const addonConfigs = pgTable("addon_configs", {
+  id: serial("id").primaryKey(),
+  addonType: text("addon_type").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description"),
+  monthlyPriceUsd: integer("monthly_price_usd").notNull().default(7),
+  isEnabled: boolean("is_enabled").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+export const insertAddonConfigSchema = createInsertSchema(addonConfigs).omit({ id: true, createdAt: true });
+export type InsertAddonConfig = z.infer<typeof insertAddonConfigSchema>;
+export type AddonConfig = typeof addonConfigs.$inferSelect;
+
+// ─── Merchant Addons (subscriptions per merchant) ─────────────────────────────
+export const merchantAddons = pgTable("merchant_addons", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  addonType: text("addon_type").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  calendarToken: text("calendar_token"),
+  subscribedAt: timestamp("subscribed_at").defaultNow(),
+  expiresAt: timestamp("expires_at"),
+}, (table) => ({
+  merchantIdx: index("merchant_addons_merchant_idx").on(table.merchantId),
+  addonTypeIdx: index("merchant_addons_type_idx").on(table.addonType),
+  calendarTokenIdx: index("merchant_addons_cal_token_idx").on(table.calendarToken),
+}));
+export const insertMerchantAddonSchema = createInsertSchema(merchantAddons).omit({ subscribedAt: true });
+export type InsertMerchantAddon = z.infer<typeof insertMerchantAddonSchema>;
+export type MerchantAddon = typeof merchantAddons.$inferSelect;
+
+// ─── Appointment Divisions ─────────────────────────────────────────────────────
+export const appointmentDivisions = pgTable("appointment_divisions", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  location: text("location"),
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  merchantIdx: index("appt_div_merchant_idx").on(table.merchantId),
+}));
+export const insertAppointmentDivisionSchema = createInsertSchema(appointmentDivisions).omit({ createdAt: true });
+export type InsertAppointmentDivision = z.infer<typeof insertAppointmentDivisionSchema>;
+export type AppointmentDivision = typeof appointmentDivisions.$inferSelect;
+
+// ─── Appointment Providers (individuals who provide services) ──────────────────
+export const appointmentProviders = pgTable("appointment_providers", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  divisionId: varchar("division_id", { length: 32 }),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  merchantIdx: index("appt_prov_merchant_idx").on(table.merchantId),
+  divisionIdx: index("appt_prov_division_idx").on(table.divisionId),
+}));
+export const insertAppointmentProviderSchema = createInsertSchema(appointmentProviders).omit({ createdAt: true });
+export type InsertAppointmentProvider = z.infer<typeof insertAppointmentProviderSchema>;
+export type AppointmentProvider = typeof appointmentProviders.$inferSelect;
+
+// ─── Appointment Services ─────────────────────────────────────────────────────
+export const appointmentServices = pgTable("appointment_services", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  divisionId: varchar("division_id", { length: 32 }),
+  name: text("name").notNull(),
+  description: text("description"),
+  durationMinutes: integer("duration_minutes").notNull().default(60),
+  priceIdr: integer("price_idr"),
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  merchantIdx: index("appt_svc_merchant_idx").on(table.merchantId),
+}));
+export const insertAppointmentServiceSchema = createInsertSchema(appointmentServices).omit({ createdAt: true });
+export type InsertAppointmentService = z.infer<typeof insertAppointmentServiceSchema>;
+export type AppointmentService = typeof appointmentServices.$inferSelect;
+
+// ─── Provider Schedules (weekly recurring availability) ───────────────────────
+export const providerSchedules = pgTable("provider_schedules", {
+  id: serial("id").primaryKey(),
+  providerId: varchar("provider_id", { length: 32 }).notNull(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  dayOfWeek: integer("day_of_week").notNull(),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
+  breakStart: text("break_start"),
+  breakEnd: text("break_end"),
+  isActive: boolean("is_active").notNull().default(true),
+}, (table) => ({
+  providerIdx: index("prov_sched_provider_idx").on(table.providerId),
+}));
+export const insertProviderScheduleSchema = createInsertSchema(providerSchedules).omit({ id: true });
+export type InsertProviderSchedule = z.infer<typeof insertProviderScheduleSchema>;
+export type ProviderSchedule = typeof providerSchedules.$inferSelect;
+
+// ─── Provider Blocked Dates ───────────────────────────────────────────────────
+export const providerBlockedDates = pgTable("provider_blocked_dates", {
+  id: serial("id").primaryKey(),
+  providerId: varchar("provider_id", { length: 32 }).notNull(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  blockedDate: text("blocked_date").notNull(),
+  reason: text("reason"),
+}, (table) => ({
+  providerIdx: index("prov_blocked_provider_idx").on(table.providerId),
+}));
+export const insertProviderBlockedDateSchema = createInsertSchema(providerBlockedDates).omit({ id: true });
+export type InsertProviderBlockedDate = z.infer<typeof insertProviderBlockedDateSchema>;
+export type ProviderBlockedDate = typeof providerBlockedDates.$inferSelect;
+
+// ─── Appointments ─────────────────────────────────────────────────────────────
+export const appointments = pgTable("appointments", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  serviceId: varchar("service_id", { length: 32 }),
+  providerId: varchar("provider_id", { length: 32 }),
+  divisionId: varchar("division_id", { length: 32 }),
+  sessionId: varchar("session_id", { length: 64 }),
+  customerName: text("customer_name").notNull(),
+  customerPhone: text("customer_phone"),
+  customerEmail: text("customer_email"),
+  appointmentDate: text("appointment_date").notNull(),
+  appointmentTime: text("appointment_time").notNull(),
+  endTime: text("end_time"),
+  status: text("status").notNull().default("pending"),
+  notes: text("notes"),
+  bookingCode: text("booking_code"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  merchantIdx: index("appt_merchant_idx").on(table.merchantId),
+  dateIdx: index("appt_date_idx").on(table.appointmentDate),
+  providerIdx: index("appt_provider_idx").on(table.providerId),
+  sessionIdx: index("appt_session_idx").on(table.sessionId),
+  bookingCodeIdx: index("appt_booking_code_idx").on(table.bookingCode),
+}));
+export const insertAppointmentSchema = createInsertSchema(appointments).omit({ createdAt: true, updatedAt: true });
+export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
+export type Appointment = typeof appointments.$inferSelect;
+

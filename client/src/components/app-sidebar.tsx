@@ -48,6 +48,8 @@ import {
   Target,
   HardDrive,
   Radio,
+  Sparkles,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -124,6 +126,8 @@ const iconMap: Record<string, any> = {
   ShieldAlert,
   DollarSign,
   HardDrive,
+  Sparkles,
+  Calendar,
 };
 
 const menuItemsMap: Record<string, MenuItem> = {
@@ -153,6 +157,8 @@ const menuItemsMap: Record<string, MenuItem> = {
   "chat-monitoring": { id: "chat-monitoring", title: "Chat Monitoring", url: "/dashboard/chat-monitoring", icon: ShieldAlert, permission: "settings" },
   "affiliate": { id: "affiliate", title: "Affiliate", url: "/dashboard/affiliate", icon: DollarSign, permission: "overview" },
   "data-usage": { id: "data-usage", title: "Data Usage", url: "/dashboard/data-usage", icon: HardDrive, permission: "billing" },
+  "additional-services": { id: "additional-services", title: "Layanan Tambahan", url: "/dashboard/additional-services", icon: Sparkles, permission: "billing" },
+  "appointments": { id: "appointments", title: "Janji Temu", url: "/dashboard/appointments", icon: Calendar, permission: "analytics" },
 };
 
 const defaultMainMenuItems: MenuItem[] = [
@@ -188,6 +194,8 @@ const defaultManagementItems: MenuItem[] = [
   menuItemsMap["integrations"],
   menuItemsMap["chat-monitoring"],
   menuItemsMap["data-usage"],
+  menuItemsMap["additional-services"],
+  menuItemsMap["appointments"],
   menuItemsMap["plans"],
   menuItemsMap["billing"],
 ];
@@ -217,6 +225,8 @@ const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSet
   "integrations": "management",
   "chat-monitoring": "management",
   "data-usage": "management",
+  "additional-services": "management",
+  "appointments": "management",
   "plans": "management",
   "billing": "management",
 };
