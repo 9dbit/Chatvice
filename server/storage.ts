@@ -568,6 +568,7 @@ export interface IStorage {
 
   // Merchant Addons
   getMerchantAddons(merchantId: string): Promise<MerchantAddon[]>;
+  getAllMerchantAddons(): Promise<MerchantAddon[]>;
   getMerchantAddon(merchantId: string, addonType: string): Promise<MerchantAddon | undefined>;
   getMerchantAddonByCalendarToken(token: string): Promise<MerchantAddon | undefined>;
   createMerchantAddon(data: InsertMerchantAddon): Promise<MerchantAddon>;
@@ -602,6 +603,7 @@ export interface IStorage {
 
   // Provider Blocked Dates
   getProviderBlockedDates(providerId: string): Promise<ProviderBlockedDate[]>;
+  getProviderBlockedDate(id: number): Promise<ProviderBlockedDate | undefined>;
   addProviderBlockedDate(data: InsertProviderBlockedDate): Promise<ProviderBlockedDate>;
   removeProviderBlockedDate(id: number): Promise<boolean>;
 
@@ -4125,6 +4127,10 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(merchantAddons).where(eq(merchantAddons.merchantId, merchantId));
   }
 
+  async getAllMerchantAddons(): Promise<MerchantAddon[]> {
+    return db.select().from(merchantAddons).orderBy(merchantAddons.subscribedAt);
+  }
+
   async getMerchantAddon(merchantId: string, addonType: string): Promise<MerchantAddon | undefined> {
     const [row] = await db.select().from(merchantAddons)
       .where(and(eq(merchantAddons.merchantId, merchantId), eq(merchantAddons.addonType, addonType)));
@@ -4256,6 +4262,11 @@ export class DatabaseStorage implements IStorage {
   // ── Provider Blocked Dates ─────────────────────────────────────────────────
   async getProviderBlockedDates(providerId: string): Promise<ProviderBlockedDate[]> {
     return db.select().from(providerBlockedDates).where(eq(providerBlockedDates.providerId, providerId)).orderBy(providerBlockedDates.blockedDate);
+  }
+
+  async getProviderBlockedDate(id: number): Promise<ProviderBlockedDate | undefined> {
+    const [row] = await db.select().from(providerBlockedDates).where(eq(providerBlockedDates.id, id));
+    return row;
   }
 
   async addProviderBlockedDate(data: InsertProviderBlockedDate): Promise<ProviderBlockedDate> {

@@ -23429,6 +23429,15 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  app.get("/api/admin/addon-configs/subscribers", requireAdmin, async (req, res) => {
+    try {
+      const subscribers = await storage.getAllMerchantAddons();
+      res.json(subscribers);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch subscribers" });
+    }
+  });
+
   app.get("/api/addon-configs", async (req, res) => {
     try {
       const configs = await storage.getAddonConfigs();
@@ -23610,7 +23619,10 @@ Please create a comprehensive help center article that would be useful for custo
   // Provider Schedules
   app.get("/api/merchant/appointment-providers/:providerId/schedules", requireMerchant, async (req, res) => {
     try {
+      const merchantId = req.session!.merchantId!;
       const { providerId } = req.params;
+      const provider = await storage.getAppointmentProvider(providerId);
+      if (!provider || provider.merchantId !== merchantId) return res.status(404).json({ error: "Provider not found" });
       const schedules = await storage.getProviderSchedules(providerId);
       res.json(schedules);
     } catch (err) {
@@ -23622,6 +23634,8 @@ Please create a comprehensive help center article that would be useful for custo
     try {
       const merchantId = req.session!.merchantId!;
       const { providerId } = req.params;
+      const provider = await storage.getAppointmentProvider(providerId);
+      if (!provider || provider.merchantId !== merchantId) return res.status(404).json({ error: "Provider not found" });
       const { schedules } = req.body;
       const rows = await storage.setProviderSchedules(providerId, merchantId, schedules || []);
       res.json(rows);
@@ -23633,7 +23647,10 @@ Please create a comprehensive help center article that would be useful for custo
   // Provider Blocked Dates
   app.get("/api/merchant/appointment-providers/:providerId/blocked-dates", requireMerchant, async (req, res) => {
     try {
+      const merchantId = req.session!.merchantId!;
       const { providerId } = req.params;
+      const provider = await storage.getAppointmentProvider(providerId);
+      if (!provider || provider.merchantId !== merchantId) return res.status(404).json({ error: "Provider not found" });
       const dates = await storage.getProviderBlockedDates(providerId);
       res.json(dates);
     } catch (err) {
@@ -23645,6 +23662,8 @@ Please create a comprehensive help center article that would be useful for custo
     try {
       const merchantId = req.session!.merchantId!;
       const { providerId } = req.params;
+      const provider = await storage.getAppointmentProvider(providerId);
+      if (!provider || provider.merchantId !== merchantId) return res.status(404).json({ error: "Provider not found" });
       const { blockedDate, reason } = req.body;
       if (!blockedDate) return res.status(400).json({ error: "blockedDate required" });
       const date = await storage.addProviderBlockedDate({ providerId, merchantId, blockedDate, reason: reason || null });
@@ -23656,7 +23675,11 @@ Please create a comprehensive help center article that would be useful for custo
 
   app.delete("/api/merchant/appointment-providers/blocked-dates/:id", requireMerchant, async (req, res) => {
     try {
+      const merchantId = req.session!.merchantId!;
       const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+      const blockedDate = await storage.getProviderBlockedDate(id);
+      if (!blockedDate || blockedDate.merchantId !== merchantId) return res.status(404).json({ error: "Blocked date not found" });
       await storage.removeProviderBlockedDate(id);
       res.json({ success: true });
     } catch (err) {
