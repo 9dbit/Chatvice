@@ -23465,33 +23465,53 @@ Please create a comprehensive help center article that would be useful for custo
   app.post("/api/merchant/addons/subscribe", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
-      const { addonType } = req.body;
+      const { addonType, paymentMethod } = req.body;
       if (!addonType) return res.status(400).json({ error: "addonType required" });
-
-      const existing = await storage.getMerchantAddon(merchantId, addonType);
-      if (existing) {
-        if (existing.isActive) return res.status(409).json({ error: "Already subscribed" });
-        const updated = await storage.updateMerchantAddon(existing.id, { isActive: true, subscribedAt: new Date() });
-        return res.json(updated);
-      }
 
       const addonConfig = await storage.getAddonConfig(addonType);
       if (!addonConfig || !addonConfig.isEnabled) return res.status(404).json({ error: "Addon not available" });
 
-      const addonId = "ma_" + crypto.randomBytes(8).toString("hex");
-      let calendarToken: string | undefined;
-      if (addonType === "appointment_scheduling") {
-        calendarToken = crypto.randomBytes(16).toString("hex");
+      const existing = await storage.getMerchantAddon(merchantId, addonType);
+      if (existing && existing.isActive) return res.status(409).json({ error: "Already subscribed" });
+
+      // Require payment method selection before creating pending subscription
+      const validMethods = ["kompas_pay", "paypal", "crypto"];
+      if (!paymentMethod || !validMethods.includes(paymentMethod)) {
+        return res.status(400).json({
+          error: "paymentMethod required",
+          validMethods,
+          message: "Please select a payment method to subscribe to this addon.",
+        });
       }
 
+      if (existing) {
+        // Reset to pending if previously inactive
+        const updated = await storage.updateMerchantAddon(existing.id, { isActive: false });
+        return res.json({
+          ...updated,
+          status: "payment_pending",
+          message: "Please complete payment to activate your subscription.",
+          paymentMethod,
+          amount: addonConfig.monthlyPriceUsd,
+        });
+      }
+
+      const addonId = "ma_" + crypto.randomBytes(8).toString("hex");
       const addon = await storage.createMerchantAddon({
         id: addonId,
         merchantId,
         addonType,
-        isActive: true,
-        calendarToken: calendarToken || null,
+        isActive: false,
+        calendarToken: null,
       });
-      res.status(201).json(addon);
+
+      res.status(202).json({
+        ...addon,
+        status: "payment_pending",
+        message: "Please complete payment to activate your subscription.",
+        paymentMethod,
+        amount: addonConfig.monthlyPriceUsd,
+      });
     } catch (err) {
       res.status(500).json({ error: "Failed to subscribe to addon" });
     }
