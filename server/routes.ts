@@ -22,6 +22,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
+import { getAvailableSlots, bookSlot, getUpcomingAppointments } from "./appointment-engine";
 import { extractFAQContent, syncKnowledgeFromUrl, fetchWebContent } from "./crawler";
 import { parseFile, fetchGoogleDoc, fetchGoogleSheet } from "./fileParser";
 import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isKompasPayConfigured, convertToIDR, formatIDR } from "./kompasPayClient";
@@ -23883,15 +23884,27 @@ Please create a comprehensive help center article that would be useful for custo
   app.post("/api/merchant/appointments", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
-      const { serviceId, providerId, divisionId, sessionId, customerName, customerPhone, customerEmail, appointmentDate, appointmentTime, endTime, notes } = req.body;
+      const { serviceId, providerId, divisionId, sessionId, customerName, customerPhone, customerEmail, appointmentDate, appointmentTime, durationMinutes, notes } = req.body;
       if (!customerName || !appointmentDate || !appointmentTime) {
         return res.status(400).json({ error: "customerName, appointmentDate, appointmentTime required" });
       }
-      const id = "apt_" + crypto.randomBytes(8).toString("hex");
-      const bookingCode = "APT-" + crypto.randomBytes(3).toString("hex").toUpperCase();
-      const appt = await storage.createAppointment({ id, merchantId, serviceId: serviceId || null, providerId: providerId || null, divisionId: divisionId || null, sessionId: sessionId || null, customerName, customerPhone: customerPhone || null, customerEmail: customerEmail || null, appointmentDate, appointmentTime, endTime: endTime || null, notes: notes || null, bookingCode, status: "pending" });
+      const appt = await bookSlot({
+        merchantId,
+        serviceId: serviceId || null,
+        providerId: providerId || null,
+        divisionId: divisionId || null,
+        sessionId: sessionId || null,
+        customerName,
+        customerPhone: customerPhone || null,
+        customerEmail: customerEmail || null,
+        appointmentDate,
+        appointmentTime,
+        durationMinutes: durationMinutes || 60,
+        notes: notes || null,
+      });
       res.status(201).json(appt);
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.message?.includes("no longer available")) return res.status(409).json({ error: err.message });
       res.status(500).json({ error: "Failed to create appointment" });
     }
   });
@@ -23926,47 +23939,42 @@ Please create a comprehensive help center article that would be useful for custo
   app.get("/api/merchant/appointments/availability", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
-      const { providerId, date, durationMinutes } = req.query as Record<string, string>;
+      const { providerId, date, durationMinutes, intervalMinutes } = req.query as Record<string, string>;
       if (!providerId || !date) return res.status(400).json({ error: "providerId and date required" });
 
-      const duration = parseInt(durationMinutes || "60");
-      const schedules = await storage.getProviderSchedules(providerId);
-      const blockedDates = await storage.getProviderBlockedDates(providerId);
-      const existingAppts = await storage.getAppointments(merchantId, { providerId, date, status: "confirmed" });
+      const slots = await getAvailableSlots(
+        merchantId,
+        providerId,
+        date,
+        parseInt(durationMinutes || "60"),
+        parseInt(intervalMinutes || "30"),
+      );
+      res.json({ slots });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to check availability" });
+    }
+  });
 
-      const dayOfWeek = new Date(date + "T00:00:00").getDay();
-      const todaySchedule = schedules.find(s => s.dayOfWeek === dayOfWeek && s.isActive);
-      const isBlocked = blockedDates.some(b => b.blockedDate === date);
-
-      if (!todaySchedule || isBlocked) return res.json({ slots: [] });
-
-      const slots: string[] = [];
-      const [startH, startM] = todaySchedule.startTime.split(":").map(Number);
-      const [endH, endM] = todaySchedule.endTime.split(":").map(Number);
-      let cursor = startH * 60 + startM;
-      const endCursor = endH * 60 + endM;
-      const breakStart = todaySchedule.breakStart ? todaySchedule.breakStart.split(":").map(Number) : null;
-      const breakEnd = todaySchedule.breakEnd ? todaySchedule.breakEnd.split(":").map(Number) : null;
-      const breakStartMins = breakStart ? breakStart[0] * 60 + breakStart[1] : null;
-      const breakEndMins = breakEnd ? breakEnd[0] * 60 + breakEnd[1] : null;
-
-      while (cursor + duration <= endCursor) {
-        if (breakStartMins && breakEndMins && cursor >= breakStartMins && cursor < breakEndMins) {
-          cursor = breakEndMins;
-          continue;
-        }
-        const timeStr = `${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`;
-        const slotEnd = cursor + duration;
-        const conflict = existingAppts.some(a => {
-          const [aH, aM] = a.appointmentTime.split(":").map(Number);
-          const aStart = aH * 60 + aM;
-          const [eH, eM] = (a.endTime || a.appointmentTime).split(":").map(Number);
-          const aEnd = eH * 60 + eM || aStart + duration;
-          return cursor < aEnd && slotEnd > aStart;
-        });
-        if (!conflict) slots.push(timeStr);
-        cursor += 30;
+  // Public availability endpoint for embedded widgets and public booking pages
+  app.get("/api/public/appointments/availability", async (req, res) => {
+    try {
+      const { merchantSlug, providerId, date, durationMinutes } = req.query as Record<string, string>;
+      if (!merchantSlug || !providerId || !date) {
+        return res.status(400).json({ error: "merchantSlug, providerId, and date required" });
       }
+      const merchant = await storage.getMerchantBySlug(merchantSlug);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+      const addon = await storage.getMerchantAddon(merchant.id, "appointment_scheduling");
+      if (!addon || !addon.isActive) return res.status(403).json({ error: "Appointment scheduling not active for this merchant" });
+
+      const slots = await getAvailableSlots(
+        merchant.id,
+        providerId,
+        date,
+        parseInt(durationMinutes || "60"),
+        30,
+      );
       res.json({ slots });
     } catch (err) {
       res.status(500).json({ error: "Failed to check availability" });
