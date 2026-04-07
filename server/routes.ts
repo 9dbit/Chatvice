@@ -23509,6 +23509,45 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  // Confirm payment and activate addon (integrates with Kompas Pay/PayPal external flow)
+  app.post("/api/merchant/addons/confirm-payment", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { addonType, paymentReference } = req.body;
+      if (!addonType || !paymentReference) {
+        return res.status(400).json({ error: "addonType and paymentReference required" });
+      }
+
+      const addonConfig = await storage.getAddonConfig(addonType);
+      if (!addonConfig || !addonConfig.isEnabled) return res.status(404).json({ error: "Addon not available" });
+
+      const existing = await storage.getMerchantAddon(merchantId, addonType);
+      if (existing && existing.isActive) return res.status(409).json({ error: "Already subscribed" });
+
+      if (existing) {
+        const updated = await storage.updateMerchantAddon(existing.id, { isActive: true, subscribedAt: new Date() });
+        return res.json(updated);
+      }
+
+      const addonId = "ma_" + crypto.randomBytes(8).toString("hex");
+      let calendarToken: string | undefined;
+      if (addonType === "appointment_scheduling") {
+        calendarToken = crypto.randomBytes(16).toString("hex");
+      }
+
+      const addon = await storage.createMerchantAddon({
+        id: addonId,
+        merchantId,
+        addonType,
+        isActive: true,
+        calendarToken: calendarToken || null,
+      });
+      res.status(201).json(addon);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to confirm payment" });
+    }
+  });
+
   // Cancel addon (POST for idempotent REST patterns)
   app.post("/api/merchant/addons/:addonType/cancel", requireMerchant, async (req, res) => {
     try {

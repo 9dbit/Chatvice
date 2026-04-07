@@ -48,6 +48,7 @@ import HelpCenterPage from "@/pages/resources/help";
 import TopupPage from "@/pages/topup-page";
 import DemoWidgetPage from "@/pages/demo-widget";
 import StaffCalendarPage from "@/pages/internal/staff-calendar";
+import PublicCalendarPage from "@/pages/internal/public-calendar";
 import OAuthCallback from "@/pages/oauth-callback";
 import CompleteProfilePage from "@/pages/complete-profile";
 import ProfileWizardPage from "@/pages/profile-wizard";
@@ -236,6 +237,7 @@ function MainRouter() {
       <Route path="/topup" component={TopupPage} />
       <Route path="/demo" component={DemoWidgetPage} />
       <Route path="/cal/:token" component={StaffCalendarPage} />
+      <Route path="/book/:merchantSlug" component={PublicCalendarPage} />
 
       {/* Customer Chat App Routes (also accessible via /chat/ for backwards compatibility) */}
       <Route path="/chat/login" component={CustomerLoginPage} />
