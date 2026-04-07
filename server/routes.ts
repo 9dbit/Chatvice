@@ -5683,9 +5683,22 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const productRecommendMatch = result.answer.match(/\[RECOMMEND_PRODUCT(?::([^\]]+))?\]/i);
       const hasProductRecommendTag = !!productRecommendMatch;
       const recommendedProductName = productRecommendMatch?.[1]?.trim() || null;
+
+      // Parse appointment signals from AI response
+      const hasCheckAvailability = /\[CHECK_AVAILABILITY\]/i.test(result.answer);
+      const bookAppointmentMatch = result.answer.match(/\[BOOK_APPOINTMENT:([^:\]]+):([^:\]]+):([^\]]*)\]/i);
+      const hasCancelAppointment = /\[CANCEL_APPOINTMENT:([^\]]+)\]/i.test(result.answer);
+      const cancelAppointmentMatch = result.answer.match(/\[CANCEL_APPOINTMENT:([^\]]+)\]/i);
+      const hasGetMyAppointments = /\[GET_MY_APPOINTMENTS\]/i.test(result.answer);
       
-      // Remove the tag from the displayed answer
-      const cleanAnswer = result.answer.replace(/\[RECOMMEND_PRODUCT(?::[^\]]+)?\]/gi, "").trim();
+      // Remove appointment tags from displayed answer
+      let cleanAnswer = result.answer
+        .replace(/\[RECOMMEND_PRODUCT(?::[^\]]+)?\]/gi, "")
+        .replace(/\[CHECK_AVAILABILITY\]/gi, "")
+        .replace(/\[BOOK_APPOINTMENT:[^\]]*\]/gi, "")
+        .replace(/\[CANCEL_APPOINTMENT:[^\]]*\]/gi, "")
+        .replace(/\[GET_MY_APPOINTMENTS\]/gi, "")
+        .trim();
 
       const responseClientId = clientMessageId ? `response_${clientMessageId}` : undefined;
 
@@ -5842,6 +5855,81 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           }
         } catch (productError) {
           console.error("Product recommendation error:", productError);
+        }
+
+        // ── Appointment Signal Dispatch ──────────────────────────────────────
+        try {
+          const apptAddon = await storage.getMerchantAddon(resolvedMerchantId, "appointment_scheduling");
+          if (apptAddon && apptAddon.isActive) {
+
+            if (hasCheckAvailability) {
+              // Fetch available slots and broadcast as structured payload
+              const providers = await storage.getAppointmentProviders(resolvedMerchantId);
+              const today = new Date().toISOString().split("T")[0];
+              const slotsByProvider: Array<{ providerName: string; date: string; slots: string[] }> = [];
+              for (const prov of providers) {
+                if (!prov.isActive) continue;
+                const slots = await getAvailableSlots(prov.id, today);
+                if (slots.length > 0) {
+                  slotsByProvider.push({ providerName: prov.name, date: today, slots: slots.slice(0, 5) });
+                }
+              }
+              const availPayload = { type: "appointment_availability", providers: slotsByProvider };
+              await storage.createMessage({ sessionId, from: "chatvice", content: "", messageType: "appointment_availability", payload: availPayload });
+              broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "", messageType: "appointment_availability", payload: availPayload } });
+              console.log(`[Appointment] Broadcast availability: ${slotsByProvider.length} providers with slots`);
+            }
+
+            if (bookAppointmentMatch) {
+              const [, apptDate, apptTime, providerNameRaw] = bookAppointmentMatch;
+              const providerName = (providerNameRaw || "").trim();
+              const providers = await storage.getAppointmentProviders(resolvedMerchantId);
+              const provider = providers.find(p => p.name.toLowerCase() === providerName.toLowerCase()) || providers[0];
+              if (provider) {
+                try {
+                  const session = await storage.getSession(sessionId);
+                  const booked = await bookSlot({
+                    providerId: provider.id,
+                    appointmentDate: apptDate.trim(),
+                    appointmentTime: apptTime.trim(),
+                    customerName: session?.customerName || "Customer",
+                    customerEmail: null,
+                    notes: null,
+                  });
+                  const bookedPayload = { type: "appointment_booked", appointment: booked };
+                  await storage.createMessage({ sessionId, from: "chatvice", content: "", messageType: "appointment_booked", payload: bookedPayload });
+                  broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "", messageType: "appointment_booked", payload: bookedPayload } });
+                  console.log(`[Appointment] Booked slot: ${apptDate} ${apptTime} with provider ${provider.name}`);
+                } catch (bookErr: any) {
+                  const errMsg = bookErr?.message || "Booking failed";
+                  const errPayload = { type: "appointment_error", error: errMsg };
+                  await storage.createMessage({ sessionId, from: "chatvice", content: `Maaf, terjadi masalah saat booking: ${errMsg}`, messageType: "appointment_error", payload: errPayload });
+                  broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: `Maaf, terjadi masalah saat booking: ${errMsg}` } });
+                }
+              }
+            }
+
+            if (hasGetMyAppointments) {
+              const session = await storage.getSession(sessionId);
+              const upcoming = await getUpcomingAppointments(resolvedMerchantId, undefined, 5);
+              const filtered = upcoming.filter(a => a.customerName === (session?.customerName || ""));
+              const myApptPayload = { type: "appointment_list", appointments: filtered };
+              await storage.createMessage({ sessionId, from: "chatvice", content: "", messageType: "appointment_list", payload: myApptPayload });
+              broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "", messageType: "appointment_list", payload: myApptPayload } });
+            }
+
+            if (hasCancelAppointment && cancelAppointmentMatch) {
+              const apptId = cancelAppointmentMatch[1]?.trim();
+              if (apptId) {
+                await storage.updateAppointment(apptId, { status: "cancelled" });
+                const cancelPayload = { type: "appointment_cancelled", appointmentId: apptId };
+                await storage.createMessage({ sessionId, from: "chatvice", content: "Appointment Anda telah dibatalkan.", messageType: "appointment_cancelled", payload: cancelPayload });
+                broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "Appointment Anda telah dibatalkan." } });
+              }
+            }
+          }
+        } catch (apptSignalErr) {
+          console.error("[Appointment Signal] Error processing appointment signals:", apptSignalErr);
         }
       }
 
