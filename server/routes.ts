@@ -23509,11 +23509,35 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  // Cancel addon (POST for idempotent REST patterns)
+  app.post("/api/merchant/addons/:addonType/cancel", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { addonType } = req.params;
+      const addon = await storage.getMerchantAddon(merchantId, addonType);
+      if (!addon) return res.status(404).json({ error: "Addon not found" });
+      if (!addon.isActive) return res.status(409).json({ error: "Addon is already inactive" });
+      await storage.updateMerchantAddon(addon.id, { isActive: false });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to cancel addon" });
+    }
+  });
+
+  // Helper to enforce active appointment_scheduling addon
+  const requireAppointmentAddon = async (req: any, res: any, next: any) => {
+    const merchantId = req.session?.merchantId;
+    if (!merchantId) return res.status(401).json({ error: "Unauthorized" });
+    const addon = await storage.getMerchantAddon(merchantId, "appointment_scheduling");
+    if (!addon || !addon.isActive) return res.status(403).json({ error: "appointment_scheduling addon is not active" });
+    next();
+  };
+
   // ════════════════════════════════════════════════════════════════════════════
   // APPOINTMENT DIVISIONS
   // ════════════════════════════════════════════════════════════════════════════
 
-  app.get("/api/merchant/appointment-divisions", requireMerchant, async (req, res) => {
+  app.get("/api/merchant/appointment-divisions", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const divisions = await storage.getAppointmentDivisions(merchantId);
@@ -23523,7 +23547,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  app.post("/api/merchant/appointment-divisions", requireMerchant, async (req, res) => {
+  app.post("/api/merchant/appointment-divisions", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { name, description, location, isActive, sortOrder } = req.body;
@@ -23536,7 +23560,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  app.patch("/api/merchant/appointment-divisions/:id", requireMerchant, async (req, res) => {
+  app.patch("/api/merchant/appointment-divisions/:id", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { id } = req.params;
@@ -23549,7 +23573,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  app.delete("/api/merchant/appointment-divisions/:id", requireMerchant, async (req, res) => {
+  app.delete("/api/merchant/appointment-divisions/:id", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { id } = req.params;
@@ -23566,7 +23590,7 @@ Please create a comprehensive help center article that would be useful for custo
   // APPOINTMENT PROVIDERS
   // ════════════════════════════════════════════════════════════════════════════
 
-  app.get("/api/merchant/appointment-providers", requireMerchant, async (req, res) => {
+  app.get("/api/merchant/appointment-providers", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const divisionId = req.query.divisionId as string | undefined;
@@ -23577,7 +23601,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  app.post("/api/merchant/appointment-providers", requireMerchant, async (req, res) => {
+  app.post("/api/merchant/appointment-providers", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { name, divisionId, email, phone, isActive } = req.body;
@@ -23590,7 +23614,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  app.patch("/api/merchant/appointment-providers/:id", requireMerchant, async (req, res) => {
+  app.patch("/api/merchant/appointment-providers/:id", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { id } = req.params;
@@ -23603,7 +23627,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  app.delete("/api/merchant/appointment-providers/:id", requireMerchant, async (req, res) => {
+  app.delete("/api/merchant/appointment-providers/:id", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { id } = req.params;
@@ -23617,7 +23641,7 @@ Please create a comprehensive help center article that would be useful for custo
   });
 
   // Provider Schedules
-  app.get("/api/merchant/appointment-providers/:providerId/schedules", requireMerchant, async (req, res) => {
+  app.get("/api/merchant/appointment-providers/:providerId/schedules", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { providerId } = req.params;
@@ -23630,7 +23654,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  app.put("/api/merchant/appointment-providers/:providerId/schedules", requireMerchant, async (req, res) => {
+  app.put("/api/merchant/appointment-providers/:providerId/schedules", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { providerId } = req.params;
@@ -23645,7 +23669,7 @@ Please create a comprehensive help center article that would be useful for custo
   });
 
   // Provider Blocked Dates
-  app.get("/api/merchant/appointment-providers/:providerId/blocked-dates", requireMerchant, async (req, res) => {
+  app.get("/api/merchant/appointment-providers/:providerId/blocked-dates", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { providerId } = req.params;
@@ -23658,7 +23682,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  app.post("/api/merchant/appointment-providers/:providerId/blocked-dates", requireMerchant, async (req, res) => {
+  app.post("/api/merchant/appointment-providers/:providerId/blocked-dates", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { providerId } = req.params;
@@ -23673,7 +23697,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  app.delete("/api/merchant/appointment-providers/blocked-dates/:id", requireMerchant, async (req, res) => {
+  app.delete("/api/merchant/appointment-providers/blocked-dates/:id", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const id = parseInt(req.params.id);
@@ -23691,7 +23715,7 @@ Please create a comprehensive help center article that would be useful for custo
   // APPOINTMENT SERVICES
   // ════════════════════════════════════════════════════════════════════════════
 
-  app.get("/api/merchant/appointment-services", requireMerchant, async (req, res) => {
+  app.get("/api/merchant/appointment-services", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const services = await storage.getAppointmentServices(merchantId);
@@ -23701,7 +23725,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  app.post("/api/merchant/appointment-services", requireMerchant, async (req, res) => {
+  app.post("/api/merchant/appointment-services", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { name, description, durationMinutes, priceIdr, divisionId, isActive, sortOrder } = req.body;
@@ -23714,7 +23738,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  app.patch("/api/merchant/appointment-services/:id", requireMerchant, async (req, res) => {
+  app.patch("/api/merchant/appointment-services/:id", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { id } = req.params;
@@ -23727,7 +23751,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  app.delete("/api/merchant/appointment-services/:id", requireMerchant, async (req, res) => {
+  app.delete("/api/merchant/appointment-services/:id", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { id } = req.params;
@@ -23744,7 +23768,7 @@ Please create a comprehensive help center article that would be useful for custo
   // APPOINTMENTS (bookings)
   // ════════════════════════════════════════════════════════════════════════════
 
-  app.get("/api/merchant/appointments", requireMerchant, async (req, res) => {
+  app.get("/api/merchant/appointments", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { date, providerId, status, month } = req.query as Record<string, string>;
@@ -23755,7 +23779,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  app.post("/api/merchant/appointments", requireMerchant, async (req, res) => {
+  app.post("/api/merchant/appointments", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { serviceId, providerId, divisionId, sessionId, customerName, customerPhone, customerEmail, appointmentDate, appointmentTime, endTime, notes } = req.body;
@@ -23771,7 +23795,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  app.patch("/api/merchant/appointments/:id", requireMerchant, async (req, res) => {
+  app.patch("/api/merchant/appointments/:id", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { id } = req.params;
@@ -23784,7 +23808,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  app.delete("/api/merchant/appointments/:id", requireMerchant, async (req, res) => {
+  app.delete("/api/merchant/appointments/:id", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { id } = req.params;
@@ -23798,7 +23822,7 @@ Please create a comprehensive help center article that would be useful for custo
   });
 
   // Check availability for a provider on a date
-  app.get("/api/merchant/appointments/availability", requireMerchant, async (req, res) => {
+  app.get("/api/merchant/appointments/availability", requireMerchant, requireAppointmentAddon, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
       const { providerId, date, durationMinutes } = req.query as Record<string, string>;
@@ -23879,6 +23903,58 @@ Please create a comprehensive help center article that would be useful for custo
       });
     } catch (err) {
       res.status(500).json({ error: "Failed to load calendar" });
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PUBLIC CALENDAR (slug-based, privacy-safe busy blocks only)
+  // ════════════════════════════════════════════════════════════════════════════
+
+  app.get("/api/public/calendar/:merchantSlug", async (req, res) => {
+    try {
+      const { merchantSlug } = req.params;
+      const { month } = req.query as { month?: string };
+
+      const merchant = await storage.getMerchantByWidgetSlug(merchantSlug);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+      const addon = await storage.getMerchantAddon(merchant.id, "appointment_scheduling");
+      if (!addon || !addon.isActive) return res.status(404).json({ error: "Appointment scheduling not available" });
+
+      const targetMonth = month || new Date().toISOString().substring(0, 7);
+      const appts = await storage.getAppointments(merchant.id, { month: targetMonth, status: "confirmed" });
+      const services = await storage.getAppointmentServices(merchant.id);
+      const providers = (await storage.getAppointmentProviders(merchant.id)).map(p => ({
+        id: p.id,
+        name: p.name,
+        divisionId: p.divisionId,
+        isActive: p.isActive,
+      }));
+      const divisions = (await storage.getAppointmentDivisions(merchant.id)).map(d => ({
+        id: d.id,
+        name: d.name,
+        location: d.location,
+        isActive: d.isActive,
+      }));
+
+      const busyBlocks = appts.map(a => ({
+        date: a.appointmentDate,
+        startTime: a.appointmentTime,
+        endTime: a.endTime,
+        providerId: a.providerId,
+        serviceId: a.serviceId,
+      }));
+
+      res.json({
+        merchant: { id: merchant.id, companyName: merchant.companyName },
+        month: targetMonth,
+        busyBlocks,
+        services: services.filter(s => s.isActive).map(s => ({ id: s.id, name: s.name, durationMinutes: s.durationMinutes, priceIdr: s.priceIdr })),
+        providers,
+        divisions,
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load public calendar" });
     }
   });
 
