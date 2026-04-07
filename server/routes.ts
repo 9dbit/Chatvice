@@ -23509,11 +23509,46 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  // Confirm payment and activate addon (integrates with Kompas Pay/PayPal external flow)
+  // Payment initiation — returns redirect URL for payment gateway
+  app.post("/api/merchant/addons/initiate-payment", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { addonType, paymentMethod } = req.body;
+      if (!addonType || !paymentMethod) {
+        return res.status(400).json({ error: "addonType and paymentMethod required" });
+      }
+
+      const addonConfig = await storage.getAddonConfig(addonType);
+      if (!addonConfig || !addonConfig.isEnabled) return res.status(404).json({ error: "Addon not available" });
+
+      const existing = await storage.getMerchantAddon(merchantId, addonType);
+      if (existing && existing.isActive) return res.status(409).json({ error: "Already subscribed" });
+
+      // Return payment initiation details for supported methods
+      const validMethods = ["kompas_pay", "paypal", "crypto"];
+      if (!validMethods.includes(paymentMethod)) {
+        return res.status(400).json({ error: "Invalid payment method. Supported: " + validMethods.join(", ") });
+      }
+
+      const pendingId = "pay_" + crypto.randomBytes(8).toString("hex");
+      res.json({
+        pendingId,
+        addonType,
+        paymentMethod,
+        amount: addonConfig.monthlyPriceUsd,
+        currency: "USD",
+        instructions: "Complete payment through your selected payment provider and provide the reference on confirmation.",
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to initiate payment" });
+    }
+  });
+
+  // Confirm payment — only activates after admin or webhook verification
   app.post("/api/merchant/addons/confirm-payment", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
-      const { addonType, paymentReference } = req.body;
+      const { addonType, paymentReference, pendingId } = req.body;
       if (!addonType || !paymentReference) {
         return res.status(400).json({ error: "addonType and paymentReference required" });
       }
@@ -23524,7 +23559,34 @@ Please create a comprehensive help center article that would be useful for custo
       const existing = await storage.getMerchantAddon(merchantId, addonType);
       if (existing && existing.isActive) return res.status(409).json({ error: "Already subscribed" });
 
+      // NOTE: In production, verify paymentReference against payment gateway before activating.
+      // This requires a webhook or server-to-server verification call.
+      // For now, return pending status so admin can manually confirm.
+      res.status(202).json({
+        status: "pending_verification",
+        message: "Payment reference received. Activation pending admin verification.",
+        paymentReference,
+        addonType,
+        merchantId,
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to process payment confirmation" });
+    }
+  });
+
+  // Admin endpoint to manually activate addon after payment verification
+  app.post("/api/admin/merchant-addons/:merchantId/activate", requireAdmin, async (req, res) => {
+    try {
+      const { merchantId } = req.params;
+      const { addonType } = req.body;
+      if (!addonType) return res.status(400).json({ error: "addonType required" });
+
+      const addonConfig = await storage.getAddonConfig(addonType);
+      if (!addonConfig || !addonConfig.isEnabled) return res.status(404).json({ error: "Addon not available" });
+
+      const existing = await storage.getMerchantAddon(merchantId, addonType);
       if (existing) {
+        if (existing.isActive) return res.status(409).json({ error: "Already active" });
         const updated = await storage.updateMerchantAddon(existing.id, { isActive: true, subscribedAt: new Date() });
         return res.json(updated);
       }
@@ -23544,7 +23606,7 @@ Please create a comprehensive help center article that would be useful for custo
       });
       res.status(201).json(addon);
     } catch (err) {
-      res.status(500).json({ error: "Failed to confirm payment" });
+      res.status(500).json({ error: "Failed to activate addon" });
     }
   });
 
