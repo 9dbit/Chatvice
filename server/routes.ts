@@ -23988,6 +23988,12 @@ Please create a comprehensive help center article that would be useful for custo
       const addon = await storage.getMerchantAddon(merchant.id, "appointment_scheduling");
       if (!addon || !addon.isActive) return res.status(403).json({ error: "Appointment scheduling not active for this merchant" });
 
+      // Validate that the provider belongs to this merchant (prevent cross-merchant probing)
+      const provider = await storage.getAppointmentProvider(providerId);
+      if (!provider || provider.merchantId !== merchant.id) {
+        return res.status(404).json({ error: "Provider not found" });
+      }
+
       const slots = await getAvailableSlots(
         merchant.id,
         providerId,

@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Calendar, CheckCircle, Loader2, AlertCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sparkles, Calendar, CheckCircle, Loader2, AlertCircle, CreditCard, Wallet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface AddonConfig {
@@ -28,8 +30,16 @@ const addonIcons: Record<string, React.ComponentType<any>> = {
   appointment_scheduling: Calendar,
 };
 
+const PAYMENT_METHODS = [
+  { value: "kompas_pay", label: "Kompas Pay", description: "QRIS, Virtual Account, Transfer" },
+  { value: "paypal", label: "PayPal", description: "International card/wallet" },
+  { value: "crypto", label: "Cryptocurrency", description: "BTC, ETH, USDT, dll." },
+];
+
 export default function AdditionalServicesPage() {
   const { toast } = useToast();
+  const [selectedAddon, setSelectedAddon] = useState<AddonConfig | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
 
   const { data: addonConfigs = [], isLoading: configsLoading } = useQuery<AddonConfig[]>({
     queryKey: ["/api/addon-configs"],
@@ -40,11 +50,16 @@ export default function AdditionalServicesPage() {
   });
 
   const subscribeMutation = useMutation({
-    mutationFn: (addonType: string) =>
-      apiRequest("POST", "/api/merchant/addons/subscribe", { addonType }),
-    onSuccess: () => {
+    mutationFn: ({ addonType, paymentMethod }: { addonType: string; paymentMethod: string }) =>
+      apiRequest("POST", "/api/merchant/addons/subscribe", { addonType, paymentMethod }),
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
-      toast({ title: "Addon aktif!", description: "Layanan tambahan berhasil diaktifkan." });
+      setSelectedAddon(null);
+      setSelectedPaymentMethod(null);
+      toast({
+        title: "Pembayaran disiapkan",
+        description: data?.message || "Selesaikan pembayaran untuk mengaktifkan layanan.",
+      });
     },
     onError: (err: any) => {
       toast({ title: "Gagal", description: err.message || "Terjadi kesalahan", variant: "destructive" });
@@ -65,6 +80,16 @@ export default function AdditionalServicesPage() {
 
   const getActiveAddon = (addonType: string) =>
     merchantAddons.find(a => a.addonType === addonType && a.isActive);
+
+  const handleSubscribeClick = (config: AddonConfig) => {
+    setSelectedAddon(config);
+    setSelectedPaymentMethod(null);
+  };
+
+  const handleConfirmSubscribe = () => {
+    if (!selectedAddon || !selectedPaymentMethod) return;
+    subscribeMutation.mutate({ addonType: selectedAddon.addonType, paymentMethod: selectedPaymentMethod });
+  };
 
   const isLoading = configsLoading || addonsLoading;
 
@@ -160,15 +185,10 @@ export default function AdditionalServicesPage() {
                     ) : (
                       <Button
                         size="sm"
-                        onClick={() => subscribeMutation.mutate(config.addonType)}
-                        disabled={subscribeMutation.isPending}
+                        onClick={() => handleSubscribeClick(config)}
                         data-testid={`button-subscribe-${config.addonType}`}
                       >
-                        {subscribeMutation.isPending ? (
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                        ) : (
-                          <Sparkles className="w-4 h-4 mr-2" />
-                        )}
+                        <Sparkles className="w-4 h-4 mr-2" />
                         Aktifkan — ${config.monthlyPriceUsd}/bln
                       </Button>
                     )}
@@ -177,7 +197,7 @@ export default function AdditionalServicesPage() {
                   {!active && (
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>Pembayaran akan diproses saat konfirmasi.</span>
+                      <span>Pembayaran diproses setelah konfirmasi metode.</span>
                     </div>
                   )}
                 </CardContent>
@@ -186,6 +206,72 @@ export default function AdditionalServicesPage() {
           })}
         </div>
       )}
+
+      <Dialog open={!!selectedAddon} onOpenChange={(open) => { if (!open) setSelectedAddon(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pilih Metode Pembayaran</DialogTitle>
+            <DialogDescription>
+              {selectedAddon && (
+                <>Berlangganan <strong>{selectedAddon.name}</strong> seharga <strong>${selectedAddon.monthlyPriceUsd}/bulan</strong>. Pilih metode pembayaran.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 mt-2">
+            {PAYMENT_METHODS.map((method) => (
+              <button
+                key={method.value}
+                onClick={() => setSelectedPaymentMethod(method.value)}
+                className={`w-full flex items-center gap-3 p-3 rounded-md border text-left transition-colors ${
+                  selectedPaymentMethod === method.value
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:bg-accent/50"
+                }`}
+                data-testid={`button-payment-method-${method.value}`}
+              >
+                {method.value === "crypto" ? (
+                  <Wallet className="w-5 h-5 text-muted-foreground shrink-0" />
+                ) : (
+                  <CreditCard className="w-5 h-5 text-muted-foreground shrink-0" />
+                )}
+                <div>
+                  <p className="font-medium text-sm">{method.label}</p>
+                  <p className="text-xs text-muted-foreground">{method.description}</p>
+                </div>
+                {selectedPaymentMethod === method.value && (
+                  <CheckCircle className="w-4 h-4 text-primary ml-auto shrink-0" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={() => setSelectedAddon(null)}
+              disabled={subscribeMutation.isPending}
+              data-testid="button-cancel-subscribe"
+            >
+              Batal
+            </Button>
+            <Button
+              size="sm"
+              className="flex-1"
+              onClick={handleConfirmSubscribe}
+              disabled={!selectedPaymentMethod || subscribeMutation.isPending}
+              data-testid="button-confirm-subscribe"
+            >
+              {subscribeMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : null}
+              Lanjutkan Pembayaran
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

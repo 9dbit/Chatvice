@@ -27,7 +27,7 @@ export async function getAvailableSlots(
   const dow = new Date(year, month - 1, day).getDay();
 
   const schedules = await storage.getProviderSchedules(providerId);
-  const daySchedule = schedules.find(s => s.dayOfWeek === dow && s.isAvailable);
+  const daySchedule = schedules.find(s => s.dayOfWeek === dow && s.isActive);
   if (!daySchedule) return [];
 
   const blockedDates = await storage.getProviderBlockedDates(providerId);
