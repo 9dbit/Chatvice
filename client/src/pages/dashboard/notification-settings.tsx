@@ -171,7 +171,7 @@ export default function NotificationSettingsPage() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-page-title">
           <Bell className="w-6 h-6" />{t("dashboard.notificationSettings.title")}</h1>
-        <p className="text-muted-foreground">Configure sounds and notifications for various chat events</p>
+        <p className="text-muted-foreground">{t("dashboard.notificationSettings.subtitle")}</p>
       </div>
 
       <div className="grid gap-6">
@@ -181,11 +181,11 @@ export default function NotificationSettingsPage() {
               <UserPlus className="w-5 h-5 text-green-500" />
               New Incoming Chat
             </CardTitle>
-            <CardDescription>Notification when a new customer starts a chat</CardDescription>
+            <CardDescription>{t("dashboard.notificationSettings.newChatDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor="incomingEnabled">Enable Notification</Label>
+              <Label htmlFor="incomingEnabled">{t("dashboard.notificationSettings.enable")}</Label>
               <Switch
                 id="incomingEnabled"
                 checked={settings?.incomingChatEnabled ?? true}
@@ -194,7 +194,7 @@ export default function NotificationSettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Sound Attached</Label>
+              <Label>{t("dashboard.notificationSettings.soundAttached")}</Label>
               <div className="flex gap-2">
                 <Select 
                   value={settings?.incomingChatSound || "incoming-msg"}
@@ -232,11 +232,11 @@ export default function NotificationSettingsPage() {
               <MessageCircle className="w-5 h-5 text-blue-500" />
               Chat Reply
             </CardTitle>
-            <CardDescription>Notification when there's a new message from customer</CardDescription>
+            <CardDescription>{t("dashboard.notificationSettings.newMessageDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor="replyEnabled">Enable Notification</Label>
+              <Label htmlFor="replyEnabled">{t("dashboard.notificationSettings.enable")}</Label>
               <Switch
                 id="replyEnabled"
                 checked={settings?.chatReplyEnabled ?? true}
@@ -245,7 +245,7 @@ export default function NotificationSettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Sound Attached</Label>
+              <Label>{t("dashboard.notificationSettings.soundAttached")}</Label>
               <div className="flex gap-2">
                 <Select 
                   value={settings?.chatReplySound || "live-chat"}
@@ -283,11 +283,11 @@ export default function NotificationSettingsPage() {
               <AlertTriangle className="w-5 h-5 text-red-500" />
               Angry Customer
             </CardTitle>
-            <CardDescription>Notification when the system detects an angry or frustrated customer</CardDescription>
+            <CardDescription>{t("dashboard.notificationSettings.angryDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor="angryEnabled">Enable Notification</Label>
+              <Label htmlFor="angryEnabled">{t("dashboard.notificationSettings.enable")}</Label>
               <Switch
                 id="angryEnabled"
                 checked={settings?.angryCustomerEnabled ?? true}
@@ -296,7 +296,7 @@ export default function NotificationSettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Sound Attached</Label>
+              <Label>{t("dashboard.notificationSettings.soundAttached")}</Label>
               <div className="flex gap-2">
                 <Select 
                   value={settings?.angryCustomerSound || "notification-alert"}

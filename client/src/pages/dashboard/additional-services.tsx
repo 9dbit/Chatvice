@@ -154,7 +154,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                     <div className="flex items-center justify-between gap-4 p-3 rounded-xl border">
                       <div>
                         <p className="text-sm font-medium">{t("dashboard.additionalServices.enableFeature")}</p>
-                        <p className="text-xs text-muted-foreground">The chatbot will show room availability when customers ask</p>
+                        <p className="text-xs text-muted-foreground">{t("dashboard.additionalServices.chatbotShowRooms")}</p>
                       </div>
                       <Switch
                         checked={field.value}
@@ -188,7 +188,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                       <FormControl>
                         <Input type="url" placeholder="https://book.yourhotel.com" {...field} data-testid="input-booking-url" />
                       </FormControl>
-                      <p className="text-xs text-muted-foreground">Link opened when customers click the "Book Now" button</p>
+                      <p className="text-xs text-muted-foreground">{t("dashboard.additionalServices.bookingLinkDesc")}</p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -217,7 +217,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                             data-testid="button-test-sheet"
                           >
                             {isTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <TestTube2 className="w-4 h-4" />}
-                            <span className="ml-1 hidden sm:inline">Test</span>
+                            <span className="ml-1 hidden sm:inline">{t("dashboard.additionalServices.test")}</span>
                           </Button>
                         </div>
                       </FormControl>
@@ -240,7 +240,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                       const rows = dataRows.slice(0, 3).map(r => r.split(",").map(c => c.replace(/"/g, "").trim()));
                       return (
                         <div className="mt-2 overflow-x-auto">
-                          <p className="text-xs text-muted-foreground mb-1.5">Preview (first 3 rows):</p>
+                          <p className="text-xs text-muted-foreground mb-1.5">{t("dashboard.additionalServices.previewRows")}:</p>
                           <table className="w-full text-[10px] border-collapse">
                             <thead>
                               <tr>

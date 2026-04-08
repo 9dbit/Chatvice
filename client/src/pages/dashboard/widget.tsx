@@ -900,7 +900,7 @@ async function handleLogin() {
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Widget Customization</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">{t("dashboard.widget.title")}</h1>
           <p className="text-sm text-muted-foreground hidden sm:block">
             Customize your chat widget appearance and get embed codes.
           </p>
@@ -913,11 +913,11 @@ async function handleLogin() {
             data-testid="button-refresh-widget"
           >
             <RefreshCw className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Refresh Widget</span>
+            <span className="hidden sm:inline">{t("dashboard.widget.refresh")}</span>
           </Button>
         {agents.length > 0 && (
           <div className="flex items-center gap-2">
-            <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Configuring:</span>
+            <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">{t("dashboard.widget.configuring")}:</span>
             <Select
               value={merchant?.activeAgentId || "none"}
               onValueChange={(value) => {
@@ -961,7 +961,7 @@ async function handleLogin() {
                       </Avatar>
                       <span>{agent.name}</span>
                       {agent.id === merchant?.activeAgentId && (
-                        <Badge variant="secondary" className="text-[10px] ml-1">Active</Badge>
+                        <Badge variant="secondary" className="text-[10px] ml-1">{t("common.active")}</Badge>
                       )}
                     </div>
                   </SelectItem>
@@ -976,10 +976,10 @@ async function handleLogin() {
       <Tabs defaultValue="appearance">
         <div className="overflow-x-auto overflow-y-hidden -mx-1 px-1 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
           <TabsList className="inline-flex w-auto min-w-full md:grid md:grid-cols-5 md:w-full gap-1">
-            <TabsTrigger value="appearance" className="whitespace-nowrap px-4">Appearance</TabsTrigger>
-            <TabsTrigger value="prechat" className="whitespace-nowrap px-4">Pre-Chat</TabsTrigger>
-            <TabsTrigger value="social" className="whitespace-nowrap px-4">Social & Links</TabsTrigger>
-            <TabsTrigger value="embed" className="whitespace-nowrap px-4">Embed</TabsTrigger>
+            <TabsTrigger value="appearance" className="whitespace-nowrap px-4">{t("dashboard.widget.appearance")}</TabsTrigger>
+            <TabsTrigger value="prechat" className="whitespace-nowrap px-4">{t("dashboard.widget.preChat")}</TabsTrigger>
+            <TabsTrigger value="social" className="whitespace-nowrap px-4">{t("dashboard.widget.socialLinks")}</TabsTrigger>
+            <TabsTrigger value="embed" className="whitespace-nowrap px-4">{t("dashboard.widget.embed")}</TabsTrigger>
             <TabsTrigger value="security" className="flex items-center gap-2 whitespace-nowrap px-4">
               Security
               {!canUseAdvancedFeatures && <Lock className="w-3 h-3" />}
@@ -2360,7 +2360,7 @@ async function handleLogin() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-primary" />
-                <CardTitle>Social & Links</CardTitle>
+                <CardTitle>{t("dashboard.widget.socialLinks")}</CardTitle>
               </div>
               <CardDescription>
                 Add social media icons to your widget so customers can connect with you on different platforms.

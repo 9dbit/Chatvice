@@ -212,7 +212,7 @@ function ServiceForm({ onSave, onCancel, divisions, initial }: { onSave: (data: 
             <SelectValue placeholder={t("dashboard.appointments.selectDivision")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__none__">Semua divisi</SelectItem>
+            <SelectItem value="__none__">{t("dashboard.appointments.allDivisions")}</SelectItem>
             {divisions.filter(d => d.isActive).map(d => (
               <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
             ))}
@@ -293,7 +293,7 @@ function SchedulePanel({ provider }: { provider: AppointmentProvider }) {
       setNewBlockedReason("");
       toast({ title: "Tanggal tutup ditambahkan" });
     },
-    onError: () => toast({ title: "Gagal menambah tanggal tutup", variant: "destructive" }),
+    onError: () => toast({ title: t("dashboard.appointments.addClosedDateFailed"), variant: "destructive" }),
   });
 
   const removeBlockedDate = useMutation({
@@ -362,7 +362,7 @@ function SchedulePanel({ provider }: { provider: AppointmentProvider }) {
                     <Input type="time" value={s.endTime} onChange={e => updateTime(s.dayOfWeek, "endTime", e.target.value)} className="w-28 text-sm" data-testid={`input-end-${provider.id}-${s.dayOfWeek}`} />
                   </div>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <span>Istirahat:</span>
+                    <span>{t("dashboard.appointments.break")}:</span>
                     <Input type="time" value={s.breakStart || ""} onChange={e => updateTime(s.dayOfWeek, "breakStart", e.target.value)} className="w-24 text-xs" placeholder="—" data-testid={`input-break-start-${provider.id}-${s.dayOfWeek}`} />
                     <span>—</span>
                     <Input type="time" value={s.breakEnd || ""} onChange={e => updateTime(s.dayOfWeek, "breakEnd", e.target.value)} className="w-24 text-xs" placeholder="—" data-testid={`input-break-end-${provider.id}-${s.dayOfWeek}`} />
@@ -378,7 +378,7 @@ function SchedulePanel({ provider }: { provider: AppointmentProvider }) {
 
       {/* Blocked Dates */}
       <div>
-        <h4 className="text-sm font-medium flex items-center gap-2 mb-3"><CalendarOff className="w-4 h-4" /> Tanggal Tutup</h4>
+        <h4 className="text-sm font-medium flex items-center gap-2 mb-3"><CalendarOff className="w-4 h-4" /> {t("dashboard.appointments.closedDates")}</h4>
         <div className="flex gap-2 flex-wrap mb-3">
           <Input
             type="date"
@@ -401,7 +401,7 @@ function SchedulePanel({ provider }: { provider: AppointmentProvider }) {
         {blockedLoading ? (
           <div className="text-sm text-muted-foreground">Memuat...</div>
         ) : blockedDates.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Belum ada tanggal tutup.</p>
+          <p className="text-xs text-muted-foreground">{t("dashboard.appointments.noClosedDates")}</p>
         ) : (
           <div className="space-y-1">
             {blockedDates.map(bd => (
@@ -525,7 +525,7 @@ function CalendarView({ appointments, providers, divisions, services, currentMon
           </CardHeader>
           <CardContent>
             {selectedAppts.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">Tidak ada janji temu pada hari ini.</p>
+              <p className="text-sm text-muted-foreground py-4 text-center">{t("dashboard.appointments.noAppointmentsToday")}</p>
             ) : (
               <div className="space-y-3">
                 {selectedAppts.map(a => {
@@ -701,15 +701,15 @@ export default function AppointmentsPage() {
         <TabsList data-testid="tabs-appointments">
           <TabsTrigger value="calendar" data-testid="tab-calendar">{t("dashboard.appointments.upcoming")}</TabsTrigger>
           <TabsTrigger value="settings" data-testid="tab-settings">{t("dashboard.common.settings")}</TabsTrigger>
-          <TabsTrigger value="link" data-testid="tab-link">Link</TabsTrigger>
+          <TabsTrigger value="link" data-testid="tab-link">{t("dashboard.appointments.calendarLink")}</TabsTrigger>
         </TabsList>
 
         {/* ── CALENDAR TAB ── */}
         <TabsContent value="calendar">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Jadwal Masuk</CardTitle>
-              <CardDescription>Klik tanggal untuk melihat detail janji temu.</CardDescription>
+              <CardTitle className="text-base">{t("dashboard.appointments.schedule")}</CardTitle>
+              <CardDescription>{t("dashboard.appointments.clickDateForDetails")}</CardDescription>
             </CardHeader>
             <CardContent>
               {apptLoading ? (
@@ -784,11 +784,11 @@ export default function AppointmentsPage() {
               <CardHeader className="flex flex-row items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-base flex items-center gap-2"><Users className="w-4 h-4" /> Divisi</CardTitle>
-                  <CardDescription>Kelompokkan staf berdasarkan departemen atau spesialisasi.</CardDescription>
+                  <CardDescription>{t("dashboard.appointments.divisionDesc")}</CardDescription>
                 </div>
                 <Dialog open={divisionDialog.open && !divisionDialog.editing} onOpenChange={open => setDivisionDialog({ open })}>
                   <DialogTrigger asChild>
-                    <Button size="sm" data-testid="button-add-division"><Plus className="w-4 h-4 mr-1" /> Tambah</Button>
+                    <Button size="sm" data-testid="button-add-division"><Plus className="w-4 h-4 mr-1" /> {t("common.add")}</Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader><DialogTitle>{t("dashboard.common.add")}</DialogTitle></DialogHeader>
@@ -838,7 +838,7 @@ export default function AppointmentsPage() {
                 </div>
                 <Dialog open={providerDialog.open && !providerDialog.editing} onOpenChange={open => setProviderDialog({ open })}>
                   <DialogTrigger asChild>
-                    <Button size="sm" data-testid="button-add-provider"><Plus className="w-4 h-4 mr-1" /> Tambah</Button>
+                    <Button size="sm" data-testid="button-add-provider"><Plus className="w-4 h-4 mr-1" /> {t("common.add")}</Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader><DialogTitle>{t("dashboard.common.add")}</DialogTitle></DialogHeader>
@@ -914,7 +914,7 @@ export default function AppointmentsPage() {
                 </div>
                 <Dialog open={serviceDialog.open && !serviceDialog.editing} onOpenChange={open => setServiceDialog({ open })}>
                   <DialogTrigger asChild>
-                    <Button size="sm" data-testid="button-add-service"><Plus className="w-4 h-4 mr-1" /> Tambah</Button>
+                    <Button size="sm" data-testid="button-add-service"><Plus className="w-4 h-4 mr-1" /> {t("common.add")}</Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader><DialogTitle>{t("dashboard.common.add")}</DialogTitle></DialogHeader>
@@ -995,7 +995,7 @@ export default function AppointmentsPage() {
                     </Button>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Link kalender tidak tersedia.</p>
+                  <p className="text-sm text-muted-foreground">{t("dashboard.appointments.calendarLinkUnavailable")}</p>
                 )}
               </CardContent>
             </Card>
@@ -1005,7 +1005,7 @@ export default function AppointmentsPage() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Share2 className="w-4 h-4" />
-                  Link Kalender Publik (Pelanggan)
+                  {t("dashboard.appointments.publicCalendarLink")}
                 </CardTitle>
                 <CardDescription>
                   Link ini bisa dibagikan kepada pelanggan untuk melihat ketersediaan slot. Tidak menampilkan data pribadi.
@@ -1043,7 +1043,7 @@ export default function AppointmentsPage() {
                     </div>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Link publik tidak tersedia. Pastikan slug bisnis sudah diatur.</p>
+                  <p className="text-sm text-muted-foreground">{t("dashboard.appointments.publicLinkUnavailable")}</p>
                 )}
               </CardContent>
             </Card>

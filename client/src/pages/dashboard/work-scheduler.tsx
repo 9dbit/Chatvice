@@ -229,16 +229,16 @@ export default function WorkSchedulerPage() {
 
   function getDayTypeLabel(dayType: string) {
     const labels: Record<string, string> = {
-      weekday: "Weekdays",
-      weekend: "Weekend",
-      monday: "Monday",
-      tuesday: "Tuesday",
-      wednesday: "Wednesday",
-      thursday: "Thursday",
-      friday: "Friday",
-      saturday: "Saturday",
-      sunday: "Sunday",
-      everyday: "Every Day",
+      weekday: t("dashboard.workScheduler.weekdays"),
+      weekend: t("dashboard.workScheduler.weekend"),
+      monday: t("common.days.monday"),
+      tuesday: t("common.days.tuesday"),
+      wednesday: t("common.days.wednesday"),
+      thursday: t("common.days.thursday"),
+      friday: t("common.days.friday"),
+      saturday: t("common.days.saturday"),
+      sunday: t("common.days.sunday"),
+      everyday: t("dashboard.workScheduler.everyDay"),
     };
     return labels[dayType] || dayType;
   }
@@ -269,7 +269,7 @@ export default function WorkSchedulerPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-page-title">{t("dashboard.workScheduler.title")}</h1>
-          <p className="text-muted-foreground">Manage shift schedules for supervisors and AI agents</p>
+          <p className="text-muted-foreground">{t("dashboard.workScheduler.subtitle")}</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -329,14 +329,14 @@ export default function WorkSchedulerPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="everyday">{t("dashboard.workScheduler.everyday")}</SelectItem>
-                    <SelectItem value="weekday">Weekdays (Mon-Fri)</SelectItem>
-                    <SelectItem value="weekend">Weekend (Sat-Sun)</SelectItem>
+                    <SelectItem value="weekday">{t("dashboard.workScheduler.weekdaysMon")}</SelectItem>
+                    <SelectItem value="weekend">{t("dashboard.workScheduler.weekendSat")}</SelectItem>
                     <SelectItem value="monday">{t("dashboard.workScheduler.monday")}</SelectItem>
-                    <SelectItem value="tuesday">Tuesday</SelectItem>
-                    <SelectItem value="wednesday">Wednesday</SelectItem>
-                    <SelectItem value="thursday">Thursday</SelectItem>
-                    <SelectItem value="friday">Friday</SelectItem>
-                    <SelectItem value="saturday">Saturday</SelectItem>
+                    <SelectItem value="tuesday">{t("common.days.tuesday")}</SelectItem>
+                    <SelectItem value="wednesday">{t("common.days.wednesday")}</SelectItem>
+                    <SelectItem value="thursday">{t("common.days.thursday")}</SelectItem>
+                    <SelectItem value="friday">{t("common.days.friday")}</SelectItem>
+                    <SelectItem value="saturday">{t("common.days.saturday")}</SelectItem>
                     <SelectItem value="sunday">Sunday</SelectItem>
                   </SelectContent>
                 </Select>

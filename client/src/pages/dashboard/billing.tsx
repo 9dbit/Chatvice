@@ -955,7 +955,7 @@ export default function BillingPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Billing & Subscription</h1>
+          <h1 className="text-2xl font-bold">{t("dashboard.billing.title")}</h1>
           <p className="text-muted-foreground">{t("dashboard.billing.subtitle")}</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -970,9 +970,9 @@ export default function BillingPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold" data-testid="text-billing-title">Billing & Subscription</h1>
+        <h1 className="text-2xl font-bold" data-testid="text-billing-title">{t("dashboard.billing.title")}</h1>
         <p className="text-muted-foreground">
-          Manage your subscription and billing details
+          {t("dashboard.billing.subtitle")}
         </p>
       </div>
 

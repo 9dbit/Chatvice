@@ -157,7 +157,7 @@ export default function ProactiveChatPage() {
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
         <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-8">
           <div className="flex items-center gap-2 mb-2">
-            <Badge className="text-xs font-medium">Widget Setting</Badge>
+            <Badge className="text-xs font-medium">{t("dashboard.proactiveChat.widgetSetting")}</Badge>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">{t("dashboard.proactiveChat.title")}</h1>
           <p className="text-sm text-white/80 mt-1 max-w-md">
@@ -213,13 +213,13 @@ export default function ProactiveChatPage() {
             <Zap className="w-4 h-4 text-primary" />
             Proactive Chat Settings
           </CardTitle>
-          <CardDescription>Configure how and when your AI agent reaches out to visitors.</CardDescription>
+          <CardDescription>{t("dashboard.proactiveChat.configDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Enable / Disable Toggle */}
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-0.5 flex-1">
-              <Label className="text-sm font-medium">Enable Proactive Chat</Label>
+              <Label className="text-sm font-medium">{t("dashboard.proactiveChat.enable")}</Label>
               <p className="text-xs text-muted-foreground">
                 When enabled, your AI agent will automatically send a greeting after the configured delay.
               </p>
@@ -261,7 +261,7 @@ export default function ProactiveChatPage() {
                 className="w-20 text-center"
                 data-testid="input-greeting-delay"
               />
-              <span className="text-sm text-muted-foreground">sec</span>
+              <span className="text-sm text-muted-foreground">{t("common.sec")}</span>
             </div>
           </div>
 
@@ -374,7 +374,7 @@ export default function ProactiveChatPage() {
               <div className="space-y-3">
                 {isEnabling ? (
                   <>
-                    <p>Turning on Proactive Chat will make the following changes:</p>
+                    <p>{t("dashboard.proactiveChat.turningOnDesc")}</p>
                     <ul className="space-y-2 text-sm">
                       {[
                         { icon: Eye, text: "Visitor sessions will be tracked on your website (always active regardless of this toggle)." },
@@ -391,7 +391,7 @@ export default function ProactiveChatPage() {
                   </>
                 ) : (
                   <>
-                    <p>Turning off Proactive Chat will:</p>
+                    <p>{t("dashboard.proactiveChat.turningOffDesc")}</p>
                     <ul className="space-y-2 text-sm">
                       {[
                         { text: "Stop the AI agent from automatically greeting visitors." },

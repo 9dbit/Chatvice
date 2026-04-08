@@ -198,7 +198,7 @@ export default function TriggersPage() {
             )}
 
             <div>
-              <p className="text-sm font-medium mb-3">Suggested triggers:</p>
+              <p className="text-sm font-medium mb-3">{t("dashboard.triggers.suggestedTriggers")}:</p>
               <div className="flex flex-wrap gap-2">
                 {suggestedTriggers
                   .filter((s) => !triggers?.some((t) => t.keyword.toLowerCase() === s.toLowerCase()))
@@ -248,7 +248,7 @@ export default function TriggersPage() {
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="w-4 h-4 text-status-away" />
                       <div>
-                        <p className="text-sm font-medium">Would escalate!</p>
+                        <p className="text-sm font-medium">{t("dashboard.triggers.wouldEscalate")}</p>
                         <p className="text-xs text-muted-foreground">
                           Matched trigger: "{testResult.keyword}"
                         </p>
@@ -275,7 +275,7 @@ export default function TriggersPage() {
               <div className="flex gap-3">
                 <Lightbulb className="w-5 h-5 text-primary shrink-0" />
                 <div>
-                  <p className="text-sm font-medium">How it works</p>
+                  <p className="text-sm font-medium">{t("dashboard.triggers.howItWorks")}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     When a customer message contains a trigger keyword, Chatvice
                     will notify supervisors and switch the conversation to human mode.

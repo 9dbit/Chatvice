@@ -173,7 +173,7 @@ export default function WelcomeBubblePage() {
             <MessageCircle className="w-6 h-6" />
             Welcome Bubble
           </h1>
-          <p className="text-muted-foreground">Configure welcome message pop-up for visitors</p>
+          <p className="text-muted-foreground">{t("dashboard.welcomeBubble.subtitle")}</p>
         </div>
         <Button 
           onClick={() => saveMutation.mutate(form)}
@@ -196,7 +196,7 @@ export default function WelcomeBubblePage() {
               <div className="flex items-center justify-between">
                 <div>
                   <Label htmlFor="enabled">{t("dashboard.welcomeBubble.showBubble")}</Label>
-                  <p className="text-sm text-muted-foreground">Bubble will appear when page loads</p>
+                  <p className="text-sm text-muted-foreground">{t("dashboard.welcomeBubble.bubbleAppearDesc")}</p>
                 </div>
                 <Switch
                   id="enabled"
@@ -239,9 +239,9 @@ export default function WelcomeBubblePage() {
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>10s</span>
-                  <span>1 min</span>
-                  <span>30 min</span>
-                  <span>1 hour</span>
+                  <span>{t("dashboard.welcomeBubble.min1")}</span>
+                  <span>{t("dashboard.welcomeBubble.min30")}</span>
+                  <span>{t("dashboard.welcomeBubble.hour1")}</span>
                 </div>
               </div>
             </CardContent>
@@ -256,7 +256,7 @@ export default function WelcomeBubblePage() {
               <div className="flex items-center justify-between">
                 <div>
                   <Label htmlFor="promoEnabled">{t("dashboard.welcomeBubble.enablePromo")}</Label>
-                  <p className="text-sm text-muted-foreground">Display image above the welcome bubble</p>
+                  <p className="text-sm text-muted-foreground">{t("dashboard.welcomeBubble.displayImageDesc")}</p>
                 </div>
                 <Switch
                   id="promoEnabled"
@@ -269,7 +269,7 @@ export default function WelcomeBubblePage() {
               {form.promoImageEnabled && (
                 <div className="space-y-3">
                   <div className="space-y-2">
-                    <Label>Upload Image / Video</Label>
+                    <Label>{t("dashboard.welcomeBubble.uploadImageVideo")}</Label>
                     <div className="flex gap-2">
                       <Input
                         type="file"
@@ -299,7 +299,7 @@ export default function WelcomeBubblePage() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="promoImageUrl">Or enter image/video URL</Label>
+                    <Label htmlFor="promoImageUrl">{t("dashboard.welcomeBubble.orEnterUrl")}</Label>
                     <Input
                       id="promoImageUrl"
                       value={form.promoImageUrl}

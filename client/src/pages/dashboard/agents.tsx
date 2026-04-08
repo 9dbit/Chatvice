@@ -382,7 +382,7 @@ export default function AgentsPage() {
                     name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Description (Optional)</FormLabel>
+                        <FormLabel>{t("dashboard.agents.descriptionOptional")}</FormLabel>
                         <FormControl>
                           <Textarea
                             placeholder="Describe what this agent specializes in..."
@@ -696,7 +696,7 @@ export default function AgentsPage() {
                         name="followUpMessage"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs">Follow Up Message</FormLabel>
+                            <FormLabel className="text-xs">{t("dashboard.agents.followUpMessage")}</FormLabel>
                             <FormControl>
                               <Textarea
                                 placeholder="Apakah ada yang bisa saya bantu lagi?"
@@ -715,7 +715,7 @@ export default function AgentsPage() {
                         name="followUpIntervalMinutes"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs">Interval (after inactive)</FormLabel>
+                            <FormLabel className="text-xs">{t("dashboard.agents.intervalAfterInactive")}</FormLabel>
                             <Select
                               value={String(field.value)}
                               onValueChange={(val) => field.onChange(Number(val))}
@@ -726,11 +726,11 @@ export default function AgentsPage() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="5">5 minutes</SelectItem>
-                                <SelectItem value="15">15 minutes</SelectItem>
-                                <SelectItem value="30">30 minutes</SelectItem>
-                                <SelectItem value="60">1 hour</SelectItem>
-                                <SelectItem value="120">2 hours</SelectItem>
+                                <SelectItem value="5">{t("dashboard.agents.mins5")}</SelectItem>
+                                <SelectItem value="15">{t("dashboard.agents.mins15")}</SelectItem>
+                                <SelectItem value="30">{t("dashboard.agents.mins30")}</SelectItem>
+                                <SelectItem value="60">{t("dashboard.agents.hour1")}</SelectItem>
+                                <SelectItem value="120">{t("dashboard.agents.hours2")}</SelectItem>
                                 <SelectItem value="360">6 hours</SelectItem>
                                 <SelectItem value="720">12 hours</SelectItem>
                                 <SelectItem value="1440">24 hours</SelectItem>

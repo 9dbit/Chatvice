@@ -101,7 +101,7 @@ export default function LivePreviewPage() {
           data-testid="button-refresh-preview"
         >
           <RefreshCw className="w-4 h-4 sm:mr-2" />
-          <span className="hidden sm:inline">Refresh Widget</span>
+          <span className="hidden sm:inline">{t("dashboard.widget.refresh")}</span>
         </Button>
       </div>
 
@@ -123,7 +123,7 @@ export default function LivePreviewPage() {
             ) : (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <AlertCircle className="w-4 h-4" />
-                <span className="text-sm">No active agent</span>
+                <span className="text-sm">{t("dashboard.livePreview.noActiveAgent")}</span>
               </div>
             )}
           </CardContent>
@@ -131,30 +131,30 @@ export default function LivePreviewPage() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Loaded Features</CardTitle>
+            <CardTitle className="text-base">{t("dashboard.livePreview.loadedFeatures")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Welcome Bubble</span>
+                <span className="text-muted-foreground">{t("dashboard.livePreview.welcomeBubble")}</span>
                 <Badge variant={welcomeBubble?.isEnabled ? "default" : "secondary"} className="text-xs">
                   {welcomeBubble?.isEnabled ? "Active" : "Off"}
                 </Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Quick Replies</span>
+                <span className="text-muted-foreground">{t("dashboard.quickReplies.title")}</span>
                 <Badge variant="outline" className="text-xs">{quickReplies.length}</Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Product Cards</span>
+                <span className="text-muted-foreground">{t("dashboard.livePreview.productCards")}</span>
                 <Badge variant="outline" className="text-xs">{productCards.length}</Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Chat Buttons</span>
+                <span className="text-muted-foreground">{t("dashboard.livePreview.chatButtons")}</span>
                 <Badge variant="outline" className="text-xs">{chatButtons.length}</Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Suggested Questions</span>
+                <span className="text-muted-foreground">{t("dashboard.livePreview.suggestedQuestions")}</span>
                 <Badge variant="outline" className="text-xs">{suggestedQuestions.length}</Badge>
               </div>
             </div>

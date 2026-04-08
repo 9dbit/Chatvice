@@ -607,7 +607,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Email</Label>
+                  <Label>{t("common.email")}</Label>
                   <div className="flex gap-2">
                     <Input value={merchant?.email || ""} disabled className="bg-muted flex-1" data-testid="input-email-readonly" />
                     <Button 
@@ -698,7 +698,7 @@ export default function SettingsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Merchant ID</Label>
+                    <Label>{t("dashboard.settings.merchantId")}</Label>
                     <div className="flex gap-2">
                       <Input
                         value={merchantId}
@@ -735,7 +735,7 @@ export default function SettingsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Clock className="w-5 h-5 text-primary" />
-                  <CardTitle>Chat Timeout</CardTitle>
+                  <CardTitle>{t("dashboard.settings.chatTimeout")}</CardTitle>
                 </div>
                 <CardDescription>
                   Set how long before an inactive chat session expires.
@@ -743,7 +743,7 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Session Timeout</Label>
+                  <Label>{t("dashboard.settings.sessionTimeout")}</Label>
                   <Select 
                     value={String(chatTimeout)} 
                     onValueChange={(v) => setChatTimeout(Number(v))}
@@ -752,10 +752,10 @@ export default function SettingsPage() {
                       <SelectValue placeholder="Select timeout" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="60">1 minute</SelectItem>
-                      <SelectItem value="120">2 minutes</SelectItem>
-                      <SelectItem value="180">3 minutes</SelectItem>
-                      <SelectItem value="300">5 minutes</SelectItem>
+                      <SelectItem value="60">{t("dashboard.settings.min1")}</SelectItem>
+                      <SelectItem value="120">{t("dashboard.settings.min2")}</SelectItem>
+                      <SelectItem value="180">{t("dashboard.settings.min3")}</SelectItem>
+                      <SelectItem value="300">{t("dashboard.settings.min5")}</SelectItem>
                       <SelectItem value="600">10 minutes</SelectItem>
                       <SelectItem value="1800">30 minutes</SelectItem>
                       <SelectItem value="3600">1 hour</SelectItem>
@@ -808,9 +808,9 @@ export default function SettingsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="30">30 seconds</SelectItem>
-                      <SelectItem value="60">1 minute</SelectItem>
-                      <SelectItem value="120">2 minutes</SelectItem>
-                      <SelectItem value="300">5 minutes</SelectItem>
+                      <SelectItem value="60">{t("dashboard.settings.min1")}</SelectItem>
+                      <SelectItem value="120">{t("dashboard.settings.min2")}</SelectItem>
+                      <SelectItem value="300">{t("dashboard.settings.min5")}</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">

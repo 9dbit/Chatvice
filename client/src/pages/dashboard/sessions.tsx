@@ -1022,7 +1022,7 @@ export default function SessionsPage() {
                 )}
               </h1>
             </div>
-            <p className="text-muted-foreground text-xs sm:text-sm hidden sm:block">View and manage customer conversations</p>
+            <p className="text-muted-foreground text-xs sm:text-sm hidden sm:block">{t("dashboard.sessions.subtitle")}</p>
           </div>
           <div className={`${selectedSession ? 'hidden' : 'flex'} sm:flex items-center gap-1 sm:gap-3 text-[8px] sm:text-xs flex-wrap`}>
             <button
@@ -1032,7 +1032,7 @@ export default function SessionsPage() {
               data-testid="button-filter-angry"
             >
               <StatusDot status="angry" />
-              <span className="hidden sm:inline text-red-600 dark:text-red-400">Alert</span>
+              <span className="hidden sm:inline text-red-600 dark:text-red-400">{t("dashboard.sessions.alert")}</span>
               <span data-testid="text-count-angry">{statusCounts.angry}</span>
             </button>
             <button
@@ -1042,7 +1042,7 @@ export default function SessionsPage() {
               data-testid="button-filter-active"
             >
               <StatusDot status="active" />
-              <span className="hidden sm:inline text-green-600 dark:text-green-400">Active</span>
+              <span className="hidden sm:inline text-green-600 dark:text-green-400">{t("common.active")}</span>
               <span data-testid="text-count-active">{statusCounts.active}</span>
             </button>
             <button
@@ -1052,7 +1052,7 @@ export default function SessionsPage() {
               data-testid="button-filter-needs-response"
             >
               <StatusDot status="needs_response" />
-              <span className="hidden sm:inline text-orange-600 dark:text-orange-400">Pending</span>
+              <span className="hidden sm:inline text-orange-600 dark:text-orange-400">{t("dashboard.sessions.pending")}</span>
               <span data-testid="text-count-needs-response">{statusCounts.needsResponse}</span>
             </button>
             <button
@@ -1062,7 +1062,7 @@ export default function SessionsPage() {
               data-testid="button-filter-ended"
             >
               <StatusDot status="ended" />
-              <span className="hidden sm:inline text-gray-600 dark:text-gray-400">Finished</span>
+              <span className="hidden sm:inline text-gray-600 dark:text-gray-400">{t("dashboard.sessions.finished")}</span>
               <span data-testid="text-count-ended">{statusCounts.ended}</span>
             </button>
             <Button
@@ -1118,7 +1118,7 @@ export default function SessionsPage() {
                         <SelectValue placeholder="All Agents" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Agents</SelectItem>
+                        <SelectItem value="all">{t("dashboard.sessions.allAgents")}</SelectItem>
                         {agents.map((agent) => (
                           <SelectItem key={agent.id} value={agent.id}>
                             {agent.name}
@@ -1243,7 +1243,7 @@ export default function SessionsPage() {
                   ) : (
                     <div className="text-center py-12 px-4">
                       <MessageSquare className="w-10 h-10 mx-auto text-muted-foreground/40 mb-2" />
-                      <p className="text-sm text-muted-foreground">No sessions found</p>
+                      <p className="text-sm text-muted-foreground">{t("dashboard.sessions.noSessions")}</p>
                     </div>
                   )}
                 </div>
@@ -1341,7 +1341,7 @@ export default function SessionsPage() {
                                   className="flex items-center gap-0.5 text-[11px] text-muted-foreground cursor-pointer select-none"
                                 >
                                   <Wand2 className="w-3 h-3" />
-                                  <span>Refine</span>
+                                  <span>{t("dashboard.sessions.refine")}</span>
                                 </label>
                               </div>
                             </TooltipTrigger>

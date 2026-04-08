@@ -335,7 +335,7 @@ export default function AnalyticsPage() {
             <Users className="w-3 h-3" />
             Team Performance
           </TabsTrigger>
-          <TabsTrigger value="performance">Response Times</TabsTrigger>
+          <TabsTrigger value="performance">{t("dashboard.analytics.responseTimes")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="topics" className="mt-4">
@@ -345,7 +345,7 @@ export default function AnalyticsPage() {
                 <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-4">
                   <Lock className="w-8 h-8 text-primary" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Chat Topics Analytics</h3>
+                <h3 className="text-xl font-semibold mb-2">{t("dashboard.analytics.chatTopics")}</h3>
                 <p className="text-muted-foreground text-center max-w-md mb-6">
                   Unlock detailed chat topic analysis to understand what your customers are asking about. Available on Pro and Enterprise plans.
                 </p>
@@ -364,7 +364,7 @@ export default function AnalyticsPage() {
                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
                   <MessageSquare className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <h3 className="font-semibold mb-2">No conversations yet</h3>
+                <h3 className="font-semibold mb-2">{t("dashboard.analytics.noConversations")}</h3>
                 <p className="text-sm text-muted-foreground text-center max-w-sm">
                   Chat topics will appear here once customers start conversations with your AI agent.
                 </p>
@@ -373,8 +373,8 @@ export default function AnalyticsPage() {
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle>Top 20 Chat Topics</CardTitle>
-                <CardDescription>Most frequently discussed topics by customers</CardDescription>
+                <CardTitle>{t("dashboard.analytics.top20Topics")}</CardTitle>
+                <CardDescription>{t("dashboard.analytics.topicsDesc")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3 md:grid-cols-2">
@@ -398,8 +398,8 @@ export default function AnalyticsPage() {
         <TabsContent value="keywords" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Popular Keywords with Popularity Ranking</CardTitle>
-              <CardDescription>Most frequently used words in customer conversations with popularity level</CardDescription>
+              <CardTitle>{t("dashboard.analytics.popularKeywords")}</CardTitle>
+              <CardDescription>{t("dashboard.analytics.keywordsDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
               {keywordsWithPopularity.length > 0 ? (
@@ -449,7 +449,7 @@ export default function AnalyticsPage() {
                   <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
                     <Search className="w-8 h-8 text-muted-foreground" />
                   </div>
-                  <h3 className="font-semibold mb-2">No keywords yet</h3>
+                  <h3 className="font-semibold mb-2">{t("dashboard.analytics.noKeywords")}</h3>
                   <p className="text-sm text-muted-foreground text-center max-w-sm">
                     Keywords will appear here once customers start conversations with your AI agent.
                   </p>
@@ -1014,7 +1014,7 @@ export default function AnalyticsPage() {
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Response Times</CardTitle>
+                <CardTitle>{t("dashboard.analytics.responseTimes")}</CardTitle>
                 <CardDescription>Average time to respond</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">

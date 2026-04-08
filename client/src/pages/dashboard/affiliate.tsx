@@ -422,7 +422,7 @@ export default function AffiliateDashboardPage() {
                   <span className="font-medium">{cookieDays} days</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Minimum Payout</span>
+                  <span className="text-sm text-muted-foreground">{t("dashboard.affiliate.minimumPayout")}</span>
                   <span className="font-medium">${minimumPayout}</span>
                 </div>
               </div>
@@ -463,7 +463,7 @@ export default function AffiliateDashboardPage() {
           <div className="w-16 h-16 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center mx-auto mb-6">
             <Clock className="w-8 h-8 text-yellow-600" />
           </div>
-          <h2 className="text-2xl font-bold mb-3">Application Pending</h2>
+          <h2 className="text-2xl font-bold mb-3">{t("dashboard.affiliate.applicationPending")}</h2>
           <p className="text-muted-foreground mb-6">
             Your affiliate application is currently under review. 
             We'll notify you once it's approved.
@@ -514,7 +514,7 @@ export default function AffiliateDashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{t("dashboard.affiliate.title")}</h1>
-          <p className="text-muted-foreground">Track your referrals and earnings</p>
+          <p className="text-muted-foreground">{t("dashboard.affiliate.subtitle")}</p>
         </div>
         <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 w-fit">
           <CheckCircle className="w-3 h-3 mr-1" />
@@ -525,10 +525,10 @@ export default function AffiliateDashboardPage() {
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
         <div className="overflow-x-auto overflow-y-hidden -mx-4 px-4 sm:mx-0 sm:px-0">
           <TabsList className="inline-flex w-max min-w-full sm:w-full sm:grid sm:grid-cols-4">
-            <TabsTrigger value="overview" className="whitespace-nowrap" data-testid="tab-overview">Overview</TabsTrigger>
-            <TabsTrigger value="downlines" className="whitespace-nowrap" data-testid="tab-downlines">Downlines</TabsTrigger>
-            <TabsTrigger value="withdrawals" className="whitespace-nowrap" data-testid="tab-withdrawals">Withdrawals</TabsTrigger>
-            <TabsTrigger value="payment-methods" className="whitespace-nowrap" data-testid="tab-payment-methods">Payment Methods</TabsTrigger>
+            <TabsTrigger value="overview" className="whitespace-nowrap" data-testid="tab-overview">{t("dashboard.affiliate.overview")}</TabsTrigger>
+            <TabsTrigger value="downlines" className="whitespace-nowrap" data-testid="tab-downlines">{t("dashboard.affiliate.downlines")}</TabsTrigger>
+            <TabsTrigger value="withdrawals" className="whitespace-nowrap" data-testid="tab-withdrawals">{t("dashboard.affiliate.withdrawals")}</TabsTrigger>
+            <TabsTrigger value="payment-methods" className="whitespace-nowrap" data-testid="tab-payment-methods">{t("dashboard.affiliate.paymentMethods")}</TabsTrigger>
           </TabsList>
         </div>
 
@@ -536,7 +536,7 @@ export default function AffiliateDashboardPage() {
           <Card className="p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground mb-2">Your Referral Link</p>
+                <p className="text-sm font-medium text-muted-foreground mb-2">{t("dashboard.affiliate.yourReferralLink")}</p>
                 <div className="flex items-center gap-2">
                   <Input 
                     readOnly 
@@ -666,7 +666,7 @@ export default function AffiliateDashboardPage() {
                   <span className="font-bold">{cookieDays} days</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b">
-                  <span className="text-muted-foreground">Minimum Payout</span>
+                  <span className="text-muted-foreground">{t("dashboard.affiliate.minimumPayout")}</span>
                   <span className="font-bold">${minimumPayout}</span>
                 </div>
                 <div className="flex justify-between items-center py-3">

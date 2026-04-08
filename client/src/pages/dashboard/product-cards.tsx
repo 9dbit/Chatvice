@@ -430,7 +430,7 @@ export default function ProductCardsPage() {
             <Package className="w-6 h-6" />
             Product Cards
           </h1>
-          <p className="text-muted-foreground">Create product cards that can be displayed in the chat widget</p>
+          <p className="text-muted-foreground">{t("dashboard.productCards.subtitle")}</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
@@ -452,7 +452,7 @@ export default function ProductCardsPage() {
             <div className="grid gap-4 py-4 md:grid-cols-2">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="sourceUrl">Source URL (for auto-fill)</Label>
+                  <Label htmlFor="sourceUrl">{t("dashboard.productCards.sourceUrl")}</Label>
                   <div className="flex gap-2">
                     <Input
                       id="sourceUrl"
@@ -473,7 +473,7 @@ export default function ProductCardsPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="title">Product Title</Label>
+                  <Label htmlFor="title">{t("dashboard.productCards.productTitle")}</Label>
                   <Input
                     id="title"
                     value={form.title}
@@ -483,7 +483,7 @@ export default function ProductCardsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="price">Price</Label>
+                  <Label htmlFor="price">{t("dashboard.productCards.price")}</Label>
                   <Input
                     id="price"
                     value={form.price}
@@ -493,7 +493,7 @@ export default function ProductCardsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description">{t("dashboard.productCards.description")}</Label>
                   <Textarea
                     id="description"
                     value={form.description}
@@ -504,7 +504,7 @@ export default function ProductCardsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Product Image</Label>
+                  <Label>{t("dashboard.productCards.productImage")}</Label>
                   <div className="space-y-3">
                     <div className="flex gap-2">
                       <Input
@@ -533,7 +533,7 @@ export default function ProductCardsPage() {
                       </div>
                     )}
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>or enter URL:</span>
+                      <span>{t("common.orEnterUrl")}:</span>
                     </div>
                     <Input
                       id="imageUrl"
@@ -546,7 +546,7 @@ export default function ProductCardsPage() {
                 </div>
               </div>
               <div className="space-y-4">
-                <Label>Preview (Square Format)</Label>
+                <Label>{t("dashboard.productCards.previewSquare")}</Label>
                 <div className="rounded-lg border bg-card overflow-hidden max-w-[200px]">
                   {form.imageUrl ? (
                     <div className="aspect-square bg-muted flex items-center justify-center">
@@ -867,7 +867,7 @@ export default function ProductCardsPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="crawled-price">Price</Label>
+                      <Label htmlFor="crawled-price">{t("dashboard.productCards.price")}</Label>
                       <Input
                         id="crawled-price"
                         value={crawledProductForm.price}
@@ -887,7 +887,7 @@ export default function ProductCardsPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="crawled-description">Description</Label>
+                      <Label htmlFor="crawled-description">{t("dashboard.productCards.description")}</Label>
                       <Textarea
                         id="crawled-description"
                         value={crawledProductForm.description}

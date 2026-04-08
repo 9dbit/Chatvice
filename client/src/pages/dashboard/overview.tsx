@@ -156,7 +156,7 @@ export default function DashboardOverview() {
                   <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
                     1
                   </div>
-                  <h4 className="font-medium text-sm">Copy the Script Code</h4>
+                  <h4 className="font-medium text-sm">{t("dashboard.overview.copyScript")}</h4>
                 </div>
                 {activeAgent && (
                   <Badge variant="outline" className="text-xs" data-testid="badge-active-agent">
@@ -196,7 +196,7 @@ export default function DashboardOverview() {
               ) : (
                 <div className="bg-muted/30 p-3 rounded-lg text-center text-xs text-muted-foreground" data-testid="container-no-agent">
                   <Bot className="w-6 h-6 mx-auto mb-1 opacity-50" />
-                  <p>No active AI Agent found.</p>
+                  <p>{t("dashboard.overview.noActiveAgent")}</p>
                   <a 
                     href="/dashboard/agents" 
                     className="text-primary hover:underline inline-flex items-center gap-1 mt-1"
@@ -214,7 +214,7 @@ export default function DashboardOverview() {
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
                   2
                 </div>
-                <h4 className="font-medium text-sm">Open Your HTML File</h4>
+                <h4 className="font-medium text-sm">{t("dashboard.overview.openHtmlFile")}</h4>
               </div>
               <p className="text-xs text-muted-foreground mb-3">
                 Open your website's main HTML file (usually index.html or main layout).

@@ -246,7 +246,11 @@
       "daysRemaining": "days remaining",
       "paymentNote": "Payment is processed after confirming the payment method.",
       "trialUsed": "Free trial already used.",
-      "hospitalityDesc2": "Connect your hotel room data from Google Sheet to display real-time availability in the chatbot."
+      "hospitalityDesc2": "Connect your hotel room data from Google Sheet to display real-time availability in the chatbot.",
+      "chatbotShowRooms": "The chatbot will show room availability when customers ask",
+      "bookingLinkDesc": "Link opened when customers click the \"Book Now\" button",
+      "test": "Test",
+      "previewRows": "Preview (first 3 rows)"
     },
     "notificationSettings": {
       "title": "Notification Settings",
@@ -260,7 +264,12 @@
       "saved": "Notification settings saved",
       "emailNotif": "Email Notifications",
       "smsNotif": "SMS Notifications",
-      "pushNotif": "Push Notifications"
+      "pushNotif": "Push Notifications",
+      "newChatDesc": "Notification when a new customer starts a chat",
+      "enable": "Enable Notification",
+      "soundAttached": "Sound Attached",
+      "newMessageDesc": "Notification when there's a new message from customer",
+      "angryDesc": "Notification when the system detects an angry or frustrated customer"
     },
     "leads": {
       "title": "Sales Leads",
@@ -296,7 +305,8 @@
       "noSupervisors": "No supervisors yet",
       "inviteSent": "Invitation sent",
       "supervisorDeleted": "Supervisor removed",
-      "limitReached": "Supervisor limit reached"
+      "limitReached": "Supervisor limit reached",
+      "noAgentsAssigned": "No agents assigned"
     },
     "knowledgeSources": "Knowledge Sources",
     "domains": "Domains",
@@ -448,7 +458,9 @@
       "viewAllSessions": "View All Sessions",
       "aiMode": "AI",
       "humanMode": "Human",
-      "aiAgent": "AI Agent"
+      "aiAgent": "AI Agent",
+      "noActiveAgent": "No active AI Agent found.",
+      "openHtmlFile": "Open Your HTML File"
     },
     "agents": {
       "title": "AI Agents",
@@ -475,7 +487,15 @@
       "newAgent": "New AI Agent",
       "closingMode": "Closing Statement Mode",
       "includeBusinessName": "Include business name in thanks",
-      "addressCustomer": "Address customer by name"
+      "addressCustomer": "Address customer by name",
+      "descriptionOptional": "Description (Optional)",
+      "followUpMessage": "Follow Up Message",
+      "intervalAfterInactive": "Interval (after inactive)",
+      "mins5": "5 minutes",
+      "mins15": "15 minutes",
+      "mins30": "30 minutes",
+      "hour1": "1 hour",
+      "hours2": "2 hours"
     },
     "sessions": {
       "title": "Chat Sessions",
@@ -523,7 +543,12 @@
       "exportFailed": "Export failed",
       "exportFailedDesc": "Could not export the transcript. Please try again.",
       "refinementFailed": "Refinement failed",
-      "refinementFailedDesc": "Sending your original message."
+      "refinementFailedDesc": "Sending your original message.",
+      "alert": "Alert",
+      "pending": "Pending",
+      "finished": "Finished",
+      "allAgents": "All Agents",
+      "refine": "Refine"
     },
     "knowledge": {
       "title": "Knowledge Base",
@@ -552,7 +577,13 @@
       "offline": "Offline Message",
       "save": "Save Changes",
       "preview": "Preview",
-      "saved": "Widget settings saved"
+      "saved": "Widget settings saved",
+      "refresh": "Refresh Widget",
+      "configuring": "Configuring",
+      "appearance": "Appearance",
+      "preChat": "Pre-Chat",
+      "socialLinks": "Social & Links",
+      "embed": "Embed"
     },
     "welcomeBubble": {
       "title": "Welcome Bubble",
@@ -571,7 +602,14 @@
       "messageContent": "Message Content",
       "messageContentDesc": "Configure text displayed in the bubble",
       "headline": "Headline",
-      "buttonDesc": "Configure the action button"
+      "buttonDesc": "Configure the action button",
+      "bubbleAppearDesc": "Bubble will appear when page loads",
+      "min1": "1 min",
+      "min30": "30 min",
+      "hour1": "1 hour",
+      "displayImageDesc": "Display image above the welcome bubble",
+      "uploadImageVideo": "Upload Image / Video",
+      "orEnterUrl": "Or enter image/video URL"
     },
     "triggers": {
       "title": "Triggers",
@@ -585,7 +623,10 @@
       "triggerDeleted": "Trigger deleted",
       "keywords": "Trigger Keywords",
       "test": "Test Triggers",
-      "noEscalation": "No escalation"
+      "noEscalation": "No escalation",
+      "suggestedTriggers": "Suggested triggers",
+      "wouldEscalate": "Would escalate!",
+      "howItWorks": "How it works"
     },
     "quickReplies": {
       "title": "Quick Replies",
@@ -597,7 +638,11 @@
       "replyAdded": "Quick reply added",
       "replyDeleted": "Quick reply deleted",
       "messageContent": "Message Content",
-      "addQuickReply": "Add Quick Reply"
+      "addQuickReply": "Add Quick Reply",
+      "label": "Label",
+      "typeHint": "Type \"/\" to see the list of quick replies",
+      "example": "Example: /greeting will show a greeting message",
+      "emptyState": "Create your first quick reply to speed up responses"
     },
     "chatButtons": {
       "title": "Chat Buttons",
@@ -620,7 +665,12 @@
       "productUrl": "Product URL",
       "noProducts": "No product cards yet",
       "productAdded": "Product card added",
-      "productDeleted": "Product card deleted"
+      "productDeleted": "Product card deleted",
+      "sourceUrl": "Source URL (for auto-fill)",
+      "productTitle": "Product Title",
+      "price": "Price",
+      "description": "Description",
+      "previewSquare": "Preview (Square Format)"
     },
     "proactiveChat": {
       "title": "Proactive Chat",
@@ -633,7 +683,12 @@
       "country": "Country",
       "page": "Current Page",
       "duration": "On Site",
-      "startChat": "Start Chat"
+      "startChat": "Start Chat",
+      "widgetSetting": "Widget Setting",
+      "configDesc": "Configure how and when your AI agent reaches out to visitors.",
+      "enable": "Enable Proactive Chat",
+      "turningOnDesc": "Turning on Proactive Chat will make the following changes:",
+      "turningOffDesc": "Turning off Proactive Chat will:"
     },
     "analytics": {
       "title": "Analytics",
@@ -657,7 +712,14 @@
       "aiVsHumanDesc": "Distribution of session handling",
       "popularKeywords": "Popular Keywords",
       "responseRate": "Response Rate",
-      "sessionOverview": "Session Overview"
+      "sessionOverview": "Session Overview",
+      "responseTimes": "Response Times",
+      "chatTopics": "Chat Topics Analytics",
+      "noConversations": "No conversations yet",
+      "top20Topics": "Top 20 Chat Topics",
+      "topicsDesc": "Most frequently discussed topics by customers",
+      "keywordsDesc": "Most frequently used words in customer conversations with popularity level",
+      "noKeywords": "No keywords yet"
     },
     "chatLogs": {
       "title": "Chat Logs",
@@ -682,7 +744,8 @@
       "noUsers": "No user data yet",
       "exportData": "Export Data",
       "customerList": "Customer List",
-      "noData": "No customer data yet"
+      "noData": "No customer data yet",
+      "filterByDate": "Filter by date"
     },
     "livePreview": {
       "title": "Live Preview",
@@ -691,7 +754,12 @@
       "noActiveAgent": "No active agent",
       "previewMode": "Preview Mode",
       "noAgentWarning": "Please set an active agent to preview the chat widget",
-      "reload": "Reload"
+      "reload": "Reload",
+      "loadedFeatures": "Loaded Features",
+      "welcomeBubble": "Welcome Bubble",
+      "productCards": "Product Cards",
+      "chatButtons": "Chat Buttons",
+      "suggestedQuestions": "Suggested Questions"
     },
     "settings": {
       "title": "Settings",
@@ -706,7 +774,14 @@
       "companyName": "Company Name",
       "profileInfo": "Profile Information",
       "themePreference": "Theme Preference",
-      "apiCredentials": "API Credentials"
+      "apiCredentials": "API Credentials",
+      "merchantId": "Merchant ID",
+      "chatTimeout": "Chat Timeout",
+      "sessionTimeout": "Session Timeout",
+      "min1": "1 minute",
+      "min2": "2 minutes",
+      "min3": "3 minutes",
+      "min5": "5 minutes"
     },
     "profile": {
       "title": "Profile",
@@ -724,7 +799,14 @@
       "websiteName": "Website Name",
       "profileInfo": "Profile Information",
       "themePreference": "Theme Preference",
-      "apiCredentials": "API Credentials"
+      "apiCredentials": "API Credentials",
+      "businessProfile": "Business Profile",
+      "websiteUrl": "Website URL",
+      "contactPerson": "Contact Person",
+      "accountStatus": "Account Status",
+      "emailVerified": "Email Verified",
+      "profileComplete": "Profile Complete",
+      "newEmailAddress": "New Email Address"
     },
     "teamActivity": {
       "title": "Team Activity",
@@ -739,7 +821,12 @@
       "totalAgents": "Total AI Agents",
       "onShift": "On Shift Now",
       "supervisorOnline": "Supervisor Online",
-      "supervisorOffline": "Supervisor Offline"
+      "supervisorOffline": "Supervisor Offline",
+      "noSupervisors": "No supervisors yet",
+      "addSupervisors": "Add supervisors in the Supervisors page",
+      "noAgents": "No AI agents yet",
+      "createAgents": "Create AI agents in the Agents page",
+      "noPerformanceData": "No performance data yet"
     },
     "workScheduler": {
       "title": "Work Scheduler",
@@ -761,7 +848,12 @@
       "saturday": "Saturday",
       "sunday": "Sunday",
       "dayType": "Day Type",
-      "everyday": "Every Day"
+      "everyday": "Every Day",
+      "weekdays": "Weekdays",
+      "weekend": "Weekend",
+      "everyDay": "Every Day",
+      "weekdaysMon": "Weekdays (Mon-Fri)",
+      "weekendSat": "Weekend (Sat-Sun)"
     },
     "integrations": {
       "title": "Integrations",
@@ -852,7 +944,13 @@
       "pending": "Pending",
       "withdrawalHistory": "Withdrawal History",
       "totalEarnings": "Total Earnings",
-      "availableBalance": "Available Balance"
+      "availableBalance": "Available Balance",
+      "applicationPending": "Application Pending",
+      "overview": "Overview",
+      "downlines": "Downlines",
+      "withdrawals": "Withdrawals",
+      "paymentMethods": "Payment Methods",
+      "yourReferralLink": "Your Referral Link"
     },
     "dataUsage": {
       "title": "Data Usage",
@@ -900,7 +998,20 @@
       "staffNamePlaceholder": "Doctor / Staff name",
       "selectDivision": "Select division...",
       "serviceNamePlaceholder": "e.g. General Consultation",
-      "reasonPlaceholder": "Reason (optional)"
+      "reasonPlaceholder": "Reason (optional)",
+      "calendarLink": "Calendar Link",
+      "calendarLinkUnavailable": "Calendar link not available.",
+      "publicLinkUnavailable": "Public link not available. Make sure business slug is set.",
+      "addClosedDateFailed": "Failed to add closed date",
+      "noClosedDates": "No closed dates yet.",
+      "noAppointmentsToday": "No appointments today.",
+      "publicCalendarLink": "Public Calendar Link (Customers)",
+      "allDivisions": "All Divisions",
+      "break": "Break",
+      "closedDates": "Closed Dates",
+      "schedule": "Schedule",
+      "clickDateForDetails": "Click a date to view appointment details.",
+      "divisionDesc": "Group staff by department or specialization."
     },
     "sources": {
       "title": "Active Sources",
@@ -915,7 +1026,13 @@
       "sourceAdded": "Source added",
       "sourceDeleted": "Source removed",
       "sourceType": "Source Type",
-      "websiteUrl": "Website URL"
+      "websiteUrl": "Website URL",
+      "tabSources": "Sources",
+      "uploadDocument": "Upload Document",
+      "clickUploadDiff": "Click to upload a different file",
+      "clickUpload": "Click to upload a file",
+      "supportedFormats": "PDF, Word (.docx), Excel (.xlsx), TXT, MD, CSV",
+      "upgradeAdvanced": "Upgrade for advanced sources"
     },
     "billingDetails": {
       "title": "Billing Details",
@@ -924,5 +1041,26 @@
       "transferVA": "Transfer to Virtual Account",
       "transferBank": "Transfer to Bank Account"
     }
+  },
+  "common": {
+    "add": "Add",
+    "days": {
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday",
+      "sunday": "Sunday"
+    },
+    "active": "Active",
+    "name": "Name",
+    "content": "Content",
+    "confirmPassword": "Confirm Password",
+    "to": "to",
+    "sec": "sec",
+    "orEnterUrl": "or enter URL",
+    "email": "Email",
+    "password": "Password"
   }
 }

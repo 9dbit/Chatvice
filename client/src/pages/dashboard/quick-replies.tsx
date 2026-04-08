@@ -122,7 +122,7 @@ export default function QuickRepliesPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-page-title">{t("dashboard.quickReplies.title")}</h1>
-          <p className="text-muted-foreground">Create quick replies that can be used with the "/" shortcut</p>
+          <p className="text-muted-foreground">{t("dashboard.quickReplies.subtitle")}</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
@@ -155,7 +155,7 @@ export default function QuickRepliesPage() {
                 <p className="text-xs text-muted-foreground">Type /{form.shortcut.replace(/^\//, "") || "greeting"} to use</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="label">Label</Label>
+                <Label htmlFor="label">{t("dashboard.quickReplies.label")}</Label>
                 <Input
                   id="label"
                   value={form.label}
@@ -206,8 +206,8 @@ export default function QuickRepliesPage() {
               <MessageSquare className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="font-medium">Type "/" to see the list of quick replies</p>
-              <p className="text-sm text-muted-foreground">Example: /greeting will show a greeting message</p>
+              <p className="font-medium">{t("dashboard.quickReplies.typeHint")}</p>
+              <p className="text-sm text-muted-foreground">{t("dashboard.quickReplies.example")}</p>
             </div>
           </div>
         </CardContent>
@@ -218,7 +218,7 @@ export default function QuickRepliesPage() {
           <CardContent className="py-12 text-center">
             <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="font-semibold mb-2">{t("dashboard.quickReplies.noReplies")}</h3>
-            <p className="text-muted-foreground mb-4">Create your first quick reply to speed up responses</p>
+            <p className="text-muted-foreground mb-4">{t("dashboard.quickReplies.emptyState")}</p>
             <Button onClick={() => setIsDialogOpen(true)} data-testid="button-create-first-reply">
               <Plus className="w-4 h-4 mr-2" />
               Create First Quick Reply

@@ -161,7 +161,7 @@ export default function UserDataPage() {
             {/* Date Filter Section */}
             <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
               <CalendarDays className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Filter by date:</span>
+              <span className="text-sm text-muted-foreground">{t("dashboard.userData.filterByDate")}:</span>
               
               {/* Start Date Picker */}
               <Popover>
@@ -187,7 +187,7 @@ export default function UserDataPage() {
                 </PopoverContent>
               </Popover>
               
-              <span className="text-muted-foreground">to</span>
+              <span className="text-muted-foreground">{t("common.to")}</span>
               
               {/* End Date Picker */}
               <Popover>

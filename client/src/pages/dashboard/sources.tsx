@@ -299,7 +299,7 @@ export default function SourcesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Sources</h1>
+          <h1 className="text-2xl font-bold">{t("dashboard.sources.tabSources")}</h1>
           <p className="text-muted-foreground">
             Manage knowledge sources for your AI agents.
           </p>
@@ -374,7 +374,7 @@ export default function SourcesPage() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Name</FormLabel>
+                      <FormLabel>{t("common.name")}</FormLabel>
                       <FormControl>
                         <Input placeholder="e.g., FAQ Document" data-testid="input-source-name" {...field} />
                       </FormControl>
@@ -412,7 +412,7 @@ export default function SourcesPage() {
                     name="content"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Content</FormLabel>
+                        <FormLabel>{t("common.content")}</FormLabel>
                         <FormControl>
                           <Textarea
                             placeholder="Enter your knowledge content here...&#10;&#10;Example:&#10;Q: What are your business hours?&#10;A: We are open Monday to Friday, 9am to 5pm."
@@ -429,7 +429,7 @@ export default function SourcesPage() {
 
                 {form.watch("type") === "file" && (
                   <FormItem>
-                    <FormLabel>Upload Document</FormLabel>
+                    <FormLabel>{t("dashboard.sources.uploadDocument")}</FormLabel>
                     <div className="space-y-3">
                       <input
                         ref={fileInputRef}
@@ -452,13 +452,13 @@ export default function SourcesPage() {
                           <div className="flex flex-col items-center gap-2">
                             <CheckCircle2 className="w-8 h-8 text-green-500" />
                             <p className="text-sm font-medium">{uploadedFileName}</p>
-                            <p className="text-xs text-muted-foreground">Click to upload a different file</p>
+                            <p className="text-xs text-muted-foreground">{t("dashboard.sources.clickUploadDiff")}</p>
                           </div>
                         ) : (
                           <div className="flex flex-col items-center gap-2">
                             <Upload className="w-8 h-8 text-muted-foreground" />
-                            <p className="text-sm font-medium">Click to upload a file</p>
-                            <p className="text-xs text-muted-foreground">PDF, Word (.docx), Excel (.xlsx), TXT, MD, CSV</p>
+                            <p className="text-sm font-medium">{t("dashboard.sources.clickUpload")}</p>
+                            <p className="text-xs text-muted-foreground">{t("dashboard.sources.supportedFormats")}</p>
                           </div>
                         )}
                       </div>
@@ -527,7 +527,7 @@ export default function SourcesPage() {
                 <Crown className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <h3 className="font-semibold">Upgrade for advanced sources</h3>
+                <h3 className="font-semibold">{t("dashboard.sources.upgradeAdvanced")}</h3>
                 <p className="text-sm text-muted-foreground">
                   Get website crawling, sitemap import, and more with Pro or Enterprise.
                 </p>

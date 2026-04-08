@@ -246,7 +246,11 @@
       "daysRemaining": "hari tersisa",
       "paymentNote": "Pembayaran diproses setelah mengkonfirmasi metode pembayaran.",
       "trialUsed": "Uji coba gratis sudah digunakan.",
-      "hospitalityDesc2": "Hubungkan data kamar hotel dari Google Sheet untuk menampilkan ketersediaan real-time di chatbot."
+      "hospitalityDesc2": "Hubungkan data kamar hotel dari Google Sheet untuk menampilkan ketersediaan real-time di chatbot.",
+      "chatbotShowRooms": "Chatbot akan menampilkan ketersediaan kamar saat pelanggan bertanya",
+      "bookingLinkDesc": "Tautan yang dibuka saat pelanggan mengklik tombol \"Pesan Sekarang\"",
+      "test": "Uji",
+      "previewRows": "Pratinjau (3 baris pertama)"
     },
     "notificationSettings": {
       "title": "Pengaturan Notifikasi",
@@ -260,7 +264,12 @@
       "saved": "Pengaturan notifikasi tersimpan",
       "emailNotif": "Notifikasi Email",
       "smsNotif": "Notifikasi SMS",
-      "pushNotif": "Notifikasi Push"
+      "pushNotif": "Notifikasi Push",
+      "newChatDesc": "Notifikasi ketika pelanggan baru memulai chat",
+      "enable": "Aktifkan Notifikasi",
+      "soundAttached": "Suara Terpasang",
+      "newMessageDesc": "Notifikasi ketika ada pesan baru dari pelanggan",
+      "angryDesc": "Notifikasi ketika sistem mendeteksi pelanggan yang marah atau frustasi"
     },
     "leads": {
       "title": "Prospek Penjualan",
@@ -296,7 +305,8 @@
       "noSupervisors": "Belum ada supervisor",
       "inviteSent": "Undangan terkirim",
       "supervisorDeleted": "Supervisor dihapus",
-      "limitReached": "Batas supervisor tercapai"
+      "limitReached": "Batas supervisor tercapai",
+      "noAgentsAssigned": "Tidak ada agen yang ditugaskan"
     },
     "knowledgeSources": "Sumber Pengetahuan",
     "domains": "Domain",
@@ -448,7 +458,9 @@
       "viewAllSessions": "Lihat Semua Sesi",
       "aiMode": "AI",
       "humanMode": "Manusia",
-      "aiAgent": "Agen AI"
+      "aiAgent": "Agen AI",
+      "noActiveAgent": "Tidak ada Agen AI aktif.",
+      "openHtmlFile": "Buka File HTML Anda"
     },
     "agents": {
       "title": "Agen AI",
@@ -475,7 +487,15 @@
       "newAgent": "Agen AI Baru",
       "closingMode": "Mode Pernyataan Penutup",
       "includeBusinessName": "Sertakan nama bisnis dalam ucapan terima kasih",
-      "addressCustomer": "Sapa pelanggan dengan nama"
+      "addressCustomer": "Sapa pelanggan dengan nama",
+      "descriptionOptional": "Deskripsi (Opsional)",
+      "followUpMessage": "Pesan Tindak Lanjut",
+      "intervalAfterInactive": "Interval (setelah tidak aktif)",
+      "mins5": "5 menit",
+      "mins15": "15 menit",
+      "mins30": "30 menit",
+      "hour1": "1 jam",
+      "hours2": "2 jam"
     },
     "sessions": {
       "title": "Sesi Chat",
@@ -523,7 +543,12 @@
       "exportFailed": "Ekspor gagal",
       "exportFailedDesc": "Tidak dapat mengekspor transkrip. Silakan coba lagi.",
       "refinementFailed": "Pemrosesan gagal",
-      "refinementFailedDesc": "Mengirim pesan asli Anda."
+      "refinementFailedDesc": "Mengirim pesan asli Anda.",
+      "alert": "Peringatan",
+      "pending": "Menunggu",
+      "finished": "Selesai",
+      "allAgents": "Semua Agen",
+      "refine": "Sempurnakan"
     },
     "knowledge": {
       "title": "Basis Pengetahuan",
@@ -552,7 +577,13 @@
       "offline": "Pesan Offline",
       "save": "Simpan Perubahan",
       "preview": "Pratinjau",
-      "saved": "Pengaturan widget tersimpan"
+      "saved": "Pengaturan widget tersimpan",
+      "refresh": "Refresh Widget",
+      "configuring": "Mengonfigurasi",
+      "appearance": "Tampilan",
+      "preChat": "Pra-Chat",
+      "socialLinks": "Sosial & Tautan",
+      "embed": "Embed"
     },
     "welcomeBubble": {
       "title": "Balon Sambutan",
@@ -571,7 +602,14 @@
       "messageContent": "Konten Pesan",
       "messageContentDesc": "Konfigurasi teks yang ditampilkan di gelembung",
       "headline": "Judul",
-      "buttonDesc": "Konfigurasi tombol aksi"
+      "buttonDesc": "Konfigurasi tombol aksi",
+      "bubbleAppearDesc": "Gelembung akan muncul saat halaman dimuat",
+      "min1": "1 mnt",
+      "min30": "30 mnt",
+      "hour1": "1 jam",
+      "displayImageDesc": "Tampilkan gambar di atas gelembung selamat datang",
+      "uploadImageVideo": "Unggah Gambar / Video",
+      "orEnterUrl": "Atau masukkan URL gambar/video"
     },
     "triggers": {
       "title": "Pemicu",
@@ -585,7 +623,10 @@
       "triggerDeleted": "Pemicu dihapus",
       "keywords": "Kata Kunci Eskalasi",
       "test": "Uji Pemicu",
-      "noEscalation": "Tidak ada eskalasi"
+      "noEscalation": "Tidak ada eskalasi",
+      "suggestedTriggers": "Trigger yang disarankan",
+      "wouldEscalate": "Akan dieskalasi!",
+      "howItWorks": "Cara kerjanya"
     },
     "quickReplies": {
       "title": "Balasan Cepat",
@@ -597,7 +638,11 @@
       "replyAdded": "Balasan cepat ditambahkan",
       "replyDeleted": "Balasan cepat dihapus",
       "messageContent": "Konten Pesan",
-      "addQuickReply": "Tambah Balasan Cepat"
+      "addQuickReply": "Tambah Balasan Cepat",
+      "label": "Label",
+      "typeHint": "Ketik \"/\" untuk melihat daftar balasan cepat",
+      "example": "Contoh: /greeting akan menampilkan pesan salam",
+      "emptyState": "Buat balasan cepat pertama Anda untuk mempercepat respons"
     },
     "chatButtons": {
       "title": "Tombol Chat",
@@ -620,7 +665,12 @@
       "productUrl": "URL Produk",
       "noProducts": "Belum ada kartu produk",
       "productAdded": "Kartu produk ditambahkan",
-      "productDeleted": "Kartu produk dihapus"
+      "productDeleted": "Kartu produk dihapus",
+      "sourceUrl": "URL Sumber (untuk isi otomatis)",
+      "productTitle": "Judul Produk",
+      "price": "Harga",
+      "description": "Deskripsi",
+      "previewSquare": "Pratinjau (Format Persegi)"
     },
     "proactiveChat": {
       "title": "Chat Proaktif",
@@ -633,7 +683,12 @@
       "country": "Negara",
       "page": "Halaman Saat Ini",
       "duration": "Di Situs",
-      "startChat": "Mulai Chat"
+      "startChat": "Mulai Chat",
+      "widgetSetting": "Pengaturan Widget",
+      "configDesc": "Konfigurasi bagaimana dan kapan agen AI Anda menjangkau pengunjung.",
+      "enable": "Aktifkan Proactive Chat",
+      "turningOnDesc": "Mengaktifkan Proactive Chat akan membuat perubahan berikut:",
+      "turningOffDesc": "Menonaktifkan Proactive Chat akan:"
     },
     "analytics": {
       "title": "Analitik",
@@ -657,7 +712,14 @@
       "aiVsHumanDesc": "Distribusi penanganan sesi",
       "popularKeywords": "Kata Kunci Populer",
       "responseRate": "Tingkat Respons",
-      "sessionOverview": "Ringkasan Sesi"
+      "sessionOverview": "Ringkasan Sesi",
+      "responseTimes": "Waktu Respons",
+      "chatTopics": "Analitik Topik Chat",
+      "noConversations": "Belum ada percakapan",
+      "top20Topics": "Top 20 Topik Chat",
+      "topicsDesc": "Topik yang paling sering dibahas pelanggan",
+      "keywordsDesc": "Kata yang paling sering digunakan dalam percakapan pelanggan beserta level popularitasnya",
+      "noKeywords": "Belum ada kata kunci"
     },
     "chatLogs": {
       "title": "Log Chat",
@@ -682,7 +744,8 @@
       "noUsers": "Belum ada data pengguna",
       "exportData": "Ekspor Data",
       "customerList": "Daftar Pelanggan",
-      "noData": "Belum ada data pelanggan"
+      "noData": "Belum ada data pelanggan",
+      "filterByDate": "Filter berdasarkan tanggal"
     },
     "livePreview": {
       "title": "Pratinjau Langsung",
@@ -691,7 +754,12 @@
       "noActiveAgent": "Tidak ada agen aktif",
       "previewMode": "Mode Pratinjau",
       "noAgentWarning": "Harap tetapkan agen aktif untuk melihat pratinjau widget chat",
-      "reload": "Muat Ulang"
+      "reload": "Muat Ulang",
+      "loadedFeatures": "Fitur Termuat",
+      "welcomeBubble": "Gelembung Selamat Datang",
+      "productCards": "Kartu Produk",
+      "chatButtons": "Tombol Chat",
+      "suggestedQuestions": "Pertanyaan yang Disarankan"
     },
     "settings": {
       "title": "Pengaturan",
@@ -706,7 +774,14 @@
       "companyName": "Nama Perusahaan",
       "profileInfo": "Informasi Profil",
       "themePreference": "Preferensi Tema",
-      "apiCredentials": "Kredensial API"
+      "apiCredentials": "Kredensial API",
+      "merchantId": "ID Merchant",
+      "chatTimeout": "Batas Waktu Chat",
+      "sessionTimeout": "Batas Waktu Sesi",
+      "min1": "1 menit",
+      "min2": "2 menit",
+      "min3": "3 menit",
+      "min5": "5 menit"
     },
     "profile": {
       "title": "Profil",
@@ -724,7 +799,14 @@
       "websiteName": "Nama Website",
       "profileInfo": "Informasi Profil",
       "themePreference": "Preferensi Tema",
-      "apiCredentials": "Kredensial API"
+      "apiCredentials": "Kredensial API",
+      "businessProfile": "Profil Bisnis",
+      "websiteUrl": "URL Website",
+      "contactPerson": "Kontak Person",
+      "accountStatus": "Status Akun",
+      "emailVerified": "Email Terverifikasi",
+      "profileComplete": "Profil Lengkap",
+      "newEmailAddress": "Alamat Email Baru"
     },
     "teamActivity": {
       "title": "Aktivitas Tim",
@@ -739,7 +821,12 @@
       "totalAgents": "Total Agen AI",
       "onShift": "Sedang Shift",
       "supervisorOnline": "Supervisor Online",
-      "supervisorOffline": "Supervisor Offline"
+      "supervisorOffline": "Supervisor Offline",
+      "noSupervisors": "Belum ada supervisor",
+      "addSupervisors": "Tambahkan supervisor di halaman Supervisor",
+      "noAgents": "Belum ada agen AI",
+      "createAgents": "Buat agen AI di halaman Agen",
+      "noPerformanceData": "Belum ada data performa"
     },
     "workScheduler": {
       "title": "Penjadwalan Kerja",
@@ -761,7 +848,12 @@
       "saturday": "Sabtu",
       "sunday": "Minggu",
       "dayType": "Jenis Hari",
-      "everyday": "Setiap Hari"
+      "everyday": "Setiap Hari",
+      "weekdays": "Hari Kerja",
+      "weekend": "Akhir Pekan",
+      "everyDay": "Setiap Hari",
+      "weekdaysMon": "Hari Kerja (Sen-Jum)",
+      "weekendSat": "Akhir Pekan (Sab-Min)"
     },
     "integrations": {
       "title": "Integrasi",
@@ -852,7 +944,13 @@
       "pending": "Tertunda",
       "withdrawalHistory": "Riwayat Penarikan",
       "totalEarnings": "Total Penghasilan",
-      "availableBalance": "Saldo Tersedia"
+      "availableBalance": "Saldo Tersedia",
+      "applicationPending": "Aplikasi Tertunda",
+      "overview": "Ikhtisar",
+      "downlines": "Downline",
+      "withdrawals": "Penarikan",
+      "paymentMethods": "Metode Pembayaran",
+      "yourReferralLink": "Tautan Referral Anda"
     },
     "dataUsage": {
       "title": "Penggunaan Data",
@@ -900,7 +998,20 @@
       "staffNamePlaceholder": "Nama dokter / staf",
       "selectDivision": "Pilih divisi...",
       "serviceNamePlaceholder": "cth: Konsultasi Umum",
-      "reasonPlaceholder": "Alasan (opsional)"
+      "reasonPlaceholder": "Alasan (opsional)",
+      "calendarLink": "Link Kalender",
+      "calendarLinkUnavailable": "Link kalender tidak tersedia.",
+      "publicLinkUnavailable": "Link publik tidak tersedia. Pastikan slug bisnis sudah diatur.",
+      "addClosedDateFailed": "Gagal menambah tanggal tutup",
+      "noClosedDates": "Belum ada tanggal tutup.",
+      "noAppointmentsToday": "Tidak ada janji temu pada hari ini.",
+      "publicCalendarLink": "Link Kalender Publik (Pelanggan)",
+      "allDivisions": "Semua divisi",
+      "break": "Istirahat",
+      "closedDates": "Tanggal Tutup",
+      "schedule": "Jadwal Masuk",
+      "clickDateForDetails": "Klik tanggal untuk melihat detail janji temu.",
+      "divisionDesc": "Kelompokkan staf berdasarkan departemen atau spesialisasi."
     },
     "sources": {
       "title": "Sumber Aktif",
@@ -915,7 +1026,13 @@
       "sourceAdded": "Sumber ditambahkan",
       "sourceDeleted": "Sumber dihapus",
       "sourceType": "Jenis Sumber",
-      "websiteUrl": "URL Website"
+      "websiteUrl": "URL Website",
+      "tabSources": "Sumber",
+      "uploadDocument": "Unggah Dokumen",
+      "clickUploadDiff": "Klik untuk mengunggah file lain",
+      "clickUpload": "Klik untuk mengunggah file",
+      "supportedFormats": "PDF, Word (.docx), Excel (.xlsx), TXT, MD, CSV",
+      "upgradeAdvanced": "Upgrade untuk sumber lanjutan"
     },
     "billingDetails": {
       "title": "Detail Tagihan",
@@ -924,5 +1041,26 @@
       "transferVA": "Transfer ke Virtual Account",
       "transferBank": "Transfer ke Rekening Bank"
     }
+  },
+  "common": {
+    "add": "Tambah",
+    "days": {
+      "monday": "Senin",
+      "tuesday": "Selasa",
+      "wednesday": "Rabu",
+      "thursday": "Kamis",
+      "friday": "Jumat",
+      "saturday": "Sabtu",
+      "sunday": "Minggu"
+    },
+    "active": "Aktif",
+    "name": "Nama",
+    "content": "Konten",
+    "confirmPassword": "Konfirmasi Password",
+    "to": "sampai",
+    "sec": "dtk",
+    "orEnterUrl": "atau masukkan URL",
+    "email": "Email",
+    "password": "Password"
   }
 }

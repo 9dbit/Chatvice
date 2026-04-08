@@ -470,7 +470,7 @@ export default function SupervisorsPage() {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Name</FormLabel>
+                        <FormLabel>{t("common.name")}</FormLabel>
                         <FormControl>
                           <Input placeholder="John Doe" data-testid="input-supervisor-name" {...field} />
                         </FormControl>
@@ -483,7 +483,7 @@ export default function SupervisorsPage() {
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Email</FormLabel>
+                        <FormLabel>{t("common.email")}</FormLabel>
                         <FormControl>
                           <Input
                             type="email"
@@ -501,7 +501,7 @@ export default function SupervisorsPage() {
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Password</FormLabel>
+                        <FormLabel>{t("common.password")}</FormLabel>
                         <FormControl>
                           <Input
                             type="password"
@@ -691,7 +691,7 @@ export default function SupervisorsPage() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground">No agents assigned</p>
+                      <p className="text-xs text-muted-foreground">{t("dashboard.supervisors.noAgentsAssigned")}</p>
                     )}
 
                     <Select

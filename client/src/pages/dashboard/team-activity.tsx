@@ -125,7 +125,7 @@ export default function TeamActivityPage() {
           <Users className="w-6 h-6" />
           {t("dashboard.teamActivity.title")}
         </h1>
-        <p className="text-muted-foreground">Monitor supervisor and AI agent activity in real-time</p>
+        <p className="text-muted-foreground">{t("dashboard.teamActivity.subtitle")}</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
@@ -207,8 +207,8 @@ export default function TeamActivityPage() {
             <Card>
               <CardContent className="py-12 text-center">
                 <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="font-semibold mb-2">No supervisors yet</h3>
-                <p className="text-muted-foreground">Add supervisors in the Supervisors page</p>
+                <h3 className="font-semibold mb-2">{t("dashboard.teamActivity.noSupervisors")}</h3>
+                <p className="text-muted-foreground">{t("dashboard.teamActivity.addSupervisors")}</p>
               </CardContent>
             </Card>
           ) : (
@@ -271,8 +271,8 @@ export default function TeamActivityPage() {
             <Card>
               <CardContent className="py-12 text-center">
                 <Bot className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="font-semibold mb-2">No AI agents yet</h3>
-                <p className="text-muted-foreground">Create AI agents in the Agents page</p>
+                <h3 className="font-semibold mb-2">{t("dashboard.teamActivity.noAgents")}</h3>
+                <p className="text-muted-foreground">{t("dashboard.teamActivity.createAgents")}</p>
               </CardContent>
             </Card>
           ) : (
@@ -333,7 +333,7 @@ export default function TeamActivityPage() {
             <Card>
               <CardContent className="py-12 text-center">
                 <BarChart3 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="font-semibold mb-2">No performance data yet</h3>
+                <h3 className="font-semibold mb-2">{t("dashboard.teamActivity.noPerformanceData")}</h3>
                 <p className="text-muted-foreground">Performance metrics will appear after supervisors handle chats</p>
               </CardContent>
             </Card>
