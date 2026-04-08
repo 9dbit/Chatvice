@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -281,6 +282,7 @@ const TRANSFER_BANKS = [
 ];
 
 export default function CheckoutPage() {
+  const { t } = useLanguage();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   

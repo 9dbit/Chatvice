@@ -31,6 +31,7 @@ import type { Merchant, Agent } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
 export default function WidgetPage() {
+  const { t } = useLanguage();
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
   const [copied, setCopied] = useState<string | null>(null);

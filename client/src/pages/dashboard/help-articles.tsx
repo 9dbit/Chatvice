@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -98,6 +99,7 @@ function getBusinessTypeLabel(businessType: string) {
 }
 
 export default function HelpArticlesPage() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
