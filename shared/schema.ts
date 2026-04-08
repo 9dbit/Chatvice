@@ -2435,6 +2435,8 @@ export const merchantAddons = pgTable("merchant_addons", {
   calendarToken: text("calendar_token"),
   subscribedAt: timestamp("subscribed_at").defaultNow(),
   expiresAt: timestamp("expires_at"),
+  trialEndsAt: timestamp("trial_ends_at"),
+  paymentReference: text("payment_reference"),
 }, (table) => ({
   merchantIdx: index("merchant_addons_merchant_idx").on(table.merchantId),
   addonTypeIdx: index("merchant_addons_type_idx").on(table.addonType),

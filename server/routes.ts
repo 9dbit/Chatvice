@@ -23796,6 +23796,8 @@ Please create a comprehensive help center article that would be useful for custo
           addonType: addon.addonType,
           isActive: addon.isActive,
           subscribedAt: addon.subscribedAt,
+          trialEndsAt: addon.trialEndsAt,
+          paymentReference: addon.paymentReference,
         };
       });
       res.json(result);
@@ -23895,7 +23897,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  // Payment initiation — returns redirect URL for payment gateway
+  // Payment initiation — creates real QRIS payment via Kompas Pay
   app.post("/api/merchant/addons/initiate-payment", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
@@ -23910,22 +23912,62 @@ Please create a comprehensive help center article that would be useful for custo
       const existing = await storage.getMerchantAddon(merchantId, addonType);
       if (existing && existing.isActive) return res.status(409).json({ error: "Already subscribed" });
 
-      // Return payment initiation details for supported methods
       const validMethods = ["kompas_pay", "paypal", "crypto"];
       if (!validMethods.includes(paymentMethod)) {
         return res.status(400).json({ error: "Invalid payment method. Supported: " + validMethods.join(", ") });
       }
 
-      const pendingId = "pay_" + crypto.randomBytes(8).toString("hex");
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+      const orderId = `addon_${merchantId}_${addonType}_${Date.now()}`;
+      const amountIDR = convertToIDR(addonConfig.monthlyPriceUsd);
+
+      if (paymentMethod === "kompas_pay") {
+        if (!isKompasPayConfigured()) {
+          return res.status(503).json({ error: "Payment gateway not configured" });
+        }
+        const qrisResult = await createQRISPayment({
+          merchantId,
+          orderId,
+          amount: amountIDR,
+          customerEmail: merchant.email,
+          customerName: merchant.companyName || merchant.email.split("@")[0],
+          expiryMinutes: 60,
+          metadata: {
+            type: "addon",
+            addonType,
+            merchantId,
+          },
+        });
+        if (!qrisResult.success) {
+          return res.status(502).json({ error: qrisResult.error || "Failed to create payment" });
+        }
+        return res.json({
+          orderId,
+          addonType,
+          paymentMethod: "kompas_pay",
+          amount: addonConfig.monthlyPriceUsd,
+          amountIDR,
+          currency: "IDR",
+          qrisUrl: qrisResult.data?.qrisImageUrl || null,
+          qrisString: qrisResult.data?.qrisString || null,
+          transactionId: qrisResult.data?.transactionId || orderId,
+          expiresAt: qrisResult.data?.expiryTime || null,
+        });
+      }
+
+      // PayPal / Crypto — manual flow
       res.json({
-        pendingId,
+        orderId,
         addonType,
         paymentMethod,
         amount: addonConfig.monthlyPriceUsd,
         currency: "USD",
-        instructions: "Complete payment through your selected payment provider and provide the reference on confirmation.",
+        instructions: "Complete payment through your selected payment provider and provide the transaction reference for confirmation.",
       });
     } catch (err) {
+      console.error("Addon initiate-payment error:", err);
       res.status(500).json({ error: "Failed to initiate payment" });
     }
   });
@@ -23977,6 +24019,52 @@ Please create a comprehensive help center article that would be useful for custo
       });
     } catch (err) {
       res.status(500).json({ error: "Failed to process payment confirmation" });
+    }
+  });
+
+  // Start 7-day trial for an addon
+  app.post("/api/merchant/addons/start-trial", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { addonType } = req.body;
+      if (!addonType) return res.status(400).json({ error: "addonType required" });
+
+      const addonConfig = await storage.getAddonConfig(addonType);
+      if (!addonConfig || !addonConfig.isEnabled) return res.status(404).json({ error: "Addon not available" });
+
+      const existing = await storage.getMerchantAddon(merchantId, addonType);
+      if (existing && existing.isActive) return res.status(409).json({ error: "Already subscribed" });
+      if (existing && existing.trialEndsAt) return res.status(409).json({ error: "Trial already used for this addon" });
+
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+
+      const calendarToken = addonType === "appointment_scheduling"
+        ? crypto.randomBytes(16).toString("hex")
+        : null;
+
+      if (existing) {
+        const updated = await storage.updateMerchantAddon(existing.id, {
+          isActive: true,
+          trialEndsAt,
+          ...(calendarToken && !existing.calendarToken ? { calendarToken } : {}),
+        });
+        return res.json({ ...updated, status: "trial", trialEndsAt });
+      }
+
+      const addonId = "mat_" + crypto.randomBytes(8).toString("hex");
+      const addon = await storage.createMerchantAddon({
+        id: addonId,
+        merchantId,
+        addonType,
+        isActive: true,
+        calendarToken,
+        trialEndsAt,
+      });
+      return res.status(201).json({ ...addon, status: "trial", trialEndsAt });
+    } catch (err) {
+      console.error("Start trial error:", err);
+      res.status(500).json({ error: "Failed to start trial" });
     }
   });
 

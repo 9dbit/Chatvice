@@ -102,7 +102,7 @@ const pageNames: Record<string, string> = {
   "chat-monitoring": "Chat Monitoring",
   "data-usage": "Data Usage",
   "proactive-chat": "Proactive Chat",
-  "additional-services": "Layanan Tambahan",
+  "additional-services": "Additional Services",
   "appointments": "Janji Temu",
 };
 

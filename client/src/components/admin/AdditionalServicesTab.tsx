@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Loader2, Pencil, CheckCircle, Users, DollarSign } from "lucide-react";
+import { Loader2, Pencil, CheckCircle, Users, DollarSign, Clock } from "lucide-react";
 
 interface AddonConfig {
   id: number;
@@ -28,6 +28,8 @@ interface AddonSubscriber {
   addonType: string;
   isActive: boolean;
   subscribedAt: string | null;
+  trialEndsAt: string | null;
+  paymentReference: string | null;
 }
 
 interface Props {
@@ -249,46 +251,82 @@ export function AdditionalServicesTab({ toast }: Props) {
                   <TableHead>Addon</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Since</TableHead>
+                  <TableHead>Trial Ends</TableHead>
+                  <TableHead>Ref</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {subscribers.map((sub, idx) => (
-                  <TableRow key={`${sub.merchantId}-${sub.addonType}-${idx}`} data-testid={`row-subscriber-${sub.merchantId}-${sub.addonType}`}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium text-sm">{sub.businessName}</p>
-                        <p className="text-xs text-muted-foreground">{sub.email}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs font-mono">{sub.addonType}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={sub.isActive ? "secondary" : "outline"} className="text-xs">
-                        {sub.isActive ? "Active" : "Pending"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-xs text-muted-foreground">
-                        {sub.subscribedAt ? new Date(sub.subscribedAt).toLocaleDateString("en-GB") : "—"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {!sub.isActive && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => activateMutation.mutate({ merchantId: sub.merchantId, addonType: sub.addonType })}
-                          disabled={activateMutation.isPending}
-                          data-testid={`button-activate-${sub.merchantId}-${sub.addonType}`}
-                        >
-                          {activateMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Activate"}
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {subscribers.map((sub, idx) => {
+                  const trialActive = sub.trialEndsAt && new Date(sub.trialEndsAt) > new Date();
+                  const trialDaysLeft = sub.trialEndsAt
+                    ? Math.max(0, Math.ceil((new Date(sub.trialEndsAt).getTime() - Date.now()) / 86400000))
+                    : null;
+                  return (
+                    <TableRow key={`${sub.merchantId}-${sub.addonType}-${idx}`} data-testid={`row-subscriber-${sub.merchantId}-${sub.addonType}`}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-sm">{sub.businessName}</p>
+                          <p className="text-xs text-muted-foreground">{sub.email}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs font-mono">{sub.addonType}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {sub.isActive && trialActive ? (
+                          <Badge variant="outline" className="text-xs gap-1">
+                            <Clock className="w-3 h-3" />
+                            Trial
+                          </Badge>
+                        ) : (
+                          <Badge variant={sub.isActive ? "secondary" : "outline"} className="text-xs">
+                            {sub.isActive ? "Active" : "Pending"}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs text-muted-foreground">
+                          {sub.subscribedAt ? new Date(sub.subscribedAt).toLocaleDateString("en-GB") : "—"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {sub.trialEndsAt ? (
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(sub.trialEndsAt).toLocaleDateString("en-GB")}
+                            {trialDaysLeft !== null && trialActive && (
+                              <span className="ml-1 text-orange-500">({trialDaysLeft}d left)</span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {sub.paymentReference ? (
+                          <span className="text-xs font-mono text-muted-foreground truncate max-w-24 block" title={sub.paymentReference}>
+                            {sub.paymentReference.substring(0, 12)}…
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {!sub.isActive && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => activateMutation.mutate({ merchantId: sub.merchantId, addonType: sub.addonType })}
+                            disabled={activateMutation.isPending}
+                            data-testid={`button-activate-${sub.merchantId}-${sub.addonType}`}
+                          >
+                            {activateMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Activate"}
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

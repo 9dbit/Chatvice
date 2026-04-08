@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Sparkles, Calendar, CheckCircle, Loader2, AlertCircle, CreditCard, Wallet, Hotel, ExternalLink, TestTube2 } from "lucide-react";
+import { Sparkles, Calendar, CheckCircle, Loader2, AlertCircle, CreditCard, Wallet, Hotel, ExternalLink, TestTube2, Clock, QrCode, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,6 +32,21 @@ interface MerchantAddon {
   isActive: boolean;
   calendarToken: string | null;
   subscribedAt: string | null;
+  trialEndsAt: string | null;
+}
+
+interface PaymentInitResult {
+  orderId: string;
+  addonType: string;
+  paymentMethod: string;
+  amount: number;
+  amountIDR?: number;
+  currency: string;
+  qrisUrl?: string | null;
+  qrisString?: string | null;
+  transactionId?: string;
+  expiresAt?: string | null;
+  instructions?: string;
 }
 
 interface HospitalityConfig {
@@ -333,10 +348,15 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
   );
 }
 
+type PaymentDialogStep = "select_method" | "qris" | "manual_ref";
+
 export default function AdditionalServicesPage() {
   const { toast } = useToast();
   const [selectedAddon, setSelectedAddon] = useState<AddonConfig | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+  const [paymentStep, setPaymentStep] = useState<PaymentDialogStep>("select_method");
+  const [paymentResult, setPaymentResult] = useState<PaymentInitResult | null>(null);
+  const [manualReference, setManualReference] = useState("");
   const [hospitalitySettingsOpen, setHospitalitySettingsOpen] = useState(false);
 
   const { data: addonConfigs = [], isLoading: configsLoading } = useQuery<AddonConfig[]>({
@@ -347,20 +367,50 @@ export default function AdditionalServicesPage() {
     queryKey: ["/api/merchant/addons"],
   });
 
-  const subscribeMutation = useMutation({
-    mutationFn: ({ addonType, paymentMethod }: { addonType: string; paymentMethod: string }) =>
-      apiRequest("POST", "/api/merchant/addons/subscribe", { addonType, paymentMethod }),
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
-      setSelectedAddon(null);
-      setSelectedPaymentMethod(null);
-      toast({
-        title: "Pembayaran disiapkan",
-        description: data?.message || "Selesaikan pembayaran untuk mengaktifkan layanan.",
-      });
+  const initiatePaymentMutation = useMutation({
+    mutationFn: async ({ addonType, paymentMethod }: { addonType: string; paymentMethod: string }) => {
+      const res = await apiRequest("POST", "/api/merchant/addons/initiate-payment", { addonType, paymentMethod });
+      return res.json() as Promise<PaymentInitResult>;
+    },
+    onSuccess: (data) => {
+      setPaymentResult(data);
+      if (data.paymentMethod === "kompas_pay" && (data.qrisUrl || data.qrisString)) {
+        setPaymentStep("qris");
+      } else {
+        setPaymentStep("manual_ref");
+      }
     },
     onError: (err: any) => {
-      toast({ title: "Gagal", description: err.message || "Terjadi kesalahan", variant: "destructive" });
+      toast({ title: "Payment failed", description: err.message || "Could not initiate payment", variant: "destructive" });
+    },
+  });
+
+  const confirmPaymentMutation = useMutation({
+    mutationFn: async ({ addonType, paymentReference, pendingId }: { addonType: string; paymentReference: string; pendingId?: string }) => {
+      const res = await apiRequest("POST", "/api/merchant/addons/confirm-payment", { addonType, paymentReference, pendingId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
+      closeDialog();
+      toast({ title: "Payment submitted", description: "Your addon will be activated after payment is verified." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err.message || "Could not confirm payment", variant: "destructive" });
+    },
+  });
+
+  const trialMutation = useMutation({
+    mutationFn: async (addonType: string) => {
+      const res = await apiRequest("POST", "/api/merchant/addons/start-trial", { addonType });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
+      toast({ title: "Trial started!", description: "Your 7-day free trial is now active." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err.message || "Could not start trial", variant: "destructive" });
     },
   });
 
@@ -369,24 +419,55 @@ export default function AdditionalServicesPage() {
       apiRequest("DELETE", `/api/merchant/addons/${addonType}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
-      toast({ title: "Addon dinonaktifkan", description: "Layanan tambahan telah dinonaktifkan." });
+      toast({ title: "Addon deactivated", description: "Additional service has been deactivated." });
     },
     onError: (err: any) => {
-      toast({ title: "Gagal", description: err.message || "Terjadi kesalahan", variant: "destructive" });
+      toast({ title: "Failed", description: err.message || "An error occurred", variant: "destructive" });
     },
   });
 
+  const getAddon = (addonType: string) =>
+    merchantAddons.find(a => a.addonType === addonType);
   const getActiveAddon = (addonType: string) =>
     merchantAddons.find(a => a.addonType === addonType && a.isActive);
 
   const handleSubscribeClick = (config: AddonConfig) => {
     setSelectedAddon(config);
     setSelectedPaymentMethod(null);
+    setPaymentStep("select_method");
+    setPaymentResult(null);
+    setManualReference("");
   };
 
-  const handleConfirmSubscribe = () => {
+  const handleProceedToPayment = () => {
     if (!selectedAddon || !selectedPaymentMethod) return;
-    subscribeMutation.mutate({ addonType: selectedAddon.addonType, paymentMethod: selectedPaymentMethod });
+    initiatePaymentMutation.mutate({ addonType: selectedAddon.addonType, paymentMethod: selectedPaymentMethod });
+  };
+
+  const handleConfirmPayment = () => {
+    if (!selectedAddon || !manualReference.trim()) return;
+    confirmPaymentMutation.mutate({
+      addonType: selectedAddon.addonType,
+      paymentReference: manualReference.trim(),
+      pendingId: paymentResult?.transactionId,
+    });
+  };
+
+  const handleQrisConfirm = () => {
+    if (!selectedAddon || !paymentResult) return;
+    confirmPaymentMutation.mutate({
+      addonType: selectedAddon.addonType,
+      paymentReference: paymentResult.transactionId || paymentResult.orderId,
+      pendingId: paymentResult.transactionId,
+    });
+  };
+
+  const closeDialog = () => {
+    setSelectedAddon(null);
+    setSelectedPaymentMethod(null);
+    setPaymentStep("select_method");
+    setPaymentResult(null);
+    setManualReference("");
   };
 
   const handleManageClick = (addonType: string) => {
@@ -402,9 +483,9 @@ export default function AdditionalServicesPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Layanan Tambahan</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Additional Services</h1>
         <p className="text-muted-foreground mt-1">
-          Aktifkan fitur premium untuk meningkatkan kapabilitas chatbot Anda.
+          Activate premium features to enhance your chatbot capabilities.
         </p>
       </div>
 
@@ -416,13 +497,19 @@ export default function AdditionalServicesPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 gap-3">
             <Sparkles className="w-10 h-10 text-muted-foreground" />
-            <p className="text-muted-foreground">Belum ada layanan tambahan yang tersedia.</p>
+            <p className="text-muted-foreground">No additional services available yet.</p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {addonConfigs.map((config) => {
-            const active = getActiveAddon(config.addonType);
+            const addon = getAddon(config.addonType);
+            const active = addon?.isActive;
+            const trialActive = active && addon?.trialEndsAt && new Date(addon.trialEndsAt) > new Date();
+            const trialDaysLeft = addon?.trialEndsAt
+              ? Math.max(0, Math.ceil((new Date(addon.trialEndsAt).getTime() - Date.now()) / 86400000))
+              : null;
+            const usedTrial = !!addon?.trialEndsAt;
             const Icon = addonIcons[config.addonType] || Sparkles;
 
             return (
@@ -437,12 +524,17 @@ export default function AdditionalServicesPage() {
                         <CardTitle className="text-base">{config.name}</CardTitle>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="text-sm font-semibold text-primary">
-                            ${config.monthlyPriceUsd}/bulan
+                            ${config.monthlyPriceUsd}/month
                           </span>
-                          {active ? (
+                          {active && trialActive ? (
+                            <Badge variant="outline" className="text-xs gap-1">
+                              <Clock className="w-3 h-3" />
+                              Trial — {trialDaysLeft}d left
+                            </Badge>
+                          ) : active ? (
                             <Badge variant="secondary" className="text-xs">
                               <CheckCircle className="w-3 h-3 mr-1" />
-                              Aktif
+                              Active
                             </Badge>
                           ) : null}
                         </div>
@@ -459,19 +551,19 @@ export default function AdditionalServicesPage() {
 
                   {config.addonType === "appointment_scheduling" && (
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Manajemen divisi &amp; staf</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Kalender internal berbagi link</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Cek ketersediaan via AI chatbot</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Notifikasi WhatsApp otomatis</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Division & staff management</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Internal calendar with shareable links</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Availability check via AI chatbot</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Automatic WhatsApp notifications</li>
                     </ul>
                   )}
 
                   {config.addonType === "hospitality" && (
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Data kamar real-time dari Google Sheet</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Kartu kamar interaktif di widget chat</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Badge "Harga Terbaik" &amp; "Hampir Penuh"</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Tombol "Pesan Sekarang" langsung ke booking</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Real-time room data from Google Sheet</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Interactive room cards in chat widget</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> "Best Price" &amp; "Almost Full" badges</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> "Book Now" button directly to booking page</li>
                     </ul>
                   )}
 
@@ -485,8 +577,19 @@ export default function AdditionalServicesPage() {
                           data-testid={`button-manage-${config.addonType}`}
                         >
                           {config.addonType === "hospitality" && <ExternalLink className="w-3.5 h-3.5 mr-1" />}
-                          Kelola
+                          Manage
                         </Button>
+                        {trialActive && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSubscribeClick(config)}
+                            data-testid={`button-upgrade-${config.addonType}`}
+                          >
+                            <CreditCard className="w-3.5 h-3.5 mr-1" />
+                            Subscribe
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -495,25 +598,43 @@ export default function AdditionalServicesPage() {
                           disabled={cancelMutation.isPending}
                           data-testid={`button-cancel-${config.addonType}`}
                         >
-                          {cancelMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Nonaktifkan"}
+                          {cancelMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Deactivate"}
                         </Button>
                       </>
                     ) : (
-                      <Button
-                        size="sm"
-                        onClick={() => handleSubscribeClick(config)}
-                        data-testid={`button-subscribe-${config.addonType}`}
-                      >
-                        <Sparkles className="w-4 h-4 mr-2" />
-                        Aktifkan — ${config.monthlyPriceUsd}/bln
-                      </Button>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          size="sm"
+                          onClick={() => handleSubscribeClick(config)}
+                          data-testid={`button-subscribe-${config.addonType}`}
+                        >
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          Activate — ${config.monthlyPriceUsd}/mo
+                        </Button>
+                        {!usedTrial && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => trialMutation.mutate(config.addonType)}
+                            disabled={trialMutation.isPending}
+                            data-testid={`button-trial-${config.addonType}`}
+                          >
+                            {trialMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                            ) : (
+                              <Clock className="w-3.5 h-3.5 mr-1" />
+                            )}
+                            Try Free 7 Days
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
 
                   {!active && (
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>Pembayaran diproses setelah konfirmasi metode.</span>
+                      <span>Payment processed after method confirmation.{usedTrial ? " Trial already used." : ""}</span>
                     </div>
                   )}
                 </CardContent>
@@ -523,69 +644,179 @@ export default function AdditionalServicesPage() {
         </div>
       )}
 
-      <Dialog open={!!selectedAddon} onOpenChange={(open) => { if (!open) setSelectedAddon(null); }}>
+      <Dialog open={!!selectedAddon} onOpenChange={(open) => { if (!open) closeDialog(); }}>
         <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Pilih Metode Pembayaran</DialogTitle>
-            <DialogDescription>
-              {selectedAddon && (
-                <>Berlangganan <strong>{selectedAddon.name}</strong> seharga <strong>${selectedAddon.monthlyPriceUsd}/bulan</strong>. Pilih metode pembayaran.</>
-              )}
-            </DialogDescription>
-          </DialogHeader>
+          {paymentStep === "select_method" && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Choose Payment Method</DialogTitle>
+                <DialogDescription>
+                  {selectedAddon && (
+                    <>Subscribe to <strong>{selectedAddon.name}</strong> for <strong>${selectedAddon.monthlyPriceUsd}/month</strong>.</>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
 
-          <div className="space-y-2 mt-2">
-            {PAYMENT_METHODS.map((method) => (
-              <button
-                key={method.value}
-                onClick={() => setSelectedPaymentMethod(method.value)}
-                className={`w-full flex items-center gap-3 p-3 rounded-md border text-left transition-colors ${
-                  selectedPaymentMethod === method.value
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:bg-accent/50"
-                }`}
-                data-testid={`button-payment-method-${method.value}`}
-              >
-                {method.value === "crypto" ? (
-                  <Wallet className="w-5 h-5 text-muted-foreground shrink-0" />
+              <div className="space-y-2 mt-2">
+                {PAYMENT_METHODS.map((method) => (
+                  <button
+                    key={method.value}
+                    onClick={() => setSelectedPaymentMethod(method.value)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-md border text-left transition-colors ${
+                      selectedPaymentMethod === method.value
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:bg-accent/50"
+                    }`}
+                    data-testid={`button-payment-method-${method.value}`}
+                  >
+                    {method.value === "crypto" ? (
+                      <Wallet className="w-5 h-5 text-muted-foreground shrink-0" />
+                    ) : (
+                      <CreditCard className="w-5 h-5 text-muted-foreground shrink-0" />
+                    )}
+                    <div>
+                      <p className="font-medium text-sm">{method.label}</p>
+                      <p className="text-xs text-muted-foreground">{method.description}</p>
+                    </div>
+                    {selectedPaymentMethod === method.value && (
+                      <CheckCircle className="w-4 h-4 text-primary ml-auto shrink-0" />
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex gap-2 mt-4">
+                <Button variant="outline" size="sm" className="flex-1" onClick={closeDialog} data-testid="button-cancel-subscribe">
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleProceedToPayment}
+                  disabled={!selectedPaymentMethod || initiatePaymentMutation.isPending}
+                  data-testid="button-confirm-subscribe"
+                >
+                  {initiatePaymentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Continue to Payment
+                </Button>
+              </div>
+            </>
+          )}
+
+          {paymentStep === "qris" && paymentResult && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <QrCode className="w-5 h-5 text-primary" />
+                  Scan QRIS to Pay
+                </DialogTitle>
+                <DialogDescription>
+                  Scan this QR code with your banking app or e-wallet.
+                  Amount: <strong>Rp {paymentResult.amountIDR?.toLocaleString("id-ID") || "—"}</strong>
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="flex flex-col items-center gap-3 py-4">
+                {paymentResult.qrisUrl ? (
+                  <img
+                    src={paymentResult.qrisUrl}
+                    alt="QRIS payment code"
+                    className="w-56 h-56 rounded-md border object-contain"
+                    data-testid="img-qris"
+                  />
                 ) : (
-                  <CreditCard className="w-5 h-5 text-muted-foreground shrink-0" />
+                  <div className="w-56 h-56 rounded-md border flex items-center justify-center bg-muted">
+                    <QrCode className="w-16 h-16 text-muted-foreground" />
+                  </div>
                 )}
-                <div>
-                  <p className="font-medium text-sm">{method.label}</p>
-                  <p className="text-xs text-muted-foreground">{method.description}</p>
-                </div>
-                {selectedPaymentMethod === method.value && (
-                  <CheckCircle className="w-4 h-4 text-primary ml-auto shrink-0" />
+                {paymentResult.expiresAt && (
+                  <p className="text-xs text-muted-foreground">
+                    Expires: {new Date(paymentResult.expiresAt).toLocaleString("id-ID")}
+                  </p>
                 )}
-              </button>
-            ))}
-          </div>
+                {paymentResult.qrisString && (
+                  <button
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => {
+                      navigator.clipboard.writeText(paymentResult.qrisString!);
+                      toast({ title: "QRIS string copied" });
+                    }}
+                    data-testid="button-copy-qris"
+                  >
+                    <Copy className="w-3 h-3" />
+                    Copy QRIS string
+                  </button>
+                )}
+              </div>
 
-          <div className="flex gap-2 mt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              onClick={() => setSelectedAddon(null)}
-              disabled={subscribeMutation.isPending}
-              data-testid="button-cancel-subscribe"
-            >
-              Batal
-            </Button>
-            <Button
-              size="sm"
-              className="flex-1"
-              onClick={handleConfirmSubscribe}
-              disabled={!selectedPaymentMethod || subscribeMutation.isPending}
-              data-testid="button-confirm-subscribe"
-            >
-              {subscribeMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : null}
-              Lanjutkan Pembayaran
-            </Button>
-          </div>
+              <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground space-y-1">
+                <p>1. Open your banking app or e-wallet (GoPay, OVO, DANA, etc.)</p>
+                <p>2. Scan the QR code above</p>
+                <p>3. Complete the payment of <strong>Rp {paymentResult.amountIDR?.toLocaleString("id-ID")}</strong></p>
+                <p>4. Click "I've Paid" below — your addon will be activated after verification.</p>
+              </div>
+
+              <div className="flex gap-2 mt-2">
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => setPaymentStep("select_method")}>
+                  Back
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleQrisConfirm}
+                  disabled={confirmPaymentMutation.isPending}
+                  data-testid="button-ive-paid"
+                >
+                  {confirmPaymentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  I've Paid
+                </Button>
+              </div>
+            </>
+          )}
+
+          {paymentStep === "manual_ref" && paymentResult && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Payment Instructions</DialogTitle>
+                <DialogDescription>
+                  {paymentResult.instructions || "Complete your payment and enter the transaction reference below."}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="rounded-md bg-muted/50 p-3 text-sm space-y-1 mt-2">
+                <p><strong>Amount:</strong> ${paymentResult.amount} USD</p>
+                <p><strong>Order ID:</strong> <span className="font-mono text-xs">{paymentResult.orderId}</span></p>
+                <p className="text-xs text-muted-foreground">Use this order ID as your payment description/reference.</p>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                <Label htmlFor="payment-reference">Transaction Reference / Receipt Number</Label>
+                <Input
+                  id="payment-reference"
+                  placeholder="Enter your payment reference..."
+                  value={manualReference}
+                  onChange={(e) => setManualReference(e.target.value)}
+                  data-testid="input-payment-reference"
+                />
+              </div>
+
+              <div className="flex gap-2 mt-4">
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => setPaymentStep("select_method")}>
+                  Back
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleConfirmPayment}
+                  disabled={!manualReference.trim() || confirmPaymentMutation.isPending}
+                  data-testid="button-submit-payment-ref"
+                >
+                  {confirmPaymentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Submit Payment
+                </Button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 

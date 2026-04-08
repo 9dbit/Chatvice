@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { verifyWebhookSignature, getActiveGatewayName } from './kompasPayClient';
 import { storage } from './storage';
 import { subscriptionPlans, type SubscriptionPlanId } from '@shared/schema';
@@ -16,6 +17,7 @@ export interface PaymentWebhookPayload {
     planId?: string;
     billingInterval?: string;
     type?: string;
+    addonType?: string;
     isDowngrade?: string;
     scheduledActivationDate?: string;
   };
@@ -62,6 +64,55 @@ export class PaymentWebhookHandler {
 
   private static async handlePaymentSuccess(payload: PaymentWebhookPayload): Promise<{ success: boolean; message: string }> {
     const { external_id, metadata, transaction_id, amount, payment_method, paid_at } = payload;
+
+    // Handle addon payments (type === "addon")
+    if (metadata?.type === 'addon' && metadata?.merchantId && metadata?.addonType) {
+      const { merchantId, addonType } = metadata;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return { success: false, message: 'Merchant not found' };
+      }
+      const existing = await storage.getMerchantAddon(merchantId, addonType);
+      const calendarToken = addonType === 'appointment_scheduling'
+        ? (existing?.calendarToken || randomBytes(16).toString('hex'))
+        : null;
+
+      const expiresAt = new Date();
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+      if (existing) {
+        await storage.updateMerchantAddon(existing.id, {
+          isActive: true,
+          subscribedAt: new Date(),
+          expiresAt,
+          paymentReference: transaction_id,
+          ...(calendarToken && !existing.calendarToken ? { calendarToken } : {}),
+        });
+      } else {
+        const addonId = 'maw_' + randomBytes(8).toString('hex');
+        await storage.createMerchantAddon({
+          id: addonId,
+          merchantId,
+          addonType,
+          isActive: true,
+          calendarToken,
+          expiresAt,
+          paymentReference: transaction_id,
+        });
+      }
+
+      await storage.createMerchantNotification({
+        merchantId,
+        type: 'invoice',
+        title: 'Addon Activated',
+        message: `Your ${addonType.replace(/_/g, ' ')} addon has been activated successfully.`,
+        metadata: { addonType, transactionId: transaction_id, amount },
+        isRead: false,
+      });
+
+      console.log(`Addon ${addonType} activated for merchant ${merchantId} via webhook`);
+      return { success: true, message: 'Addon activated' };
+    }
     
     let merchantId: string | undefined;
     let planId: SubscriptionPlanId | undefined;
