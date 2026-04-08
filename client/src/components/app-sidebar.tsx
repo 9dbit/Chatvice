@@ -666,16 +666,16 @@ export function AppSidebar() {
         
         {isAdmin && (
           <Link
-            href={activeAddonTypes.length > 0 ? "/dashboard/additional-services" : "/dashboard/plans"}
+            href="/dashboard/additional-services"
             data-testid="link-sidebar-additional-services-footer"
             className="block w-full"
           >
             <button
               type="button"
               className={`flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm transition-all duration-200 ${
-                isItemActive("/dashboard/additional-services") || isItemActive("/dashboard/plans")
+                isItemActive("/dashboard/additional-services")
                   ? "bg-accent text-accent-foreground font-medium"
-                  : "text-muted-foreground hover-elevate"
+                  : "text-primary hover-elevate"
               }`}
             >
               <Sparkles className="w-4 h-4 shrink-0" />
@@ -690,7 +690,7 @@ export function AppSidebar() {
         )}
 
         {billingStatus && (
-          <Collapsible defaultOpen={true}>
+          <Collapsible defaultOpen={false}>
             <div className="p-3 rounded-lg bg-muted/50 space-y-2">
               <CollapsibleTrigger className="w-full" data-testid="trigger-usage-plan">
                 <div className="flex items-center justify-between gap-2">
@@ -699,7 +699,7 @@ export function AppSidebar() {
                     <span>Usage & Plan</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-primary text-white font-medium">
                       {billingStatus.planName}
                     </span>
                     <ChevronDown className="w-3.5 h-3.5 text-muted-foreground transition-transform duration-300 ease-out data-[state=open]:rotate-180" />
