@@ -708,7 +708,11 @@
       "missingFieldsDesc": "Missing Fields.",
       "previewFailed": "Preview Failed",
       "urlRequiredDesc": "Url Required.",
-      "replaced": "Replaced"
+      "replaced": "Replaced",
+      "fileSuccessRead": "File Berhasil Dibaca",
+      "fileSuccessReadDesc": "Berikut ringkasan file yang akan ditambahkan ke knowledge base AI agent:",
+      "contentSummary": "Ringkasan Konten:",
+      "fileAddNote": "File akan ditambahkan ke knowledge base. Untuk auto-sync otomatis, gunakan Active Sources dengan URL website."
     },
     "widget": {
       "title": "Pengaturan Widget",
@@ -1102,7 +1106,9 @@
       "tooShort": "Too Short",
       "passwordTooShort": "Password Too Short",
       "mismatch": "Mismatch",
-      "passwordMismatch": "Password Mismatch"
+      "passwordMismatch": "Password Mismatch",
+      "phoneOnlyNumbers": "Nomor telepon hanya boleh berisi angka",
+      "phoneLengthError": "Nomor telepon harus 5-15 digit"
     },
     "teamActivity": {
       "title": "Aktivitas Tim",
@@ -1272,7 +1278,13 @@
       "trialPeriod": "Trial Period",
       "orderIdCopied": "Order Id Copied",
       "vaNumberCopied": "Va Number Copied",
-      "accountCopied": "Account Copied"
+      "accountCopied": "Account Copied",
+      "badgeBestPrice": "\"Harga Terbaik\" & \"Hampir Penuh\"",
+      "buttonBookNow": "Tombol \"Pesan Sekarang\" ke URL pemesanan",
+      "trialFree7Days": "Coba Gratis 7 Hari",
+      "subscribe": "Berlangganan",
+      "annual": "Tahunan",
+      "monthly": "Bulanan"
     },
     "plans": {
       "title": "Paket",
@@ -1478,7 +1490,7 @@
       "allDivisions": "Semua divisi",
       "break": "Istirahat",
       "closedDates": "Tanggal Tutup",
-      "schedule": "Jadwal Masuk",
+      "schedule": "Jadwal",
       "clickDateForDetails": "Klik tanggal untuk melihat detail janji temu.",
       "divisionDesc": "Kelompokkan staf berdasarkan departemen atau spesialisasi.",
       "scheduleSaved": "Jadwal disimpan",

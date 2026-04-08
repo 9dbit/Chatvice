@@ -876,7 +876,7 @@ export default function AppointmentsPage() {
                                 data-testid={`button-schedule-${prov.id}`}
                               >
                                 <Clock className="w-3.5 h-3.5 mr-1" />
-                                Jadwal
+                                {t("dashboard.appointments.schedule")}
                               </Button>
                               <Dialog open={providerDialog.open && providerDialog.editing?.id === prov.id} onOpenChange={open => setProviderDialog({ open, editing: open ? prov : undefined })}>
                                 <DialogTrigger asChild>

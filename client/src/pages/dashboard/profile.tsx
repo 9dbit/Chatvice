@@ -51,19 +51,19 @@ const PHONE_VALIDATION_RULES: Record<string, {
 function validatePhoneByCountry(phone: string, countryCode: string): { valid: boolean; message: string } {
   const cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
   if (!cleanPhone) return { valid: true, message: "" };
-  if (!/^[0-9]+$/.test(cleanPhone)) return { valid: false, message: "Nomor telepon hanya boleh berisi angka" };
+  if (!/^[0-9]+$/.test(cleanPhone)) return { valid: false, message: "Phone number can only contain numbers" };
   
   const rule = PHONE_VALIDATION_RULES[countryCode];
   if (!rule) {
-    if (cleanPhone.length < 5 || cleanPhone.length > 15) return { valid: false, message: "Nomor telepon harus 5-15 digit" };
+    if (cleanPhone.length < 5 || cleanPhone.length > 15) return { valid: false, message: "Phone number must be 5-15 digits" };
     return { valid: true, message: "" };
   }
   
   if (cleanPhone.length < rule.minLength || cleanPhone.length > rule.maxLength) {
-    return { valid: false, message: `${rule.description}. Contoh: ${rule.example}` };
+    return { valid: false, message: `${rule.description}. Example: ${rule.example}` };
   }
   if (!rule.pattern.test(cleanPhone)) {
-    return { valid: false, message: `Format tidak valid. ${rule.description}. Contoh: ${rule.example}` };
+    return { valid: false, message: `Invalid format. ${rule.description}. Example: ${rule.example}` };
   }
   return { valid: true, message: "" };
 }

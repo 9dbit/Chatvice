@@ -708,7 +708,11 @@
       "missingFieldsDesc": "Missing Fields.",
       "previewFailed": "Preview Failed",
       "urlRequiredDesc": "Url Required.",
-      "replaced": "Replaced"
+      "replaced": "Replaced",
+      "fileSuccessRead": "File Successfully Read",
+      "fileSuccessReadDesc": "Below is a summary of the file that will be added to the AI agent knowledge base:",
+      "contentSummary": "Content Summary:",
+      "fileAddNote": "File will be added to the knowledge base. For auto-sync, use Active Sources with a website URL."
     },
     "widget": {
       "title": "Widget Settings",
@@ -1102,7 +1106,9 @@
       "tooShort": "Too Short",
       "passwordTooShort": "Password Too Short",
       "mismatch": "Mismatch",
-      "passwordMismatch": "Password Mismatch"
+      "passwordMismatch": "Password Mismatch",
+      "phoneOnlyNumbers": "Phone number can only contain numbers",
+      "phoneLengthError": "Phone number must be 5-15 digits"
     },
     "teamActivity": {
       "title": "Team Activity",
@@ -1272,7 +1278,13 @@
       "trialPeriod": "Trial Period",
       "orderIdCopied": "Order Id Copied",
       "vaNumberCopied": "Va Number Copied",
-      "accountCopied": "Account Copied"
+      "accountCopied": "Account Copied",
+      "badgeBestPrice": "\"Best Price\" & \"Almost Full\"",
+      "buttonBookNow": "\"Book Now\" button to booking URL",
+      "trialFree7Days": "Free 7-Day Trial",
+      "subscribe": "Subscribe",
+      "annual": "Annual",
+      "monthly": "Monthly"
     },
     "plans": {
       "title": "Plans",

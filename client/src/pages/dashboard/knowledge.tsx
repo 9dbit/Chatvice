@@ -3838,10 +3838,10 @@ export default function KnowledgePage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-green-500" />
-              File Berhasil Dibaca
+              {t("dashboard.knowledge.fileSuccessRead")}
             </DialogTitle>
             <DialogDescription>
-              Berikut ringkasan file yang akan ditambahkan ke knowledge base AI agent:
+              {t("dashboard.knowledge.fileSuccessReadDesc")}
             </DialogDescription>
           </DialogHeader>
           
@@ -3917,7 +3917,7 @@ export default function KnowledgePage() {
               {/* Summary */}
               {filePreview.metadata?.summary && (
                 <div className="space-y-2" data-testid="section-file-summary">
-                  <p className="text-sm font-medium">Ringkasan Konten:</p>
+                  <p className="text-sm font-medium">{t("dashboard.knowledge.contentSummary")}</p>
                   <p className="text-sm text-muted-foreground bg-muted p-3 rounded-lg" data-testid="text-file-summary">
                     {filePreview.metadata.summary}
                   </p>
@@ -3928,7 +3928,7 @@ export default function KnowledgePage() {
               <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-sm" data-testid="info-file-preview-note">
                 <HelpCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
                 <p className="text-blue-700 dark:text-blue-300">
-                  File akan ditambahkan ke knowledge base. Untuk auto-sync otomatis, gunakan Active Sources dengan URL website.
+                  {t("dashboard.knowledge.fileAddNote")}
                 </p>
               </div>
             </div>

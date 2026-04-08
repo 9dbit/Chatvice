@@ -2021,8 +2021,8 @@ export default function BillingPage() {
                       <ul className="text-sm text-muted-foreground space-y-1">
                         <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> {t("dashboard.billing.featureRoomData")}</li>
                         <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> {t("dashboard.billing.roomCardsFeature")}</li>
-                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Badge "Harga Terbaik" &amp; "Hampir Penuh"</li>
-                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Tombol "Pesan Sekarang" ke URL pemesanan</li>
+                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> {t("dashboard.billing.badgeBestPrice")}</li>
+                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> {t("dashboard.billing.buttonBookNow")}</li>
                       </ul>
                     )}
                     <div className="flex gap-2 pt-1">
@@ -2049,7 +2049,7 @@ export default function BillingPage() {
                               data-testid={`button-trial-addon-${config.addonType}`}
                             >
                               {addonTrialMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Gift className="w-3 h-3 mr-1" />}
-                              Coba Gratis 7 Hari
+                              {t("dashboard.billing.trialFree7Days")}
                             </Button>
                           )}
                           <Button
@@ -2059,7 +2059,7 @@ export default function BillingPage() {
                             data-testid={`button-buy-addon-${config.addonType}`}
                           >
                             <CreditCard className="w-3 h-3 mr-1" />
-                            Berlangganan
+                            {t("dashboard.billing.subscribe")}
                           </Button>
                         </>
                       )}
@@ -2386,7 +2386,7 @@ export default function BillingPage() {
                       <span className="font-semibold">{qrisData.planName}</span>
                     </div>
                     <Badge className="bg-primary/20 text-primary border-0 hover:bg-primary/20">
-                      {qrisData.billingInterval === 'annual' ? 'Tahunan' : 'Bulanan'}
+                      {qrisData.billingInterval === 'annual' ? t("dashboard.billing.annual") : t("dashboard.billing.monthly")}
                     </Badge>
                   </div>
                   <div className="flex items-baseline gap-2">
