@@ -278,8 +278,8 @@ export default function DashboardOverview() {
 
       {/* Dashboard Overview Title - Moved below Install Widget */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold" data-testid="text-dashboard-title">Dashboard Overview</h1>
-        <p className="text-sm text-muted-foreground hidden sm:block">Monitor your AI chatbot performance and customer interactions.</p>
+        <h1 className="text-xl sm:text-2xl font-bold" data-testid="text-dashboard-title">{t("dashboard.overview.dashboardOverviewTitle")}</h1>
+        <p className="text-sm text-muted-foreground hidden sm:block">{t("dashboard.overview.monitorPerformance")}</p>
       </div>
 
       {/* Real-time and Last 7 Days Grid - Frosted Glass Style */}
@@ -289,7 +289,7 @@ export default function DashboardOverview() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Zap className="w-4 h-4 text-green-400" />
-              <span className="text-muted-foreground">Real time</span>
+              <span className="text-muted-foreground">{t("dashboard.overview.realTime")}</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -298,7 +298,7 @@ export default function DashboardOverview() {
               <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5">
                 <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
                   <Users className="w-3.5 h-3.5 text-primary" />
-                  <span>Visitors</span>
+                  <span>{t("dashboard.overview.visitors")}</span>
                 </div>
                 <p className="text-4xl font-bold" data-testid="text-realtime-visitors">
                   {isLoading ? <Skeleton className="h-10 w-16" /> : activeSessions.length || 0}
@@ -309,7 +309,7 @@ export default function DashboardOverview() {
               <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5">
                 <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
                   <MessageCircle className="w-3.5 h-3.5 text-primary" />
-                  <span>Chats</span>
+                  <span>{t("dashboard.overview.chats")}</span>
                 </div>
                 <p className="text-4xl font-bold" data-testid="text-realtime-chats">
                   {isLoading ? <Skeleton className="h-10 w-16" /> : activeChats.length || 0}
@@ -317,7 +317,7 @@ export default function DashboardOverview() {
                 {/* Queued indicator */}
                 {queuedSessions.length > 0 && (
                   <div className="mt-2 bg-red-500/80 backdrop-blur-sm rounded px-2 py-1.5 text-center text-white">
-                    <span className="text-xs opacity-80">queued</span>
+                    <span className="text-xs opacity-80">{t("dashboard.overview.queued")}</span>
                     <p className="text-2xl font-bold">{queuedSessions.length}</p>
                   </div>
                 )}
@@ -328,17 +328,17 @@ export default function DashboardOverview() {
             <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5">
               <div className="flex items-center gap-2 text-muted-foreground text-xs mb-3">
                 <Bot className="w-3.5 h-3.5 text-orange-400" />
-                <span>Agents</span>
+                <span>{t("dashboard.overview.agents")}</span>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Badge className="bg-primary/80 text-primary-foreground text-[10px] mb-1">logged in</Badge>
+                  <Badge className="bg-primary/80 text-primary-foreground text-[10px] mb-1">{t("dashboard.overview.loggedIn")}</Badge>
                   <p className="text-3xl font-bold" data-testid="text-agents-logged-in">
                     {isLoading ? <Skeleton className="h-8 w-12" /> : (stats?.activeSessions ? Math.min(stats.activeSessions, 5) : 1)}
                   </p>
                 </div>
                 <div>
-                  <Badge className="bg-emerald-500/80 text-white text-[10px] mb-1">chatting</Badge>
+                  <Badge className="bg-emerald-500/80 text-white text-[10px] mb-1">{t("dashboard.overview.chatting")}</Badge>
                   <p className="text-3xl font-bold" data-testid="text-agents-chatting">
                     {isLoading ? <Skeleton className="h-8 w-12" /> : activeChats.length}
                   </p>
@@ -351,14 +351,14 @@ export default function DashboardOverview() {
         {/* Last 7 Days Section */}
         <Card className="backdrop-blur-xl bg-white/5 dark:bg-white/[0.03] border-white/10 dark:border-white/5">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Last 7 days</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.overview.last7Days")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {/* Total Chats with Chart */}
             <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-4 border border-white/10 dark:border-white/5">
               <div className="flex items-center gap-2 text-muted-foreground text-xs mb-2">
                 <MessageSquare className="w-3.5 h-3.5 text-primary" />
-                <span>Total chats</span>
+                <span>{t("dashboard.overview.totalChats")}</span>
               </div>
               <p className="text-4xl font-bold mb-3" data-testid="text-total-chats-7d">
                 {isLoading ? <Skeleton className="h-10 w-20" /> : stats?.messagesThisWeek || 0}
@@ -382,7 +382,7 @@ export default function DashboardOverview() {
               <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-3 text-center border border-white/10 dark:border-white/5">
                 <div className="flex items-center justify-center gap-1 text-muted-foreground text-[10px] mb-1">
                   <AlertCircle className="w-3 h-3" />
-                  <span>Queued</span>
+                  <span>{t("dashboard.overview.queuedLabel")}</span>
                 </div>
                 <p className="text-2xl font-bold" data-testid="text-queued-visitors">{queuedSessions.length}</p>
               </div>
@@ -391,7 +391,7 @@ export default function DashboardOverview() {
               <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-3 text-center border border-white/10 dark:border-white/5">
                 <div className="flex items-center justify-center gap-1 text-muted-foreground text-[10px] mb-1">
                   <Target className="w-3 h-3" />
-                  <span>Goals</span>
+                  <span>{t("dashboard.overview.goals")}</span>
                 </div>
                 <p className="text-2xl font-bold" data-testid="text-goals">{stats?.aiSessions || 0}</p>
               </div>
@@ -400,7 +400,7 @@ export default function DashboardOverview() {
               <div className="backdrop-blur-md bg-white/5 dark:bg-white/[0.02] rounded-lg p-3 text-center border border-white/10 dark:border-white/5">
                 <div className="flex items-center justify-center gap-1 text-muted-foreground text-[10px] mb-1">
                   <ThumbsUp className="w-3 h-3" />
-                  <span>Satisfaction</span>
+                  <span>{t("dashboard.overview.satisfaction")}</span>
                 </div>
                 <p className="text-2xl font-bold" data-testid="text-satisfaction">
                   {satisfactionRate}<span className="text-sm font-normal">%</span>
@@ -486,7 +486,7 @@ export default function DashboardOverview() {
                 <div className="text-center">
                   <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
                   <p>No message data yet</p>
-                  <p className="text-sm">Data will appear when customers start chatting</p>
+                  <p className="text-sm">{t("dashboard.overview.dataWillAppear")}</p>
                 </div>
               </div>
             )}
@@ -611,7 +611,7 @@ export default function DashboardOverview() {
               <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
               <p className="text-muted-foreground">No sessions yet</p>
               <p className="text-sm text-muted-foreground">
-                Sessions will appear when customers start chatting
+                {t("dashboard.overview.sessionsWillAppear")}
               </p>
             </div>
           )}

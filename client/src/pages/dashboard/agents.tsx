@@ -63,19 +63,6 @@ const agentSchema = z.object({
   followUpIntervalMinutes: z.number().optional(),
 });
 
-const AGENT_TYPES = {
-  support: {
-    label: "Support Agent",
-    description: t("dashboard.agents.supportDesc"),
-    icon: MessageSquare,
-  },
-  sales: {
-    label: "Sales Agent",
-    description: t("dashboard.agents.salesDesc"),
-    icon: Zap,
-  },
-};
-
 type AgentFormData = z.infer<typeof agentSchema>;
 
 export default function AgentsPage() {
@@ -87,6 +74,19 @@ export default function AgentsPage() {
     formal: { ...TONE_PRESETS_BASE.formal, label: t("dashboard.agents.toneFormal"), description: t("dashboard.agents.toneFormalDesc") },
     casual: { ...TONE_PRESETS_BASE.casual, label: t("dashboard.agents.toneCasual"), description: t("dashboard.agents.toneCasualDesc") },
     poetic: { ...TONE_PRESETS_BASE.poetic, label: t("dashboard.agents.tonePoetic"), description: t("dashboard.agents.tonePoeticDesc") },
+  };
+
+  const AGENT_TYPES = {
+    support: {
+      label: t("dashboard.agents.typeSupportLabel"),
+      description: t("dashboard.agents.supportDesc"),
+      icon: MessageSquare,
+    },
+    sales: {
+      label: t("dashboard.agents.typeSalesLabel"),
+      description: t("dashboard.agents.salesDesc"),
+      icon: Zap,
+    },
   };
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
@@ -399,7 +399,7 @@ export default function AgentsPage() {
                   <div className="space-y-2">
                     <FormLabel className="flex items-center gap-2">
                       <Zap className="w-4 h-4" />
-                      Agent Type
+                      {t("dashboard.agents.typeLabel")}
                     </FormLabel>
                     <div className="grid grid-cols-2 gap-2">
                       {Object.entries(AGENT_TYPES).map(([key, typeInfo]) => {
@@ -830,7 +830,7 @@ export default function AgentsPage() {
                           Temperature (AI Creativity)
                         </FormLabel>
                         <div className="flex items-center gap-4">
-                          <span className="text-xs text-muted-foreground">Consistent</span>
+                          <span className="text-xs text-muted-foreground">{t("dashboard.agents.toneConsistent")}</span>
                           <FormControl>
                             <Slider
                               min={0}
@@ -842,7 +842,7 @@ export default function AgentsPage() {
                               data-testid="slider-temperature"
                             />
                           </FormControl>
-                          <span className="text-xs text-muted-foreground">Creative</span>
+                          <span className="text-xs text-muted-foreground">{t("dashboard.agents.toneCreative")}</span>
                           <Badge variant="secondary" className="ml-2 min-w-[40px] justify-center">
                             {field.value}
                           </Badge>
@@ -940,9 +940,9 @@ export default function AgentsPage() {
                     <CardTitle className="text-lg truncate">{agent.name}</CardTitle>
                     <div className="flex items-center gap-2 mt-1">
                       {agent.isActive ? (
-                        <Badge variant="default" className="text-xs">Active</Badge>
+                        <Badge variant="default" className="text-xs">{t("dashboard.agents.statusActive")}</Badge>
                       ) : (
-                        <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                        <Badge variant="secondary" className="text-xs">{t("dashboard.agents.statusInactive")}</Badge>
                       )}
                     </div>
                   </div>
@@ -1037,7 +1037,7 @@ export default function AgentsPage() {
                     data-testid={`button-delete-agent-${agent.id}`}
                   >
                     <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1" />
-                    <span className="hidden sm:inline">Delete</span>
+                    <span className="hidden sm:inline">{t("dashboard.agents.deleteAgent")}</span>
                   </Button>
                 </div>
               </CardContent>
