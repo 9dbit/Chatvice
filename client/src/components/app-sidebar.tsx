@@ -197,6 +197,7 @@ const defaultManagementItems: MenuItem[] = [
   menuItemsMap["data-usage"],
   menuItemsMap["plans"],
   menuItemsMap["billing"],
+  menuItemsMap["additional-services"],
 ];
 
 const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSetting" | "management"> = {
@@ -226,6 +227,7 @@ const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSet
   "data-usage": "management",
   "plans": "management",
   "billing": "management",
+  "additional-services": "management",
 };
 
 interface BillingStatus {
