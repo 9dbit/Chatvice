@@ -666,14 +666,14 @@ export function AppSidebar() {
         
         {isAdmin && (
           <Link
-            href="/dashboard/additional-services"
+            href={activeAddonTypes.length > 0 ? "/dashboard/additional-services" : "/dashboard/plans"}
             data-testid="link-sidebar-additional-services-footer"
             className="block w-full"
           >
             <button
               type="button"
               className={`flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm transition-all duration-200 ${
-                isItemActive("/dashboard/additional-services")
+                isItemActive("/dashboard/additional-services") || isItemActive("/dashboard/plans")
                   ? "bg-accent text-accent-foreground font-medium"
                   : "text-muted-foreground hover-elevate"
               }`}
