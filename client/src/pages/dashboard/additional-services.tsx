@@ -433,8 +433,13 @@ export default function AdditionalServicesPage() {
               <Card key={config.addonType} data-testid={`card-addon-${config.addonType}`}>
                 <CardHeader>
                   <div className="flex items-start justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-md bg-primary/10">
+                    <button
+                      type="button"
+                      className="flex items-center gap-3 text-left cursor-pointer rounded-md hover-elevate -m-1 p-1 transition-all"
+                      onClick={() => handleManageClick(config.addonType)}
+                      data-testid={`button-open-${config.addonType}`}
+                    >
+                      <div className="p-2 rounded-md bg-primary/10 shrink-0">
                         <Icon className="w-5 h-5 text-primary" />
                       </div>
                       <div>
@@ -456,7 +461,7 @@ export default function AdditionalServicesPage() {
                           ) : null}
                         </div>
                       </div>
-                    </div>
+                    </button>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
