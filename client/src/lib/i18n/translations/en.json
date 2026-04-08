@@ -744,7 +744,20 @@
       "top20Topics": "Top 20 Chat Topics",
       "topicsDesc": "Most frequently discussed topics by customers",
       "keywordsDesc": "Most frequently used words in customer conversations with popularity level",
-      "noKeywords": "No keywords yet"
+      "noKeywords": "No keywords yet",
+      "totalSessions": "Total Sessions",
+      "aiResolutionRate": "AI Resolution Rate",
+      "satisfactionRate": "Satisfaction Rate",
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "messagesPerDay": "Messages handled per day",
+      "individualPerformance": "Individual Performance",
+      "detailedBreakdown": "Detailed breakdown by team member",
+      "avgTimeToRespond": "Average time to respond",
+      "chatDuration": "Chat Duration",
+      "avgConversationLength": "Average conversation length"
     },
     "chatLogs": {
       "title": "Chat Logs",
@@ -978,7 +991,21 @@
       "downlines": "Downlines",
       "withdrawals": "Withdrawals",
       "paymentMethods": "Payment Methods",
-      "yourReferralLink": "Your Referral Link"
+      "yourReferralLink": "Your Referral Link",
+      "approved": "Approved",
+      "processing": "Processing",
+      "completed": "Completed",
+      "rejected": "Rejected",
+      "affiliateCode": "Affiliate Code",
+      "company": "Company",
+      "plan": "Plan",
+      "status": "Status",
+      "joined": "Joined",
+      "date": "Date",
+      "amount": "Amount",
+      "method": "Method",
+      "pendingEarnings": "Pending Earnings",
+      "withdrawalRequested": "Withdrawal Requested"
     },
     "dataUsage": {
       "title": "Data Usage",
@@ -1046,7 +1073,15 @@
       "closedDateRemoved": "Closed date removed",
       "removeFailed": "Failed to remove",
       "linkCopied": "Link copied!",
-      "publicLinkCopied": "Public link copied!"
+      "publicLinkCopied": "Public link copied!",
+      "divisionAdded": "Division added",
+      "staffAdded": "Staff added",
+      "staffUpdated": "Staff updated",
+      "staffDeleted": "Staff deleted",
+      "serviceAdded": "Service added",
+      "serviceUpdated": "Service updated",
+      "serviceDeleted": "Service deleted",
+      "shareWhatsApp": "Share via WhatsApp"
     },
     "sources": {
       "title": "Active Sources",
@@ -1099,6 +1134,7 @@
     "password": "Password",
     "loading": "Loading",
     "failed": "Failed",
-    "tryAgain": "Please try again."
+    "tryAgain": "Please try again.",
+    "free": "Free"
   }
 }

@@ -207,7 +207,7 @@ export default function AffiliateDashboardPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Withdrawal Requested",
+        title: t("dashboard.affiliate.withdrawalRequested"),
         description: "Your withdrawal request has been submitted for approval.",
       });
       setWithdrawDialogOpen(false);
@@ -338,13 +338,13 @@ export default function AffiliateDashboardPage() {
       case "pending":
         return <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"><Clock className="w-3 h-3 mr-1" />{t("dashboard.affiliate.pending")}</Badge>;
       case "approved":
-        return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"><CheckCircle className="w-3 h-3 mr-1" />Approved</Badge>;
+        return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"><CheckCircle className="w-3 h-3 mr-1" />{t("dashboard.affiliate.approved")}</Badge>;
       case "processing":
-        return <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"><Loader2 className="w-3 h-3 mr-1 animate-spin" />Processing</Badge>;
+        return <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"><Loader2 className="w-3 h-3 mr-1 animate-spin" />{t("dashboard.affiliate.processing")}</Badge>;
       case "completed":
-        return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"><CheckCircle className="w-3 h-3 mr-1" />Completed</Badge>;
+        return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"><CheckCircle className="w-3 h-3 mr-1" />{t("dashboard.affiliate.completed")}</Badge>;
       case "rejected":
-        return <Badge variant="destructive"><X className="w-3 h-3 mr-1" />Rejected</Badge>;
+        return <Badge variant="destructive"><X className="w-3 h-3 mr-1" />{t("dashboard.affiliate.rejected")}</Badge>;
       case "failed":
         return <Badge variant="destructive"><AlertCircle className="w-3 h-3 mr-1" />Failed</Badge>;
       default:
@@ -498,7 +498,7 @@ export default function AffiliateDashboardPage() {
       case "enterprise":
         return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">Enterprise</Badge>;
       default:
-        return <Badge variant="secondary">Free</Badge>;
+        return <Badge variant="secondary">{t("common.free")}</Badge>;
     }
   };
 
@@ -550,7 +550,7 @@ export default function AffiliateDashboardPage() {
                 </div>
               </div>
               <div className="text-center sm:text-right">
-                <p className="text-sm text-muted-foreground">Affiliate Code</p>
+                <p className="text-sm text-muted-foreground">{t("dashboard.affiliate.affiliateCode")}</p>
                 <p className="text-lg font-bold font-mono">{(affiliate as any)?.affiliateCode}</p>
               </div>
             </div>
@@ -597,7 +597,7 @@ export default function AffiliateDashboardPage() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">${stats.totalEarnings.toFixed(2)}</p>
-                  <p className="text-sm text-muted-foreground">Total Earned</p>
+                  <p className="text-sm text-muted-foreground">{t("dashboard.affiliate.totalEarned")}</p>
                 </div>
               </div>
             </Card>
@@ -613,7 +613,7 @@ export default function AffiliateDashboardPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center py-3 border-b">
-                  <span className="text-muted-foreground">Pending Earnings</span>
+                  <span className="text-muted-foreground">{t("dashboard.affiliate.pendingEarnings")}</span>
                   <span className="font-bold text-yellow-600">${stats.pendingEarnings.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b">
@@ -706,10 +706,10 @@ export default function AffiliateDashboardPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Company</TableHead>
-                        <TableHead>Plan</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Joined</TableHead>
+                        <TableHead>{t("dashboard.affiliate.company")}</TableHead>
+                        <TableHead>{t("dashboard.affiliate.plan")}</TableHead>
+                        <TableHead>{t("dashboard.affiliate.status")}</TableHead>
+                        <TableHead>{t("dashboard.affiliate.joined")}</TableHead>
                         <TableHead className="text-right">Earnings</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -792,10 +792,10 @@ export default function AffiliateDashboardPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Method</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>{t("dashboard.affiliate.date")}</TableHead>
+                        <TableHead>{t("dashboard.affiliate.amount")}</TableHead>
+                        <TableHead>{t("dashboard.affiliate.method")}</TableHead>
+                        <TableHead>{t("dashboard.affiliate.status")}</TableHead>
                         <TableHead>Notes</TableHead>
                       </TableRow>
                     </TableHeader>

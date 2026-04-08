@@ -461,7 +461,7 @@ function CalendarView({ appointments, providers, divisions, services, currentMon
   const getDivision = (id: string | null) => divisions.find(d => d.id === id);
   const getService = (id: string | null) => services.find(s => s.id === id);
 
-  const days = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+  const days = language === "id" ? ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   return (
     <div className="space-y-4">
@@ -601,7 +601,7 @@ export default function AppointmentsPage() {
 
   const createDivision = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/merchant/appointment-divisions", data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-divisions"] }); setDivisionDialog({ open: false }); toast({ title: "Divisi ditambahkan" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-divisions"] }); setDivisionDialog({ open: false }); toast({ title: t("dashboard.appointments.divisionAdded") }); },
     onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
@@ -619,37 +619,37 @@ export default function AppointmentsPage() {
 
   const createProvider = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/merchant/appointment-providers", data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-providers"] }); setProviderDialog({ open: false }); toast({ title: "Staf ditambahkan" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-providers"] }); setProviderDialog({ open: false }); toast({ title: t("dashboard.appointments.staffAdded") }); },
     onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
   const updateProvider = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest("PATCH", `/api/merchant/appointment-providers/${id}`, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-providers"] }); setProviderDialog({ open: false }); toast({ title: "Staf diperbarui" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-providers"] }); setProviderDialog({ open: false }); toast({ title: t("dashboard.appointments.staffUpdated") }); },
     onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
   const deleteProvider = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/merchant/appointment-providers/${id}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-providers"] }); toast({ title: "Staf dihapus" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-providers"] }); toast({ title: t("dashboard.appointments.staffDeleted") }); },
     onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
   const createService = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/merchant/appointment-services", data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-services"] }); setServiceDialog({ open: false }); toast({ title: "Layanan ditambahkan" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-services"] }); setServiceDialog({ open: false }); toast({ title: t("dashboard.appointments.serviceAdded") }); },
     onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
   const updateService = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest("PATCH", `/api/merchant/appointment-services/${id}`, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-services"] }); setServiceDialog({ open: false }); toast({ title: "Layanan diperbarui" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-services"] }); setServiceDialog({ open: false }); toast({ title: t("dashboard.appointments.serviceUpdated") }); },
     onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
   const deleteService = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/merchant/appointment-services/${id}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-services"] }); toast({ title: "Layanan dihapus" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-services"] }); toast({ title: t("dashboard.appointments.serviceDeleted") }); },
     onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
@@ -1038,7 +1038,7 @@ export default function AppointmentsPage() {
                         }}
                         data-testid="button-share-wa-public"
                       >
-                        Bagikan via WhatsApp
+                        {t("dashboard.appointments.shareWhatsApp")}
                       </Button>
                     </div>
                   </>

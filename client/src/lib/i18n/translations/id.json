@@ -744,7 +744,20 @@
       "top20Topics": "Top 20 Topik Chat",
       "topicsDesc": "Topik yang paling sering dibahas pelanggan",
       "keywordsDesc": "Kata yang paling sering digunakan dalam percakapan pelanggan beserta level popularitasnya",
-      "noKeywords": "Belum ada kata kunci"
+      "noKeywords": "Belum ada kata kunci",
+      "totalSessions": "Total Sesi",
+      "aiResolutionRate": "Tingkat Resolusi AI",
+      "satisfactionRate": "Tingkat Kepuasan",
+      "daily": "Harian",
+      "weekly": "Mingguan",
+      "monthly": "Bulanan",
+      "yearly": "Tahunan",
+      "messagesPerDay": "Pesan ditangani per hari",
+      "individualPerformance": "Performa Individual",
+      "detailedBreakdown": "Rincian per anggota tim",
+      "avgTimeToRespond": "Rata-rata waktu respons",
+      "chatDuration": "Durasi Chat",
+      "avgConversationLength": "Rata-rata panjang percakapan"
     },
     "chatLogs": {
       "title": "Log Chat",
@@ -978,7 +991,21 @@
       "downlines": "Downline",
       "withdrawals": "Penarikan",
       "paymentMethods": "Metode Pembayaran",
-      "yourReferralLink": "Tautan Referral Anda"
+      "yourReferralLink": "Tautan Referral Anda",
+      "approved": "Disetujui",
+      "processing": "Diproses",
+      "completed": "Selesai",
+      "rejected": "Ditolak",
+      "affiliateCode": "Kode Afiliasi",
+      "company": "Perusahaan",
+      "plan": "Paket",
+      "status": "Status",
+      "joined": "Bergabung",
+      "date": "Tanggal",
+      "amount": "Jumlah",
+      "method": "Metode",
+      "pendingEarnings": "Pendapatan Tertunda",
+      "withdrawalRequested": "Penarikan Diminta"
     },
     "dataUsage": {
       "title": "Penggunaan Data",
@@ -1046,7 +1073,15 @@
       "closedDateRemoved": "Tanggal tutup dihapus",
       "removeFailed": "Gagal menghapus",
       "linkCopied": "Link disalin!",
-      "publicLinkCopied": "Link publik disalin!"
+      "publicLinkCopied": "Link publik disalin!",
+      "divisionAdded": "Divisi ditambahkan",
+      "staffAdded": "Staf ditambahkan",
+      "staffUpdated": "Staf diperbarui",
+      "staffDeleted": "Staf dihapus",
+      "serviceAdded": "Layanan ditambahkan",
+      "serviceUpdated": "Layanan diperbarui",
+      "serviceDeleted": "Layanan dihapus",
+      "shareWhatsApp": "Bagikan via WhatsApp"
     },
     "sources": {
       "title": "Sumber Aktif",
@@ -1099,6 +1134,7 @@
     "password": "Password",
     "loading": "Memuat",
     "failed": "Gagal",
-    "tryAgain": "Silakan coba lagi."
+    "tryAgain": "Silakan coba lagi.",
+    "free": "Gratis"
   }
 }

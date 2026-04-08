@@ -178,14 +178,14 @@ export default function AnalyticsPage() {
 
   const statsCards = [
     {
-      title: "Total Sessions",
+      title: t("dashboard.analytics.totalSessions"),
       value: analytics?.totalSessions || 0,
       icon: MessageSquare,
       change: "+12%",
       trend: "up",
     },
     {
-      title: "AI Resolution Rate",
+      title: t("dashboard.analytics.aiResolutionRate"),
       value: `${analytics?.aiResolutionRate || 0}%`,
       icon: Bot,
       change: "+5%",
@@ -199,7 +199,7 @@ export default function AnalyticsPage() {
       trend: "up",
     },
     {
-      title: "Satisfaction Rate",
+      title: t("dashboard.analytics.satisfactionRate"),
       value: `${analytics?.satisfactionRate || 0}%`,
       icon: TrendingUp,
       change: "+2%",
@@ -621,10 +621,10 @@ export default function AnalyticsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="yearly">Yearly</SelectItem>
+                  <SelectItem value="daily">{t("dashboard.analytics.daily")}</SelectItem>
+                  <SelectItem value="weekly">{t("dashboard.analytics.weekly")}</SelectItem>
+                  <SelectItem value="monthly">{t("dashboard.analytics.monthly")}</SelectItem>
+                  <SelectItem value="yearly">{t("dashboard.analytics.yearly")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -693,7 +693,7 @@ export default function AnalyticsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-base">{t("dashboard.analytics.totalMessages")}</CardTitle>
-                    <CardDescription>Messages handled per day</CardDescription>
+                    <CardDescription>{t("dashboard.analytics.messagesPerDay")}</CardDescription>
                   </div>
                   <div className="flex flex-wrap gap-3">
                     {[...(performanceAnalytics?.agents || []), ...(performanceAnalytics?.supervisors || [])].map((member, idx) => (
@@ -898,8 +898,8 @@ export default function AnalyticsPage() {
             {/* Individual Performance List */}
             <Card>
               <CardHeader>
-                <CardTitle>Individual Performance</CardTitle>
-                <CardDescription>Detailed breakdown by team member</CardDescription>
+                <CardTitle>{t("dashboard.analytics.individualPerformance")}</CardTitle>
+                <CardDescription>{t("dashboard.analytics.detailedBreakdown")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-2">
@@ -1015,7 +1015,7 @@ export default function AnalyticsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>{t("dashboard.analytics.responseTimes")}</CardTitle>
-                <CardDescription>Average time to respond</CardDescription>
+                <CardDescription>{t("dashboard.analytics.avgTimeToRespond")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
@@ -1043,8 +1043,8 @@ export default function AnalyticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Chat Duration</CardTitle>
-                <CardDescription>Average conversation length</CardDescription>
+                <CardTitle>{t("dashboard.analytics.chatDuration")}</CardTitle>
+                <CardDescription>{t("dashboard.analytics.avgConversationLength")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-center h-32">
