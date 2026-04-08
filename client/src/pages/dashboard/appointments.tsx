@@ -759,9 +759,9 @@ export default function AppointmentsPage() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="pending">Menunggu</SelectItem>
-                            <SelectItem value="confirmed">Konfirmasi</SelectItem>
-                            <SelectItem value="completed">{t("dashboard.appointments.status")}</SelectItem>
+                            <SelectItem value="pending">{t("dashboard.appointments.statusPending")}</SelectItem>
+                            <SelectItem value="confirmed">{t("dashboard.appointments.statusConfirmed")}</SelectItem>
+                            <SelectItem value="completed">{t("dashboard.appointments.statusCompleted")}</SelectItem>
                             <SelectItem value="cancelled">{t("dashboard.appointments.cancelled")}</SelectItem>
                           </SelectContent>
                         </Select>

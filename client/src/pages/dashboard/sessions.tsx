@@ -426,8 +426,8 @@ export default function SessionsPage() {
     if (newSessions.length > 0) {
       playIncomingChatSound();
       toast({
-        title: "Pesan baru!",
-        description: `${newSessions.length} new sessions started`,
+        title: t("dashboard.sessions.newMessage"),
+        description: `${newSessions.length} ${t("dashboard.sessions.newSessions")}`,
         duration: 5000,
       });
     }
@@ -441,8 +441,8 @@ export default function SessionsPage() {
     if (newlyEscalatedSessions.length > 0) {
       playAngrySound();
       toast({
-        title: "Escalated session!",
-        description: `${newlyEscalatedSessions.length} session(s) need immediate attention`,
+        title: t("dashboard.sessions.escalatedAlert"),
+        description: `${newlyEscalatedSessions.length} ${t("dashboard.sessions.escalatedDesc")}`,
         duration: 10000,
       });
     }

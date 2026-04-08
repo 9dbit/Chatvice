@@ -78,10 +78,6 @@ export function getStoredLanguage(): Language {
   if (stored && languages.some(l => l.code === stored)) {
     return stored as Language;
   }
-  const browserLang = navigator.language.split('-')[0];
-  if (languages.some(l => l.code === browserLang)) {
-    return browserLang as Language;
-  }
   return 'en';
 }
 

@@ -476,7 +476,11 @@
       "escalatedAt": "Dieskalasi Pada",
       "closedAt": "Ditutup Pada",
       "rating": "Rating",
-      "tags": "Tag"
+      "tags": "Tag",
+      "newMessage": "Pesan baru!",
+      "newSessions": "sesi baru dimulai",
+      "escalatedAlert": "Sesi dieskalasi!",
+      "escalatedDesc": "sesi memerlukan perhatian segera"
     },
     "knowledge": {
       "title": "Basis Pengetahuan",
@@ -776,7 +780,10 @@
       "noAppointments": "Belum ada janji temu",
       "weeklySchedule": "Jadwal Mingguan",
       "monthlyList": "Daftar Janji Temu Bulan Ini",
-      "division": "Divisi"
+      "division": "Divisi",
+      "statusPending": "Menunggu",
+      "statusConfirmed": "Dikonfirmasi",
+      "statusCompleted": "Selesai"
     },
     "sources": {
       "title": "Sumber Aktif",

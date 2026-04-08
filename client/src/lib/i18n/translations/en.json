@@ -476,7 +476,11 @@
       "escalatedAt": "Escalated At",
       "closedAt": "Closed At",
       "rating": "Rating",
-      "tags": "Tags"
+      "tags": "Tags",
+      "newMessage": "New message!",
+      "newSessions": "new sessions started",
+      "escalatedAlert": "Escalated session!",
+      "escalatedDesc": "session(s) need immediate attention"
     },
     "knowledge": {
       "title": "Knowledge Base",
@@ -776,7 +780,10 @@
       "noAppointments": "No appointments yet",
       "weeklySchedule": "Weekly Schedule",
       "monthlyList": "Appointments This Month",
-      "division": "Division"
+      "division": "Division",
+      "statusPending": "Pending",
+      "statusConfirmed": "Confirmed",
+      "statusCompleted": "Completed"
     },
     "sources": {
       "title": "Active Sources",

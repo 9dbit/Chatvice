@@ -727,7 +727,7 @@ export function AppSidebar() {
               }`}
             >
               <Sparkles className="w-4 h-4 shrink-0" />
-              <span className="flex-1 text-left">{t("dashboard.additionalServices")}</span>
+              <span className="flex-1 text-left">{t("dashboard.additionalServices.title")}</span>
               {activeAddonTypes.length > 0 && (
                 <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium shrink-0">
                   {activeAddonTypes.length}
@@ -796,7 +796,7 @@ export function AppSidebar() {
                   {/* Supervisors */}
                   <div className="space-y-1">
                     <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">{t("dashboard.supervisors")}</span>
+                      <span className="text-muted-foreground">{t("dashboard.supervisors.title")}</span>
                       <span className="font-medium">{billingStatus.supervisorsUsed} / {billingStatus.supervisorsLimit === -1 ? "∞" : billingStatus.supervisorsLimit}</span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-1.5">
