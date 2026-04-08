@@ -295,11 +295,11 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                       </thead>
                       <tbody className="text-muted-foreground">
                         {[
-                          ["room_name *", "Room Type, Tipe Kamar", "Required. Room name/type"],
-                          ["price_per_night", "Price, Harga", "Price per night (number)"],
-                          ["availability", "Available, Stok", "Number of rooms available"],
-                          ["room_description", "Description, Deskripsi", "Short room description"],
-                          ["image_url", "Image, Foto", "Room photo URL (optional)"],
+                          ["room_name *", "Room Type, Room Name", "Required. Room name/type"],
+                          ["price_per_night", "Price, Rate", "Price per night (number)"],
+                          ["availability", "Available, Stock", "Number of rooms available"],
+                          ["room_description", "Description, Detail", "Short room description"],
+                          ["image_url", "Image, Photo", "Room photo URL (optional)"],
                         ].map(([col, alias, desc]) => (
                           <tr key={col} className="even:bg-muted/20">
                             <td className="border border-border px-1.5 py-1 font-mono whitespace-nowrap">{col}</td>
