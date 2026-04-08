@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, boolean, integer, timestamp, jsonb, index, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, integer, timestamp, jsonb, index, uniqueIndex, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -2555,6 +2555,7 @@ export const appointments = pgTable("appointments", {
   providerIdx: index("appt_provider_idx").on(table.providerId),
   sessionIdx: index("appt_session_idx").on(table.sessionId),
   bookingCodeIdx: index("appt_booking_code_idx").on(table.bookingCode),
+  providerSlotUniq: uniqueIndex("appt_provider_slot_uniq_idx").on(table.providerId, table.appointmentDate, table.appointmentTime),
 }));
 export const insertAppointmentSchema = createInsertSchema(appointments).omit({ createdAt: true, updatedAt: true });
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;

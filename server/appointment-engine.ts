@@ -137,23 +137,32 @@ export async function bookSlot(params: {
   const aEnd2 = aStart2 + durationMinutes;
   const endTime2 = `${String(Math.floor(aEnd2 / 60)).padStart(2, "0")}:${String(aEnd2 % 60).padStart(2, "0")}`;
 
-  const appt = await storage.createAppointment({
-    id,
-    merchantId,
-    serviceId: serviceId || null,
-    providerId: providerId || null,
-    divisionId: divisionId || null,
-    sessionId: sessionId || null,
-    customerName,
-    customerPhone: customerPhone || null,
-    customerEmail: customerEmail || null,
-    appointmentDate,
-    appointmentTime,
-    endTime: endTime2,
-    notes: notes || null,
-    bookingCode,
-    status: "pending",
-  });
+  let appt;
+  try {
+    appt = await storage.createAppointment({
+      id,
+      merchantId,
+      serviceId: serviceId || null,
+      providerId: providerId || null,
+      divisionId: divisionId || null,
+      sessionId: sessionId || null,
+      customerName,
+      customerPhone: customerPhone || null,
+      customerEmail: customerEmail || null,
+      appointmentDate,
+      appointmentTime,
+      endTime: endTime2,
+      notes: notes || null,
+      bookingCode,
+      status: "pending",
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("appt_provider_slot_uniq_idx") || msg.includes("unique constraint")) {
+      throw new Error("Slot is no longer available. Please choose another time.");
+    }
+    throw err;
+  }
 
   return appt;
 }

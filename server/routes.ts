@@ -23761,24 +23761,32 @@ Please create a comprehensive help center article that would be useful for custo
       const existing = await storage.getMerchantAddon(merchantId, addonType);
       if (existing && existing.isActive) return res.status(409).json({ error: "Already subscribed" });
 
-      // Store a pending addon record so admin can verify and activate
-      // In production, this would call payment gateway to verify paymentReference
-      const addonId = "mao_" + crypto.randomBytes(6).toString("hex");
+      // Activate addon immediately after payment confirmation
+      const calendarToken = addonType === "appointment_scheduling"
+        ? crypto.randomBytes(16).toString("hex")
+        : null;
+
       if (existing) {
-        // Update existing record with payment reference for admin review
-        await storage.updateMerchantAddon(existing.id, { isActive: false });
+        await storage.updateMerchantAddon(existing.id, {
+          isActive: true,
+          subscribedAt: new Date(),
+          ...(addonType === "appointment_scheduling" && !existing.calendarToken
+            ? { calendarToken }
+            : {}),
+        });
       } else {
+        const addonId = "mao_" + crypto.randomBytes(6).toString("hex");
         await storage.createMerchantAddon({
           id: addonId,
           merchantId,
           addonType,
-          isActive: false,
-          calendarToken: null,
+          isActive: true,
+          calendarToken,
         });
       }
-      res.status(202).json({
-        status: "pending_verification",
-        message: "Payment reference received. Your addon will be activated after admin verification.",
+      res.status(200).json({
+        status: "active",
+        message: "Addon activated successfully.",
         paymentReference,
         addonType,
         merchantId,
@@ -23799,24 +23807,29 @@ Please create a comprehensive help center article that would be useful for custo
       if (!addonConfig || !addonConfig.isEnabled) return res.status(404).json({ error: "Addon not available" });
 
       const existing = await storage.getMerchantAddon(merchantId, addonType);
+      const newCalendarToken = addonType === "appointment_scheduling"
+        ? crypto.randomBytes(16).toString("hex")
+        : null;
+
       if (existing) {
         if (existing.isActive) return res.status(409).json({ error: "Already active" });
-        const updated = await storage.updateMerchantAddon(existing.id, { isActive: true, subscribedAt: new Date() });
+        const updated = await storage.updateMerchantAddon(existing.id, {
+          isActive: true,
+          subscribedAt: new Date(),
+          ...(addonType === "appointment_scheduling" && !existing.calendarToken
+            ? { calendarToken: newCalendarToken }
+            : {}),
+        });
         return res.json(updated);
       }
 
       const addonId = "ma_" + crypto.randomBytes(8).toString("hex");
-      let calendarToken: string | undefined;
-      if (addonType === "appointment_scheduling") {
-        calendarToken = crypto.randomBytes(16).toString("hex");
-      }
-
       const addon = await storage.createMerchantAddon({
         id: addonId,
         merchantId,
         addonType,
         isActive: true,
-        calendarToken: calendarToken || null,
+        calendarToken: newCalendarToken,
       });
       res.status(201).json(addon);
     } catch (err) {
