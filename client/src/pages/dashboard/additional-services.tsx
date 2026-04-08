@@ -451,7 +451,7 @@ export default function AdditionalServicesPage() {
                           {active && trialActive ? (
                             <Badge variant="outline" className="text-xs gap-1">
                               <Clock className="w-3 h-3" />
-                              Trial — {trialDaysLeft}d left
+                              Trial — {trialDaysLeft} days remaining
                             </Badge>
                           ) : active ? (
                             <Badge variant="secondary" className="text-xs">
@@ -544,7 +544,7 @@ export default function AdditionalServicesPage() {
                             ) : (
                               <Clock className="w-3.5 h-3.5 mr-1" />
                             )}
-                            Start Free 7-Day Trial
+                            Start Free Trial
                           </Button>
                         )}
                       </div>
