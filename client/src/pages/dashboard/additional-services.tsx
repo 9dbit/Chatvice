@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Sparkles, Calendar, CheckCircle, Loader2, AlertCircle, CreditCard, Hotel, ExternalLink, TestTube2, Clock } from "lucide-react";
+import { Sparkles, Calendar, CheckCircle, Loader2, AlertCircle, Hotel, TestTube2, Clock, ListTodo, CalendarDays } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -35,7 +35,6 @@ interface MerchantAddon {
   trialEndsAt: string | null;
 }
 
-
 interface HospitalityConfig {
   id: string;
   merchantId: string;
@@ -58,73 +57,17 @@ const addonIcons: Record<string, React.ComponentType<{ className?: string }>> = 
   hospitality: Hotel,
 };
 
-
 const hospitalityFormSchema = z.object({
-  hotelName: z.string().min(1, "Nama hotel wajib diisi"),
-  bookingUrl: z.string().url("URL pemesanan tidak valid").or(z.literal("")),
-  googleSheetUrl: z.string().url("URL Google Sheet tidak valid").or(z.literal("")),
-  aiInstructions: z.string().max(1000, "Maks 1000 karakter"),
+  hotelName: z.string().min(1, "Hotel name is required"),
+  bookingUrl: z.string().url("Invalid booking URL").or(z.literal("")),
+  googleSheetUrl: z.string().url("Invalid Google Sheet URL").or(z.literal("")),
+  aiInstructions: z.string().max(1000, "Max 1000 characters"),
   isEnabled: z.boolean(),
 });
 
 type HospitalityForm = z.infer<typeof hospitalityFormSchema>;
 
 const glassDialogClass = "sm:max-w-[560px] w-[calc(100vw-2rem)] max-h-[88vh] flex flex-col p-0 gap-0 rounded-2xl overflow-hidden bg-card/95 backdrop-blur-xl border-border/50 shadow-2xl";
-
-function SmartAppointmentDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [, navigate] = useLocation();
-
-  const features = [
-    "Manajemen divisi & staf per jadwal",
-    "Kalender internal dengan link yang bisa dibagikan",
-    "Cek ketersediaan via AI chatbot",
-    "Notifikasi & konfirmasi janji temu otomatis",
-  ];
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className={glassDialogClass}>
-        <DialogHeader className="px-6 pt-6 pb-4 border-b flex-none">
-          <DialogTitle className="flex items-center gap-2 text-lg">
-            <Calendar className="w-5 h-5 text-primary shrink-0" />
-            Smart Appointment
-          </DialogTitle>
-          <DialogDescription className="mt-1">
-            Sistem booking & manajemen jadwal cerdas yang terintegrasi langsung dengan AI chatbot Anda.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          <ul className="space-y-2">
-            {features.map((f) => (
-              <li key={f} className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                <CheckCircle className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-                {f}
-              </li>
-            ))}
-          </ul>
-
-          <div className="rounded-xl bg-primary/5 border border-primary/10 p-4 space-y-1">
-            <p className="text-sm font-medium text-primary">Cara kerja</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Customer menanyakan ketersediaan jadwal melalui chatbot, AI mengecek secara real-time dan memandu proses booking hingga konfirmasi.
-            </p>
-          </div>
-        </div>
-
-        <div className="px-6 py-4 border-t flex-none flex gap-2">
-          <Button variant="outline" size="sm" className="flex-1" onClick={onClose}>
-            Tutup
-          </Button>
-          <Button size="sm" className="flex-1" onClick={() => { onClose(); navigate("/dashboard/appointments"); }} data-testid="button-goto-appointments">
-            <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
-            Buka Pengaturan
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useToast();
@@ -154,18 +97,18 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/hospitality-config"] });
-      toast({ title: "Tersimpan", description: "Pengaturan hospitality berhasil disimpan." });
+      toast({ title: "Saved", description: "Hospitality settings saved successfully." });
       onClose();
     },
     onError: (err: any) => {
-      toast({ title: "Gagal menyimpan", description: err.message || "Terjadi kesalahan", variant: "destructive" });
+      toast({ title: "Failed to save", description: err.message || "An error occurred", variant: "destructive" });
     },
   });
 
   const handleTestSheet = async () => {
     const googleSheetUrl = form.getValues("googleSheetUrl");
     if (!googleSheetUrl) {
-      toast({ title: "URL diperlukan", description: "Masukkan URL Google Sheet terlebih dahulu.", variant: "destructive" });
+      toast({ title: "URL required", description: "Please enter a Google Sheet URL first.", variant: "destructive" });
       return;
     }
     setIsTesting(true);
@@ -175,7 +118,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
       const result: SheetTestResult = await res.json();
       setSheetTestResult(result);
     } catch (err: any) {
-      setSheetTestResult({ success: false, rowCount: 0, sampleRows: [], message: err.message || "Gagal mengakses sheet." });
+      setSheetTestResult({ success: false, rowCount: 0, sampleRows: [], message: err.message || "Failed to access sheet." });
     } finally {
       setIsTesting(false);
     }
@@ -187,10 +130,10 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-none">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Hotel className="w-5 h-5 text-primary shrink-0" />
-            Pengaturan Hospitality AI
+            Hospitality AI Settings
           </DialogTitle>
           <DialogDescription className="mt-1">
-            Hubungkan data kamar hotel dari Google Sheet untuk ditampilkan secara real-time di chatbot.
+            Connect your hotel room data from Google Sheet to display real-time availability in the chatbot.
           </DialogDescription>
         </DialogHeader>
 
@@ -208,8 +151,8 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                   render={({ field }) => (
                     <div className="flex items-center justify-between gap-4 p-3 rounded-xl border">
                       <div>
-                        <p className="text-sm font-medium">Aktifkan Fitur</p>
-                        <p className="text-xs text-muted-foreground">Chatbot akan menampilkan ketersediaan kamar ketika customer bertanya</p>
+                        <p className="text-sm font-medium">Enable Feature</p>
+                        <p className="text-xs text-muted-foreground">The chatbot will show room availability when customers ask</p>
                       </div>
                       <Switch
                         checked={field.value}
@@ -225,7 +168,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                   name="hotelName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nama Hotel</FormLabel>
+                      <FormLabel>Hotel Name</FormLabel>
                       <FormControl>
                         <Input placeholder="Grand Chatvice Hotel" {...field} data-testid="input-hotel-name" />
                       </FormControl>
@@ -239,11 +182,11 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                   name="bookingUrl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>URL Pemesanan</FormLabel>
+                      <FormLabel>Booking URL</FormLabel>
                       <FormControl>
                         <Input type="url" placeholder="https://book.yourhotel.com" {...field} data-testid="input-booking-url" />
                       </FormControl>
-                      <p className="text-xs text-muted-foreground">Link yang akan dibuka saat customer menekan tombol "Pesan Sekarang di Website"</p>
+                      <p className="text-xs text-muted-foreground">Link opened when customers click the "Book Now" button</p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -254,7 +197,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                   name="googleSheetUrl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>URL Google Sheet</FormLabel>
+                      <FormLabel>Google Sheet URL</FormLabel>
                       <FormControl>
                         <div className="flex gap-2">
                           <Input
@@ -277,7 +220,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                         </div>
                       </FormControl>
                       <p className="text-xs text-muted-foreground">
-                        Sheet harus bisa diakses publik. Kolom: <code>room_name</code>, <code>price_per_night</code>, <code>availability</code>, <code>image_url</code>.
+                        Sheet must be publicly accessible. Columns: <code>room_name</code>, <code>price_per_night</code>, <code>availability</code>, <code>image_url</code>.
                       </p>
                       <FormMessage />
                     </FormItem>
@@ -295,7 +238,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                       const rows = dataRows.slice(0, 3).map(r => r.split(",").map(c => c.replace(/"/g, "").trim()));
                       return (
                         <div className="mt-2 overflow-x-auto">
-                          <p className="text-xs text-muted-foreground mb-1.5">Preview (3 baris pertama):</p>
+                          <p className="text-xs text-muted-foreground mb-1.5">Preview (first 3 rows):</p>
                           <table className="w-full text-[10px] border-collapse">
                             <thead>
                               <tr>
@@ -325,10 +268,10 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                   name="aiInstructions"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Instruksi Tambahan untuk AI (opsional)</FormLabel>
+                      <FormLabel>Additional AI Instructions (optional)</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Contoh: Selalu sebutkan bahwa check-in pukul 14.00 dan check-out pukul 12.00..."
+                          placeholder="e.g. Always mention that check-in is at 2:00 PM and check-out is at 12:00 PM..."
                           rows={3}
                           {...field}
                           data-testid="textarea-ai-instructions"
@@ -340,23 +283,23 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                 />
 
                 <div className="rounded-xl border p-3 bg-muted/30 space-y-2">
-                  <p className="text-xs font-medium">Format Kolom Google Sheet:</p>
+                  <p className="text-xs font-medium">Google Sheet Column Format:</p>
                   <div className="overflow-x-auto">
                     <table className="w-full text-[10px] border-collapse">
                       <thead>
                         <tr className="bg-muted/60">
-                          <th className="border border-border px-1.5 py-1 text-left font-semibold whitespace-nowrap">Kolom</th>
-                          <th className="border border-border px-1.5 py-1 text-left font-semibold whitespace-nowrap">Alias</th>
-                          <th className="border border-border px-1.5 py-1 text-left font-semibold">Keterangan</th>
+                          <th className="border border-border px-1.5 py-1 text-left font-semibold whitespace-nowrap">Column</th>
+                          <th className="border border-border px-1.5 py-1 text-left font-semibold whitespace-nowrap">Aliases</th>
+                          <th className="border border-border px-1.5 py-1 text-left font-semibold">Description</th>
                         </tr>
                       </thead>
                       <tbody className="text-muted-foreground">
                         {[
-                          ["room_name *", "Room Type, Tipe Kamar", "Wajib. Nama/tipe kamar"],
-                          ["price_per_night", "Price, Harga", "Harga per malam (angka)"],
-                          ["availability", "Available, Stok", "Jumlah kamar tersedia"],
-                          ["room_description", "Description, Deskripsi", "Deskripsi singkat kamar"],
-                          ["image_url", "Image, Foto", "URL foto kamar (opsional)"],
+                          ["room_name *", "Room Type, Tipe Kamar", "Required. Room name/type"],
+                          ["price_per_night", "Price, Harga", "Price per night (number)"],
+                          ["availability", "Available, Stok", "Number of rooms available"],
+                          ["room_description", "Description, Deskripsi", "Short room description"],
+                          ["image_url", "Image, Foto", "Room photo URL (optional)"],
                         ].map(([col, alias, desc]) => (
                           <tr key={col} className="even:bg-muted/20">
                             <td className="border border-border px-1.5 py-1 font-mono whitespace-nowrap">{col}</td>
@@ -375,11 +318,11 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
 
         <div className="px-6 py-4 border-t flex-none flex gap-2">
           <Button type="button" variant="outline" size="sm" className="flex-1" onClick={onClose} disabled={saveMutation.isPending}>
-            Batal
+            Cancel
           </Button>
           <Button type="submit" form="hospitality-form" size="sm" className="flex-1" disabled={saveMutation.isPending} data-testid="button-save-hospitality">
             {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            Simpan Pengaturan
+            Save Settings
           </Button>
         </div>
       </DialogContent>
@@ -391,7 +334,6 @@ export default function AdditionalServicesPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [hospitalitySettingsOpen, setHospitalitySettingsOpen] = useState(false);
-  const [appointmentSettingsOpen, setAppointmentSettingsOpen] = useState(false);
   const [pendingTrials, setPendingTrials] = useState<Set<string>>(new Set());
 
   const { data: addonConfigs = [], isLoading: configsLoading } = useQuery<AddonConfig[]>({
@@ -415,16 +357,16 @@ export default function AdditionalServicesPage() {
       if (!res.ok) {
         if (res.status === 409) {
           const msg = body.error === "Trial already used for this addon"
-            ? "Trial sudah pernah digunakan untuk layanan ini."
-            : "Layanan ini sudah aktif di akun Anda.";
+            ? "Free trial has already been used for this service."
+            : "This service is already active on your account.";
           throw new Error(msg);
         }
-        throw new Error(body.error || "Tidak dapat memulai trial");
+        throw new Error(body.error || "Unable to start trial");
       }
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
-      toast({ title: "Trial dimulai!", description: "Masa percobaan gratis 7 hari Anda sekarang aktif." });
+      toast({ title: "Trial started!", description: "Your 7-day free trial is now active." });
     } catch (err: any) {
-      toast({ title: "Gagal", description: err.message || "Tidak dapat memulai trial", variant: "destructive" });
+      toast({ title: "Failed", description: err.message || "Unable to start trial", variant: "destructive" });
     } finally {
       setPendingTrials(prev => { const next = new Set(prev); next.delete(addonType); return next; });
     }
@@ -435,10 +377,10 @@ export default function AdditionalServicesPage() {
       apiRequest("DELETE", `/api/merchant/addons/${addonType}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
-      toast({ title: "Addon dinonaktifkan", description: "Layanan tambahan telah dinonaktifkan." });
+      toast({ title: "Service deactivated", description: "The additional service has been deactivated." });
     },
     onError: (err: any) => {
-      toast({ title: "Gagal", description: err.message || "Terjadi kesalahan", variant: "destructive" });
+      toast({ title: "Failed", description: err.message || "An error occurred", variant: "destructive" });
     },
   });
 
@@ -447,7 +389,7 @@ export default function AdditionalServicesPage() {
 
   const handleManageClick = (addonType: string) => {
     if (addonType === "appointment_scheduling") {
-      setAppointmentSettingsOpen(true);
+      navigate("/dashboard/appointments");
     } else if (addonType === "hospitality") {
       setHospitalitySettingsOpen(true);
     }
@@ -531,19 +473,19 @@ export default function AdditionalServicesPage() {
 
                   {config.addonType === "appointment_scheduling" && (
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Manajemen divisi &amp; staf</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Kalender internal dengan link yang bisa dibagikan</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Cek ketersediaan via AI chatbot</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Notifikasi WhatsApp otomatis</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Division &amp; staff management</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Internal calendar with shareable link</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> AI chatbot availability check</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Auto WhatsApp notifications</li>
                     </ul>
                   )}
 
                   {config.addonType === "hospitality" && (
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Data kamar real-time dari Google Sheet</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Kartu kamar interaktif di chat widget</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Badge "Harga Terbaik" &amp; "Hampir Penuh"</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Tombol "Pesan Sekarang" langsung ke halaman pemesanan</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Real-time room data from Google Sheet</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Interactive room cards in chat widget</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Best Price &amp; Almost Full badges</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Book Now button linking to your booking page</li>
                     </ul>
                   )}
 
@@ -556,13 +498,16 @@ export default function AdditionalServicesPage() {
                           onClick={() => handleManageClick(config.addonType)}
                           data-testid={`button-manage-${config.addonType}`}
                         >
-                          {config.addonType === "hospitality" && <ExternalLink className="w-3.5 h-3.5 mr-1" />}
+                          {config.addonType === "appointment_scheduling"
+                            ? <ListTodo className="w-3.5 h-3.5 mr-1.5" />
+                            : <CalendarDays className="w-3.5 h-3.5 mr-1.5" />
+                          }
                           Manage
                         </Button>
                         {trialActive && (
                           <span className="inline-flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400 font-medium" data-testid={`text-trial-countdown-${config.addonType}`}>
                             <Clock className="w-3.5 h-3.5 shrink-0" />
-                            Trial: {trialDaysLeft} hari tersisa
+                            Trial: {trialDaysLeft} days remaining
                           </span>
                         )}
                         <Button
@@ -573,7 +518,7 @@ export default function AdditionalServicesPage() {
                           disabled={cancelMutation.isPending}
                           data-testid={`button-cancel-${config.addonType}`}
                         >
-                          {cancelMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Nonaktifkan"}
+                          {cancelMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Deactivate"}
                         </Button>
                       </>
                     ) : (
@@ -584,7 +529,7 @@ export default function AdditionalServicesPage() {
                           data-testid={`button-subscribe-${config.addonType}`}
                         >
                           <Sparkles className="w-4 h-4 mr-2" />
-                          Aktifkan — ${config.monthlyPriceUsd}/bulan
+                          Activate — ${config.monthlyPriceUsd}/month
                         </Button>
                         {!usedTrial && (
                           <Button
@@ -599,7 +544,7 @@ export default function AdditionalServicesPage() {
                             ) : (
                               <Clock className="w-3.5 h-3.5 mr-1" />
                             )}
-                            Coba Gratis 7 Hari
+                            Start Free 7-Day Trial
                           </Button>
                         )}
                       </div>
@@ -609,7 +554,7 @@ export default function AdditionalServicesPage() {
                   {!active && (
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>Pembayaran diproses setelah konfirmasi metode.{usedTrial ? " Trial sudah pernah digunakan." : ""}</span>
+                      <span>Payment is processed after confirming the payment method.{usedTrial ? " Free trial already used." : ""}</span>
                     </div>
                   )}
                 </CardContent>
@@ -622,10 +567,6 @@ export default function AdditionalServicesPage() {
       <HospitalitySettingsDialog
         open={hospitalitySettingsOpen}
         onClose={() => setHospitalitySettingsOpen(false)}
-      />
-      <SmartAppointmentDialog
-        open={appointmentSettingsOpen}
-        onClose={() => setAppointmentSettingsOpen(false)}
       />
     </div>
   );
