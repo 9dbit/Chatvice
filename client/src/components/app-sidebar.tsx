@@ -50,6 +50,7 @@ import {
   Radio,
   Sparkles,
   Calendar,
+  Hotel,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -194,8 +195,6 @@ const defaultManagementItems: MenuItem[] = [
   menuItemsMap["integrations"],
   menuItemsMap["chat-monitoring"],
   menuItemsMap["data-usage"],
-  menuItemsMap["additional-services"],
-  menuItemsMap["appointments"],
   menuItemsMap["plans"],
   menuItemsMap["billing"],
 ];
@@ -225,8 +224,6 @@ const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSet
   "integrations": "management",
   "chat-monitoring": "management",
   "data-usage": "management",
-  "additional-services": "management",
-  "appointments": "management",
   "plans": "management",
   "billing": "management",
 };
@@ -367,6 +364,13 @@ export function AppSidebar() {
     refetchOnMount: true,
     retry: 1,
   });
+
+  const { data: merchantAddons = [] } = useQuery<{ addonType: string; isActive: boolean }[]>({
+    queryKey: ["/api/merchant/addons"],
+    enabled: !!merchantId && isAdmin,
+    staleTime: 60000,
+  });
+  const activeAddonTypes = merchantAddons.filter(a => a.isActive).map(a => a.addonType);
 
   const { data: sessions } = useQuery<Session[]>({
     queryKey: ["/api/sessions", merchantId],
@@ -567,6 +571,34 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                 );
               })}
+
+              {/* Active addon items — shown below main menu when addon is purchased */}
+              {isAdmin && activeAddonTypes.includes("appointment_scheduling") && (() => {
+                const isActive = isItemActive("/dashboard/appointments");
+                return (
+                  <SidebarMenuItem key="appointments">
+                    <SidebarMenuButton asChild className={isActive ? "bg-sidebar-accent" : ""}>
+                      <Link href="/dashboard/appointments" data-testid="link-sidebar-janji-temu">
+                        <Calendar className="w-4 h-4" />
+                        <span className="flex-1">Janji Temu</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })()}
+              {isAdmin && activeAddonTypes.includes("hospitality") && (() => {
+                const isActive = isItemActive("/dashboard/plans");
+                return (
+                  <SidebarMenuItem key="hospitality-ai">
+                    <SidebarMenuButton asChild className={isActive ? "bg-sidebar-accent" : ""}>
+                      <Link href="/dashboard/plans#hospitality" data-testid="link-sidebar-hospitality">
+                        <Hotel className="w-4 h-4" />
+                        <span className="flex-1">Hospitality AI</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })()}
 
               {filteredManagementItems.length > 0 && (
                 <Collapsible open={managementOpen} onOpenChange={setManagementOpen}>

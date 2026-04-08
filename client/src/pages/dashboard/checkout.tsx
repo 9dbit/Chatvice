@@ -291,18 +291,16 @@ export default function CheckoutPage() {
   const resumeTransactionId = urlParams.get('resume');
   const fromPage = urlParams.get('from') || 'plans';
   const invoiceId = urlParams.get('invoiceId'); // Custom plan invoice ID for direct invoice checkout
+  const addonType = urlParams.get('addon'); // Addon type for additional services checkout
   
   const isAnnual = billingInterval === 'annual';
   const isResumeMode = Boolean(resumeTransactionId);
   const isInvoiceMode = Boolean(invoiceId); // Check if this is an invoice checkout
+  const isAddonMode = Boolean(addonType); // Check if this is an addon checkout
   
   // Smart back button navigation
   const handleBack = () => {
-    if (fromPage === 'billing') {
-      navigate('/dashboard/billing');
-    } else {
-      navigate('/dashboard/plans');
-    }
+    navigate('/dashboard/plans');
   };
   
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('qris');
@@ -342,6 +340,13 @@ export default function CheckoutPage() {
     queryKey: ["/api/exchange-rate"],
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
+
+  // Fetch addon configs for addon mode
+  const { data: addonConfigs = [] } = useQuery<any[]>({
+    queryKey: ["/api/addon-configs"],
+    enabled: isAddonMode,
+  });
+  const selectedAddonConfig = addonConfigs.find((c: any) => c.addonType === addonType);
   
   const { data: dbPlans = [], isLoading: plansLoading } = useQuery<any[]>({
     queryKey: ["/api/subscription-plans"],
@@ -597,11 +602,14 @@ export default function CheckoutPage() {
   }, []);
 
   const checkoutMutation = useMutation({
-    mutationFn: async (params: { planId: string; billingInterval: string; paymentMethod: PaymentMethod; bankCode?: string; senderName?: string; senderBank?: string; promoCode?: string; invoiceId?: string }) => {
+    mutationFn: async (params: { planId?: string; billingInterval?: string; paymentMethod: PaymentMethod; bankCode?: string; senderName?: string; senderBank?: string; promoCode?: string; invoiceId?: string; addonType?: string }) => {
       const response = await apiRequest("POST", "/api/billing/checkout-v2", params);
       return response.json();
     },
     onSuccess: (data) => {
+      if (data.addonType) {
+        queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
+      }
       if (data.paymentMethod === 'qris') {
         setQrisData(data);
         setPaymentStep('qris');
@@ -695,15 +703,31 @@ export default function CheckoutPage() {
   const hasAnyPendingPayment = hasExistingPendingPayment || hasPendingCustomInvoices;
 
   const handleProceedToPayment = () => {
-    // For invoice mode, we need invoice data; for standard plans, we need selectedPlan
-    if (!isInvoiceMode && !selectedPlan) return;
-    if (isInvoiceMode && !invoiceData) return;
     if (!termsAccepted) return;
-    
+
     if ((selectedPaymentMethod === 'virtual_account' || selectedPaymentMethod === 'bank_transfer') && !selectedBank) {
       toast({ title: "Error", description: "Please select a bank", variant: "destructive" });
       return;
     }
+
+    // Addon mode - no pending payment check needed
+    if (isAddonMode && addonType) {
+      if (selectedPaymentMethod === 'crypto') {
+        setPaymentStep('crypto');
+        return;
+      }
+      setPaymentStep('loading');
+      checkoutMutation.mutate({
+        addonType,
+        paymentMethod: selectedPaymentMethod,
+        bankCode: selectedBank || undefined,
+      });
+      return;
+    }
+
+    // For invoice mode, we need invoice data; for standard plans, we need selectedPlan
+    if (!isInvoiceMode && !selectedPlan) return;
+    if (isInvoiceMode && !invoiceData) return;
     
     // Check for existing pending payment - show warning dialog
     if (hasExistingPendingPayment && paymentStep === 'select_method') {
@@ -1370,14 +1394,18 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="text-sm font-semibold">
-                    {isInvoiceMode && invoiceData 
-                      ? 'Custom Plan' 
-                      : selectedPlan?.name || 'Custom Plan'}
+                    {isAddonMode 
+                      ? (selectedAddonConfig?.name || 'Additional Service')
+                      : isInvoiceMode && invoiceData 
+                        ? 'Custom Plan' 
+                        : selectedPlan?.name || 'Custom Plan'}
                   </h2>
                   <p className="text-xs text-muted-foreground">
-                    {isInvoiceMode && invoiceData 
-                      ? invoiceData.invoiceNumber 
-                      : 'Chatvice Subscription'}
+                    {isAddonMode 
+                      ? 'Chatvice Add-on — Monthly'
+                      : isInvoiceMode && invoiceData 
+                        ? invoiceData.invoiceNumber 
+                        : 'Chatvice Subscription'}
                   </p>
                 </div>
               </div>
@@ -1386,10 +1414,14 @@ export default function CheckoutPage() {
                 <div className="p-3 flex items-center justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground">Starting today</p>
-                    <p className="text-sm font-bold">${finalPriceUSD.toFixed(2)}/{isAnnual ? 'year' : 'month'}</p>
+                    <p className="text-sm font-bold">
+                      {isAddonMode 
+                        ? `$${selectedAddonConfig?.monthlyPriceUsd?.toFixed(2) || '12.00'}/month`
+                        : `$${finalPriceUSD.toFixed(2)}/${isAnnual ? 'year' : 'month'}`}
+                    </p>
                   </div>
                   <Badge variant="secondary" className="text-[10px] h-5 px-2">
-                    {isAnnual ? 'Annual' : 'Monthly'}
+                    Monthly
                   </Badge>
                 </div>
                 
@@ -1465,7 +1497,7 @@ export default function CheckoutPage() {
                   <ArrowRight className="w-4 h-4 mr-2" />
                 )}
                 <span className="text-sm">
-                  {selectedPaymentMethod === 'payment_link' ? 'Use share buttons on the right' : selectedPaymentMethod === 'paypal' ? 'Use PayPal button on the right' : `Subscribe • $${finalPriceUSD.toFixed(2)}`}
+                  {selectedPaymentMethod === 'payment_link' ? 'Use share buttons on the right' : selectedPaymentMethod === 'paypal' ? 'Use PayPal button on the right' : isAddonMode ? `Subscribe • $${selectedAddonConfig?.monthlyPriceUsd?.toFixed(2) || '12.00'}/mo` : `Subscribe • $${finalPriceUSD.toFixed(2)}`}
                 </span>
               </Button>
             </div>
@@ -1764,7 +1796,7 @@ export default function CheckoutPage() {
                 <ArrowRight className="w-4 h-4 mr-2" />
               )}
               <span className="text-sm">
-                {selectedPaymentMethod === 'payment_link' ? 'Use share buttons above' : selectedPaymentMethod === 'paypal' ? 'Use PayPal button above' : `Subscribe • $${finalPriceUSD.toFixed(2)}`}
+                {selectedPaymentMethod === 'payment_link' ? 'Use share buttons above' : selectedPaymentMethod === 'paypal' ? 'Use PayPal button above' : isAddonMode ? `Subscribe • $${selectedAddonConfig?.monthlyPriceUsd?.toFixed(2) || '12.00'}/mo` : `Subscribe • $${finalPriceUSD.toFixed(2)}`}
               </span>
             </Button>
           </div>

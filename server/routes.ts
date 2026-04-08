@@ -8806,12 +8806,136 @@ Rules:
   // Checkout with payment method selection
   app.post("/api/billing/checkout-v2", requireMerchant, async (req, res) => {
     try {
-      const { planId, billingInterval, paymentMethod, bankCode, promoCode, invoiceId } = req.body;
+      const { planId, billingInterval, paymentMethod, bankCode, promoCode, invoiceId, addonType } = req.body;
       const merchant = await storage.getMerchant(req.session.merchantId!);
       if (!merchant) {
         return res.status(404).json({ error: "Merchant not found" });
       }
-      
+
+      // Handle addon purchase - separate flow from plan subscriptions
+      if (addonType) {
+        if (!isKompasPayConfigured()) {
+          return res.status(503).json({ error: "Payment gateway not configured" });
+        }
+        const addonConfigs = await storage.getAddonConfigs();
+        const addonConfig = addonConfigs.find((a: any) => a.addonType === addonType && a.isEnabled);
+        if (!addonConfig) {
+          return res.status(400).json({ error: "Addon tidak tersedia" });
+        }
+        const existingAddon = await storage.getMerchantAddon(merchant.id, addonType);
+        if (existingAddon?.isActive) {
+          return res.status(400).json({ error: "Addon sudah aktif" });
+        }
+        const savedRate = await storage.getPlatformSetting("exchange_rate");
+        const exchangeRate = savedRate ? parseInt(savedRate) : 16500;
+        const priceIDR = Math.max(Math.round(addonConfig.monthlyPriceUsd * exchangeRate), 10000);
+        const timestamp = Date.now();
+        const orderId = `ADDON_${merchant.id}_${addonType}_${timestamp}`;
+        const numericOrderId = timestamp.toString().slice(-15) + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        const forwardedHost = req.get('x-forwarded-host') || req.get('host');
+        const isLocalhost = !forwardedHost || forwardedHost.includes('localhost');
+        const callbackUrl = isLocalhost
+          ? 'https://chatvice.app/api/payment/webhook'
+          : `https://${forwardedHost}/api/payment/webhook`;
+        const SUPPORTED_BANK_CODES = ['002', '008', '022', '013', '011', '016', '490', '451'];
+        let paymentResult: any = null;
+        const addonMetadata = { merchantId: merchant.id, addonType, type: 'addon' };
+        const addonDescription = `Chatvice ${addonConfig.name} - Monthly Add-on`;
+
+        switch (paymentMethod) {
+          case 'qris':
+            paymentResult = await createQRISPayment({
+              merchantId: merchant.id, orderId, amount: priceIDR,
+              customerName: merchant.companyName, customerEmail: merchant.email,
+              description: addonDescription, expiryMinutes: 5, callbackUrl, metadata: addonMetadata,
+            });
+            if (!paymentResult.success || !paymentResult.data) {
+              return res.status(500).json({ error: paymentResult.error || "Failed to create QRIS payment" });
+            }
+            try {
+              await storage.createPaymentTransaction({
+                merchantId: merchant.id, externalId: paymentResult.data.transactionId, amount: priceIDR,
+                status: 'pending', paymentMethod: 'qris', planId: null, planName: addonConfig.name,
+                subscriptionMonths: 1, merchantEmail: merchant.email, merchantCompanyName: merchant.companyName,
+                qrisUrl: paymentResult.data.qrisImageUrl,
+                gatewayResponse: { qrisString: paymentResult.data.qrisString, orderId: paymentResult.data.orderId, type: 'addon', addonType },
+                expiresAt: new Date(paymentResult.data.expiryTime), invoiceNumber: orderId,
+              });
+            } catch (e) { console.warn("Could not save addon QRIS transaction:", e); }
+            return res.json({
+              paymentMethod: 'qris', transactionId: paymentResult.data.transactionId,
+              orderId: paymentResult.data.orderId, qrisString: paymentResult.data.qrisString,
+              qrisImage: paymentResult.data.qrisImageUrl, amount: priceIDR,
+              amountUSD: addonConfig.monthlyPriceUsd, expiryTime: paymentResult.data.expiryTime,
+              planId: null, planName: addonConfig.name, billingInterval: 'monthly', addonType,
+            });
+
+          case 'va':
+          case 'virtual_account':
+            if (!bankCode || !SUPPORTED_BANK_CODES.includes(bankCode)) {
+              return res.status(400).json({ error: "Bank code tidak valid atau tidak didukung" });
+            }
+            paymentResult = await createVAPayment({
+              merchantId: merchant.id, orderId: numericOrderId, amount: priceIDR,
+              bankCode, customerName: merchant.companyName, customerEmail: merchant.email,
+              description: addonDescription, expiryMinutes: 30, callbackUrl, metadata: { ...addonMetadata, originalOrderId: orderId },
+            });
+            if (!paymentResult.success || !paymentResult.data) {
+              return res.status(400).json({ error: paymentResult.error || "Failed to create Virtual Account" });
+            }
+            try {
+              await storage.createPaymentTransaction({
+                merchantId: merchant.id, externalId: paymentResult.data.transactionId, amount: priceIDR,
+                status: 'pending', paymentMethod: 'virtual_account', planId: null, planName: addonConfig.name,
+                subscriptionMonths: 1, merchantEmail: merchant.email, merchantCompanyName: merchant.companyName,
+                gatewayResponse: { vaNumber: paymentResult.data.vaNumber, bankCode, orderId: numericOrderId, type: 'addon', addonType },
+                expiresAt: new Date(Date.now() + 30 * 60 * 1000), invoiceNumber: orderId,
+              });
+            } catch (e) { console.warn("Could not save addon VA transaction:", e); }
+            return res.json({
+              paymentMethod: 'virtual_account', transactionId: paymentResult.data.transactionId,
+              orderId: numericOrderId, vaNumber: paymentResult.data.vaNumber, bankCode,
+              amount: priceIDR, amountUSD: addonConfig.monthlyPriceUsd,
+              expiryTime: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+              planName: addonConfig.name, billingInterval: 'monthly', addonType,
+            });
+
+          case 'bank_transfer': {
+            const TRANSFER_BANKS_LOCAL = [
+              { code: 'BNI', name: 'Bank Negara Indonesia (BNI)', accountNumber: '1234567890', accountName: 'PT Chatvice Indonesia' },
+              { code: 'BRI', name: 'Bank Rakyat Indonesia (BRI)', accountNumber: '0987654321', accountName: 'PT Chatvice Indonesia' },
+              { code: 'MANDIRI', name: 'Bank Mandiri', accountNumber: '1122334455', accountName: 'PT Chatvice Indonesia' },
+              { code: 'BCA', name: 'Bank Central Asia (BCA)', accountNumber: '5566778899', accountName: 'PT Chatvice Indonesia' },
+            ];
+            const bankInfo = TRANSFER_BANKS_LOCAL.find(b => b.code === bankCode);
+            if (!bankInfo) return res.status(400).json({ error: "Bank tidak valid" });
+            const uniqueCode = Math.floor(Math.random() * 900) + 100;
+            const totalAmount = priceIDR + uniqueCode;
+            const fakeTransactionId = `BT_ADDON_${timestamp}`;
+            try {
+              await storage.createPaymentTransaction({
+                merchantId: merchant.id, externalId: fakeTransactionId, amount: totalAmount,
+                status: 'pending', paymentMethod: 'bank_transfer', planId: null, planName: addonConfig.name,
+                subscriptionMonths: 1, merchantEmail: merchant.email, merchantCompanyName: merchant.companyName,
+                gatewayResponse: { bankCode, accountNumber: bankInfo.accountNumber, accountName: bankInfo.accountName, uniqueCode, orderId, type: 'addon', addonType },
+                expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), invoiceNumber: orderId,
+              });
+            } catch (e) { console.warn("Could not save addon bank transfer transaction:", e); }
+            return res.json({
+              paymentMethod: 'bank_transfer', transactionId: fakeTransactionId, orderId,
+              accountNumber: bankInfo.accountNumber, accountName: bankInfo.accountName,
+              bankCode, bankName: bankInfo.name, amount: priceIDR, amountUSD: addonConfig.monthlyPriceUsd,
+              uniqueCode, totalAmount,
+              expiryTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+              planName: addonConfig.name, billingInterval: 'monthly', addonType,
+            });
+          }
+
+          default:
+            return res.status(400).json({ error: "Payment method tidak didukung untuk addon" });
+        }
+      }
+
       const plan = await getEffectiveSubscriptionPlan(planId);
       if (!plan) {
         return res.status(400).json({ error: "Invalid plan" });

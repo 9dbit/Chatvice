@@ -24,7 +24,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
-import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp, QrCode, Timer, RefreshCw, Download, XCircle, Tag, Smartphone, Copy, ShieldCheck, FileText, ArrowRight, CreditCard, X, Bot, Database } from "lucide-react";
+import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp, QrCode, Timer, RefreshCw, Download, XCircle, Tag, Smartphone, Copy, ShieldCheck, FileText, ArrowRight, CreditCard, X, Bot, Database, Hotel, CheckCircle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
@@ -229,6 +229,27 @@ export default function BillingPage() {
   // Fetch billing transaction history
   const { data: billingHistory = [], isLoading: isLoadingHistory } = useQuery<BillingTransaction[]>({
     queryKey: ["/api/billing/transactions"],
+  });
+
+  // Fetch addon configs and merchant addons for the Additional Services section
+  const { data: addonConfigs = [] } = useQuery<any[]>({
+    queryKey: ["/api/addon-configs"],
+  });
+  const { data: merchantAddons = [] } = useQuery<any[]>({
+    queryKey: ["/api/merchant/addons"],
+  });
+  const addonTrialMutation = useMutation({
+    mutationFn: async (addonType: string) => {
+      const res = await apiRequest("POST", "/api/merchant/addons/start-trial", { addonType });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
+      toast({ title: "Trial dimulai!", description: "Masa percobaan gratis 7 hari Anda sekarang aktif." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Gagal", description: err.message || "Tidak dapat memulai trial", variant: "destructive" });
+    },
   });
   
   // Fetch custom plan invoices
@@ -1922,6 +1943,118 @@ export default function BillingPage() {
           })}
         </div>
       </div>
+
+      {/* Additional Services Section */}
+      {addonConfigs.length > 0 && (
+        <div>
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold">Additional Services</h2>
+            <p className="text-sm text-muted-foreground">Aktifkan fitur premium untuk meningkatkan kemampuan chatbot Anda</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {addonConfigs.map((config: any) => {
+              const addon = merchantAddons.find((a: any) => a.addonType === config.addonType);
+              const isActive = addon?.isActive;
+              const trialActive = isActive && addon?.trialEndsAt && new Date(addon.trialEndsAt) > new Date();
+              const trialDaysLeft = addon?.trialEndsAt
+                ? Math.max(0, Math.ceil((new Date(addon.trialEndsAt).getTime() - Date.now()) / 86400000))
+                : null;
+              const usedTrial = !!addon?.trialEndsAt;
+              const Icon = config.addonType === "hospitality" ? Hotel : Calendar;
+
+              return (
+                <Card key={config.addonType} data-testid={`card-addon-billing-${config.addonType}`}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-md bg-primary/10">
+                          <Icon className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-base">{config.name}</CardTitle>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className="text-sm font-semibold text-primary">
+                              ${config.monthlyPriceUsd}/bulan
+                            </span>
+                            {isActive && trialActive ? (
+                              <Badge variant="outline" className="text-xs gap-1">
+                                <Clock className="w-3 h-3" />
+                                Trial — {trialDaysLeft}h tersisa
+                              </Badge>
+                            ) : isActive ? (
+                              <Badge variant="secondary" className="text-xs">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Aktif
+                              </Badge>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3 pt-0">
+                    {config.addonType === "appointment_scheduling" && (
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Manajemen divisi &amp; staf</li>
+                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Kalender internal dengan link berbagi</li>
+                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Cek ketersediaan via AI chatbot</li>
+                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Notifikasi WhatsApp otomatis</li>
+                      </ul>
+                    )}
+                    {config.addonType === "hospitality" && (
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Data kamar real-time dari Google Sheet</li>
+                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Kartu kamar interaktif di chat widget</li>
+                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Badge "Harga Terbaik" &amp; "Hampir Penuh"</li>
+                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Tombol "Pesan Sekarang" ke URL pemesanan</li>
+                      </ul>
+                    )}
+                    <div className="flex gap-2 pt-1">
+                      {isActive ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => navigate(config.addonType === "appointment_scheduling" ? "/dashboard/appointments" : "/dashboard/plans")}
+                          data-testid={`button-manage-addon-${config.addonType}`}
+                        >
+                          Kelola
+                          <ArrowRight className="w-3 h-3 ml-1" />
+                        </Button>
+                      ) : (
+                        <>
+                          {!usedTrial && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1"
+                              onClick={() => addonTrialMutation.mutate(config.addonType)}
+                              disabled={addonTrialMutation.isPending}
+                              data-testid={`button-trial-addon-${config.addonType}`}
+                            >
+                              {addonTrialMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Gift className="w-3 h-3 mr-1" />}
+                              Coba Gratis 7 Hari
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => navigate(`/dashboard/checkout?addon=${config.addonType}`)}
+                            data-testid={`button-buy-addon-${config.addonType}`}
+                          >
+                            <CreditCard className="w-3 h-3 mr-1" />
+                            Berlangganan
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Pending Custom Plan Request Status */}
       {pendingCustomRequest && (
