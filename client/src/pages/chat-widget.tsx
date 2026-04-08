@@ -17,6 +17,54 @@ import { countryPhoneConfigs, validatePhoneNumber } from "@shared/phoneValidatio
 import chatviceLogoLight from "../assets/chatvice-logo-light.png";
 import chatviceLogoDark from "../assets/chatvice-logo-dark.png";
 
+interface AppointmentSlotProvider {
+  providerName: string;
+  date: string;
+  slots: string[];
+}
+
+interface AppointmentAvailabilityPayload {
+  providers: AppointmentSlotProvider[];
+}
+
+interface AppointmentBookedPayload {
+  appointment: {
+    appointmentDate: string;
+    appointmentTime: string;
+    bookingCode?: string | null;
+    id?: string;
+  };
+}
+
+interface AppointmentRecord {
+  id: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  bookingCode?: string | null;
+  status: string;
+}
+
+interface AppointmentListPayload {
+  appointments: AppointmentRecord[];
+}
+
+type AppointmentMessage = Message & {
+  messageType: "appointment_availability" | "appointment_booked" | "appointment_list" | "appointment_cancelled";
+  payload: AppointmentAvailabilityPayload | AppointmentBookedPayload | AppointmentListPayload | { appointmentId: string };
+};
+
+function isAppointmentAvailability(msg: Message): msg is AppointmentMessage & { payload: AppointmentAvailabilityPayload } {
+  return (msg as AppointmentMessage).messageType === "appointment_availability" && !!(msg as AppointmentMessage).payload && "providers" in (msg as AppointmentMessage).payload;
+}
+
+function isAppointmentBooked(msg: Message): msg is AppointmentMessage & { payload: AppointmentBookedPayload } {
+  return (msg as AppointmentMessage).messageType === "appointment_booked" && !!(msg as AppointmentMessage).payload && "appointment" in (msg as AppointmentMessage).payload;
+}
+
+function isAppointmentList(msg: Message): msg is AppointmentMessage & { payload: AppointmentListPayload } {
+  return (msg as AppointmentMessage).messageType === "appointment_list" && !!(msg as AppointmentMessage).payload && "appointments" in (msg as AppointmentMessage).payload;
+}
+
 interface MerchantConfig {
   merchantId?: string;
   online: boolean;
@@ -3129,9 +3177,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 >
                   {!((msg as any).messageType === "media" && (msg as any).payload?.url) && 
                    !((msg as any).messageType === "product_offer" && (msg as any).payload?.productCard) &&
-                   !((msg as any).messageType === "appointment_availability" && (msg as any).payload?.providers) &&
-                   !((msg as any).messageType === "appointment_booked" && (msg as any).payload?.appointment) &&
-                   !((msg as any).messageType === "appointment_list" && (msg as any).payload?.appointments) &&
+                   !isAppointmentAvailability(msg) &&
+                   !isAppointmentBooked(msg) &&
+                   !isAppointmentList(msg) &&
                    !msg.mediaUrl && (() => {
                     const parsed = parseMessageContent(msg.content);
                     const hasButtons = parsed.some(p => p.type === "button");
@@ -3302,8 +3350,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                       </div>
                     );
                   })()}
-                  {(msg as any).messageType === "appointment_availability" && (msg as any).payload?.providers && (() => {
-                    const providers: Array<{ providerName: string; date: string; slots: string[] }> = (msg as any).payload.providers;
+                  {isAppointmentAvailability(msg) && (() => {
+                    const providers = msg.payload.providers;
                     return (
                       <div className="space-y-2 w-full">
                         <p className="text-xs font-semibold mb-1" style={{ color: primaryColor }}>Available Slots</p>
@@ -3330,8 +3378,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                       </div>
                     );
                   })()}
-                  {(msg as any).messageType === "appointment_booked" && (msg as any).payload?.appointment && (() => {
-                    const appt = (msg as any).payload.appointment;
+                  {isAppointmentBooked(msg) && (() => {
+                    const appt = msg.payload.appointment;
                     return (
                       <div className="rounded-lg border bg-background/60 p-3 space-y-1" data-testid="card-appointment-booked">
                         <p className="text-xs font-semibold" style={{ color: primaryColor }}>Appointment Confirmed</p>
@@ -3341,15 +3389,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                       </div>
                     );
                   })()}
-                  {(msg as any).messageType === "appointment_list" && (msg as any).payload?.appointments && (() => {
-                    const appts: any[] = (msg as any).payload.appointments;
+                  {isAppointmentList(msg) && (() => {
+                    const appts = msg.payload.appointments;
                     return (
                       <div className="space-y-2 w-full" data-testid="list-appointments">
                         <p className="text-xs font-semibold" style={{ color: primaryColor }}>Your Appointments</p>
                         {appts.length === 0 ? (
                           <p className="text-xs text-muted-foreground">No upcoming appointments found.</p>
-                        ) : appts.map((appt, ai) => (
-                          <div key={ai} className="rounded-lg border bg-background/60 p-2 text-xs" data-testid={`card-appt-${appt.id}`}>
+                        ) : appts.map((appt) => (
+                          <div key={appt.id} className="rounded-lg border bg-background/60 p-2 text-xs" data-testid={`card-appt-${appt.id}`}>
                             <p className="font-medium">{appt.appointmentDate} at {appt.appointmentTime}</p>
                             {appt.bookingCode && <p className="text-muted-foreground">Code: {appt.bookingCode}</p>}
                             <p className="text-muted-foreground capitalize">{appt.status}</p>

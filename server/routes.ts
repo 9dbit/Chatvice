@@ -5926,8 +5926,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                   await storage.createMessage({ sessionId, from: "chatvice", content: "", messageType: "appointment_booked", payload: bookedPayload });
                   broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "", messageType: "appointment_booked", payload: bookedPayload } });
                   console.log(`[Appointment] Booked slot: ${apptDate} ${apptTime} with provider ${provider.name}`);
-                } catch (bookErr: any) {
-                  const errMsg = bookErr?.message || "Booking failed";
+                } catch (bookErr: unknown) {
+                  const errMsg = bookErr instanceof Error ? bookErr.message : "Booking failed";
                   await storage.createMessage({ sessionId, from: "chatvice", content: `Maaf, terjadi masalah saat booking: ${errMsg}` });
                   broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: `Maaf, terjadi masalah saat booking: ${errMsg}` } });
                 }
@@ -5935,13 +5935,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             }
 
             if (hasGetMyAppointments) {
-              const session = await storage.getSession(sessionId);
-              // getUpcomingAppointments takes (merchantId, hoursAhead?); default 24h window
+              // Filter appointments by sessionId for strong ownership: only this chat session's appointments
               const upcoming = await getUpcomingAppointments(resolvedMerchantId, 168); // 1 week ahead
-              const customerName = session?.customerName || "";
-              const filtered = customerName
-                ? upcoming.filter(a => a.customerName === customerName)
-                : upcoming.slice(0, 5);
+              const filtered = upcoming.filter(a => a.sessionId === sessionId);
               const myApptPayload = { type: "appointment_list", appointments: filtered };
               await storage.createMessage({ sessionId, from: "chatvice", content: "", messageType: "appointment_list", payload: myApptPayload });
               broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "", messageType: "appointment_list", payload: myApptPayload } });
@@ -5950,15 +5946,17 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             if (hasCancelAppointment && cancelAppointmentMatch) {
               const apptId = cancelAppointmentMatch[1]?.trim();
               if (apptId) {
-                // Validate the appointment belongs to this merchant for security
                 const apptToCancel = await storage.getAppointment(apptId);
-                if (apptToCancel && apptToCancel.merchantId === resolvedMerchantId) {
+                // Verify: appointment must belong to this merchant AND this session (ownership check)
+                if (apptToCancel && apptToCancel.merchantId === resolvedMerchantId && apptToCancel.sessionId === sessionId) {
                   await storage.updateAppointment(apptId, { status: "cancelled" });
                   const cancelPayload = { type: "appointment_cancelled", appointmentId: apptId };
                   await storage.createMessage({ sessionId, from: "chatvice", content: "Appointment Anda telah dibatalkan.", messageType: "appointment_cancelled", payload: cancelPayload });
                   broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "Appointment Anda telah dibatalkan." } });
                 } else {
-                  console.warn(`[Appointment] Cancel rejected: appointment ${apptId} not found or wrong merchant`);
+                  console.warn(`[Appointment] Cancel rejected: appointment ${apptId} not found, wrong merchant, or wrong session`);
+                  await storage.createMessage({ sessionId, from: "chatvice", content: "Maaf, kami tidak dapat membatalkan appointment tersebut. Pastikan ID booking benar." });
+                  broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "Maaf, kami tidak dapat membatalkan appointment tersebut. Pastikan ID booking benar." } });
                 }
               }
             }
