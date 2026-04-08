@@ -1307,6 +1307,7 @@ export const rolePermissions = {
     teamActivity: true,
     livePreview: true,
     productCards: true,
+    appointments: true,
   },
   supervisor: {
     overview: false,
@@ -1326,6 +1327,7 @@ export const rolePermissions = {
     teamActivity: false,
     livePreview: false,
     productCards: false,
+    appointments: false,
   },
 } as const;
 

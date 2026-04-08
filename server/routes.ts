@@ -24165,7 +24165,7 @@ Please create a comprehensive help center article that would be useful for custo
       if (!merchantSlug || !providerId || !date) {
         return res.status(400).json({ error: "merchantSlug, providerId, and date required" });
       }
-      const merchant = await storage.getMerchantBySlug(merchantSlug);
+      const merchant = await storage.getMerchantByWidgetSlug(merchantSlug);
       if (!merchant) return res.status(404).json({ error: "Merchant not found" });
 
       const addon = await storage.getMerchantAddon(merchant.id, "appointment_scheduling");

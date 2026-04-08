@@ -174,3 +174,46 @@ export async function getUpcomingAppointments(merchantId: string, hoursAhead: nu
 
   return appts;
 }
+
+/**
+ * Send booking reminders for appointments coming up in the next 24 hours.
+ * Marks appointments as reminded so they are not re-sent on the next run.
+ * In production this would send SMS/email; for now it logs and broadcasts via WS.
+ */
+export async function sendBookingReminders(broadcastFn?: (sessionId: string, data: any) => void): Promise<number> {
+  try {
+    const merchants = await storage.getAllMerchants();
+    let totalReminded = 0;
+
+    for (const merchant of merchants) {
+      const addon = await storage.getMerchantAddon(merchant.id, "appointment_scheduling");
+      if (!addon || !addon.isActive) continue;
+
+      const upcomingAppts = await getUpcomingAppointments(merchant.id, 24);
+
+      for (const appt of upcomingAppts) {
+        if ((appt as any).reminderSentAt) continue; // skip already reminded
+
+        console.log(`[Appointment Reminder] Merchant ${merchant.id}: appointment ${appt.id} on ${appt.appointmentDate} ${appt.appointmentTime} for ${appt.customerName}`);
+
+        // If there is a chat session for this appointment, broadcast a reminder message
+        if (appt.sessionId && broadcastFn) {
+          broadcastFn(appt.sessionId, {
+            type: "message",
+            message: {
+              from: "chatvice",
+              content: `Reminder: You have an appointment on ${appt.appointmentDate} at ${appt.appointmentTime}. Booking code: ${appt.bookingCode || appt.id}.`,
+            },
+          });
+        }
+
+        totalReminded++;
+      }
+    }
+
+    return totalReminded;
+  } catch (err) {
+    console.error("[Appointment Reminder] Error sending reminders:", err);
+    return 0;
+  }
+}

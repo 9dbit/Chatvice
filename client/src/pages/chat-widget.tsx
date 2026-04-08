@@ -3129,6 +3129,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 >
                   {!((msg as any).messageType === "media" && (msg as any).payload?.url) && 
                    !((msg as any).messageType === "product_offer" && (msg as any).payload?.productCard) &&
+                   !((msg as any).messageType === "appointment_availability" && (msg as any).payload?.providers) &&
+                   !((msg as any).messageType === "appointment_booked" && (msg as any).payload?.appointment) &&
+                   !((msg as any).messageType === "appointment_list" && (msg as any).payload?.appointments) &&
                    !msg.mediaUrl && (() => {
                     const parsed = parseMessageContent(msg.content);
                     const hasButtons = parsed.some(p => p.type === "button");
@@ -3296,6 +3299,62 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                             ))}
                           </div>
                         )}
+                      </div>
+                    );
+                  })()}
+                  {(msg as any).messageType === "appointment_availability" && (msg as any).payload?.providers && (() => {
+                    const providers: Array<{ providerName: string; date: string; slots: string[] }> = (msg as any).payload.providers;
+                    return (
+                      <div className="space-y-2 w-full">
+                        <p className="text-xs font-semibold mb-1" style={{ color: primaryColor }}>Available Slots</p>
+                        {providers.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No available slots today. Please try another date.</p>
+                        ) : providers.map((prov, pi) => (
+                          <div key={pi} className="rounded-lg border bg-background/60 p-2">
+                            <p className="text-xs font-medium mb-1">{prov.providerName} — {prov.date}</p>
+                            <div className="flex flex-wrap gap-1">
+                              {prov.slots.map((slot, si) => (
+                                <button
+                                  key={si}
+                                  className="text-xs px-2 py-1 rounded border"
+                                  style={{ borderColor: primaryColor, color: primaryColor }}
+                                  onClick={() => sendButtonMessage(`I'd like to book at ${slot} with ${prov.providerName} on ${prov.date}`)}
+                                  data-testid={`button-appt-slot-${pi}-${si}`}
+                                >
+                                  {slot}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                  {(msg as any).messageType === "appointment_booked" && (msg as any).payload?.appointment && (() => {
+                    const appt = (msg as any).payload.appointment;
+                    return (
+                      <div className="rounded-lg border bg-background/60 p-3 space-y-1" data-testid="card-appointment-booked">
+                        <p className="text-xs font-semibold" style={{ color: primaryColor }}>Appointment Confirmed</p>
+                        <p className="text-xs"><span className="font-medium">Date:</span> {appt.appointmentDate}</p>
+                        <p className="text-xs"><span className="font-medium">Time:</span> {appt.appointmentTime}</p>
+                        {appt.bookingCode && <p className="text-xs"><span className="font-medium">Code:</span> {appt.bookingCode}</p>}
+                      </div>
+                    );
+                  })()}
+                  {(msg as any).messageType === "appointment_list" && (msg as any).payload?.appointments && (() => {
+                    const appts: any[] = (msg as any).payload.appointments;
+                    return (
+                      <div className="space-y-2 w-full" data-testid="list-appointments">
+                        <p className="text-xs font-semibold" style={{ color: primaryColor }}>Your Appointments</p>
+                        {appts.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">No upcoming appointments found.</p>
+                        ) : appts.map((appt, ai) => (
+                          <div key={ai} className="rounded-lg border bg-background/60 p-2 text-xs" data-testid={`card-appt-${appt.id}`}>
+                            <p className="font-medium">{appt.appointmentDate} at {appt.appointmentTime}</p>
+                            {appt.bookingCode && <p className="text-muted-foreground">Code: {appt.bookingCode}</p>}
+                            <p className="text-muted-foreground capitalize">{appt.status}</p>
+                          </div>
+                        ))}
                       </div>
                     );
                   })()}
