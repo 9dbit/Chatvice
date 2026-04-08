@@ -1285,7 +1285,10 @@
       "trialFree7Days": "Coba Gratis 7 Hari",
       "subscribe": "Berlangganan",
       "annual": "Tahunan",
-      "monthly": "Bulanan"
+      "monthly": "Bulanan",
+      "activatePremiumFeature": "Aktifkan fitur premium untuk meningkatkan kemampuan chatbot Anda",
+      "scanQrWithEwallet": "Scan kode QR dengan aplikasi e-wallet atau mobile banking",
+      "scanAndPay": "Scan & Bayar"
     },
     "plans": {
       "title": "Paket",
@@ -1570,7 +1573,9 @@
       "awaitingPayment": "Menunggu Pembayaran",
       "amountToPay": "Jumlah yang Harus Dibayar",
       "transferVA": "Transfer ke Virtual Account",
-      "transferBank": "Transfer ke Rekening Bank"
+      "transferBank": "Transfer ke Rekening Bank",
+      "useEwalletOrMobileBanking": "Gunakan e-wallet atau mobile banking",
+      "totalPayment": "TOTAL PEMBAYARAN"
     },
     "scheduler": {
       "timezoneUpdated": "Zona waktu diperbarui",
@@ -1705,7 +1710,10 @@
         "paymentSubmitted": "Pembayaran dikirim",
         "wellVerifyYourPaymentDesc": "Kami akan memverifikasi pembayaran dan mengaktifkan langganan Anda.",
         "submissionFailed": "Pengiriman gagal"
-      }
+      },
+      "useEwalletOrMobileBanking": "Gunakan e-wallet atau mobile banking",
+      "totalPayment": "TOTAL PEMBAYARAN",
+      "qrCodeNotAvailable": "QR Code tidak tersedia"
     }
   },
   "common": {

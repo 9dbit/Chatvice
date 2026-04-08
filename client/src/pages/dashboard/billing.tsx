@@ -1965,7 +1965,7 @@ export default function BillingPage() {
         <div>
           <div className="mb-4">
             <h2 className="text-xl font-semibold">Additional Services</h2>
-            <p className="text-sm text-muted-foreground">Aktifkan fitur premium untuk meningkatkan kemampuan chatbot Anda</p>
+            <p className="text-sm text-muted-foreground">{t("dashboard.billing.activatePremiumFeature")}</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {addonConfigs.map((config: any) => {
@@ -2371,9 +2371,9 @@ export default function BillingPage() {
                     <Smartphone className="w-6 h-6 text-primary" />
                   </div>
                   <DialogHeader className="space-y-1">
-                    <DialogTitle className="text-xl">Scan & Bayar</DialogTitle>
+                    <DialogTitle className="text-xl">{t("dashboard.billing.scanAndPay")}</DialogTitle>
                     <DialogDescription className="text-sm">
-                      Scan kode QR dengan aplikasi e-wallet atau mobile banking
+                      {t("dashboard.billing.scanQrWithEwallet")}
                     </DialogDescription>
                   </DialogHeader>
                 </div>

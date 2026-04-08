@@ -999,7 +999,7 @@ export default function CheckoutPage() {
         
         ctx.fillStyle = '#9ca3af';
         ctx.font = '11px system-ui, -apple-system, sans-serif';
-        ctx.fillText('Gunakan e-wallet atau mobile banking', cardWidth / 2, contentY + 18);
+        ctx.fillText(t('dashboard.checkout.useEwalletOrMobileBanking'), cardWidth / 2, contentY + 18);
         
         // QR Code container
         const qrSize = 200;
@@ -1083,7 +1083,7 @@ export default function CheckoutPage() {
         ctx.fillStyle = '#6b7280';
         ctx.font = '10px system-ui, -apple-system, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('TOTAL PEMBAYARAN', cardWidth / 2, totalY + 18);
+        ctx.fillText(t('dashboard.checkout.totalPayment'), cardWidth / 2, totalY + 18);
         
         ctx.fillStyle = '#f97316';
         ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
@@ -1867,7 +1867,7 @@ export default function CheckoutPage() {
                 <div className="flex flex-col items-center justify-center space-y-4">
                   <div className="text-center space-y-1">
                     <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Scan to Pay</h4>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">Gunakan e-wallet atau mobile banking</p>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">{t("dashboard.checkout.useEwalletOrMobileBanking")}</p>
                   </div>
                   
                   {/* QR Code Container */}
@@ -1890,7 +1890,7 @@ export default function CheckoutPage() {
                       />
                     ) : (
                       <div className="w-44 h-44 md:w-48 md:h-48 flex items-center justify-center bg-gray-50 rounded">
-                        <p className="text-xs text-gray-400 text-center px-4">QR Code tidak tersedia</p>
+                        <p className="text-xs text-gray-400 text-center px-4">{t("dashboard.checkout.qrCodeNotAvailable")}</p>
                       </div>
                     )}
                   </div>

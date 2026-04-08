@@ -1208,7 +1208,7 @@ export default function BillingDetailsPage() {
             {pendingPaymentDetails?.paymentMethod === 'qris' && pendingPaymentDetails.qrisString && (
               <div className="text-center mb-6">
                 <h3 className="font-semibold text-lg mb-1">SCAN TO PAY</h3>
-                <p className="text-sm text-gray-500 mb-4">Gunakan e-wallet atau mobile banking</p>
+                <p className="text-sm text-gray-500 mb-4">{t("dashboard.billingDetails.useEwalletOrMobileBanking")}</p>
                 <div className="bg-white border border-gray-200 rounded-lg p-4 inline-block mb-4">
                   <QRCodeSVG value={pendingPaymentDetails.qrisString} size={200} level="M" />
                 </div>
@@ -1279,7 +1279,7 @@ export default function BillingDetailsPage() {
 
             {/* Total */}
             <div className="bg-gray-100 rounded-lg p-4 text-center">
-              <p className="text-sm text-gray-500 mb-1">TOTAL PEMBAYARAN</p>
+              <p className="text-sm text-gray-500 mb-1">{t("dashboard.billingDetails.totalPayment")}</p>
               <p className="text-2xl font-bold text-primary">{pendingPaymentDetails?.amountFormatted}</p>
             </div>
           </div>

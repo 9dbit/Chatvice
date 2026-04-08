@@ -1285,7 +1285,10 @@
       "trialFree7Days": "Free 7-Day Trial",
       "subscribe": "Subscribe",
       "annual": "Annual",
-      "monthly": "Monthly"
+      "monthly": "Monthly",
+      "activatePremiumFeature": "Activate premium features to enhance your chatbot capabilities",
+      "scanQrWithEwallet": "Scan QR code with e-wallet or mobile banking app",
+      "scanAndPay": "Scan & Pay"
     },
     "plans": {
       "title": "Plans",
@@ -1570,7 +1573,9 @@
       "awaitingPayment": "Awaiting Payment",
       "amountToPay": "Amount to Pay",
       "transferVA": "Transfer to Virtual Account",
-      "transferBank": "Transfer to Bank Account"
+      "transferBank": "Transfer to Bank Account",
+      "useEwalletOrMobileBanking": "Use e-wallet or mobile banking",
+      "totalPayment": "TOTAL PAYMENT"
     },
     "scheduler": {
       "timezoneUpdated": "Timezone updated",
@@ -1705,7 +1710,10 @@
         "paymentSubmitted": "Payment submitted",
         "wellVerifyYourPaymentDesc": "We'll verify your payment and activate your subscription.",
         "submissionFailed": "Submission failed"
-      }
+      },
+      "useEwalletOrMobileBanking": "Use e-wallet or mobile banking",
+      "totalPayment": "TOTAL PAYMENT",
+      "qrCodeNotAvailable": "QR Code not available"
     }
   },
   "common": {
