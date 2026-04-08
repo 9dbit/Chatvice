@@ -237,7 +237,16 @@
       "hospitality": "Hospitality AI",
       "hospitalityDesc": "AI-powered hotel availability checker with Google Sheets integration",
       "appointments": "Smart Appointments",
-      "appointmentsDesc": "Automated appointment scheduling for your business"
+      "appointmentsDesc": "Automated appointment scheduling for your business",
+      "hotelName": "Hotel Name",
+      "bookingUrl": "Booking URL",
+      "googleSheetUrl": "Google Sheet URL",
+      "aiInstructions": "Additional AI Instructions (optional)",
+      "enableFeature": "Enable Feature",
+      "daysRemaining": "days remaining",
+      "paymentNote": "Payment is processed after confirming the payment method.",
+      "trialUsed": "Free trial already used.",
+      "hospitalityDesc2": "Connect your hotel room data from Google Sheet to display real-time availability in the chatbot."
     },
     "notificationSettings": {
       "title": "Notification Settings",
@@ -419,7 +428,8 @@
       "showLess": "Show Less",
       "noResults": "No results found",
       "tryAgain": "Try Again",
-      "expired": "Expired"
+      "expired": "Expired",
+      "errorDesc": "Something went wrong. Please try again."
     },
     "overview": {
       "title": "Dashboard",
@@ -491,7 +501,29 @@
       "newMessage": "New message!",
       "newSessions": "new sessions started",
       "escalatedAlert": "Escalated session!",
-      "escalatedDesc": "session(s) need immediate attention"
+      "escalatedDesc": "session(s) need immediate attention",
+      "productOffered": "Product offered",
+      "productOfferedDesc": "The product recommendation has been sent to the customer.",
+      "productOfferFailed": "Failed to offer product",
+      "sendFailed": "Failed to send message",
+      "fileSent": "File sent",
+      "uploadFailed": "Upload failed",
+      "uploadFailedDesc": "Failed to upload the file. Please try again.",
+      "sessionTakenOver": "Session taken over",
+      "sessionTakenOverDesc": "You are now handling this conversation.",
+      "takeOverFailed": "Failed to take over",
+      "returnedToAI": "Returned to AI",
+      "returnedToAIDesc": "The conversation is now being handled by the AI assistant.",
+      "returnToBotFailed": "Failed to return to bot",
+      "answerRevised": "Answer revised",
+      "answerRevisedDesc": "The AI response has been updated.",
+      "reviseFailed": "Failed to revise",
+      "transcriptExported": "Transcript exported",
+      "transcriptExportedDesc": "The chat transcript has been downloaded.",
+      "exportFailed": "Export failed",
+      "exportFailedDesc": "Could not export the transcript. Please try again.",
+      "refinementFailed": "Refinement failed",
+      "refinementFailedDesc": "Sending your original message."
     },
     "knowledge": {
       "title": "Knowledge Base",
@@ -861,7 +893,14 @@
       "priceIDR": "Price (IDR)",
       "editDivision": "Edit Division",
       "editStaff": "Edit Staff",
-      "internalCalendarLink": "Internal Calendar Link (Staff)"
+      "internalCalendarLink": "Internal Calendar Link (Staff)",
+      "divisionPlaceholder": "e.g. Dermatology, General Surgery",
+      "divisionDescPlaceholder": "Brief division description",
+      "locationPlaceholder": "e.g. Floor 2, Building A",
+      "staffNamePlaceholder": "Doctor / Staff name",
+      "selectDivision": "Select division...",
+      "serviceNamePlaceholder": "e.g. General Consultation",
+      "reasonPlaceholder": "Reason (optional)"
     },
     "sources": {
       "title": "Active Sources",

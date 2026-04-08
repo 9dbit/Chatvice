@@ -71,6 +71,7 @@ type HospitalityForm = z.infer<typeof hospitalityFormSchema>;
 const glassDialogClass = "sm:max-w-[560px] w-[calc(100vw-2rem)] max-h-[88vh] flex flex-col p-0 gap-0 rounded-2xl overflow-hidden bg-card/95 backdrop-blur-xl border-border/50 shadow-2xl";
 
 function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [sheetTestResult, setSheetTestResult] = useState<SheetTestResult | null>(null);
   const [isTesting, setIsTesting] = useState(false);
@@ -134,7 +135,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
             Hospitality AI Settings
           </DialogTitle>
           <DialogDescription className="mt-1">
-            Connect your hotel room data from Google Sheet to display real-time availability in the chatbot.
+            {t("dashboard.additionalServices.hospitalityDesc2")}
           </DialogDescription>
         </DialogHeader>
 
@@ -152,7 +153,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                   render={({ field }) => (
                     <div className="flex items-center justify-between gap-4 p-3 rounded-xl border">
                       <div>
-                        <p className="text-sm font-medium">Enable Feature</p>
+                        <p className="text-sm font-medium">{t("dashboard.additionalServices.enableFeature")}</p>
                         <p className="text-xs text-muted-foreground">The chatbot will show room availability when customers ask</p>
                       </div>
                       <Switch
@@ -169,7 +170,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                   name="hotelName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Hotel Name</FormLabel>
+                      <FormLabel>{t("dashboard.additionalServices.hotelName")}</FormLabel>
                       <FormControl>
                         <Input placeholder="Grand Chatvice Hotel" {...field} data-testid="input-hotel-name" />
                       </FormControl>
@@ -183,7 +184,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                   name="bookingUrl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Booking URL</FormLabel>
+                      <FormLabel>{t("dashboard.additionalServices.bookingUrl")}</FormLabel>
                       <FormControl>
                         <Input type="url" placeholder="https://book.yourhotel.com" {...field} data-testid="input-booking-url" />
                       </FormControl>
@@ -198,7 +199,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                   name="googleSheetUrl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Google Sheet URL</FormLabel>
+                      <FormLabel>{t("dashboard.additionalServices.googleSheetUrl")}</FormLabel>
                       <FormControl>
                         <div className="flex gap-2">
                           <Input
@@ -269,7 +270,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                   name="aiInstructions"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Additional AI Instructions (optional)</FormLabel>
+                      <FormLabel>{t("dashboard.additionalServices.aiInstructions")}</FormLabel>
                       <FormControl>
                         <Textarea
                           placeholder="e.g. Always mention that check-in is at 2:00 PM and check-out is at 12:00 PM..."
@@ -453,7 +454,7 @@ export default function AdditionalServicesPage() {
                           {active && trialActive ? (
                             <Badge variant="outline" className="text-xs gap-1">
                               <Clock className="w-3 h-3" />
-                              Trial — {trialDaysLeft} days remaining
+                              {t("dashboard.additionalServices.trial")} — {trialDaysLeft} {t("dashboard.additionalServices.daysRemaining")}
                             </Badge>
                           ) : active ? (
                             <Badge variant="secondary" className="text-xs">
@@ -509,7 +510,7 @@ export default function AdditionalServicesPage() {
                         {trialActive && (
                           <span className="inline-flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400 font-medium" data-testid={`text-trial-countdown-${config.addonType}`}>
                             <Clock className="w-3.5 h-3.5 shrink-0" />
-                            Trial: {trialDaysLeft} days remaining
+                            {t("dashboard.additionalServices.trial")}: {trialDaysLeft} {t("dashboard.additionalServices.daysRemaining")}
                           </span>
                         )}
                         <Button
@@ -556,7 +557,7 @@ export default function AdditionalServicesPage() {
                   {!active && (
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>Payment is processed after confirming the payment method.{usedTrial ? " Free trial already used." : ""}</span>
+                      <span>{t("dashboard.additionalServices.paymentNote")}{usedTrial ? ` ${t("dashboard.additionalServices.trialUsed")}` : ""}</span>
                     </div>
                   )}
                 </CardContent>

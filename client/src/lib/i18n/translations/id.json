@@ -237,7 +237,16 @@
       "hospitality": "Perhotelan AI",
       "hospitalityDesc": "Pemeriksa ketersediaan hotel berbasis AI dengan integrasi Google Sheets",
       "appointments": "Janji Temu Cerdas",
-      "appointmentsDesc": "Penjadwalan janji temu otomatis untuk bisnis Anda"
+      "appointmentsDesc": "Penjadwalan janji temu otomatis untuk bisnis Anda",
+      "hotelName": "Nama Hotel",
+      "bookingUrl": "URL Pemesanan",
+      "googleSheetUrl": "URL Google Sheet",
+      "aiInstructions": "Instruksi AI Tambahan (opsional)",
+      "enableFeature": "Aktifkan Fitur",
+      "daysRemaining": "hari tersisa",
+      "paymentNote": "Pembayaran diproses setelah mengkonfirmasi metode pembayaran.",
+      "trialUsed": "Uji coba gratis sudah digunakan.",
+      "hospitalityDesc2": "Hubungkan data kamar hotel dari Google Sheet untuk menampilkan ketersediaan real-time di chatbot."
     },
     "notificationSettings": {
       "title": "Pengaturan Notifikasi",
@@ -419,7 +428,8 @@
       "showLess": "Tampilkan Lebih Sedikit",
       "noResults": "Tidak ada hasil",
       "tryAgain": "Coba Lagi",
-      "expired": "Kadaluarsa"
+      "expired": "Kadaluarsa",
+      "errorDesc": "Terjadi kesalahan. Silakan coba lagi."
     },
     "overview": {
       "title": "Dashboard",
@@ -491,7 +501,29 @@
       "newMessage": "Pesan baru!",
       "newSessions": "sesi baru dimulai",
       "escalatedAlert": "Sesi dieskalasi!",
-      "escalatedDesc": "sesi memerlukan perhatian segera"
+      "escalatedDesc": "sesi memerlukan perhatian segera",
+      "productOffered": "Produk ditawarkan",
+      "productOfferedDesc": "Rekomendasi produk telah dikirim ke pelanggan.",
+      "productOfferFailed": "Gagal menawarkan produk",
+      "sendFailed": "Gagal mengirim pesan",
+      "fileSent": "File terkirim",
+      "uploadFailed": "Upload gagal",
+      "uploadFailedDesc": "Gagal mengupload file. Silakan coba lagi.",
+      "sessionTakenOver": "Sesi diambil alih",
+      "sessionTakenOverDesc": "Anda sekarang menangani percakapan ini.",
+      "takeOverFailed": "Gagal mengambil alih",
+      "returnedToAI": "Dikembalikan ke AI",
+      "returnedToAIDesc": "Percakapan sekarang ditangani oleh asisten AI.",
+      "returnToBotFailed": "Gagal mengembalikan ke bot",
+      "answerRevised": "Jawaban direvisi",
+      "answerRevisedDesc": "Respons AI telah diperbarui.",
+      "reviseFailed": "Gagal merevisi",
+      "transcriptExported": "Transkrip diekspor",
+      "transcriptExportedDesc": "Transkrip chat telah diunduh.",
+      "exportFailed": "Ekspor gagal",
+      "exportFailedDesc": "Tidak dapat mengekspor transkrip. Silakan coba lagi.",
+      "refinementFailed": "Pemrosesan gagal",
+      "refinementFailedDesc": "Mengirim pesan asli Anda."
     },
     "knowledge": {
       "title": "Basis Pengetahuan",
@@ -861,7 +893,14 @@
       "priceIDR": "Harga (IDR)",
       "editDivision": "Edit Divisi",
       "editStaff": "Edit Staf",
-      "internalCalendarLink": "Link Kalender Internal (Staf)"
+      "internalCalendarLink": "Link Kalender Internal (Staf)",
+      "divisionPlaceholder": "cth: Dermatologi, Bedah Umum",
+      "divisionDescPlaceholder": "Deskripsi singkat divisi",
+      "locationPlaceholder": "cth: Lantai 2, Gedung A",
+      "staffNamePlaceholder": "Nama dokter / staf",
+      "selectDivision": "Pilih divisi...",
+      "serviceNamePlaceholder": "cth: Konsultasi Umum",
+      "reasonPlaceholder": "Alasan (opsional)"
     },
     "sources": {
       "title": "Sumber Aktif",

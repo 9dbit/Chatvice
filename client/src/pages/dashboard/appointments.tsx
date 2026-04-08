@@ -104,15 +104,15 @@ function DivisionForm({ onSave, onCancel, initial }: { onSave: (data: any) => vo
     <div className="space-y-4">
       <div>
         <Label htmlFor="div-name">{t("dashboard.appointments.divisionName")} *</Label>
-        <Input id="div-name" value={name} onChange={e => setName(e.target.value)} placeholder="cth: Dermatologi, Bedah Umum" data-testid="input-division-name" />
+        <Input id="div-name" value={name} onChange={e => setName(e.target.value)} placeholder={t("dashboard.appointments.divisionPlaceholder")} data-testid="input-division-name" />
       </div>
       <div>
         <Label htmlFor="div-desc">{t("dashboard.common.description")}</Label>
-        <Textarea id="div-desc" value={description} onChange={e => setDescription(e.target.value)} placeholder="Deskripsi singkat divisi" rows={2} data-testid="input-division-description" />
+        <Textarea id="div-desc" value={description} onChange={e => setDescription(e.target.value)} placeholder={t("dashboard.appointments.divisionDescPlaceholder")} rows={2} data-testid="input-division-description" />
       </div>
       <div>
         <Label htmlFor="div-loc">{t("dashboard.appointments.locationRoom")}</Label>
-        <Input id="div-loc" value={location} onChange={e => setLocation(e.target.value)} placeholder="cth: Lantai 2, Gedung A" data-testid="input-division-location" />
+        <Input id="div-loc" value={location} onChange={e => setLocation(e.target.value)} placeholder={t("dashboard.appointments.locationPlaceholder")} data-testid="input-division-location" />
       </div>
       <div className="flex items-center gap-2">
         <Switch id="div-active" checked={isActive} onCheckedChange={setIsActive} data-testid="switch-division-active" />
@@ -138,13 +138,13 @@ function ProviderForm({ onSave, onCancel, divisions, initial }: { onSave: (data:
     <div className="space-y-4">
       <div>
         <Label htmlFor="prov-name">{t("dashboard.common.name")} *</Label>
-        <Input id="prov-name" value={name} onChange={e => setName(e.target.value)} placeholder="Nama dokter / staf" data-testid="input-provider-name" />
+        <Input id="prov-name" value={name} onChange={e => setName(e.target.value)} placeholder={t("dashboard.appointments.staffNamePlaceholder")} data-testid="input-provider-name" />
       </div>
       <div>
         <Label htmlFor="prov-div">{t("dashboard.appointments.division")}</Label>
         <Select value={divisionId} onValueChange={setDivisionId}>
           <SelectTrigger id="prov-div" data-testid="select-provider-division">
-            <SelectValue placeholder="Pilih divisi..." />
+            <SelectValue placeholder={t("dashboard.appointments.selectDivision")} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__none__">{t("dashboard.common.none")}</SelectItem>
@@ -189,7 +189,7 @@ function ServiceForm({ onSave, onCancel, divisions, initial }: { onSave: (data: 
     <div className="space-y-4">
       <div>
         <Label htmlFor="svc-name">{t("dashboard.appointments.serviceName")} *</Label>
-        <Input id="svc-name" value={name} onChange={e => setName(e.target.value)} placeholder="cth: Konsultasi Umum" data-testid="input-service-name" />
+        <Input id="svc-name" value={name} onChange={e => setName(e.target.value)} placeholder={t("dashboard.appointments.serviceNamePlaceholder")} data-testid="input-service-name" />
       </div>
       <div>
         <Label htmlFor="svc-desc">{t("dashboard.common.description")}</Label>
@@ -209,7 +209,7 @@ function ServiceForm({ onSave, onCancel, divisions, initial }: { onSave: (data: 
         <Label htmlFor="svc-div">{t("dashboard.appointments.division")}</Label>
         <Select value={divisionId} onValueChange={setDivisionId}>
           <SelectTrigger id="svc-div" data-testid="select-service-division">
-            <SelectValue placeholder="Pilih divisi..." />
+            <SelectValue placeholder={t("dashboard.appointments.selectDivision")} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__none__">Semua divisi</SelectItem>
@@ -390,7 +390,7 @@ function SchedulePanel({ provider }: { provider: AppointmentProvider }) {
           <Input
             value={newBlockedReason}
             onChange={e => setNewBlockedReason(e.target.value)}
-            placeholder="Alasan (opsional)"
+            placeholder={t("dashboard.appointments.reasonPlaceholder")}
             className="flex-1 min-w-32 text-sm"
             data-testid={`input-blocked-reason-${provider.id}`}
           />

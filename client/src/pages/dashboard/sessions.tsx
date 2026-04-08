@@ -493,14 +493,14 @@ export default function SessionsPage() {
       setShowPlusMenu(false);
       setPlusMenuView("main");
       toast({
-        title: "Product offered",
-        description: "The product recommendation has been sent to the customer.",
+        title: t("dashboard.sessions.productOffered"),
+        description: t("dashboard.sessions.productOfferedDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to offer product",
-        description: "Something went wrong. Please try again.",
+        title: t("dashboard.sessions.productOfferFailed"),
+        description: t("dashboard.common.errorDesc"),
         variant: "destructive",
       });
     },
@@ -636,8 +636,8 @@ export default function SessionsPage() {
     },
     onError: () => {
       toast({
-        title: "Failed to send message",
-        description: "Something went wrong. Please try again.",
+        title: t("dashboard.sessions.sendFailed"),
+        description: t("dashboard.common.errorDesc"),
         variant: "destructive",
       });
     },
@@ -669,13 +669,13 @@ export default function SessionsPage() {
       
       queryClient.invalidateQueries({ queryKey: ["/api/messages", selectedSession] });
       toast({
-        title: "File sent",
+        title: t("dashboard.sessions.fileSent"),
         description: `${type.charAt(0).toUpperCase() + type.slice(1)} has been sent to the customer.`,
       });
     } catch {
       toast({
-        title: "Upload failed",
-        description: "Failed to upload the file. Please try again.",
+        title: t("dashboard.sessions.uploadFailed"),
+        description: t("dashboard.sessions.uploadFailedDesc"),
         variant: "destructive",
       });
     } finally {
@@ -694,14 +694,14 @@ export default function SessionsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/sessions", merchantId] });
       queryClient.invalidateQueries({ queryKey: ["/api/messages", selectedSession] });
       toast({
-        title: "Session taken over",
-        description: "You are now handling this conversation.",
+        title: t("dashboard.sessions.sessionTakenOver"),
+        description: t("dashboard.sessions.sessionTakenOverDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to take over",
-        description: "Something went wrong. Please try again.",
+        title: t("dashboard.sessions.takeOverFailed"),
+        description: t("dashboard.common.errorDesc"),
         variant: "destructive",
       });
     },
@@ -715,14 +715,14 @@ export default function SessionsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/sessions", merchantId] });
       queryClient.invalidateQueries({ queryKey: ["/api/messages", selectedSession] });
       toast({
-        title: "Returned to AI",
-        description: "The conversation is now being handled by the AI assistant.",
+        title: t("dashboard.sessions.returnedToAI"),
+        description: t("dashboard.sessions.returnedToAIDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to return to bot",
-        description: "Something went wrong. Please try again.",
+        title: t("dashboard.sessions.returnToBotFailed"),
+        description: t("dashboard.common.errorDesc"),
         variant: "destructive",
       });
     },
@@ -738,14 +738,14 @@ export default function SessionsPage() {
       setSelectedMessage(null);
       setRevisedAnswer("");
       toast({
-        title: "Answer revised",
-        description: "The AI response has been updated.",
+        title: t("dashboard.sessions.answerRevised"),
+        description: t("dashboard.sessions.answerRevisedDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to revise",
-        description: "Something went wrong. Please try again.",
+        title: t("dashboard.sessions.reviseFailed"),
+        description: t("dashboard.common.errorDesc"),
         variant: "destructive",
       });
     },
@@ -915,7 +915,7 @@ export default function SessionsPage() {
         setRefineSuggestion(refined);
         // Don't send yet — wait for supervisor to approve/reject
       } catch {
-        toast({ title: "Refinement failed", description: "Sending your original message.", variant: "destructive" });
+        toast({ title: t("dashboard.sessions.refinementFailed"), description: t("dashboard.sessions.refinementFailedDesc"), variant: "destructive" });
         await dispatchSend(text);
         setNewMessage("");
       } finally {
@@ -987,13 +987,13 @@ export default function SessionsPage() {
       window.URL.revokeObjectURL(url);
       
       toast({
-        title: "Transcript exported",
-        description: "The chat transcript has been downloaded.",
+        title: t("dashboard.sessions.transcriptExported"),
+        description: t("dashboard.sessions.transcriptExportedDesc"),
       });
     } catch (error) {
       toast({
-        title: "Export failed",
-        description: "Could not export the transcript. Please try again.",
+        title: t("dashboard.sessions.exportFailed"),
+        description: t("dashboard.sessions.exportFailedDesc"),
         variant: "destructive",
       });
     }
