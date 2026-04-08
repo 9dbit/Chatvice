@@ -192,8 +192,6 @@ export async function sendBookingReminders(broadcastFn?: (sessionId: string, dat
       const upcomingAppts = await getUpcomingAppointments(merchant.id, 24);
 
       for (const appt of upcomingAppts) {
-        if ((appt as any).reminderSentAt) continue; // skip already reminded
-
         console.log(`[Appointment Reminder] Merchant ${merchant.id}: appointment ${appt.id} on ${appt.appointmentDate} ${appt.appointmentTime} for ${appt.customerName}`);
 
         // If there is a chat session for this appointment, broadcast a reminder message

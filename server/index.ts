@@ -202,8 +202,8 @@ app.use((req, res, next) => {
   try {
     const existingConfigs = await storage.getAddonConfigs();
     const defaultAddons = [
-      { addonType: "appointment_scheduling", name: "Smart Appointment Scheduling", description: "AI-powered appointment booking with calendar management", monthlyPriceUsd: 15, isEnabled: true },
-      { addonType: "hospitality", name: "Hospitality AI Assistant", description: "Hotel availability checker and room booking assistant", monthlyPriceUsd: 20, isEnabled: true },
+      { addonType: "appointment_scheduling", name: "Smart Appointment Scheduling", description: "AI-powered appointment booking with calendar management", monthlyPriceUsd: 7, isEnabled: true },
+      { addonType: "hospitality", name: "Hospitality AI Assistant", description: "Hotel availability checker and room booking assistant", monthlyPriceUsd: 12, isEnabled: true },
     ];
     for (const addon of defaultAddons) {
       if (!existingConfigs.find(c => c.addonType === addon.addonType)) {

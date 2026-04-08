@@ -941,25 +941,35 @@ ${sheetData}
       const slug = merchant?.widgetSlug || merchantId;
       appointmentSignals = `
 APPOINTMENT SCHEDULING:
-This merchant uses an AI appointment scheduling system. When customers ask about booking, scheduling, availability, or appointments:
+This merchant uses an AI appointment scheduling system. When customers ask about booking, scheduling, availability, or appointments, use one of these signals:
 
-1. To CHECK AVAILABILITY, include this signal in your response:
+1. CHECK AVAILABILITY — include in your response when customer asks about available times:
    [CHECK_AVAILABILITY]
-   This will trigger a real-time slot lookup and display available times to the customer.
+   System will fetch and display real-time available slots to the customer.
 
-2. To INITIATE BOOKING after customer confirms a slot, include:
+2. INITIATE BOOKING — after customer picks a specific slot and confirms:
    [BOOK_APPOINTMENT:YYYY-MM-DD:HH:MM:providerName]
-   Replace the fields with the actual chosen date, time (24-hour), and provider/staff name.
+   Replace with the actual date (YYYY-MM-DD), time (HH:MM 24-hour), and provider name.
 
-3. You may also direct customers to the public booking calendar:
+3. VIEW MY APPOINTMENTS — when customer wants to see their existing bookings:
+   [GET_MY_APPOINTMENTS]
+   System will list the customer's upcoming appointments.
+
+4. CANCEL AN APPOINTMENT — when customer requests cancellation (include appointment ID):
+   [CANCEL_APPOINTMENT:appointmentId]
+   Only use when customer explicitly asks to cancel and provides an appointment ID or booking code.
+
+5. BOOKING CALENDAR LINK — direct customer to the public calendar page:
    [LINK:Buka Kalender Booking:https://${process.env.REPLIT_DOMAINS?.split(',')[0] || 'chatvice.app'}/cal/pub/${slug}]
 
 KAPAN GUNAKAN:
-- Customer bertanya "bisa booking?", "jadwal tersedia?", "kapan bisa ketemu?", "ada slot?", "mau janji temu" → gunakan [CHECK_AVAILABILITY]
-- Customer sudah memilih slot dan konfirmasi → gunakan [BOOK_APPOINTMENT:...]
-- Customer minta link/kalender → sertakan LINK ke public calendar
+- "bisa booking?", "ada slot?", "kapan tersedia?", "mau janji temu" → [CHECK_AVAILABILITY]
+- Customer pilih slot dan konfirmasi booking → [BOOK_APPOINTMENT:...]
+- "appointment saya", "jadwal saya", "booking saya" → [GET_MY_APPOINTMENTS]
+- "batalkan appointment", "cancel booking [ID]" → [CANCEL_APPOINTMENT:id]
+- "link kalender", "halaman booking" → sertakan LINK
 
-PENTING: JANGAN mengarang waktu/tanggal ketersediaan. SELALU gunakan [CHECK_AVAILABILITY] untuk cek slot real-time.`;
+PENTING: JANGAN mengarang waktu/slot. SELALU gunakan [CHECK_AVAILABILITY] untuk cek ketersediaan real-time.`;
     }
   } catch (_err) {
     // Appointment signals are optional — skip on error
@@ -23592,12 +23602,12 @@ Please create a comprehensive help center article that would be useful for custo
     try {
       const allAddons = await storage.getAllMerchantAddons();
       const merchants = await storage.getAllMerchants();
-      const merchantMap = new Map(merchants.map((m: any) => [m.id, m]));
+      const merchantMap = new Map<string, Merchant>(merchants.map(m => [m.id, m]));
       const result = allAddons.map(addon => {
-        const merchant = merchantMap.get(addon.merchantId) as any;
+        const merchant = merchantMap.get(addon.merchantId);
         return {
           merchantId: addon.merchantId,
-          businessName: merchant?.businessName || merchant?.name || "Unknown",
+          businessName: merchant?.companyName || "Unknown",
           email: merchant?.email || "",
           addonType: addon.addonType,
           isActive: addon.isActive,
@@ -24212,7 +24222,7 @@ Please create a comprehensive help center article that would be useful for custo
       const services = await storage.getAppointmentServices(merchantId);
 
       res.json({
-        merchant: { id: merchant?.id, companyName: merchant?.companyName, phone: merchant?.phoneNumber },
+        merchant: { id: merchant?.id, companyName: merchant?.companyName, phone: merchant?.phone },
         appointments: appts,
         divisions,
         providers,
