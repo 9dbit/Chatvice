@@ -206,7 +206,8 @@ app.use((req, res, next) => {
       { addonType: "hospitality", name: "Hospitality AI Assistant", description: "Hotel availability checker and room booking assistant", monthlyPriceUsd: 12, isEnabled: true },
     ];
     for (const addon of defaultAddons) {
-      if (!existingConfigs.find(c => c.addonType === addon.addonType)) {
+      const existing = existingConfigs.find(c => c.addonType === addon.addonType);
+      if (!existing || existing.monthlyPriceUsd !== addon.monthlyPriceUsd) {
         await storage.upsertAddonConfig(addon);
       }
     }
