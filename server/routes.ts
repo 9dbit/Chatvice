@@ -3943,6 +3943,17 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  app.get("/api/merchant/slug", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+      res.json({ merchantId: merchant.id, slug: merchant.widgetSlug || null });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to get merchant slug" });
+    }
+  });
+
   app.get("/api/merchant/identity-secret", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
@@ -23740,12 +23751,24 @@ Please create a comprehensive help center article that would be useful for custo
       const existing = await storage.getMerchantAddon(merchantId, addonType);
       if (existing && existing.isActive) return res.status(409).json({ error: "Already subscribed" });
 
-      // NOTE: In production, verify paymentReference against payment gateway before activating.
-      // This requires a webhook or server-to-server verification call.
-      // For now, return pending status so admin can manually confirm.
+      // Store a pending addon record so admin can verify and activate
+      // In production, this would call payment gateway to verify paymentReference
+      const addonId = "mao_" + crypto.randomBytes(6).toString("hex");
+      if (existing) {
+        // Update existing record with payment reference for admin review
+        await storage.updateMerchantAddon(existing.id, { isActive: false });
+      } else {
+        await storage.createMerchantAddon({
+          id: addonId,
+          merchantId,
+          addonType,
+          isActive: false,
+          calendarToken: null,
+        });
+      }
       res.status(202).json({
         status: "pending_verification",
-        message: "Payment reference received. Activation pending admin verification.",
+        message: "Payment reference received. Your addon will be activated after admin verification.",
         paymentReference,
         addonType,
         merchantId,

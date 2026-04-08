@@ -34,11 +34,12 @@ export async function getAvailableSlots(
   const isBlocked = blockedDates.some(bd => bd.blockedDate === date);
   if (isBlocked) return [];
 
-  const existingAppts = await storage.getAppointments(merchantId, {
-    date,
-    providerId,
-    status: "confirmed",
-  });
+  // Check both confirmed and pending to prevent double-booking
+  const [confirmedAppts, pendingAppts] = await Promise.all([
+    storage.getAppointments(merchantId, { date, providerId, status: "confirmed" }),
+    storage.getAppointments(merchantId, { date, providerId, status: "pending" }),
+  ]);
+  const existingAppts = [...confirmedAppts, ...pendingAppts];
 
   const [startH, startM] = daySchedule.startTime.split(":").map(Number);
   const [endH, endM] = daySchedule.endTime.split(":").map(Number);
@@ -108,11 +109,12 @@ export async function bookSlot(params: {
     const endM = aEnd % 60;
     const endTime = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
 
-    const existing = await storage.getAppointments(merchantId, {
-      date: appointmentDate,
-      providerId,
-      status: "confirmed",
-    });
+    // Check both confirmed and pending to prevent double-booking race conditions
+    const [existingConfirmed, existingPending] = await Promise.all([
+      storage.getAppointments(merchantId, { date: appointmentDate, providerId, status: "confirmed" }),
+      storage.getAppointments(merchantId, { date: appointmentDate, providerId, status: "pending" }),
+    ]);
+    const existing = [...existingConfirmed, ...existingPending];
 
     const conflict = existing.some(a => {
       const [bH, bM] = a.appointmentTime.split(":").map(Number);
