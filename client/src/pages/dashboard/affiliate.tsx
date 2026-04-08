@@ -369,8 +369,7 @@ export default function AffiliateDashboardPage() {
           </div>
           <h2 className="text-2xl font-bold mb-3">{t("dashboard.affiliate.title")}</h2>
           <p className="text-muted-foreground mb-6">
-            Earn {defaultCommission}% commission for every customer you refer. 
-            Share your unique link and start earning passive income today.
+            {t("dashboard.affiliate.commissionDescription").replace("{commission}", defaultCommission)}
           </p>
           <div className="grid grid-cols-3 gap-4 mb-8">
             <div className="text-center p-4 bg-muted/50 rounded-lg">
@@ -405,10 +404,10 @@ export default function AffiliateDashboardPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-purple-600" />
-                Apply for Affiliate Program
+                {t("dashboard.affiliate.applyDialogTitle")}
               </DialogTitle>
               <DialogDescription>
-                Submit your application to join our affiliate program.
+                {t("dashboard.affiliate.applyDialogDescription")}
               </DialogDescription>
             </DialogHeader>
             <div className="py-4">
@@ -419,7 +418,7 @@ export default function AffiliateDashboardPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">{t("dashboard.affiliate.cookieDuration")}</span>
-                  <span className="font-medium">{cookieDays} days</span>
+                  <span className="font-medium">{cookieDays} {t("common.daysUnit")}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">{t("dashboard.affiliate.minimumPayout")}</span>
@@ -432,7 +431,7 @@ export default function AffiliateDashboardPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setApplyDialogOpen(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button 
                 onClick={() => applyMutation.mutate()} 
@@ -443,10 +442,10 @@ export default function AffiliateDashboardPage() {
                 {applyMutation.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Submitting...
+                    {t("dashboard.affiliate.submitting")}
                   </>
                 ) : (
-                  "Submit Application"
+                  t("dashboard.affiliate.submitApplication")
                 )}
               </Button>
             </DialogFooter>
@@ -608,7 +607,7 @@ export default function AffiliateDashboardPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Wallet className="w-5 h-5" />
-                  Earnings Summary
+                  {t("dashboard.affiliate.earningsSummary")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -617,7 +616,7 @@ export default function AffiliateDashboardPage() {
                   <span className="font-bold text-yellow-600">${stats.pendingEarnings.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b">
-                  <span className="text-muted-foreground">Paid Earnings</span>
+                  <span className="text-muted-foreground">{t("dashboard.affiliate.paidEarnings")}</span>
                   <span className="font-bold text-green-600">${stats.paidEarnings.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center py-3">
@@ -924,7 +923,7 @@ export default function AffiliateDashboardPage() {
             </div>
             
             <div className="space-y-2">
-              <Label>Withdrawal Amount ($)</Label>
+              <Label>{t("dashboard.affiliate.withdrawalAmount")}</Label>
               <Input
                 type="number"
                 placeholder={`Min: $${minimumPayout}`}
@@ -940,7 +939,7 @@ export default function AffiliateDashboardPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Payment Method</Label>
+              <Label>{t("dashboard.affiliate.paymentMethod")}</Label>
               <Select value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod}>
                 <SelectTrigger data-testid="select-payment-method">
                   <SelectValue placeholder="Select payment method" />
@@ -1000,7 +999,7 @@ export default function AffiliateDashboardPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Payment Type</Label>
+              <Label>{t("dashboard.affiliate.paymentType")}</Label>
               <Select value={newMethodType} onValueChange={setNewMethodType}>
                 <SelectTrigger data-testid="select-method-type">
                   <SelectValue />
@@ -1029,7 +1028,7 @@ export default function AffiliateDashboardPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Name (Optional)</Label>
+              <Label>{t("dashboard.affiliate.nameOptional")}</Label>
               <Input
                 placeholder="e.g., My Primary Bank"
                 value={methodName}
@@ -1041,7 +1040,7 @@ export default function AffiliateDashboardPage() {
             {newMethodType === "bank_transfer" && (
               <>
                 <div className="space-y-2">
-                  <Label>Bank Name</Label>
+                  <Label>{t("dashboard.affiliate.bankName")}</Label>
                   <Input
                     placeholder="e.g., Bank Central Asia"
                     value={bankName}
@@ -1050,7 +1049,7 @@ export default function AffiliateDashboardPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Account Number</Label>
+                  <Label>{t("dashboard.affiliate.accountNumber")}</Label>
                   <Input
                     placeholder="Your bank account number"
                     value={bankAccountNumber}
@@ -1059,7 +1058,7 @@ export default function AffiliateDashboardPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Account Holder Name</Label>
+                  <Label>{t("dashboard.affiliate.accountHolderName")}</Label>
                   <Input
                     placeholder="Name as shown on bank account"
                     value={bankAccountName}
@@ -1068,7 +1067,7 @@ export default function AffiliateDashboardPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Country</Label>
+                  <Label>{t("common.country")}</Label>
                   <Select value={bankCountry} onValueChange={setBankCountry}>
                     <SelectTrigger data-testid="select-bank-country">
                       <SelectValue />
@@ -1102,7 +1101,7 @@ export default function AffiliateDashboardPage() {
             {newMethodType === "cryptocurrency" && (
               <>
                 <div className="space-y-2">
-                  <Label>Network / Coin</Label>
+                  <Label>{t("dashboard.affiliate.networkCoin")}</Label>
                   <Select value={cryptoNetwork} onValueChange={setCryptoNetwork}>
                     <SelectTrigger data-testid="select-crypto-network">
                       <SelectValue placeholder="Select network" />
@@ -1117,7 +1116,7 @@ export default function AffiliateDashboardPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Wallet Address</Label>
+                  <Label>{t("dashboard.affiliate.walletAddress")}</Label>
                   <Input
                     placeholder="Your wallet address"
                     value={cryptoWalletAddress}
@@ -1131,7 +1130,7 @@ export default function AffiliateDashboardPage() {
             {newMethodType === "paypal" && (
               <>
                 <div className="space-y-2">
-                  <Label>PayPal Email</Label>
+                  <Label>{t("dashboard.affiliate.paypalEmail")}</Label>
                   <Input
                     type="email"
                     placeholder="your@email.com"
@@ -1141,7 +1140,7 @@ export default function AffiliateDashboardPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Account Name (Optional)</Label>
+                  <Label>{t("dashboard.affiliate.accountNameOptional")}</Label>
                   <Input
                     placeholder="Name on PayPal account"
                     value={paypalAccountName}

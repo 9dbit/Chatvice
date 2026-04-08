@@ -142,8 +142,8 @@ export default function AgentsPage() {
 
     if (file.size > 2 * 1024 * 1024) {
       toast({
-        title: "File too large",
-        description: "Please upload an image smaller than 2MB",
+        title: t("common.fileTooLarge"),
+        description: t("common.fileSizeLimit"),
         variant: "destructive",
       });
       return;
@@ -157,8 +157,8 @@ export default function AgentsPage() {
     };
     reader.onerror = () => {
       toast({
-        title: "Upload failed",
-        description: "Failed to read the image file",
+        title: t("common.uploadFailed"),
+        description: t("common.fileReadFailed"),
         variant: "destructive",
       });
       setUploadingPhoto(false);
@@ -178,7 +178,7 @@ export default function AgentsPage() {
       setPhotoUrl("");
       toast({
         title: t("dashboard.agents.agentCreated"),
-        description: "Your new AI agent has been created successfully.",
+        description: t("dashboard.agents.agentCreated"),
       });
     },
     onError: (error: any) => {
@@ -191,8 +191,8 @@ export default function AgentsPage() {
       }
       
       toast({
-        title: "Failed to create agent",
-        description: error.message || "Please try again.",
+        title: t("dashboard.agents.createFailed"),
+        description: error.message || t("common.tryAgain"),
         variant: "destructive",
       });
     },
@@ -210,7 +210,7 @@ export default function AgentsPage() {
       setPhotoUrl("");
       toast({
         title: t("dashboard.agents.agentUpdated"),
-        description: "Your agent has been updated successfully.",
+        description: t("dashboard.agents.agentUpdated"),
       });
     },
   });
@@ -223,7 +223,7 @@ export default function AgentsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
       toast({
         title: t("dashboard.agents.agentDeleted"),
-        description: "The agent has been removed.",
+        description: t("dashboard.agents.agentDeleted"),
       });
     },
   });
@@ -325,7 +325,7 @@ export default function AgentsPage() {
       }}>
         <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
               <DialogHeader className="flex-shrink-0 pr-8">
-                <DialogTitle>{editingAgent ? "Edit Agent" : "Create New Agent"}</DialogTitle>
+                <DialogTitle>{editingAgent ? t("dashboard.agents.editAgentTitle") : t("dashboard.agents.createAgentTitle")}</DialogTitle>
                 <DialogDescription>
                   {editingAgent ? "Update your agent settings." : "Create a new AI agent for your chatbot."}
                 </DialogDescription>

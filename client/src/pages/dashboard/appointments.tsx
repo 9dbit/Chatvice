@@ -506,7 +506,7 @@ function CalendarView({ appointments, providers, divisions, services, currentMon
                     </div>
                   ))}
                   {dayAppts.length > 2 && (
-                    <div className="text-xs text-muted-foreground px-1">+{dayAppts.length - 2} lagi</div>
+                    <div className="text-xs text-muted-foreground px-1">+{dayAppts.length - 2} {t("dashboard.appointments.more")}</div>
                   )}
                 </div>
               )}
@@ -545,7 +545,7 @@ function CalendarView({ appointments, providers, divisions, services, currentMon
                           {service && <div className="flex items-center gap-1"><Layers className="w-3 h-3" /> {service.name}</div>}
                           {provider && <div className="flex items-center gap-1"><User className="w-3 h-3" /> {provider.name}</div>}
                           {division && <div className="flex items-center gap-1"><Users className="w-3 h-3" /> {division.name}</div>}
-                          {a.customerPhone && <div>Telp: {a.customerPhone}</div>}
+                          {a.customerPhone && <div>{t("dashboard.appointments.phone")}: {a.customerPhone}</div>}
                           {a.notes && <div className="italic">{a.notes}</div>}
                         </div>
                       </div>
@@ -607,13 +607,13 @@ export default function AppointmentsPage() {
 
   const updateDivision = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest("PATCH", `/api/merchant/appointment-divisions/${id}`, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-divisions"] }); setDivisionDialog({ open: false }); toast({ title: "Divisi diperbarui" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-divisions"] }); setDivisionDialog({ open: false }); toast({ title: t("dashboard.appointments.divisionUpdated") }); },
     onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
   const deleteDivision = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/merchant/appointment-divisions/${id}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-divisions"] }); toast({ title: "Divisi dihapus" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-divisions"] }); toast({ title: t("dashboard.appointments.divisionDeleted") }); },
     onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
@@ -655,7 +655,7 @@ export default function AppointmentsPage() {
 
   const updateAppointment = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest("PATCH", `/api/merchant/appointments/${id}`, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointments", currentMonth] }); toast({ title: "Status diperbarui" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointments", currentMonth] }); toast({ title: t("dashboard.appointments.statusUpdated") }); },
     onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 

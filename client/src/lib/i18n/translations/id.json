@@ -519,7 +519,10 @@
       "toneCasualDesc": "Ramah dan santai",
       "tonePoetic": "Puitis",
       "tonePoeticDesc": "Kreatif dan ekspresif",
-      "noAgentDesc": "Supervisor masih dapat menangani chat pelanggan secara manual tanpa agen AI."
+      "noAgentDesc": "Supervisor masih dapat menangani chat pelanggan secara manual tanpa agen AI.",
+      "editAgentTitle": "Edit Agen",
+      "createAgentTitle": "Buat Agen Baru",
+      "createFailed": "Gagal membuat agen"
     },
     "sessions": {
       "title": "Sesi Chat",
@@ -938,7 +941,8 @@
       "featureCalendarLink": "Kalender internal dengan link berbagi",
       "featureAIAvailability": "Cek ketersediaan via AI chatbot",
       "featureWhatsApp": "Notifikasi WhatsApp otomatis",
-      "featureRoomData": "Data kamar real-time dari Google Sheet"
+      "featureRoomData": "Data kamar real-time dari Google Sheet",
+      "checkout": "Pembayaran"
     },
     "plans": {
       "title": "Paket",
@@ -1016,7 +1020,25 @@
       "paymentMethodDeleted": "Metode Pembayaran Dihapus",
       "withdrawalSubmitted": "Permintaan penarikan Anda telah diajukan untuk persetujuan.",
       "applyNow": "Daftar Sekarang",
-      "learnMore": "Pelajari Lebih Lanjut"
+      "learnMore": "Pelajari Lebih Lanjut",
+      "commissionDescription": "Dapatkan komisi {commission}% untuk setiap pelanggan yang Anda referensikan. Bagikan tautan unik Anda dan mulai mendapatkan penghasilan pasif hari ini.",
+      "applyDialogTitle": "Daftar Program Afiliasi",
+      "applyDialogDescription": "Kirimkan lamaran Anda untuk bergabung dengan program afiliasi kami.",
+      "applyAgreement": "Dengan mendaftar, Anda menyetujui syarat program afiliasi kami.",
+      "submitting": "Mengirim...",
+      "submitApplication": "Kirim Lamaran",
+      "earningsSummary": "Ringkasan Pendapatan",
+      "paidEarnings": "Pendapatan Dibayar",
+      "withdrawalAmount": "Jumlah Penarikan ($)",
+      "bankName": "Nama Bank",
+      "networkCoin": "Jaringan / Koin",
+      "paypalEmail": "Email PayPal",
+      "paymentType": "Tipe Pembayaran",
+      "nameOptional": "Nama (Opsional)",
+      "accountNumber": "Nomor Rekening",
+      "accountHolderName": "Nama Pemilik Rekening",
+      "walletAddress": "Alamat Dompet",
+      "accountNameOptional": "Nama Akun (Opsional)"
     },
     "dataUsage": {
       "title": "Penggunaan Data",
@@ -1101,7 +1123,12 @@
       "openPublicCalendar": "Buka Kalender Publik",
       "divisionTitle": "Divisi",
       "staffTitle": "Staf / Penyedia Layanan",
-      "servicesTitle": "Layanan"
+      "servicesTitle": "Layanan",
+      "divisionUpdated": "Divisi diperbarui",
+      "divisionDeleted": "Divisi dihapus",
+      "statusUpdated": "Status diperbarui",
+      "more": "lagi",
+      "phone": "Telp"
     },
     "sources": {
       "title": "Sumber Aktif",
@@ -1156,6 +1183,13 @@
     "failed": "Gagal",
     "tryAgain": "Silakan coba lagi.",
     "free": "Gratis",
-    "error": "Error"
+    "error": "Error",
+    "country": "Negara",
+    "fileTooLarge": "File Terlalu Besar",
+    "fileSizeLimit": "Harap unggah gambar yang lebih kecil dari 2MB",
+    "uploadFailed": "Unggah Gagal",
+    "fileReadFailed": "Gagal membaca file gambar",
+    "cancel": "Batal",
+    "daysUnit": "hari"
   }
 }

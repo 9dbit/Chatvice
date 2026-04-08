@@ -20,11 +20,14 @@ class PageErrorBoundary extends Component<
   render() {
     if (this.state.error) {
       const msg = (this.state.error as Error).message || "Unknown error";
+      const lang = typeof localStorage !== "undefined" ? localStorage.getItem("dashboard_language") || "en" : "en";
+      const errorText = lang === "id" ? "Terjadi kesalahan saat memuat halaman ini." : "Something went wrong loading this page.";
+      const reloadText = lang === "id" ? "Muat ulang halaman" : "Reload page";
       return (
         <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
           <AlertTriangle className="w-10 h-10 text-destructive" />
           <div>
-            <p className="font-semibold text-lg">Something went wrong loading this page.</p>
+            <p className="font-semibold text-lg">{errorText}</p>
             <p className="text-sm text-muted-foreground mt-1 max-w-md font-mono break-all">{msg}</p>
           </div>
           <button
@@ -32,7 +35,7 @@ class PageErrorBoundary extends Component<
             className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:opacity-90"
           >
             <RefreshCw className="w-4 h-4" />
-            Reload page
+            {reloadText}
           </button>
         </div>
       );
@@ -99,7 +102,7 @@ const pageTranslationKeys: Record<string, string> = {
   "team-activity": "dashboard.teamActivity.title",
   "chat-buttons": "dashboard.chatButtons.title",
   "live-preview": "dashboard.livePreview.title",
-  "checkout": "Checkout",
+  "checkout": "dashboard.billing.checkout",
   "chat-monitoring": "dashboard.chatMonitoring.title",
   "data-usage": "dashboard.dataUsage.title",
   "proactive-chat": "dashboard.proactiveChat.title",

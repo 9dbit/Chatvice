@@ -519,7 +519,10 @@
       "toneCasualDesc": "Friendly and relaxed",
       "tonePoetic": "Poetic",
       "tonePoeticDesc": "Creative and expressive",
-      "noAgentDesc": "Supervisors can still handle customer chats manually without an AI agent."
+      "noAgentDesc": "Supervisors can still handle customer chats manually without an AI agent.",
+      "editAgentTitle": "Edit Agent",
+      "createAgentTitle": "Create New Agent",
+      "createFailed": "Failed to create agent"
     },
     "sessions": {
       "title": "Chat Sessions",
@@ -938,7 +941,8 @@
       "featureCalendarLink": "Internal calendar with share link",
       "featureAIAvailability": "Availability check via AI chatbot",
       "featureWhatsApp": "Automatic WhatsApp notifications",
-      "featureRoomData": "Real-time room data from Google Sheet"
+      "featureRoomData": "Real-time room data from Google Sheet",
+      "checkout": "Checkout"
     },
     "plans": {
       "title": "Plans",
@@ -1016,7 +1020,25 @@
       "paymentMethodDeleted": "Payment Method Deleted",
       "withdrawalSubmitted": "Your withdrawal request has been submitted for approval.",
       "applyNow": "Apply Now",
-      "learnMore": "Learn More"
+      "learnMore": "Learn More",
+      "commissionDescription": "Earn {commission}% commission for every customer you refer. Share your unique link and start earning passive income today.",
+      "applyDialogTitle": "Apply for Affiliate Program",
+      "applyDialogDescription": "Submit your application to join our affiliate program.",
+      "applyAgreement": "By applying, you agree to our affiliate program terms.",
+      "submitting": "Submitting...",
+      "submitApplication": "Submit Application",
+      "earningsSummary": "Earnings Summary",
+      "paidEarnings": "Paid Earnings",
+      "withdrawalAmount": "Withdrawal Amount ($)",
+      "bankName": "Bank Name",
+      "networkCoin": "Network / Coin",
+      "paypalEmail": "PayPal Email",
+      "paymentType": "Payment Type",
+      "nameOptional": "Name (Optional)",
+      "accountNumber": "Account Number",
+      "accountHolderName": "Account Holder Name",
+      "walletAddress": "Wallet Address",
+      "accountNameOptional": "Account Name (Optional)"
     },
     "dataUsage": {
       "title": "Data Usage",
@@ -1101,7 +1123,12 @@
       "openPublicCalendar": "Open Public Calendar",
       "divisionTitle": "Division",
       "staffTitle": "Staff / Service Providers",
-      "servicesTitle": "Services"
+      "servicesTitle": "Services",
+      "divisionUpdated": "Division updated",
+      "divisionDeleted": "Division deleted",
+      "statusUpdated": "Status updated",
+      "more": "more",
+      "phone": "Phone"
     },
     "sources": {
       "title": "Active Sources",
@@ -1156,6 +1183,13 @@
     "failed": "Failed",
     "tryAgain": "Please try again.",
     "free": "Free",
-    "error": "Error"
+    "error": "Error",
+    "country": "Country",
+    "fileTooLarge": "File Too Large",
+    "fileSizeLimit": "Please upload an image smaller than 2MB",
+    "uploadFailed": "Upload Failed",
+    "fileReadFailed": "Failed to read the image file",
+    "cancel": "Cancel",
+    "daysUnit": "days"
   }
 }
