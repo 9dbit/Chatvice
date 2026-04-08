@@ -1027,7 +1027,7 @@ export default function AgentsPage() {
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                   <Button size="sm" variant="outline" onClick={() => handleEdit(agent)} className="text-xs sm:text-sm h-8" data-testid={`button-edit-agent-${agent.id}`}>
                     <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1" />
-                    <span className="hidden sm:inline">Edit</span>
+                    <span className="hidden sm:inline">{t("dashboard.agents.editAgent")}</span>
                   </Button>
                   <Button
                     size="sm"

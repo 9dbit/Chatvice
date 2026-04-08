@@ -563,13 +563,20 @@
       "noMessageData": "Belum ada data pesan",
       "aiVsHuman": "Percakapan ditangani AI vs Manusia",
       "recentSessions": "Sesi Terbaru",
-      "latestConversations": "Percakapan pelanggan terbaru"
+      "latestConversations": "Percakapan pelanggan terbaru",
+      "messagesThisWeekCard": "Pesan Minggu Ini",
+      "messagesName": "Pesan",
+      "thisWeek": "{n} minggu ini",
+      "aiHumanRatio": "{ai} AI / {human} Manusia",
+      "performanceMetrics": "Metrik Performa",
+      "thisWeekLabel": "minggu ini",
+      "humanLabel": "Manusia"
     },
     "agents": {
       "title": "Agen AI",
       "subtitle": "Kelola agen AI Anda",
       "createAgent": "Buat Agen",
-      "editAgent": "Edit Agen",
+      "editAgent": "Edit",
       "deleteAgent": "Hapus",
       "agentName": "Nama Agen",
       "agentActive": "Agen Aktif",
@@ -622,7 +629,8 @@
       "toneConsistent": "Konsisten",
       "toneCreative": "Kreatif",
       "statusActive": "Aktif",
-      "statusInactive": "Nonaktif"
+      "statusInactive": "Nonaktif",
+      "suggestionPlaceholder": "Saran {n}..."
     },
     "sessions": {
       "title": "Sesi Chat",

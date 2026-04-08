@@ -99,14 +99,14 @@ export default function DashboardOverview() {
       value: stats?.messagesToday ?? 0,
       total: stats?.messagesThisWeek ?? 0,
       icon: MessageSquare,
-      description: `${stats?.messagesThisWeek ?? 0} this week`,
+      description: `${stats?.messagesThisWeek ?? 0} ${t("dashboard.overview.thisWeekLabel")}`,
     },
     {
       title: t("dashboard.overview.aiResolution"),
       value: `${stats?.aiResolutionRate ?? 0}%`,
       total: null,
       icon: Bot,
-      description: `${stats?.aiSessions ?? 0} AI / ${stats?.humanSessions ?? 0} Human`,
+      description: `${stats?.aiSessions ?? 0} AI / ${stats?.humanSessions ?? 0} ${t("dashboard.overview.humanLabel")}`,
     },
     {
       title: t("dashboard.overview.avgResponse"),
@@ -444,7 +444,7 @@ export default function DashboardOverview() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-primary" />
-              Messages This Week
+              {t("dashboard.overview.messagesThisWeekCard")}
             </CardTitle>
             <CardDescription>{t("dashboard.overview.dailyMessageVolume")}</CardDescription>
           </CardHeader>
@@ -477,7 +477,7 @@ export default function DashboardOverview() {
                     dataKey="count" 
                     fill="hsl(var(--primary))" 
                     radius={[4, 4, 0, 0]}
-                    name="Messages"
+                    name={t("dashboard.overview.messagesName")}
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -497,7 +497,7 @@ export default function DashboardOverview() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-primary" />
-              Performance Metrics
+              {t("dashboard.overview.performanceMetrics")}
             </CardTitle>
             <CardDescription>{t("dashboard.overview.aiVsHuman")}</CardDescription>
           </CardHeader>

@@ -563,13 +563,20 @@
       "noMessageData": "No message data yet",
       "aiVsHuman": "AI vs Human handled conversations",
       "recentSessions": "Recent Sessions",
-      "latestConversations": "Latest customer conversations"
+      "latestConversations": "Latest customer conversations",
+      "messagesThisWeekCard": "Messages This Week",
+      "messagesName": "Messages",
+      "thisWeek": "{n} this week",
+      "aiHumanRatio": "{ai} AI / {human} Human",
+      "performanceMetrics": "Performance Metrics",
+      "thisWeekLabel": "this week",
+      "humanLabel": "Human"
     },
     "agents": {
       "title": "AI Agents",
       "subtitle": "Manage your AI agents",
       "createAgent": "Create Agent",
-      "editAgent": "Edit Agent",
+      "editAgent": "Edit",
       "deleteAgent": "Delete",
       "agentName": "Agent Name",
       "agentActive": "Active Agent",
@@ -622,7 +629,8 @@
       "toneConsistent": "Consistent",
       "toneCreative": "Creative",
       "statusActive": "Active",
-      "statusInactive": "Inactive"
+      "statusInactive": "Inactive",
+      "suggestionPlaceholder": "Suggestion {n}..."
     },
     "sessions": {
       "title": "Chat Sessions",
