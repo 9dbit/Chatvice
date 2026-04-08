@@ -337,13 +337,13 @@ export default function WorkSchedulerPage() {
                     <SelectItem value="thursday">{t("common.days.thursday")}</SelectItem>
                     <SelectItem value="friday">{t("common.days.friday")}</SelectItem>
                     <SelectItem value="saturday">{t("common.days.saturday")}</SelectItem>
-                    <SelectItem value="sunday">Sunday</SelectItem>
+                    <SelectItem value="sunday">{t("dashboard.workScheduler.sunday")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="startTime">Start Time</Label>
+                  <Label htmlFor="startTime">{t("dashboard.workScheduler.startTime")}</Label>
                   <Input
                     id="startTime"
                     type="time"
@@ -353,7 +353,7 @@ export default function WorkSchedulerPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="endTime">End Time</Label>
+                  <Label htmlFor="endTime">{t("dashboard.workScheduler.endTime")}</Label>
                   <Input
                     id="endTime"
                     type="time"
@@ -491,14 +491,14 @@ export default function WorkSchedulerPage() {
         <TabsContent value="assignments" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Assignment List</CardTitle>
-              <CardDescription>View who is assigned to each shift</CardDescription>
+              <CardTitle>{t("dashboard.workScheduler.assignmentList")}</CardTitle>
+              <CardDescription>{t("dashboard.workScheduler.viewAssignments")}</CardDescription>
             </CardHeader>
             <CardContent>
               {assignments.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Users className="w-10 h-10 mx-auto mb-3" />
-                  <p>No assignments yet</p>
+                  <p>{t("dashboard.workScheduler.noAssignments")}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -549,8 +549,8 @@ export default function WorkSchedulerPage() {
         <TabsContent value="reports" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Work Hours Report</CardTitle>
-              <CardDescription>Summary of work hours for supervisors and agents</CardDescription>
+              <CardTitle>{t("dashboard.workScheduler.workHoursReport")}</CardTitle>
+              <CardDescription>{t("dashboard.workScheduler.workHoursDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -726,7 +726,7 @@ export default function WorkSchedulerPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAssignOpen(false)}>Close</Button>
+            <Button variant="outline" onClick={() => setIsAssignOpen(false)}>{t("dashboard.workScheduler.close")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

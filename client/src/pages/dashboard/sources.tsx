@@ -607,7 +607,7 @@ export default function SourcesPage() {
       <Dialog open={isTemplateDialogOpen} onOpenChange={(open) => { setIsTemplateDialogOpen(open); if (!open) setTemplateSheetUrl(""); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Use Transaction Record Template</DialogTitle>
+            <DialogTitle>{t("dashboard.sources.useTransactionTemplate")}</DialogTitle>
             <DialogDescription>
               Copy the template to your Google Drive, then paste your new sheet URL below.
             </DialogDescription>
@@ -681,8 +681,8 @@ export default function SourcesPage() {
         <TabsList>
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="text">Text</TabsTrigger>
-          <TabsTrigger value="file">Files</TabsTrigger>
-          <TabsTrigger value="website">Websites</TabsTrigger>
+          <TabsTrigger value="file">{t("dashboard.sources.files")}</TabsTrigger>
+          <TabsTrigger value="website">{t("dashboard.sources.websites")}</TabsTrigger>
         </TabsList>
         <TabsContent value={activeTab} className="mt-4">
           {filteredSources.length > 0 ? (

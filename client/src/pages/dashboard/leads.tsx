@@ -126,7 +126,7 @@ export default function LeadsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{t("dashboard.leads.title")}</h1>
-          <p className="text-muted-foreground">Track and manage your sales pipeline</p>
+          <p className="text-muted-foreground">{t("dashboard.leads.trackManage")}</p>
         </div>
       </div>
 
@@ -134,7 +134,7 @@ export default function LeadsPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="bg-background/70 backdrop-blur-md border-white/20" data-testid="card-stat-total-leads">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-            <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("dashboard.leads.totalLeads")}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -144,7 +144,7 @@ export default function LeadsPage() {
 
         <Card className="bg-background/70 backdrop-blur-md border-white/20" data-testid="card-stat-hot-leads">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-            <CardTitle className="text-sm font-medium">Hot Leads</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("dashboard.leads.hotLeads")}</CardTitle>
             <Flame className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
@@ -154,7 +154,7 @@ export default function LeadsPage() {
 
         <Card className="bg-background/70 backdrop-blur-md border-white/20" data-testid="card-stat-conversion-rate">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("dashboard.leads.conversionRate")}</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -177,7 +177,7 @@ export default function LeadsPage() {
       <Card className="bg-background/70 backdrop-blur-md border-white/20">
         <CardHeader>
           <CardTitle className="text-lg">Pipeline Overview</CardTitle>
-          <CardDescription>Leads by stage</CardDescription>
+          <CardDescription>{t("dashboard.leads.leadsByStage")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-3">
@@ -335,13 +335,13 @@ export default function LeadsPage() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Lead</DialogTitle>
-            <DialogDescription>Update lead information and stage</DialogDescription>
+            <DialogTitle>{t("dashboard.leads.editLead")}</DialogTitle>
+            <DialogDescription>{t("dashboard.leads.updateLeadInfo")}</DialogDescription>
           </DialogHeader>
           {selectedLead && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Customer Name</Label>
+                <Label>{t("dashboard.leads.customerName")}</Label>
                 <Input 
                   value={selectedLead.customerName || ""} 
                   onChange={(e) => setSelectedLead({...selectedLead, customerName: e.target.value})}
@@ -384,7 +384,7 @@ export default function LeadsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Score (0-100)</Label>
+                <Label>{t("dashboard.leads.score")}</Label>
                 <Input 
                   type="number"
                   min={0}
@@ -395,7 +395,7 @@ export default function LeadsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Converted Value (IDR)</Label>
+                <Label>{t("dashboard.leads.convertedValue")}</Label>
                 <Input 
                   type="number"
                   min={0}

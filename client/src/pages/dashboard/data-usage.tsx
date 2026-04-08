@@ -88,7 +88,7 @@ export default function DataUsagePage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card data-testid="card-storage-used">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium" data-testid="title-storage-used">Total Storage Used</CardTitle>
+            <CardTitle className="text-sm font-medium" data-testid="title-storage-used">{t("dashboard.dataUsage.totalStorageUsed")}</CardTitle>
             <HardDrive className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -108,7 +108,7 @@ export default function DataUsagePage() {
 
         <Card data-testid="card-total-files">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium" data-testid="title-total-files">Total Files</CardTitle>
+            <CardTitle className="text-sm font-medium" data-testid="title-total-files">{t("dashboard.dataUsage.totalFiles")}</CardTitle>
             <Upload className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -119,7 +119,7 @@ export default function DataUsagePage() {
 
         <Card data-testid="card-images">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium" data-testid="title-images">Images</CardTitle>
+            <CardTitle className="text-sm font-medium" data-testid="title-images">{t("dashboard.dataUsage.images")}</CardTitle>
             <Image className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent>
@@ -130,7 +130,7 @@ export default function DataUsagePage() {
 
         <Card data-testid="card-documents">
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium" data-testid="title-documents">Documents</CardTitle>
+            <CardTitle className="text-sm font-medium" data-testid="title-documents">{t("dashboard.dataUsage.documents")}</CardTitle>
             <FileText className="w-4 h-4 text-destructive" />
           </CardHeader>
           <CardContent>
@@ -147,7 +147,7 @@ export default function DataUsagePage() {
               <TrendingUp className="w-5 h-5" />
               Storage Breakdown
             </CardTitle>
-            <CardDescription data-testid="desc-storage-breakdown">Usage by file type</CardDescription>
+            <CardDescription data-testid="desc-storage-breakdown">{t("dashboard.dataUsage.usageByType")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4" data-testid="storage-breakdown">

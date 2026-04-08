@@ -1082,7 +1082,7 @@ export default function AffiliateDashboardPage() {
                 </div>
                 {bankCountry !== "ID" && (
                   <div className="space-y-2">
-                    <Label>SWIFT Code</Label>
+                    <Label>{t("dashboard.affiliate.swiftCode")}</Label>
                     <Input
                       placeholder="e.g., CHASUS33"
                       value={swiftCode}

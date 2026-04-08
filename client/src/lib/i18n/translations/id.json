@@ -283,7 +283,9 @@
       "enable": "Aktifkan Notifikasi",
       "soundAttached": "Suara Terpasang",
       "newMessageDesc": "Notifikasi ketika ada pesan baru dari pelanggan",
-      "angryDesc": "Notifikasi ketika sistem mendeteksi pelanggan yang marah atau frustasi"
+      "angryDesc": "Notifikasi ketika sistem mendeteksi pelanggan yang marah atau frustasi",
+      "uploadAudioDesc": "Unggah file audio untuk digunakan sebagai notifikasi",
+      "customSounds": "Suara Kustom Anda"
     },
     "leads": {
       "title": "Prospek Penjualan",
@@ -301,7 +303,24 @@
         "leadInformationHasBeenDesc": "Informasi prospek telah diperbarui.",
         "leadDeleted": "Prospek dihapus",
         "leadHasBeenRemovedDesc": "Prospek telah dihapus."
-      }
+      },
+      "leadsByStage": "Prospek berdasarkan tahap",
+      "editLead": "Edit Prospek",
+      "updateLeadInfo": "Perbarui informasi dan tahap prospek",
+      "customerName": "Nama Pelanggan",
+      "email": "Email",
+      "phone": "Telepon",
+      "stage": "Tahap",
+      "score": "Skor (0-100)",
+      "convertedValue": "Nilai Konversi (IDR)",
+      "notes": "Catatan",
+      "status": "Status",
+      "close": "Tutup",
+      "trackManage": "Lacak dan kelola pipeline penjualan Anda",
+      "totalLeads": "Total Prospek",
+      "hotLeads": "Prospek Panas",
+      "conversionRate": "Tingkat Konversi",
+      "convertedValue2": "Nilai Konversi"
     },
     "logout": "Keluar",
     "online": "Online",
@@ -539,7 +558,12 @@
       "goals": "Target",
       "satisfaction": "Kepuasan",
       "dataWillAppear": "Data akan muncul saat pelanggan mulai mengobrol",
-      "sessionsWillAppear": "Sesi akan muncul saat pelanggan mulai mengobrol"
+      "sessionsWillAppear": "Sesi akan muncul saat pelanggan mulai mengobrol",
+      "dailyMessageVolume": "Volume pesan harian selama 7 hari terakhir",
+      "noMessageData": "Belum ada data pesan",
+      "aiVsHuman": "Percakapan ditangani AI vs Manusia",
+      "recentSessions": "Sesi Terbaru",
+      "latestConversations": "Percakapan pelanggan terbaru"
     },
     "agents": {
       "title": "Agen AI",
@@ -655,7 +679,13 @@
       "throw": {
         "uploadFailed": "Unggahan gagal",
         "refinementFailed": "Penyempurnaan gagal"
-      }
+      },
+      "availableOnTakeover": "Tersedia saat Anda mengambil alih",
+      "autoRefineMessage": "Perbaiki Pesan Otomatis",
+      "autoTranslate": "Terjemahkan Otomatis",
+      "takeOver": "Ambil Alih",
+      "returnToBot": "Kembalikan ke Bot",
+      "imageUnavailable": "Gambar tidak tersedia"
     },
     "knowledge": {
       "title": "Basis Pengetahuan",
@@ -807,12 +837,35 @@
       "maxSizeDesc": "Ukuran file melebihi batas maksimum.",
       "invalidFormatDesc": "Format file tidak valid.",
       "bannerUploaded": "Banner diunggah",
-      "clickSaveDesc": "Klik simpan untuk menerapkan perubahan."
+      "clickSaveDesc": "Klik simpan untuk menerapkan perubahan.",
+      "appearanceSettings": "Pengaturan Tampilan",
+      "widgetButtonIcon": "Ikon Tombol Widget",
+      "widgetPosition": "Posisi Widget (dari tepi)",
+      "welcomeMessage": "Pesan Sambutan",
+      "onlineStatus": "Status Online",
+      "selectActiveAgent": "Pilih Agen Aktif",
+      "widgetTheme": "Tema Widget",
+      "bubblePosition": "Posisi Gelembung",
+      "proactiveChat": "Obrolan Proaktif",
+      "preChatForm": "Formulir Pra-Obrolan",
+      "allowedDomains": "Domain yang Diizinkan",
+      "validation": "Validasi:",
+      "embedType": "Tipe Embed",
+      "widgetSetup": "Pengaturan Widget",
+      "yourWidgetUrl": "URL widget Anda:",
+      "identityVerification": "Verifikasi Identitas",
+      "howItWorks": "Cara Kerja Verifikasi Identitas",
+      "implementationCode": "Kode Implementasi",
+      "jwtPayloadReference": "Referensi JWT Payload",
+      "commonIssues": "Masalah Umum",
+      "visible": "Terlihat",
+      "hidden": "Tersembunyi",
+      "noCustomIcon": "Tidak ada ikon kustom"
     },
     "welcomeBubble": {
       "title": "Balon Sambutan",
       "subtitle": "Konfigurasi balon sambutan di website Anda",
-      "message": "Pesan Balon",
+      "message": "Pesan",
       "delay": "Jeda Tampil (detik)",
       "enabled": "Aktifkan Balon Sambutan",
       "saved": "Pengaturan balon sambutan tersimpan",
@@ -838,7 +891,12 @@
       "invalidFormat": "Format tidak valid",
       "fileTooLarge": "File terlalu besar",
       "imageUploaded": "Gambar diunggah",
-      "maxButtons": "Batas tombol tercapai"
+      "maxButtons": "Batas tombol tercapai",
+      "button": "Tombol",
+      "buttonLabel": "Label Tombol",
+      "buttonColor": "Warna Tombol",
+      "fontColor": "Warna Font",
+      "enableSocialIcons": "Aktifkan Ikon Sosial"
     },
     "triggers": {
       "title": "Pemicu",
@@ -891,7 +949,16 @@
       "created": "Dibuat",
       "createFailed": "Pembuatan gagal",
       "updated": "Diperbarui",
-      "deleted": "Dihapus"
+      "deleted": "Dihapus",
+      "buttonType": "Tipe Tombol",
+      "linkType": "Tautan (Buka URL)",
+      "actionType": "Aksi (Kirim Pesan)",
+      "triggerType": "Pemicu (Jalankan Aksi)",
+      "triggerWord": "Kata Pemicu (Opsional)",
+      "noChatButtons": "Belum ada tombol obrolan",
+      "createFirstButton": "Buat tombol obrolan pertama Anda untuk membantu pelanggan",
+      "action": "Aksi",
+      "trigger": "Pemicu"
     },
     "productCards": {
       "title": "Kartu Produk",
@@ -912,7 +979,27 @@
       "previewSquare": "Pratinjau (Format Persegi)",
       "sourceAdded": "Sumber ditambahkan",
       "addFailed": "Penambahan gagal",
-      "sourceDeleted": "Sumber dihapus"
+      "sourceDeleted": "Sumber dihapus",
+      "scanDesc": "Pindai halaman produk untuk mendukung rekomendasi dan perbandingan AI",
+      "addProductPage": "Tambahkan halaman produk atau URL katalog Anda",
+      "aiScans": "AI memindai dan mengekstrak informasi produk",
+      "reviewApprove": "Tinjau dan setujui produk",
+      "syncToKB": "Sinkronkan ke basis pengetahuan AI untuk rekomendasi cerdas",
+      "addProductSource": "Tambah Sumber Produk",
+      "sourceName": "Nama Sumber (opsional)",
+      "productSources": "Sumber Produk",
+      "editProduct": "Edit Produk",
+      "category": "Kategori",
+      "imageUrl": "URL Gambar",
+      "configureRec": "Konfigurasikan kapan produk direkomendasikan kepada pelanggan",
+      "triggerKeywords": "Kata Kunci Pemicu",
+      "openSessionDesc": "Buka sesi obrolan di Panel Supervisor",
+      "clickProductIcon": "Klik ikon produk di area input pesan",
+      "selectProducts": "Pilih satu atau lebih produk untuk direkomendasikan",
+      "productsAsCarousel": "Produk akan dikirim sebagai carousel kepada pelanggan",
+      "showPrice": "Tampilkan Harga dalam Rekomendasi",
+      "buttonText": "Teks Tombol",
+      "buttonColor": "Warna Tombol"
     },
     "proactiveChat": {
       "title": "Chat Proaktif",
@@ -978,7 +1065,8 @@
       "fetchFailed": "Pengambilan data gagal",
       "toast": {
         "avgResponseTimeAi": "Rata-rata Waktu Respons (AI)"
-      }
+      },
+      "avgResponseTimeChart": "Rata-rata waktu respons per hari (detik)"
     },
     "chatLogs": {
       "title": "Log Chat",
@@ -990,7 +1078,8 @@
       "messages": "Pesan",
       "duration": "Durasi",
       "noLogs": "Tidak ada log chat",
-      "viewLog": "Lihat Log"
+      "viewLog": "Lihat Log",
+      "allLeads": "Semua Prospek"
     },
     "userData": {
       "title": "Data Pengguna",
@@ -1085,7 +1174,36 @@
         "unableToExportYourDesc": "Tidak dapat mengekspor data Anda.",
         "confirmationRequired": "Konfirmasi diperlukan",
         "pleaseTypeDeleteToDesc": "Harap ketik DELETE untuk mengonfirmasi."
-      }
+      },
+      "rateLimiting": "Pembatasan Kecepatan",
+      "maximumMessages": "Maksimum Pesan",
+      "perTimeWindow": "Per Jendela Waktu",
+      "customerInformation": "Informasi Pelanggan",
+      "collectEmail": "Kumpulkan Email",
+      "collectPhone": "Kumpulkan Nomor Telepon",
+      "newChatNotif": "Notifikasi saat pelanggan baru memulai obrolan",
+      "enableNotification": "Aktifkan Notifikasi",
+      "soundAttached": "Suara Terlampir",
+      "newMessageNotif": "Notifikasi saat ada pesan baru dari pelanggan",
+      "accountSecurity": "Keamanan Akun",
+      "accountActions": "Tindakan Akun",
+      "customDomain": "Domain Kustom",
+      "proFeature": "Fitur Pro",
+      "yourCustomDomain": "Domain Kustom Anda",
+      "changePassword": "Ubah Kata Sandi",
+      "currentPassword": "Kata Sandi Saat Ini",
+      "newPassword": "Kata Sandi Baru",
+      "confirmNewPassword": "Konfirmasi Kata Sandi Baru",
+      "changeEmailAddress": "Ubah Alamat Email",
+      "currentEmail": "Email Saat Ini",
+      "newEmailAddress": "Alamat Email Baru",
+      "authenticationCode": "Kode Autentikasi",
+      "chatSessionsDesc": "Semua sesi obrolan dan riwayat pesan",
+      "knowledgeBaseDesc": "Basis pengetahuan dan data pelatihan AI",
+      "supervisorAccountsDesc": "Akun supervisor",
+      "widgetConfigDesc": "Konfigurasi widget",
+      "billingInfoDesc": "Informasi tagihan dan langganan",
+      "typeDeleteToConfirm": "Ketik DELETE untuk konfirmasi"
     },
     "profile": {
       "title": "Profil",
@@ -1152,7 +1270,8 @@
       "mismatch": "Tidak cocok",
       "passwordMismatch": "Kata sandi tidak cocok",
       "phoneOnlyNumbers": "Nomor telepon hanya boleh berisi angka",
-      "phoneLengthError": "Nomor telepon harus 5-15 digit"
+      "phoneLengthError": "Nomor telepon harus 5-15 digit",
+      "confirmNewPassword": "Konfirmasi Kata Sandi Baru"
     },
     "teamActivity": {
       "title": "Aktivitas Tim",
@@ -1172,7 +1291,13 @@
       "addSupervisors": "Tambahkan supervisor di halaman Supervisor",
       "noAgents": "Belum ada agen AI",
       "createAgents": "Buat agen AI di halaman Agen",
-      "noPerformanceData": "Belum ada data performa"
+      "noPerformanceData": "Belum ada data performa",
+      "online": "Online",
+      "offline": "Offline",
+      "totalChatsHandled": "Total Obrolan Ditangani",
+      "averageRating": "Rating Rata-rata",
+      "activeSupervisors": "Supervisor Aktif",
+      "performanceMetrics": "Metrik performa setiap supervisor"
     },
     "workScheduler": {
       "title": "Penjadwalan Kerja",
@@ -1199,7 +1324,13 @@
       "weekend": "Akhir Pekan",
       "everyDay": "Setiap Hari",
       "weekdaysMon": "Hari Kerja (Sen-Jum)",
-      "weekendSat": "Akhir Pekan (Sab-Min)"
+      "weekendSat": "Akhir Pekan (Sab-Min)",
+      "assignmentList": "Daftar Penugasan",
+      "viewAssignments": "Lihat siapa yang ditugaskan ke setiap shift",
+      "noAssignments": "Belum ada penugasan",
+      "workHoursReport": "Laporan Jam Kerja",
+      "workHoursDesc": "Ringkasan jam kerja untuk supervisor dan agen",
+      "close": "Tutup"
     },
     "integrations": {
       "title": "Integrasi",
@@ -1235,7 +1366,16 @@
       "browserEnabled": "Notifikasi browser diaktifkan",
       "permissionDenied": "Izin ditolak",
       "telegramWebhookSet": "Webhook Telegram disetel",
-      "webhookFailed": "Pengaturan webhook gagal"
+      "webhookFailed": "Pengaturan webhook gagal",
+      "enableTelegram": "Aktifkan Telegram",
+      "botToken": "Token Bot",
+      "chatId": "Chat ID",
+      "copyBotToken": "Salin Token Bot di sini",
+      "startChatFirst": "Mulai obrolan dengan bot Anda terlebih dahulu",
+      "enableAndTest": "Aktifkan & uji notifikasi",
+      "enableDesktopAlerts": "Aktifkan Peringatan Desktop",
+      "tabMustBeOpen": "Tab dasbor harus tetap terbuka di browser",
+      "useTelegramForBrowser": "Untuk notifikasi saat browser tertutup, gunakan Bot Telegram"
     },
     "billing": {
       "title": "Tagihan & Langganan",
@@ -1331,7 +1471,10 @@
       "monthly": "Bulanan",
       "activatePremiumFeature": "Aktifkan fitur premium untuk meningkatkan kemampuan chatbot Anda",
       "scanQrWithEwallet": "Scan kode QR dengan aplikasi e-wallet atau mobile banking",
-      "scanAndPay": "Scan & Bayar"
+      "scanAndPay": "Scan & Bayar",
+      "cancelSubscription": "Batalkan Langganan?",
+      "deleteAccount": "Hapus Akun?",
+      "creditFromPrevious": "Kredit dari paket sebelumnya"
     },
     "plans": {
       "title": "Paket",
@@ -1362,7 +1505,8 @@
       "flagged": "Ditandai",
       "clean": "Bersih",
       "suspicious": "Mencurigakan",
-      "alert": "Peringatan"
+      "alert": "Peringatan",
+      "noActiveConversations": "Tidak ada percakapan aktif"
     },
     "affiliate": {
       "title": "Program Afiliasi",
@@ -1478,7 +1622,8 @@
       "linkCopied": "Tautan disalin",
       "linkCopiedDesc": "Tautan referral disalin ke clipboard.",
       "copyThisLink": "Salin tautan ini",
-      "statusFailed": "Pembaruan status gagal"
+      "statusFailed": "Pembaruan status gagal",
+      "swiftCode": "Kode SWIFT"
     },
     "dataUsage": {
       "title": "Penggunaan Data",
@@ -1487,7 +1632,12 @@
       "apiCalls": "Panggilan API",
       "messagesStored": "Pesan Tersimpan",
       "noData": "Tidak ada data penggunaan",
-      "messagesSent": "Pesan Terkirim"
+      "messagesSent": "Pesan Terkirim",
+      "totalStorageUsed": "Total Penyimpanan Digunakan",
+      "totalFiles": "Total File",
+      "images": "Gambar",
+      "documents": "Dokumen",
+      "usageByType": "Penggunaan berdasarkan tipe file"
     },
     "appointments": {
       "title": "Janji Temu",
@@ -1611,7 +1761,10 @@
         "sourceContentHasBeenDesc": "Konten sumber telah diperbarui.",
         "updateFailed": "Pembaruan gagal",
         "couldNotRefreshSourceDesc": "Tidak dapat memperbarui konten sumber."
-      }
+      },
+      "useTransactionTemplate": "Gunakan Template Catatan Transaksi",
+      "files": "File",
+      "websites": "Situs Web"
     },
     "billingDetails": {
       "title": "Detail Tagihan",
@@ -1620,7 +1773,11 @@
       "transferVA": "Transfer ke Virtual Account",
       "transferBank": "Transfer ke Rekening Bank",
       "useEwalletOrMobileBanking": "Gunakan e-wallet atau mobile banking",
-      "totalPayment": "TOTAL PEMBAYARAN"
+      "totalPayment": "TOTAL PEMBAYARAN",
+      "billingInformation": "Informasi Penagihan",
+      "paymentMethod": "Metode Pembayaran",
+      "billingHistory": "Riwayat Penagihan",
+      "orderDetails": "Detail Pesanan"
     },
     "scheduler": {
       "timezoneUpdated": "Zona waktu diperbarui",
@@ -1758,7 +1915,11 @@
       },
       "useEwalletOrMobileBanking": "Gunakan e-wallet atau mobile banking",
       "totalPayment": "TOTAL PEMBAYARAN",
-      "qrCodeNotAvailable": "QR Code tidak tersedia"
+      "qrCodeNotAvailable": "QR Code tidak tersedia",
+      "creditFromPrevious": "Kredit dari paket sebelumnya",
+      "pricesInUSD": "Semua harga ditampilkan dalam USD",
+      "txHash": "Hash Transaksi (TXID)",
+      "proofOfPayment": "Bukti Pembayaran (Screenshot)"
     },
     "sidebar": {
       "usagePlan": "Penggunaan & Paket"
@@ -1766,6 +1927,19 @@
     "layout": {
       "errorLoadingPage": "Terjadi kesalahan saat memuat halaman ini.",
       "reloadPage": "Muat ulang halaman"
+    },
+    "helpArticles": {
+      "allStatus": "Semua Status",
+      "draft": "Draf",
+      "published": "Diterbitkan",
+      "archived": "Diarsipkan",
+      "businessType": "Jenis Bisnis",
+      "category": "Kategori",
+      "specificTopic": "Topik Spesifik (Opsional)",
+      "additionalInfo": "Info Bisnis Tambahan (Opsional)",
+      "title": "Judul",
+      "content": "Konten (Markdown didukung)",
+      "status": "Status"
     }
   },
   "common": {

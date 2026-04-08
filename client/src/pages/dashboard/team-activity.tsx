@@ -64,13 +64,13 @@ interface PerformanceData {
 function getStatusBadge(status: string) {
   switch (status) {
     case "online":
-      return <Badge variant="default" className="bg-green-500">Online</Badge>;
+      return <Badge variant="default" className="bg-green-500">{t("dashboard.teamActivity.online")}</Badge>;
     case "busy":
       return <Badge variant="default" className="bg-amber-500">Busy</Badge>;
     case "away":
       return <Badge variant="secondary">Away</Badge>;
     default:
-      return <Badge variant="outline">Offline</Badge>;
+      return <Badge variant="outline">{t("dashboard.teamActivity.offline")}</Badge>;
   }
 }
 
@@ -343,7 +343,7 @@ export default function TeamActivityPage() {
               <div className="grid gap-4 md:grid-cols-3">
                 <Card data-testid="card-total-chats">
                   <CardHeader className="pb-2">
-                    <CardDescription>Total Chats Handled</CardDescription>
+                    <CardDescription>{t("dashboard.teamActivity.totalChatsHandled")}</CardDescription>
                     <CardTitle className="text-3xl flex items-center gap-2">
                       <MessageSquare className="w-6 h-6 text-foreground" />
                       <span data-testid="text-total-chats">{performanceData.summary.totalChatsHandled}</span>
@@ -357,7 +357,7 @@ export default function TeamActivityPage() {
                 </Card>
                 <Card data-testid="card-average-rating">
                   <CardHeader className="pb-2">
-                    <CardDescription>Average Rating</CardDescription>
+                    <CardDescription>{t("dashboard.teamActivity.averageRating")}</CardDescription>
                     <CardTitle className="text-3xl flex items-center gap-2">
                       <Star className="w-6 h-6 text-amber-500 dark:text-amber-400" />
                       <span data-testid="text-average-rating">{performanceData.summary.averageRating?.toFixed(1) || "N/A"}</span>
@@ -371,7 +371,7 @@ export default function TeamActivityPage() {
                 </Card>
                 <Card data-testid="card-active-supervisors">
                   <CardHeader className="pb-2">
-                    <CardDescription>Active Supervisors</CardDescription>
+                    <CardDescription>{t("dashboard.teamActivity.activeSupervisors")}</CardDescription>
                     <CardTitle className="text-3xl flex items-center gap-2">
                       <Users className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                       <span data-testid="text-active-supervisors">{performanceData.supervisors.filter(s => s.status === "online").length}/{performanceData.summary.totalSupervisors}</span>
@@ -392,7 +392,7 @@ export default function TeamActivityPage() {
                     <BarChart3 className="w-5 h-5" />
                     Individual Performance
                   </CardTitle>
-                  <CardDescription>Performance metrics for each supervisor</CardDescription>
+                  <CardDescription>{t("dashboard.teamActivity.performanceMetrics")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">

@@ -959,7 +959,7 @@ export default function BillingDetailsPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Receipt className="w-5 h-5 text-primary" />
-              <CardTitle>Billing Information</CardTitle>
+              <CardTitle>{t("dashboard.billingDetails.billingInformation")}</CardTitle>
             </div>
             <CardDescription>
               Update your billing contact and tax details.
@@ -1033,7 +1033,7 @@ export default function BillingDetailsPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-primary" />
-              <CardTitle>Payment Method</CardTitle>
+              <CardTitle>{t("dashboard.billingDetails.paymentMethod")}</CardTitle>
             </div>
             <CardDescription>
               Choose how you'd like to pay for your subscription.
@@ -1090,7 +1090,7 @@ export default function BillingDetailsPage() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <History className="w-5 h-5 text-primary" />
-            <CardTitle>Billing History</CardTitle>
+            <CardTitle>{t("dashboard.billingDetails.billingHistory")}</CardTitle>
           </div>
           <CardDescription>
             View your past invoices and payment history.
@@ -1170,7 +1170,7 @@ export default function BillingDetailsPage() {
       <Dialog open={showOrderDetailsDialog} onOpenChange={setShowOrderDetailsDialog}>
         <DialogContent className="sm:max-w-md p-0 overflow-hidden">
           <DialogHeader className="sr-only">
-            <DialogTitle>Order Details</DialogTitle>
+            <DialogTitle>{t("dashboard.billingDetails.orderDetails")}</DialogTitle>
           </DialogHeader>
           
           {/* Capturable Content - Light mode white background */}

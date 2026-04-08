@@ -386,7 +386,7 @@ export default function IntegrationsPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label>Enable Telegram</Label>
+                <Label>{t("dashboard.integrations.enableTelegram")}</Label>
                 <p className="text-xs text-muted-foreground">Send alerts to Telegram</p>
               </div>
               <Switch
@@ -397,7 +397,7 @@ export default function IntegrationsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="bot-token">Bot Token</Label>
+              <Label htmlFor="bot-token">{t("dashboard.integrations.botToken")}</Label>
               <Input
                 id="bot-token"
                 type="password"
@@ -420,7 +420,7 @@ export default function IntegrationsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="chat-id">Chat ID</Label>
+              <Label htmlFor="chat-id">{t("dashboard.integrations.chatId")}</Label>
               <Input
                 id="chat-id"
                 placeholder="Your chat ID or group ID"
@@ -477,10 +477,10 @@ export default function IntegrationsPage() {
               <p className="font-medium mb-1">Setup Steps:</p>
               <ol className="list-decimal list-inside space-y-0.5">
                 <li>Open @BotFather, send /newbot</li>
-                <li>Copy the Bot Token here</li>
+                <li>{t("dashboard.integrations.copyBotToken")}</li>
                 <li>Get your Chat ID from @userinfobot</li>
-                <li>Start a chat with your bot first</li>
-                <li>Enable & test the notification</li>
+                <li>{t("dashboard.integrations.startChatFirst")}</li>
+                <li>{t("dashboard.integrations.enableAndTest")}</li>
                 <li>Click "Enable Supervisor Telegram Replies" to allow supervisors to reply via Telegram</li>
               </ol>
             </div>
@@ -504,7 +504,7 @@ export default function IntegrationsPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label>Enable Desktop Alerts</Label>
+                <Label>{t("dashboard.integrations.enableDesktopAlerts")}</Label>
                 <p className="text-xs text-muted-foreground">Notifications when tab is in background</p>
               </div>
               <Switch
@@ -534,8 +534,8 @@ export default function IntegrationsPage() {
               <div className="text-xs text-muted-foreground border-t pt-3">
                 <p className="font-medium mb-1">Note:</p>
                 <ul className="list-disc list-inside space-y-0.5">
-                  <li>Dashboard tab must remain open in browser</li>
-                  <li>For notifications when browser is closed, use Telegram Bot</li>
+                  <li>{t("dashboard.integrations.tabMustBeOpen")}</li>
+                  <li>{t("dashboard.integrations.useTelegramForBrowser")}</li>
                 </ul>
               </div>
             </div>

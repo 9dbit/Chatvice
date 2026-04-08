@@ -1347,8 +1347,8 @@ export default function SessionsPage() {
                             </TooltipTrigger>
                             <TooltipContent side="bottom">
                               {selectedSessionData?.mode !== "HUMAN"
-                                ? <p>Available when you take over</p>
-                                : <p>Auto Refine Message</p>}
+                                ? <p>{t("dashboard.sessions.availableOnTakeover")}</p>
+                                : <p>{t("dashboard.sessions.autoRefineMessage")}</p>}
                             </TooltipContent>
                           </Tooltip>
 
@@ -1372,7 +1372,7 @@ export default function SessionsPage() {
                               </div>
                             </TooltipTrigger>
                             <TooltipContent side="bottom">
-                              <p>Auto Translate</p>
+                              <p>{t("dashboard.sessions.autoTranslate")}</p>
                             </TooltipContent>
                           </Tooltip>
                           {autoTranslateEnabled && (
@@ -1403,7 +1403,7 @@ export default function SessionsPage() {
                               data-testid="button-takeover-session"
                             >
                               <Hand className="w-3.5 h-3.5 sm:mr-1.5" />
-                              <span>Take Over</span>
+                              <span>{t("dashboard.sessions.takeOver")}</span>
                             </Button>
                           ) : (
                             <Button
@@ -1415,7 +1415,7 @@ export default function SessionsPage() {
                               data-testid="button-return-to-bot"
                             >
                               <Bot className="w-3.5 h-3.5 sm:mr-1.5" />
-                              <span>Return to Bot</span>
+                              <span>{t("dashboard.sessions.returnToBot")}</span>
                             </Button>
                           )}
 
@@ -1718,7 +1718,7 @@ export default function SessionsPage() {
                                                   if (parent) {
                                                     const fallback = document.createElement('div');
                                                     fallback.className = 'w-[200px] h-[150px] rounded-lg bg-muted flex items-center justify-center';
-                                                    fallback.innerHTML = '<span class="text-xs text-muted-foreground">Image unavailable</span>';
+                                                    fallback.innerHTML = '<span class="text-xs text-muted-foreground">{t("dashboard.sessions.imageUnavailable")}</span>';
                                                     parent.appendChild(fallback);
                                                   }
                                                 }}

@@ -772,7 +772,7 @@ export default function SettingsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <AlertCircle className="w-5 h-5 text-primary" />
-                  <CardTitle>Rate Limiting</CardTitle>
+                  <CardTitle>{t("dashboard.settings.rateLimiting")}</CardTitle>
                 </div>
                 <CardDescription>
                   Prevent abuse by limiting message frequency.
@@ -780,7 +780,7 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Maximum Messages</Label>
+                  <Label>{t("dashboard.settings.maximumMessages")}</Label>
                   <Select 
                     value={String(rateLimitMessages)} 
                     onValueChange={(v) => setRateLimitMessages(Number(v))}
@@ -798,7 +798,7 @@ export default function SettingsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Per Time Window</Label>
+                  <Label>{t("dashboard.settings.perTimeWindow")}</Label>
                   <Select 
                     value={String(rateLimitWindow)} 
                     onValueChange={(v) => setRateLimitWindow(Number(v))}
@@ -824,7 +824,7 @@ export default function SettingsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <User className="w-5 h-5 text-primary" />
-                  <CardTitle>Customer Information</CardTitle>
+                  <CardTitle>{t("dashboard.settings.customerInformation")}</CardTitle>
                 </div>
                 <CardDescription>
                   Choose what information to collect from customers.
@@ -833,7 +833,7 @@ export default function SettingsPage() {
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label>Collect Email</Label>
+                    <Label>{t("dashboard.settings.collectEmail")}</Label>
                     <p className="text-xs text-muted-foreground">
                       Ask for email before starting chat
                     </p>
@@ -846,7 +846,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label>Collect Phone</Label>
+                    <Label>{t("dashboard.settings.collectPhone")}</Label>
                     <p className="text-xs text-muted-foreground">
                       Ask for phone number before starting chat
                     </p>
@@ -898,7 +898,7 @@ export default function SettingsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="incomingEnabled">Enable Notification</Label>
+                    <Label htmlFor="incomingEnabled">{t("dashboard.settings.enableNotification")}</Label>
                     <Switch
                       id="incomingEnabled"
                       checked={notificationSettings?.incomingChatEnabled ?? true}
@@ -907,7 +907,7 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Sound Attached</Label>
+                    <Label>{t("dashboard.settings.soundAttached")}</Label>
                     <div className="flex gap-2">
                       <Select 
                         value={notificationSettings?.incomingChatSound || "incoming-msg"}
@@ -1081,7 +1081,7 @@ export default function SettingsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Lock className="w-5 h-5 text-primary" />
-                  <CardTitle>Account Security</CardTitle>
+                  <CardTitle>{t("dashboard.settings.accountSecurity")}</CardTitle>
                 </div>
                 <CardDescription>
                   Manage your account security settings.
@@ -1136,7 +1136,7 @@ export default function SettingsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Settings className="w-5 h-5 text-primary" />
-                  <CardTitle>Account Actions</CardTitle>
+                  <CardTitle>{t("dashboard.settings.accountActions")}</CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1177,9 +1177,9 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Globe className="w-5 h-5 text-primary" />
-                  <CardTitle>Custom Domain</CardTitle>
+                  <CardTitle>{t("dashboard.settings.customDomain")}</CardTitle>
                 </div>
-                {!isPro && <Badge variant="secondary">Pro Feature</Badge>}
+                {!isPro && <Badge variant="secondary">{t("dashboard.settings.proFeature")}</Badge>}
               </div>
               <CardDescription>
                 Connect your own domain to serve the chat widget from your branded URL.
@@ -1204,7 +1204,7 @@ export default function SettingsPage() {
                 <>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Your Custom Domain</Label>
+                      <Label>{t("dashboard.settings.yourCustomDomain")}</Label>
                       <div className="flex gap-2">
                         <Input
                           value={customDomain}
@@ -1348,7 +1348,7 @@ export default function SettingsPage() {
       <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Change Password</DialogTitle>
+            <DialogTitle>{t("dashboard.settings.changePassword")}</DialogTitle>
             <DialogDescription>
               Enter your current password and a new password.
             </DialogDescription>
@@ -1425,7 +1425,7 @@ export default function SettingsPage() {
       <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Change Email Address</DialogTitle>
+            <DialogTitle>{t("dashboard.settings.changeEmailAddress")}</DialogTitle>
             <DialogDescription>
               We'll send a verification link to your current email address to confirm this change.
             </DialogDescription>
@@ -1505,7 +1505,7 @@ export default function SettingsPage() {
               </div>
             )}
             <div className="space-y-2">
-              <Label>Authentication Code</Label>
+              <Label>{t("dashboard.settings.authenticationCode")}</Label>
               <Input
                 value={twoFactorCode}
                 onChange={(e) => setTwoFactorCode(e.target.value)}
@@ -1540,14 +1540,14 @@ export default function SettingsPage() {
             <AlertDialogDescription className="space-y-4">
               <p>This action is permanent and cannot be undone. All your data will be deleted including:</p>
               <ul className="list-disc pl-4 space-y-1 text-sm">
-                <li>All chat sessions and message history</li>
-                <li>Knowledge base and AI training data</li>
-                <li>Supervisor accounts</li>
-                <li>Widget configurations</li>
-                <li>Billing and subscription information</li>
+                <li>{t("dashboard.settings.chatSessionsDesc")}</li>
+                <li>{t("dashboard.settings.knowledgeBaseDesc")}</li>
+                <li>{t("dashboard.settings.supervisorAccountsDesc")}</li>
+                <li>{t("dashboard.settings.widgetConfigDesc")}</li>
+                <li>{t("dashboard.settings.billingInfoDesc")}</li>
               </ul>
               <div className="pt-2">
-                <Label>Type DELETE to confirm</Label>
+                <Label>{t("dashboard.settings.typeDeleteToConfirm")}</Label>
                 <Input
                   value={deleteConfirmText}
                   onChange={(e) => setDeleteConfirmText(e.target.value)}

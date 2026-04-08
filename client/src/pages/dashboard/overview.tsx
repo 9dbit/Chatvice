@@ -446,7 +446,7 @@ export default function DashboardOverview() {
               <BarChart3 className="w-5 h-5 text-primary" />
               Messages This Week
             </CardTitle>
-            <CardDescription>Daily message volume over the last 7 days</CardDescription>
+            <CardDescription>{t("dashboard.overview.dailyMessageVolume")}</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -485,7 +485,7 @@ export default function DashboardOverview() {
               <div className="h-[200px] flex items-center justify-center text-muted-foreground">
                 <div className="text-center">
                   <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No message data yet</p>
+                  <p>{t("dashboard.overview.noMessageData")}</p>
                   <p className="text-sm">{t("dashboard.overview.dataWillAppear")}</p>
                 </div>
               </div>
@@ -499,7 +499,7 @@ export default function DashboardOverview() {
               <TrendingUp className="w-5 h-5 text-primary" />
               Performance Metrics
             </CardTitle>
-            <CardDescription>AI vs Human handled conversations</CardDescription>
+            <CardDescription>{t("dashboard.overview.aiVsHuman")}</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -557,8 +557,8 @@ export default function DashboardOverview() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent Sessions</CardTitle>
-          <CardDescription>Latest customer conversations</CardDescription>
+          <CardTitle>{t("dashboard.overview.recentSessions")}</CardTitle>
+          <CardDescription>{t("dashboard.overview.latestConversations")}</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (

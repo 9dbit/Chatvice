@@ -1441,7 +1441,7 @@ export default function CheckoutPage() {
                     )}
                     {creditAmountUSD > 0 && (
                       <div className="flex justify-between text-xs text-blue-600">
-                        <span>Credit from previous plan</span>
+                        <span>{t("dashboard.checkout.creditFromPrevious")}</span>
                         <span>- ${creditAmountUSD.toFixed(2)}</span>
                       </div>
                     )}
@@ -1470,7 +1470,7 @@ export default function CheckoutPage() {
                 </p>
                 <div className="flex items-center gap-1 text-muted-foreground/80 pt-0.5">
                   <Info className="w-2.5 h-2.5" />
-                  <span>All prices shown in USD</span>
+                  <span>{t("dashboard.checkout.pricesInUSD")}</span>
                 </div>
               </div>
 
@@ -3275,7 +3275,7 @@ export default function CheckoutPage() {
               
               {/* Transaction Hash */}
               <div className="space-y-2">
-                <Label htmlFor="txHash">Transaction Hash (TXID)</Label>
+                <Label htmlFor="txHash">{t("dashboard.checkout.txHash")}</Label>
                 <Input
                   id="txHash"
                   placeholder="Enter your transaction hash..."
@@ -3287,7 +3287,7 @@ export default function CheckoutPage() {
               
               {/* Proof of Payment Upload */}
               <div className="space-y-2">
-                <Label>Proof of Payment (Screenshot)</Label>
+                <Label>{t("dashboard.checkout.proofOfPayment")}</Label>
                 <div 
                   className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-purple-500/50 transition-colors"
                   onClick={() => document.getElementById('cryptoProofInput')?.click()}

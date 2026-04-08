@@ -388,7 +388,7 @@ export default function WelcomeBubblePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="buttonLabel">Button Label</Label>
+                <Label htmlFor="buttonLabel">{t("dashboard.welcomeBubble.buttonLabel")}</Label>
                 <Input
                   id="buttonLabel"
                   value={form.buttonLabel}
@@ -399,7 +399,7 @@ export default function WelcomeBubblePage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="buttonColor">Button Color</Label>
+                  <Label htmlFor="buttonColor">{t("dashboard.welcomeBubble.buttonColor")}</Label>
                   <div className="flex gap-2">
                     <Input
                       id="buttonColor"
@@ -418,7 +418,7 @@ export default function WelcomeBubblePage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="buttonTextColor">Font Color</Label>
+                  <Label htmlFor="buttonTextColor">{t("dashboard.welcomeBubble.fontColor")}</Label>
                   <div className="flex gap-2">
                     <Input
                       id="buttonTextColor"
@@ -556,7 +556,7 @@ export default function WelcomeBubblePage() {
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label htmlFor="socialIconsEnabled">Enable Social Icons</Label>
+                  <Label htmlFor="socialIconsEnabled">{t("dashboard.welcomeBubble.enableSocialIcons")}</Label>
                   <p className="text-sm text-muted-foreground">
                     Icons will appear below the welcome bubble (configure links in Widget page)
                   </p>

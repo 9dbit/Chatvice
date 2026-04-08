@@ -606,7 +606,7 @@ export default function ProductCardsPage() {
                   <Globe className="w-5 h-5 text-primary" />
                   <div>
                     <CardTitle className="text-base">Product Catalog Crawler</CardTitle>
-                    <CardDescription>Scan product pages to power AI recommendations and comparisons</CardDescription>
+                    <CardDescription>{t("dashboard.productCards.scanDesc")}</CardDescription>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -632,10 +632,10 @@ export default function ProductCardsPage() {
                   How it works
                 </h4>
                 <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                  <li>Add your product page or catalog URL</li>
-                  <li>AI scans and extracts product information</li>
-                  <li>Review and approve products</li>
-                  <li>Sync to AI knowledge base for smart recommendations</li>
+                  <li>{t("dashboard.productCards.addProductPage")}</li>
+                  <li>{t("dashboard.productCards.aiScans")}</li>
+                  <li>{t("dashboard.productCards.reviewApprove")}</li>
+                  <li>{t("dashboard.productCards.syncToKB")}</li>
                 </ol>
               </div>
 
@@ -645,12 +645,12 @@ export default function ProductCardsPage() {
                   <DialogTrigger asChild>
                     <Button data-testid="button-add-source">
                       <Plus className="w-4 h-4 mr-2" />
-                      Add Product URL
+                      Add {t("dashboard.productCards.productUrl")}
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Add Product Source</DialogTitle>
+                      <DialogTitle>{t("dashboard.productCards.addProductSource")}</DialogTitle>
                       <DialogDescription>
                         Enter a product page or catalog URL to scan for products
                       </DialogDescription>
@@ -667,7 +667,7 @@ export default function ProductCardsPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="crawlerName">Source Name (optional)</Label>
+                        <Label htmlFor="crawlerName">{t("dashboard.productCards.sourceName")}</Label>
                         <Input
                           id="crawlerName"
                           value={crawlerName}
@@ -713,7 +713,7 @@ export default function ProductCardsPage() {
               {/* Sources List */}
               {crawlSources.length > 0 && (
                 <div className="space-y-3">
-                  <Label>Product Sources</Label>
+                  <Label>{t("dashboard.productCards.productSources")}</Label>
                   {crawlSources.map((source) => {
                     let displayName = source.name;
                     if (!displayName) {
@@ -850,14 +850,14 @@ export default function ProductCardsPage() {
               <Dialog open={!!editingCrawledProduct} onOpenChange={(open) => !open && setEditingCrawledProduct(null)}>
                 <DialogContent className="max-w-md">
                   <DialogHeader>
-                    <DialogTitle>Edit Product</DialogTitle>
+                    <DialogTitle>{t("dashboard.productCards.editProduct")}</DialogTitle>
                     <DialogDescription>
                       Review and edit product details before approving
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="crawled-title">Product Name</Label>
+                      <Label htmlFor="crawled-title">{t("dashboard.productCards.productName")}</Label>
                       <Input
                         id="crawled-title"
                         value={crawledProductForm.title}
@@ -898,7 +898,7 @@ export default function ProductCardsPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="crawled-imageUrl">Image URL</Label>
+                      <Label htmlFor="crawled-imageUrl">{t("dashboard.productCards.imageUrl")}</Label>
                       <Input
                         id="crawled-imageUrl"
                         value={crawledProductForm.imageUrl}
@@ -998,7 +998,7 @@ export default function ProductCardsPage() {
                   <Settings className="w-5 h-5" />
                   <div>
                     <CardTitle className="text-base">Recommendation Triggers</CardTitle>
-                    <CardDescription>Configure when products are recommended to customers</CardDescription>
+                    <CardDescription>{t("dashboard.productCards.configureRec")}</CardDescription>
                   </div>
                 </div>
                 <ChevronDown className={`w-4 h-4 transition-transform ${isSettingsOpen ? "rotate-180" : ""}`} />
@@ -1038,7 +1038,7 @@ export default function ProductCardsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="triggerKeywords">Trigger Keywords</Label>
+                    <Label htmlFor="triggerKeywords">{t("dashboard.productCards.triggerKeywords")}</Label>
                     <Input
                       id="triggerKeywords"
                       value={recommendSettings.triggerKeywords}
@@ -1106,16 +1106,16 @@ export default function ProductCardsPage() {
                   <div className="p-4 bg-muted rounded-lg">
                     <h4 className="font-medium mb-2">How Supervisors Recommend Products</h4>
                     <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
-                      <li>Open a chat session in the Supervisor Panel</li>
-                      <li>Click the product icon in the message input area</li>
-                      <li>Select one or more products to recommend</li>
-                      <li>Products will be sent as a carousel to the customer</li>
+                      <li>{t("dashboard.productCards.openSessionDesc")}</li>
+                      <li>{t("dashboard.productCards.clickProductIcon")}</li>
+                      <li>{t("dashboard.productCards.selectProducts")}</li>
+                      <li>{t("dashboard.productCards.productsAsCarousel")}</li>
                     </ol>
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label>Show Price in Recommendations</Label>
+                      <Label>{t("dashboard.productCards.showPrice")}</Label>
                       <p className="text-sm text-muted-foreground">
                         Display product prices when recommending to customers
                       </p>
@@ -1148,7 +1148,7 @@ export default function ProductCardsPage() {
                     {recommendSettings.ctaButtonEnabled && (
                       <div className="space-y-3 pl-6">
                         <div className="space-y-2">
-                          <Label>Button Text</Label>
+                          <Label>{t("dashboard.productCards.buttonText")}</Label>
                           <Input
                             value={recommendSettings.ctaButtonText}
                             onChange={(e) => setRecommendSettings({ ...recommendSettings, ctaButtonText: e.target.value })}
@@ -1158,7 +1158,7 @@ export default function ProductCardsPage() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label>Button Color</Label>
+                          <Label>{t("dashboard.productCards.buttonColor")}</Label>
                           <div className="flex items-center gap-2">
                             <input
                               type="color"

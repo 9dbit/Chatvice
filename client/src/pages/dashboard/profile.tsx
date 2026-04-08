@@ -1015,7 +1015,7 @@ export default function ProfilePage() {
           <div className="space-y-4 py-2">
             {!isOAuthAccount && (
               <div className="space-y-2">
-                <Label htmlFor="current-password">Current Password</Label>
+                <Label htmlFor="current-password">{t("dashboard.profile.currentPassword")}</Label>
                 <div className="relative">
                   <Input
                     id="current-password"
@@ -1038,7 +1038,7 @@ export default function ProfilePage() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="new-password">New Password</Label>
+              <Label htmlFor="new-password">{t("dashboard.profile.newPassword")}</Label>
               <div className="relative">
                 <Input
                   id="new-password"
@@ -1063,7 +1063,7 @@ export default function ProfilePage() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm New Password</Label>
+              <Label htmlFor="confirm-password">{t("dashboard.profile.confirmNewPassword")}</Label>
               <div className="relative">
                 <Input
                   id="confirm-password"

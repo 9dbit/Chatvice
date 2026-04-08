@@ -2251,7 +2251,7 @@ export default function BillingPage() {
                           )}
                           {prorationInfo?.prorationApplied && prorationInfo?.creditAmount && (
                             <div className="flex justify-between text-sm text-blue-600">
-                              <span>Credit from previous plan</span>
+                              <span>{t("dashboard.billing.creditFromPrevious")}</span>
                               <span>- Rp {Math.round(prorationInfo.creditAmount * exchangeRate).toLocaleString('id-ID')}</span>
                             </div>
                           )}
@@ -2521,7 +2521,7 @@ export default function BillingPage() {
       <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancel Subscription?</DialogTitle>
+            <DialogTitle>{t("dashboard.billing.cancelSubscription")}</DialogTitle>
             <DialogDescription>
               Anda yakin ingin membatalkan langganan? Anda masih dapat mengakses layanan hingga akhir periode.
             </DialogDescription>
@@ -2547,7 +2547,7 @@ export default function BillingPage() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Account?</DialogTitle>
+            <DialogTitle>{t("dashboard.billing.deleteAccount")}</DialogTitle>
             <DialogDescription>
               Tindakan ini tidak dapat dibatalkan. Semua data Anda akan dihapus secara permanen.
             </DialogDescription>

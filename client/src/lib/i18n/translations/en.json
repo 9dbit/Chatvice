@@ -283,7 +283,9 @@
       "enable": "Enable Notification",
       "soundAttached": "Sound Attached",
       "newMessageDesc": "Notification when there's a new message from customer",
-      "angryDesc": "Notification when the system detects an angry or frustrated customer"
+      "angryDesc": "Notification when the system detects an angry or frustrated customer",
+      "uploadAudioDesc": "Upload audio files to use as notifications",
+      "customSounds": "Your Custom Sounds"
     },
     "leads": {
       "title": "Sales Leads",
@@ -301,7 +303,24 @@
         "leadInformationHasBeenDesc": "Lead information has been updated.",
         "leadDeleted": "Lead deleted",
         "leadHasBeenRemovedDesc": "The lead has been removed."
-      }
+      },
+      "leadsByStage": "Leads by stage",
+      "editLead": "Edit Lead",
+      "updateLeadInfo": "Update lead information and stage",
+      "customerName": "Customer Name",
+      "email": "Email",
+      "phone": "Phone",
+      "stage": "Stage",
+      "score": "Score (0-100)",
+      "convertedValue": "Converted Value (IDR)",
+      "notes": "Notes",
+      "status": "Status",
+      "close": "Close",
+      "trackManage": "Track and manage your sales pipeline",
+      "totalLeads": "Total Leads",
+      "hotLeads": "Hot Leads",
+      "conversionRate": "Conversion Rate",
+      "convertedValue2": "Converted Value"
     },
     "logout": "Logout",
     "online": "Online",
@@ -539,7 +558,12 @@
       "goals": "Goals",
       "satisfaction": "Satisfaction",
       "dataWillAppear": "Data will appear when customers start chatting",
-      "sessionsWillAppear": "Sessions will appear when customers start chatting"
+      "sessionsWillAppear": "Sessions will appear when customers start chatting",
+      "dailyMessageVolume": "Daily message volume over the last 7 days",
+      "noMessageData": "No message data yet",
+      "aiVsHuman": "AI vs Human handled conversations",
+      "recentSessions": "Recent Sessions",
+      "latestConversations": "Latest customer conversations"
     },
     "agents": {
       "title": "AI Agents",
@@ -655,7 +679,13 @@
       "throw": {
         "uploadFailed": "Upload failed",
         "refinementFailed": "Refinement failed"
-      }
+      },
+      "availableOnTakeover": "Available when you take over",
+      "autoRefineMessage": "Auto Refine Message",
+      "autoTranslate": "Auto Translate",
+      "takeOver": "Take Over",
+      "returnToBot": "Return to Bot",
+      "imageUnavailable": "Image unavailable"
     },
     "knowledge": {
       "title": "Knowledge Base",
@@ -807,12 +837,35 @@
       "maxSizeDesc": "File size exceeds maximum limit.",
       "invalidFormatDesc": "Invalid file format.",
       "bannerUploaded": "Banner uploaded",
-      "clickSaveDesc": "Click save to apply changes."
+      "clickSaveDesc": "Click save to apply changes.",
+      "appearanceSettings": "Appearance Settings",
+      "widgetButtonIcon": "Widget Button Icon",
+      "widgetPosition": "Widget Position (from edge)",
+      "welcomeMessage": "Welcome Message",
+      "onlineStatus": "Online Status",
+      "selectActiveAgent": "Select Active Agent",
+      "widgetTheme": "Widget Theme",
+      "bubblePosition": "Bubble Position",
+      "proactiveChat": "Proactive Chat",
+      "preChatForm": "Pre-Chat Form",
+      "allowedDomains": "Allowed Domains",
+      "validation": "Validation:",
+      "embedType": "Embed Type",
+      "widgetSetup": "Widget Setup",
+      "yourWidgetUrl": "Your widget URL:",
+      "identityVerification": "Identity Verification",
+      "howItWorks": "How Identity Verification Works",
+      "implementationCode": "Implementation Code",
+      "jwtPayloadReference": "JWT Payload Reference",
+      "commonIssues": "Common Issues",
+      "visible": "Visible",
+      "hidden": "Hidden",
+      "noCustomIcon": "No custom icon"
     },
     "welcomeBubble": {
       "title": "Welcome Bubble",
       "subtitle": "Configure the welcome bubble displayed on your website",
-      "message": "Bubble Message",
+      "message": "Message",
       "delay": "Display Delay (seconds)",
       "enabled": "Enable Welcome Bubble",
       "saved": "Welcome bubble settings saved",
@@ -838,7 +891,12 @@
       "invalidFormat": "Invalid format",
       "fileTooLarge": "File too large",
       "imageUploaded": "Image uploaded",
-      "maxButtons": "Maximum buttons reached"
+      "maxButtons": "Maximum buttons reached",
+      "button": "Button",
+      "buttonLabel": "Button Label",
+      "buttonColor": "Button Color",
+      "fontColor": "Font Color",
+      "enableSocialIcons": "Enable Social Icons"
     },
     "triggers": {
       "title": "Triggers",
@@ -891,7 +949,16 @@
       "created": "Created",
       "createFailed": "Create failed",
       "updated": "Updated",
-      "deleted": "Deleted"
+      "deleted": "Deleted",
+      "buttonType": "Button Type",
+      "linkType": "Link (Open URL)",
+      "actionType": "Action (Send Message)",
+      "triggerType": "Trigger (Execute Action)",
+      "triggerWord": "Trigger Word (Optional)",
+      "noChatButtons": "No chat buttons yet",
+      "createFirstButton": "Create your first chat button to help customers",
+      "action": "Action",
+      "trigger": "Trigger"
     },
     "productCards": {
       "title": "Product Cards",
@@ -912,7 +979,27 @@
       "previewSquare": "Preview (Square Format)",
       "sourceAdded": "Source added",
       "addFailed": "Add failed",
-      "sourceDeleted": "Source deleted"
+      "sourceDeleted": "Source deleted",
+      "scanDesc": "Scan product pages to power AI recommendations and comparisons",
+      "addProductPage": "Add your product page or catalog URL",
+      "aiScans": "AI scans and extracts product information",
+      "reviewApprove": "Review and approve products",
+      "syncToKB": "Sync to AI knowledge base for smart recommendations",
+      "addProductSource": "Add Product Source",
+      "sourceName": "Source Name (optional)",
+      "productSources": "Product Sources",
+      "editProduct": "Edit Product",
+      "category": "Category",
+      "imageUrl": "Image URL",
+      "configureRec": "Configure when products are recommended to customers",
+      "triggerKeywords": "Trigger Keywords",
+      "openSessionDesc": "Open a chat session in the Supervisor Panel",
+      "clickProductIcon": "Click the product icon in the message input area",
+      "selectProducts": "Select one or more products to recommend",
+      "productsAsCarousel": "Products will be sent as a carousel to the customer",
+      "showPrice": "Show Price in Recommendations",
+      "buttonText": "Button Text",
+      "buttonColor": "Button Color"
     },
     "proactiveChat": {
       "title": "Proactive Chat",
@@ -978,7 +1065,8 @@
       "fetchFailed": "Fetch failed",
       "toast": {
         "avgResponseTimeAi": "Avg Response Time (AI)"
-      }
+      },
+      "avgResponseTimeChart": "Average response time per day (seconds)"
     },
     "chatLogs": {
       "title": "Chat Logs",
@@ -990,7 +1078,8 @@
       "messages": "Messages",
       "duration": "Duration",
       "noLogs": "No chat logs found",
-      "viewLog": "View Log"
+      "viewLog": "View Log",
+      "allLeads": "All Leads"
     },
     "userData": {
       "title": "User Data",
@@ -1085,7 +1174,36 @@
         "unableToExportYourDesc": "Unable to export your data.",
         "confirmationRequired": "Confirmation required",
         "pleaseTypeDeleteToDesc": "Please type DELETE to confirm."
-      }
+      },
+      "rateLimiting": "Rate Limiting",
+      "maximumMessages": "Maximum Messages",
+      "perTimeWindow": "Per Time Window",
+      "customerInformation": "Customer Information",
+      "collectEmail": "Collect Email",
+      "collectPhone": "Collect Phone",
+      "newChatNotif": "Notification when a new customer starts a chat",
+      "enableNotification": "Enable Notification",
+      "soundAttached": "Sound Attached",
+      "newMessageNotif": "Notification when there's a new message from customer",
+      "accountSecurity": "Account Security",
+      "accountActions": "Account Actions",
+      "customDomain": "Custom Domain",
+      "proFeature": "Pro Feature",
+      "yourCustomDomain": "Your Custom Domain",
+      "changePassword": "Change Password",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmNewPassword": "Confirm New Password",
+      "changeEmailAddress": "Change Email Address",
+      "currentEmail": "Current Email",
+      "newEmailAddress": "New Email Address",
+      "authenticationCode": "Authentication Code",
+      "chatSessionsDesc": "All chat sessions and message history",
+      "knowledgeBaseDesc": "Knowledge base and AI training data",
+      "supervisorAccountsDesc": "Supervisor accounts",
+      "widgetConfigDesc": "Widget configurations",
+      "billingInfoDesc": "Billing and subscription information",
+      "typeDeleteToConfirm": "Type DELETE to confirm"
     },
     "profile": {
       "title": "Profile",
@@ -1152,7 +1270,8 @@
       "mismatch": "Mismatch",
       "passwordMismatch": "Password mismatch",
       "phoneOnlyNumbers": "Phone number can only contain numbers",
-      "phoneLengthError": "Phone number must be 5-15 digits"
+      "phoneLengthError": "Phone number must be 5-15 digits",
+      "confirmNewPassword": "Confirm New Password"
     },
     "teamActivity": {
       "title": "Team Activity",
@@ -1172,7 +1291,13 @@
       "addSupervisors": "Add supervisors in the Supervisors page",
       "noAgents": "No AI agents yet",
       "createAgents": "Create AI agents in the Agents page",
-      "noPerformanceData": "No performance data yet"
+      "noPerformanceData": "No performance data yet",
+      "online": "Online",
+      "offline": "Offline",
+      "totalChatsHandled": "Total Chats Handled",
+      "averageRating": "Average Rating",
+      "activeSupervisors": "Active Supervisors",
+      "performanceMetrics": "Performance metrics for each supervisor"
     },
     "workScheduler": {
       "title": "Work Scheduler",
@@ -1199,7 +1324,13 @@
       "weekend": "Weekend",
       "everyDay": "Every Day",
       "weekdaysMon": "Weekdays (Mon-Fri)",
-      "weekendSat": "Weekend (Sat-Sun)"
+      "weekendSat": "Weekend (Sat-Sun)",
+      "assignmentList": "Assignment List",
+      "viewAssignments": "View who is assigned to each shift",
+      "noAssignments": "No assignments yet",
+      "workHoursReport": "Work Hours Report",
+      "workHoursDesc": "Summary of work hours for supervisors and agents",
+      "close": "Close"
     },
     "integrations": {
       "title": "Integrations",
@@ -1235,7 +1366,16 @@
       "browserEnabled": "Browser notifications enabled",
       "permissionDenied": "Permission denied",
       "telegramWebhookSet": "Telegram webhook set",
-      "webhookFailed": "Webhook setup failed"
+      "webhookFailed": "Webhook setup failed",
+      "enableTelegram": "Enable Telegram",
+      "botToken": "Bot Token",
+      "chatId": "Chat ID",
+      "copyBotToken": "Copy the Bot Token here",
+      "startChatFirst": "Start a chat with your bot first",
+      "enableAndTest": "Enable & test the notification",
+      "enableDesktopAlerts": "Enable Desktop Alerts",
+      "tabMustBeOpen": "Dashboard tab must remain open in browser",
+      "useTelegramForBrowser": "For notifications when browser is closed, use Telegram Bot"
     },
     "billing": {
       "title": "Billing & Subscription",
@@ -1331,7 +1471,10 @@
       "monthly": "Monthly",
       "activatePremiumFeature": "Activate premium features to enhance your chatbot capabilities",
       "scanQrWithEwallet": "Scan QR code with e-wallet or mobile banking app",
-      "scanAndPay": "Scan & Pay"
+      "scanAndPay": "Scan & Pay",
+      "cancelSubscription": "Cancel Subscription?",
+      "deleteAccount": "Delete Account?",
+      "creditFromPrevious": "Credit from previous plan"
     },
     "plans": {
       "title": "Plans",
@@ -1362,7 +1505,8 @@
       "flagged": "Flagged",
       "clean": "Clean",
       "suspicious": "Suspicious",
-      "alert": "Alert"
+      "alert": "Alert",
+      "noActiveConversations": "No active conversations"
     },
     "affiliate": {
       "title": "Affiliate Program",
@@ -1478,7 +1622,8 @@
       "linkCopied": "Link copied",
       "linkCopiedDesc": "Referral link copied to clipboard.",
       "copyThisLink": "Copy this link",
-      "statusFailed": "Status update failed"
+      "statusFailed": "Status update failed",
+      "swiftCode": "SWIFT Code"
     },
     "dataUsage": {
       "title": "Data Usage",
@@ -1487,7 +1632,12 @@
       "apiCalls": "API Calls",
       "messagesStored": "Messages Stored",
       "noData": "No usage data available",
-      "messagesSent": "Messages Sent"
+      "messagesSent": "Messages Sent",
+      "totalStorageUsed": "Total Storage Used",
+      "totalFiles": "Total Files",
+      "images": "Images",
+      "documents": "Documents",
+      "usageByType": "Usage by file type"
     },
     "appointments": {
       "title": "Appointments",
@@ -1611,7 +1761,10 @@
         "sourceContentHasBeenDesc": "Source content has been refreshed.",
         "updateFailed": "Update failed",
         "couldNotRefreshSourceDesc": "Could not refresh source content."
-      }
+      },
+      "useTransactionTemplate": "Use Transaction Record Template",
+      "files": "Files",
+      "websites": "Websites"
     },
     "billingDetails": {
       "title": "Billing Details",
@@ -1620,7 +1773,11 @@
       "transferVA": "Transfer to Virtual Account",
       "transferBank": "Transfer to Bank Account",
       "useEwalletOrMobileBanking": "Use e-wallet or mobile banking",
-      "totalPayment": "TOTAL PAYMENT"
+      "totalPayment": "TOTAL PAYMENT",
+      "billingInformation": "Billing Information",
+      "paymentMethod": "Payment Method",
+      "billingHistory": "Billing History",
+      "orderDetails": "Order Details"
     },
     "scheduler": {
       "timezoneUpdated": "Timezone updated",
@@ -1758,7 +1915,11 @@
       },
       "useEwalletOrMobileBanking": "Use e-wallet or mobile banking",
       "totalPayment": "TOTAL PAYMENT",
-      "qrCodeNotAvailable": "QR Code not available"
+      "qrCodeNotAvailable": "QR Code not available",
+      "creditFromPrevious": "Credit from previous plan",
+      "pricesInUSD": "All prices shown in USD",
+      "txHash": "Transaction Hash (TXID)",
+      "proofOfPayment": "Proof of Payment (Screenshot)"
     },
     "sidebar": {
       "usagePlan": "Usage & Plan"
@@ -1766,6 +1927,19 @@
     "layout": {
       "errorLoadingPage": "Something went wrong loading this page.",
       "reloadPage": "Reload page"
+    },
+    "helpArticles": {
+      "allStatus": "All Status",
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived",
+      "businessType": "Business Type",
+      "category": "Category",
+      "specificTopic": "Specific Topic (Optional)",
+      "additionalInfo": "Additional Business Info (Optional)",
+      "title": "Title",
+      "content": "Content (Markdown supported)",
+      "status": "Status"
     }
   },
   "common": {

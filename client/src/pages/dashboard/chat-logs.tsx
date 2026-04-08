@@ -215,7 +215,7 @@ export default function ChatLogsPage() {
                   <SelectValue placeholder="Lead Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Leads</SelectItem>
+                  <SelectItem value="all">{t("dashboard.chatLogs.allLeads")}</SelectItem>
                   {Object.entries(leadStatusConfig).map(([key, config]) => (
                     <SelectItem key={key} value={key}>
                       <span className="flex items-center gap-2">

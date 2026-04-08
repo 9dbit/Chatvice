@@ -334,7 +334,7 @@ export default function NotificationSettingsPage() {
               <Upload className="w-5 h-5" />
               Upload Custom Sound
             </CardTitle>
-            <CardDescription>Upload audio files to use as notifications</CardDescription>
+            <CardDescription>{t("dashboard.notificationSettings.uploadAudioDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="border-2 border-dashed rounded-lg p-6 text-center">
@@ -365,7 +365,7 @@ export default function NotificationSettingsPage() {
 
             {customSounds.length > 0 && (
               <div className="space-y-2">
-                <Label>Your Custom Sounds</Label>
+                <Label>{t("dashboard.notificationSettings.customSounds")}</Label>
                 <div className="space-y-2">
                   {customSounds.map((sound: any, index: number) => (
                     <div 

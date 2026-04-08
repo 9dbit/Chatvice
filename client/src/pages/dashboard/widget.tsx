@@ -994,7 +994,7 @@ async function handleLogin() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Palette className="w-5 h-5 text-primary" />
-                  <CardTitle>Appearance Settings</CardTitle>
+                  <CardTitle>{t("dashboard.widget.appearanceSettings")}</CardTitle>
                 </div>
                 <CardDescription>
                   Customize how your chat widget looks on your website.
@@ -1011,7 +1011,7 @@ async function handleLogin() {
                   <>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label>Widget Button Icon</Label>
+                        <Label>{t("dashboard.widget.widgetButtonIcon")}</Label>
                         {config.iconUrl && (
                           <Button
                             variant="ghost"
@@ -1023,12 +1023,12 @@ async function handleLogin() {
                             {config.iconVisible !== false ? (
                               <>
                                 <Eye className="w-4 h-4" />
-                                <span className="text-xs">Visible</span>
+                                <span className="text-xs">{t("dashboard.widget.visible")}</span>
                               </>
                             ) : (
                               <>
                                 <EyeOff className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-xs text-muted-foreground">Hidden</span>
+                                <span className="text-xs text-muted-foreground">{t("dashboard.widget.hidden")}</span>
                               </>
                             )}
                           </Button>
@@ -1082,7 +1082,7 @@ async function handleLogin() {
                               {config.iconUrl ? (
                                 config.iconUrl.length > 30 ? config.iconUrl.substring(0, 30) + "..." : config.iconUrl
                               ) : (
-                                <span className="italic">No custom icon</span>
+                                <span className="italic">{t("dashboard.widget.noCustomIcon")}</span>
                               )}
                             </div>
                             {config.iconUrl && (
@@ -1442,7 +1442,7 @@ async function handleLogin() {
                       
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <Label>Widget Position (from edge)</Label>
+                          <Label>{t("dashboard.widget.widgetPosition")}</Label>
                           <span className="text-sm text-muted-foreground">{config.widgetOffset || 20}px</span>
                         </div>
                         <Slider
@@ -1546,7 +1546,7 @@ async function handleLogin() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Primary Color</Label>
+                      <Label>{t("dashboard.widget.primaryColor")}</Label>
                       <div className="flex gap-2">
                         <Input
                           type="color"
@@ -1565,7 +1565,7 @@ async function handleLogin() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Welcome Message</Label>
+                      <Label>{t("dashboard.widget.welcomeMessage")}</Label>
                       <Input
                         value={config.welcomeMessage}
                         onChange={(e) => setConfig({ ...config, welcomeMessage: e.target.value })}
@@ -1576,7 +1576,7 @@ async function handleLogin() {
 
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label>Online Status</Label>
+                        <Label>{t("dashboard.widget.onlineStatus")}</Label>
                         <p className="text-xs text-muted-foreground">
                           Show as available to customers
                         </p>
@@ -1598,7 +1598,7 @@ async function handleLogin() {
 
                       {agents.length > 0 && (
                         <div className="space-y-2">
-                          <Label>Select Active Agent</Label>
+                          <Label>{t("dashboard.widget.selectActiveAgent")}</Label>
                           <Select
                             value={merchant?.activeAgentId || ""}
                             onValueChange={(value) => selectAgentMutation.mutate(value)}
@@ -1706,7 +1706,7 @@ async function handleLogin() {
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label>Widget Theme</Label>
+                          <Label>{t("dashboard.widget.widgetTheme")}</Label>
                           <div className="flex gap-2">
                             <Button
                               variant={config.widgetTheme === "light" ? "default" : "outline"}
@@ -1732,7 +1732,7 @@ async function handleLogin() {
                         </div>
 
                         <div className="space-y-2">
-                          <Label>Bubble Position</Label>
+                          <Label>{t("dashboard.widget.bubblePosition")}</Label>
                           <div className="flex gap-2">
                             <Button
                               variant={config.bubblePosition === "left" ? "default" : "outline"}
@@ -1760,7 +1760,7 @@ async function handleLogin() {
 
                       <div className="flex items-center justify-between gap-4">
                         <div className="space-y-0.5 flex-1">
-                          <Label>Proactive Chat</Label>
+                          <Label>{t("dashboard.widget.proactiveChat")}</Label>
                           <p className="text-xs text-muted-foreground">
                             Configure AI proactive greetings, greeting delay timer, ding sound, and welcome message templates.
                           </p>
@@ -1801,7 +1801,7 @@ async function handleLogin() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-primary" />
-                <CardTitle>Pre-Chat Form</CardTitle>
+                <CardTitle>{t("dashboard.widget.preChatForm")}</CardTitle>
               </div>
               <CardDescription>
                 Customize the welcome screen that customers see before starting a chat. Add a custom description and quick message options.
@@ -2077,7 +2077,7 @@ async function handleLogin() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Globe className="w-5 h-5 text-primary" />
-                  <CardTitle>Allowed Domains</CardTitle>
+                  <CardTitle>{t("dashboard.widget.allowedDomains")}</CardTitle>
                 </div>
                 {domainsData && (
                   <Badge variant="secondary" data-testid="badge-domain-count">
@@ -2206,7 +2206,7 @@ async function handleLogin() {
               {/* Info box */}
               <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-lg">
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Validation:</strong> After adding a domain, install the widget embed code on your website, 
+                  <strong>{t("dashboard.widget.validation")}</strong> After adding a domain, install the widget embed code on your website, 
                   then click "Validate" to confirm. Only validated domains will be allowed to use the widget.
                 </p>
               </div>
@@ -2236,7 +2236,7 @@ async function handleLogin() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Code className="w-5 h-5 text-primary" />
-                <CardTitle>Embed Type</CardTitle>
+                <CardTitle>{t("dashboard.widget.embedType")}</CardTitle>
               </div>
               <CardDescription>
                 Choose how to embed your Chatvice agent on your website.
@@ -2296,7 +2296,7 @@ async function handleLogin() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Code className="w-5 h-5 text-primary" />
-                <CardTitle>Widget Setup</CardTitle>
+                <CardTitle>{t("dashboard.widget.widgetSetup")}</CardTitle>
               </div>
               <CardDescription>
                 Paste this code on your website to install the chat widget and enable AI-powered support.
@@ -2331,7 +2331,7 @@ async function handleLogin() {
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                 <Globe className="w-4 h-4" />
-                <span>Your widget URL:</span>
+                <span>{t("dashboard.widget.yourWidgetUrl")}</span>
                 <code className="bg-muted px-2 py-0.5 rounded text-xs break-all">{baseUrl}/{widgetPath}</code>
                 <Button
                   size="sm"
@@ -2603,7 +2603,7 @@ async function handleLogin() {
                 <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-4">
                   <Shield className="w-8 h-8 text-primary" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Identity Verification</h3>
+                <h3 className="text-xl font-semibold mb-2">{t("dashboard.widget.identityVerification")}</h3>
                 <p className="text-muted-foreground text-center max-w-md mb-6">
                   Secure your AI Agent by verifying user identity with JWT tokens. Available on Pro and Enterprise plans.
                 </p>
@@ -2711,7 +2711,7 @@ async function handleLogin() {
                 <CardHeader>
                   <div className="flex items-center gap-2">
                     <MessageSquare className="w-5 h-5 text-primary" />
-                    <CardTitle>How Identity Verification Works</CardTitle>
+                    <CardTitle>{t("dashboard.widget.howItWorks")}</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -2778,7 +2778,7 @@ async function handleLogin() {
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2">
                       <Code className="w-5 h-5 text-primary" />
-                      <CardTitle>Implementation Code</CardTitle>
+                      <CardTitle>{t("dashboard.widget.implementationCode")}</CardTitle>
                     </div>
                     <div className="flex gap-1">
                       <Button 
@@ -2866,7 +2866,7 @@ async function handleLogin() {
                 <CardHeader>
                   <div className="flex items-center gap-2">
                     <Key className="w-5 h-5 text-primary" />
-                    <CardTitle>JWT Payload Reference</CardTitle>
+                    <CardTitle>{t("dashboard.widget.jwtPayloadReference")}</CardTitle>
                   </div>
                   <CardDescription>
                     Fields you can include in the JWT token to personalize the chat experience.
@@ -2925,7 +2925,7 @@ async function handleLogin() {
                 <CardHeader>
                   <div className="flex items-center gap-2">
                     <AlertCircle className="w-5 h-5 text-primary" />
-                    <CardTitle>Common Issues</CardTitle>
+                    <CardTitle>{t("dashboard.widget.commonIssues")}</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">

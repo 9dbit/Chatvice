@@ -795,7 +795,7 @@ export default function AnalyticsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-base">Response Time</CardTitle>
-                    <CardDescription>Average response time per day (seconds)</CardDescription>
+                    <CardDescription>{t("dashboard.analytics.avgResponseTimeChart")}</CardDescription>
                   </div>
                   <div className="flex flex-wrap gap-3">
                     {[...(performanceAnalytics?.agents || []), ...(performanceAnalytics?.supervisors || [])].map((member, idx) => (

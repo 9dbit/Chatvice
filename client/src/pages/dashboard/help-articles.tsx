@@ -327,10 +327,10 @@ export default function HelpArticlesPage() {
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="published">Published</SelectItem>
-                  <SelectItem value="archived">Archived</SelectItem>
+                  <SelectItem value="all">{t("dashboard.helpArticles.allStatus")}</SelectItem>
+                  <SelectItem value="draft">{t("dashboard.helpArticles.draft")}</SelectItem>
+                  <SelectItem value="published">{t("dashboard.helpArticles.published")}</SelectItem>
+                  <SelectItem value="archived">{t("dashboard.helpArticles.archived")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -464,7 +464,7 @@ export default function HelpArticlesPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Business Type</Label>
+              <Label>{t("dashboard.helpArticles.businessType")}</Label>
               <Select
                 value={generateForm.businessType}
                 onValueChange={(v) => setGenerateForm(prev => ({ ...prev, businessType: v, category: "" }))}
@@ -498,7 +498,7 @@ export default function HelpArticlesPage() {
               </div>
             )}
             <div className="space-y-2">
-              <Label>Specific Topic (Optional)</Label>
+              <Label>{t("dashboard.helpArticles.specificTopic")}</Label>
               <Input
                 placeholder="e.g., Return Policy, Sizing Guide, Payment Methods"
                 value={generateForm.topic}
@@ -507,7 +507,7 @@ export default function HelpArticlesPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Additional Business Info (Optional)</Label>
+              <Label>{t("dashboard.helpArticles.additionalInfo")}</Label>
               <Textarea
                 placeholder="Add specific details about your business that should be included..."
                 value={generateForm.businessInfo}
@@ -598,7 +598,7 @@ export default function HelpArticlesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Content (Markdown supported)</Label>
+                <Label>{t("dashboard.helpArticles.content")}</Label>
                 <Textarea
                   placeholder="Write your article content here... Markdown formatting is supported."
                   value={editorForm.content}

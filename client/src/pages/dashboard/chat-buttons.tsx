@@ -183,15 +183,15 @@ export default function ChatButtonsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="buttonType">Button Type</Label>
+                <Label htmlFor="buttonType">{t("dashboard.chatButtons.buttonType")}</Label>
                 <Select value={form.buttonType} onValueChange={(v) => setForm({ ...form, buttonType: v })}>
                   <SelectTrigger id="buttonType" data-testid="select-button-type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="link">Link (Open URL)</SelectItem>
-                    <SelectItem value="action">Action (Send Message)</SelectItem>
-                    <SelectItem value="trigger">Trigger (Execute Action)</SelectItem>
+                    <SelectItem value="link">{t("dashboard.chatButtons.linkType")}</SelectItem>
+                    <SelectItem value="action">{t("dashboard.chatButtons.actionType")}</SelectItem>
+                    <SelectItem value="trigger">{t("dashboard.chatButtons.triggerType")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -208,7 +208,7 @@ export default function ChatButtonsPage() {
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="triggerWord">Trigger Word (Optional)</Label>
+                <Label htmlFor="triggerWord">{t("dashboard.chatButtons.triggerWord")}</Label>
                 <Input
                   id="triggerWord"
                   value={form.triggerWord}
@@ -259,7 +259,7 @@ export default function ChatButtonsPage() {
             <div className="p-4 bg-muted rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <Zap className="w-5 h-5 text-amber-500" />
-                <span className="font-medium">Action</span>
+                <span className="font-medium">{t("dashboard.chatButtons.action")}</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 Mengirim pesan otomatis ke chat saat diklik
@@ -268,7 +268,7 @@ export default function ChatButtonsPage() {
             <div className="p-4 bg-muted rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <Hash className="w-5 h-5 text-green-500" />
-                <span className="font-medium">Trigger</span>
+                <span className="font-medium">{t("dashboard.chatButtons.trigger")}</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 Menjalankan aksi khusus seperti eskalasi ke supervisor
@@ -282,8 +282,8 @@ export default function ChatButtonsPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <MousePointer2 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-semibold mb-2">No chat buttons yet</h3>
-            <p className="text-muted-foreground mb-4">Create your first chat button to help customers</p>
+            <h3 className="font-semibold mb-2">{t("dashboard.chatButtons.noChatButtons")}</h3>
+            <p className="text-muted-foreground mb-4">{t("dashboard.chatButtons.createFirstButton")}</p>
             <Button onClick={() => setIsDialogOpen(true)} data-testid="button-create-first-chat-button">
               <Plus className="w-4 h-4 mr-2" />
               Create First Chat Button
