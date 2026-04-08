@@ -6013,33 +6013,75 @@ Sitemap: ${baseUrl}/sitemap.xml`;
               if (hospConfig && hospConfig.isEnabled) {
                 const csvText = await fetchHospitalitySheetData(resolvedMerchantId);
                 if (csvText) {
+                  // Robust CSV parser that handles quoted fields containing commas/newlines
+                  function parseCSVLine(line: string): string[] {
+                    const result: string[] = [];
+                    let cur = "";
+                    let inQuote = false;
+                    for (let i = 0; i < line.length; i++) {
+                      const ch = line[i];
+                      if (ch === '"') {
+                        if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
+                        else { inQuote = !inQuote; }
+                      } else if (ch === ',' && !inQuote) {
+                        result.push(cur.trim());
+                        cur = "";
+                      } else {
+                        cur += ch;
+                      }
+                    }
+                    result.push(cur.trim());
+                    return result;
+                  }
+
                   const lines = csvText.split("\n").filter(l => l.trim());
-                  const headers = lines[0]?.split(",").map(h => h.replace(/"/g, "").trim()) ?? [];
+                  const headers = parseCSVLine(lines[0] ?? "").map(h => h.toLowerCase());
                   const dataRows = lines.slice(1);
 
                   interface HotelOption {
                     roomName: string;
+                    roomDescription: string;
                     pricePerNight: number;
                     availability: number;
+                    checkIn: string;
+                    checkOut: string;
                     imageUrl: string;
+                    bookingNotes: string;
                     isCheapest: boolean;
                     isAlmostFull: boolean;
                   }
 
+                  // Extract check-in/check-out dates from customer message if present
+                  const datePattern = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{2}[\/\-]\d{2})/g;
+                  const mentionedDates = message.match(datePattern) ?? [];
+
                   const hotelOptions: HotelOption[] = dataRows.map(row => {
-                    const cols = row.split(",").map(c => c.replace(/"/g, "").trim());
-                    const get = (key: string): string => {
-                      const idx = headers.findIndex(h => h.toLowerCase() === key.toLowerCase());
-                      return idx >= 0 ? (cols[idx] ?? "") : "";
+                    const cols = parseCSVLine(row);
+                    const get = (...keys: string[]): string => {
+                      for (const key of keys) {
+                        const idx = headers.findIndex(h => h === key || h.includes(key));
+                        if (idx >= 0 && cols[idx]) return cols[idx];
+                      }
+                      return "";
                     };
-                    const roomName = get("room_name") || get("nama kamar") || get("tipe kamar") || cols[0] || "";
-                    const priceRaw = get("price_per_night") || get("harga") || get("harga per malam") || cols[1] || "0";
+                    const roomName = get("room_name", "room type", "tipe kamar", "nama kamar") || cols[0] || "";
+                    const roomDescription = get("room_description", "description", "deskripsi", "keterangan") || get("notes", "catatan") || "";
+                    const priceRaw = get("price_per_night", "price", "harga per malam", "harga") || cols[1] || "0";
                     const pricePerNight = parseInt(priceRaw.replace(/[^\d]/g, ""), 10) || 0;
-                    const availRaw = get("availability") || get("tersedia") || get("ketersediaan") || cols[2] || "0";
+                    const availRaw = get("availability", "tersedia", "ketersediaan", "jumlah") || cols[2] || "0";
                     const availability = parseInt(availRaw.replace(/[^\d]/g, ""), 10) || 0;
-                    const imageUrl = get("image_url") || get("foto") || get("gambar") || "";
-                    return { roomName, pricePerNight, availability, imageUrl, isCheapest: false, isAlmostFull: availability > 0 && availability < 3 };
+                    const checkIn = get("check_in", "check-in", "checkin", "check in") || (mentionedDates[0] ?? "");
+                    const checkOut = get("check_out", "check-out", "checkout", "check out") || (mentionedDates[1] ?? "");
+                    const imageUrl = get("image_url", "foto", "gambar", "image") || "";
+                    const bookingNotes = get("booking_url", "booking_notes", "url", "link") || "";
+                    return { roomName, roomDescription, pricePerNight, availability, checkIn, checkOut, imageUrl, bookingNotes, isCheapest: false, isAlmostFull: availability > 0 && availability < 3 };
                   }).filter(r => r.roomName);
+
+                  // Check if user asked for cheapest — sort by price ascending
+                  const wantsCheapest = /termurah|paling murah|cheapest|budget|murah/i.test(message);
+                  if (wantsCheapest) {
+                    hotelOptions.sort((a, b) => (a.pricePerNight || Infinity) - (b.pricePerNight || Infinity));
+                  }
 
                   // Mark cheapest room
                   if (hotelOptions.length > 0) {

@@ -9,9 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Sparkles, Calendar, CheckCircle, Loader2, AlertCircle, CreditCard, Wallet, Hotel, ExternalLink, TestTube2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
 interface AddonConfig {
   id: number;
@@ -59,13 +62,15 @@ const PAYMENT_METHODS = [
   { value: "crypto", label: "Cryptocurrency", description: "BTC, ETH, USDT, dll." },
 ];
 
-interface HospitalityForm {
-  hotelName: string;
-  bookingUrl: string;
-  googleSheetUrl: string;
-  aiInstructions: string;
-  isEnabled: boolean;
-}
+const hospitalityFormSchema = z.object({
+  hotelName: z.string().min(1, "Nama hotel wajib diisi"),
+  bookingUrl: z.string().url("URL pemesanan tidak valid").or(z.literal("")),
+  googleSheetUrl: z.string().url("URL Google Sheet tidak valid").or(z.literal("")),
+  aiInstructions: z.string().max(1000, "Maks 1000 karakter"),
+  isEnabled: z.boolean(),
+});
+
+type HospitalityForm = z.infer<typeof hospitalityFormSchema>;
 
 function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useToast();
@@ -78,6 +83,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
   });
 
   const form = useForm<HospitalityForm>({
+    resolver: zodResolver(hospitalityFormSchema),
     values: {
       hotelName: config?.hotelName ?? "",
       bookingUrl: config?.bookingUrl ?? "",
@@ -135,114 +141,145 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <form onSubmit={form.handleSubmit((data) => saveMutation.mutate(data))} className="space-y-4 mt-2">
-            <div className="flex items-center justify-between gap-4 p-3 rounded-md border">
-              <div>
-                <p className="text-sm font-medium">Aktifkan Fitur</p>
-                <p className="text-xs text-muted-foreground">Chatbot akan menampilkan ketersediaan kamar ketika customer bertanya</p>
-              </div>
-              <Switch
-                checked={form.watch("isEnabled")}
-                onCheckedChange={(v) => form.setValue("isEnabled", v)}
-                data-testid="switch-hospitality-enabled"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="hotelName">Nama Hotel</Label>
-              <Input
-                id="hotelName"
-                placeholder="Grand Chatvice Hotel"
-                {...form.register("hotelName")}
-                data-testid="input-hotel-name"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="bookingUrl">URL Pemesanan</Label>
-              <Input
-                id="bookingUrl"
-                type="url"
-                placeholder="https://book.yourhotel.com"
-                {...form.register("bookingUrl")}
-                data-testid="input-booking-url"
-              />
-              <p className="text-xs text-muted-foreground">Link yang akan dibuka saat customer menekan tombol "Pesan Sekarang"</p>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="googleSheetUrl">URL Google Sheet</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="googleSheetUrl"
-                  placeholder="https://docs.google.com/spreadsheets/d/..."
-                  {...form.register("googleSheetUrl")}
-                  data-testid="input-google-sheet-url"
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="default"
-                  onClick={handleTestSheet}
-                  disabled={isTesting}
-                  data-testid="button-test-sheet"
-                >
-                  {isTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <TestTube2 className="w-4 h-4" />}
-                  <span className="ml-1 hidden sm:inline">Test</span>
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Sheet harus bisa diakses publik. Kolom wajib: <code>room_name</code>, <code>price_per_night</code>, <code>availability</code>. Opsional: <code>image_url</code>.
-              </p>
-            </div>
-
-            {sheetTestResult && (
-              <div className={`rounded-md p-3 text-sm ${sheetTestResult.success ? "bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800" : "bg-destructive/10 border border-destructive/30"}`}>
-                <p className={`font-medium ${sheetTestResult.success ? "text-green-700 dark:text-green-400" : "text-destructive"}`}>
-                  {sheetTestResult.message}
-                </p>
-                {sheetTestResult.success && sheetTestResult.sampleRows.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-xs text-muted-foreground mb-1">Preview (3 baris pertama):</p>
-                    <div className="space-y-1">
-                      {sheetTestResult.sampleRows.map((row, i) => (
-                        <code key={i} className="block text-xs truncate text-muted-foreground">{row}</code>
-                      ))}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit((data) => saveMutation.mutate(data))} className="space-y-4 mt-2">
+              <FormField
+                control={form.control}
+                name="isEnabled"
+                render={({ field }) => (
+                  <div className="flex items-center justify-between gap-4 p-3 rounded-md border">
+                    <div>
+                      <p className="text-sm font-medium">Aktifkan Fitur</p>
+                      <p className="text-xs text-muted-foreground">Chatbot akan menampilkan ketersediaan kamar ketika customer bertanya</p>
                     </div>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      data-testid="switch-hospitality-enabled"
+                    />
                   </div>
                 )}
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <Label htmlFor="aiInstructions">Instruksi Tambahan untuk AI (opsional)</Label>
-              <Textarea
-                id="aiInstructions"
-                placeholder="Contoh: Selalu sebutkan bahwa check-in pukul 14.00 dan check-out pukul 12.00..."
-                rows={3}
-                {...form.register("aiInstructions")}
-                data-testid="textarea-ai-instructions"
               />
-            </div>
 
-            <div className="rounded-md border p-3 bg-muted/30 space-y-1">
-              <p className="text-xs font-medium">Format Kolom Google Sheet yang Didukung:</p>
-              <p className="text-xs text-muted-foreground">
-                <strong>room_name</strong> atau "nama kamar" · <strong>price_per_night</strong> atau "harga" · <strong>availability</strong> atau "tersedia" · <strong>image_url</strong> (opsional)
-              </p>
-            </div>
+              <FormField
+                control={form.control}
+                name="hotelName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nama Hotel</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Grand Chatvice Hotel" {...field} data-testid="input-hotel-name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <div className="flex gap-2 pt-1">
-              <Button type="button" variant="outline" size="sm" className="flex-1" onClick={onClose} disabled={saveMutation.isPending}>
-                Batal
-              </Button>
-              <Button type="submit" size="sm" className="flex-1" disabled={saveMutation.isPending} data-testid="button-save-hospitality">
-                {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Simpan Pengaturan
-              </Button>
-            </div>
-          </form>
+              <FormField
+                control={form.control}
+                name="bookingUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL Pemesanan</FormLabel>
+                    <FormControl>
+                      <Input type="url" placeholder="https://book.yourhotel.com" {...field} data-testid="input-booking-url" />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Link yang akan dibuka saat customer menekan tombol "Pesan Sekarang di Website"</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="googleSheetUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL Google Sheet</FormLabel>
+                    <FormControl>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="https://docs.google.com/spreadsheets/d/..."
+                          {...field}
+                          data-testid="input-google-sheet-url"
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="default"
+                          onClick={handleTestSheet}
+                          disabled={isTesting}
+                          data-testid="button-test-sheet"
+                        >
+                          {isTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <TestTube2 className="w-4 h-4" />}
+                          <span className="ml-1 hidden sm:inline">Test</span>
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      Sheet harus bisa diakses publik. Kolom yang didukung: <code>room_name</code>, <code>room_description</code>, <code>price_per_night</code>, <code>availability</code>, <code>check_in</code>, <code>check_out</code>, <code>image_url</code>.
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {sheetTestResult && (
+                <div className={`rounded-md p-3 text-sm ${sheetTestResult.success ? "bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800" : "bg-destructive/10 border border-destructive/30"}`}>
+                  <p className={`font-medium ${sheetTestResult.success ? "text-green-700 dark:text-green-400" : "text-destructive"}`}>
+                    {sheetTestResult.message}
+                  </p>
+                  {sheetTestResult.success && sheetTestResult.sampleRows.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-xs text-muted-foreground mb-1">Preview (3 baris pertama):</p>
+                      <div className="space-y-1">
+                        {sheetTestResult.sampleRows.map((row, i) => (
+                          <code key={i} className="block text-xs truncate text-muted-foreground">{row}</code>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <FormField
+                control={form.control}
+                name="aiInstructions"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Instruksi Tambahan untuk AI (opsional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Contoh: Selalu sebutkan bahwa check-in pukul 14.00 dan check-out pukul 12.00..."
+                        rows={3}
+                        {...field}
+                        data-testid="textarea-ai-instructions"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="rounded-md border p-3 bg-muted/30 space-y-1">
+                <p className="text-xs font-medium">Format Kolom Google Sheet yang Didukung:</p>
+                <p className="text-xs text-muted-foreground">
+                  <strong>room_name</strong> · <strong>room_description</strong> · <strong>price_per_night</strong> · <strong>availability</strong> · <strong>check_in</strong> · <strong>check_out</strong> · <strong>image_url</strong> (semua opsional kecuali room_name)
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <Button type="button" variant="outline" size="sm" className="flex-1" onClick={onClose} disabled={saveMutation.isPending}>
+                  Batal
+                </Button>
+                <Button type="submit" size="sm" className="flex-1" disabled={saveMutation.isPending} data-testid="button-save-hospitality">
+                  {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Simpan Pengaturan
+                </Button>
+              </div>
+            </form>
+          </Form>
         )}
       </DialogContent>
     </Dialog>
