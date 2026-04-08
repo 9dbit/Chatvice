@@ -197,7 +197,6 @@ const defaultManagementItems: MenuItem[] = [
   menuItemsMap["data-usage"],
   menuItemsMap["plans"],
   menuItemsMap["billing"],
-  menuItemsMap["additional-services"],
 ];
 
 const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSetting" | "management"> = {
@@ -227,7 +226,6 @@ const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSet
   "data-usage": "management",
   "plans": "management",
   "billing": "management",
-  "additional-services": "management",
 };
 
 interface BillingStatus {
@@ -666,6 +664,31 @@ export function AppSidebar() {
           </Link>
         )}
         
+        {isAdmin && (
+          <Link
+            href="/dashboard/additional-services"
+            data-testid="link-sidebar-additional-services-footer"
+            className="block w-full"
+          >
+            <button
+              type="button"
+              className={`flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm transition-all duration-200 ${
+                isItemActive("/dashboard/additional-services")
+                  ? "bg-accent text-accent-foreground font-medium"
+                  : "text-muted-foreground hover-elevate"
+              }`}
+            >
+              <Sparkles className="w-4 h-4 shrink-0" />
+              <span className="flex-1 text-left">Additional Services</span>
+              {activeAddonTypes.length > 0 && (
+                <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium shrink-0">
+                  {activeAddonTypes.length} aktif
+                </span>
+              )}
+            </button>
+          </Link>
+        )}
+
         {billingStatus && (
           <Collapsible defaultOpen={true}>
             <div className="p-3 rounded-lg bg-muted/50 space-y-2">

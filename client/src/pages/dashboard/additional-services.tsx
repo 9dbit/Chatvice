@@ -1,16 +1,15 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useLocation } from "wouter";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Sparkles, Calendar, CheckCircle, Loader2, AlertCircle, CreditCard, Wallet, Hotel, ExternalLink, TestTube2, Clock, QrCode, Copy } from "lucide-react";
+import { Sparkles, Calendar, CheckCircle, Loader2, AlertCircle, CreditCard, Hotel, ExternalLink, TestTube2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -35,19 +34,6 @@ interface MerchantAddon {
   trialEndsAt: string | null;
 }
 
-interface PaymentInitResult {
-  orderId: string;
-  addonType: string;
-  paymentMethod: string;
-  amount: number;
-  amountIDR?: number;
-  currency: string;
-  qrisUrl?: string | null;
-  qrisString?: string | null;
-  transactionId?: string;
-  expiresAt?: string | null;
-  instructions?: string;
-}
 
 interface HospitalityConfig {
   id: string;
@@ -71,11 +57,6 @@ const addonIcons: Record<string, React.ComponentType<{ className?: string }>> = 
   hospitality: Hotel,
 };
 
-const PAYMENT_METHODS = [
-  { value: "kompas_pay", label: "Kompas Pay", description: "QRIS, Virtual Account, Transfer" },
-  { value: "paypal", label: "PayPal", description: "Kartu/dompet internasional" },
-  { value: "crypto", label: "Cryptocurrency", description: "BTC, ETH, USDT, dll." },
-];
 
 const hospitalityFormSchema = z.object({
   hotelName: z.string().min(1, "Nama hotel wajib diisi"),
@@ -348,47 +329,11 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
   );
 }
 
-type PaymentDialogStep = "select_method" | "qris" | "manual_ref";
-
 export default function AdditionalServicesPage() {
   const { toast } = useToast();
-  const [selectedAddon, setSelectedAddon] = useState<AddonConfig | null>(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
-  const [paymentStep, setPaymentStep] = useState<PaymentDialogStep>("select_method");
-  const [paymentResult, setPaymentResult] = useState<PaymentInitResult | null>(null);
-  const [manualReference, setManualReference] = useState("");
+  const [, navigate] = useLocation();
   const [hospitalitySettingsOpen, setHospitalitySettingsOpen] = useState(false);
-  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const stopPolling = () => {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    if (paymentStep === "qris" && paymentResult?.transactionId) {
-      const txId = paymentResult.transactionId;
-      stopPolling();
-      pollIntervalRef.current = setInterval(async () => {
-        try {
-          const res = await fetch(`/api/billing/check-payment/${encodeURIComponent(txId)}`, { credentials: "include" });
-          if (!res.ok) return;
-          const data = await res.json();
-          if (data.status === "PAID" || data.status === "paid" || data.status === "completed" || data.status === "SUCCESS") {
-            stopPolling();
-            queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
-            closeDialog();
-            toast({ title: "Pembayaran berhasil!", description: "Addon sedang diaktifkan. Halaman akan diperbarui otomatis." });
-          }
-        } catch (_) {}
-      }, 5000);
-    } else {
-      stopPolling();
-    }
-    return stopPolling;
-  }, [paymentStep, paymentResult?.transactionId]);
+  const [pendingTrials, setPendingTrials] = useState<Set<string>>(new Set());
 
   const { data: addonConfigs = [], isLoading: configsLoading } = useQuery<AddonConfig[]>({
     queryKey: ["/api/addon-configs"],
@@ -398,56 +343,33 @@ export default function AdditionalServicesPage() {
     queryKey: ["/api/merchant/addons"],
   });
 
-  const initiatePaymentMutation = useMutation({
-    mutationFn: async ({ addonType, paymentMethod }: { addonType: string; paymentMethod: string }) => {
-      const res = await apiRequest("POST", "/api/merchant/addons/initiate-payment", { addonType, paymentMethod });
-      return res.json() as Promise<PaymentInitResult>;
-    },
-    onSuccess: (data) => {
-      setPaymentResult(data);
-      if (data.paymentMethod === "kompas_pay" && (data.qrisUrl || data.qrisString)) {
-        setPaymentStep("qris");
-      } else {
-        setPaymentStep("manual_ref");
+  const handleStartTrial = async (addonType: string) => {
+    setPendingTrials(prev => new Set(prev).add(addonType));
+    try {
+      const res = await fetch("/api/merchant/addons/start-trial", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ addonType }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 409) {
+          const msg = body.error === "Trial already used for this addon"
+            ? "Trial sudah pernah digunakan untuk layanan ini."
+            : "Layanan ini sudah aktif di akun Anda.";
+          throw new Error(msg);
+        }
+        throw new Error(body.error || "Tidak dapat memulai trial");
       }
-    },
-    onError: (err: any) => {
-      toast({ title: "Gagal memulai pembayaran", description: err.message || "Tidak dapat memproses pembayaran", variant: "destructive" });
-    },
-  });
-
-  const confirmPaymentMutation = useMutation({
-    mutationFn: async ({ addonType, paymentReference, pendingId }: { addonType: string; paymentReference: string; pendingId?: string }) => {
-      const res = await apiRequest("POST", "/api/merchant/addons/confirm-payment", { addonType, paymentReference, pendingId });
-      return res.json();
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
-      closeDialog();
-      if (data?.status === "pending") {
-        toast({ title: "Pembayaran tercatat", description: "Referensi pembayaran berhasil disimpan. Addon akan diaktifkan setelah pembayaran terverifikasi." });
-      } else {
-        toast({ title: "Pembayaran diproses", description: "Addon akan segera diaktifkan." });
-      }
-    },
-    onError: (err: any) => {
-      toast({ title: "Gagal", description: err.message || "Tidak dapat memproses konfirmasi pembayaran", variant: "destructive" });
-    },
-  });
-
-  const trialMutation = useMutation({
-    mutationFn: async (addonType: string) => {
-      const res = await apiRequest("POST", "/api/merchant/addons/start-trial", { addonType });
-      return res.json();
-    },
-    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
       toast({ title: "Trial dimulai!", description: "Masa percobaan gratis 7 hari Anda sekarang aktif." });
-    },
-    onError: (err: any) => {
+    } catch (err: any) {
       toast({ title: "Gagal", description: err.message || "Tidak dapat memulai trial", variant: "destructive" });
-    },
-  });
+    } finally {
+      setPendingTrials(prev => { const next = new Set(prev); next.delete(addonType); return next; });
+    }
+  };
 
   const cancelMutation = useMutation({
     mutationFn: (addonType: string) =>
@@ -463,47 +385,6 @@ export default function AdditionalServicesPage() {
 
   const getAddon = (addonType: string) =>
     merchantAddons.find(a => a.addonType === addonType);
-  const getActiveAddon = (addonType: string) =>
-    merchantAddons.find(a => a.addonType === addonType && a.isActive);
-
-  const handleSubscribeClick = (config: AddonConfig) => {
-    setSelectedAddon(config);
-    setSelectedPaymentMethod(null);
-    setPaymentStep("select_method");
-    setPaymentResult(null);
-    setManualReference("");
-  };
-
-  const handleProceedToPayment = () => {
-    if (!selectedAddon || !selectedPaymentMethod) return;
-    initiatePaymentMutation.mutate({ addonType: selectedAddon.addonType, paymentMethod: selectedPaymentMethod });
-  };
-
-  const handleConfirmPayment = () => {
-    if (!selectedAddon || !manualReference.trim()) return;
-    confirmPaymentMutation.mutate({
-      addonType: selectedAddon.addonType,
-      paymentReference: manualReference.trim(),
-      pendingId: paymentResult?.transactionId,
-    });
-  };
-
-  const handleQrisConfirm = () => {
-    if (!selectedAddon || !paymentResult) return;
-    confirmPaymentMutation.mutate({
-      addonType: selectedAddon.addonType,
-      paymentReference: paymentResult.transactionId || paymentResult.orderId,
-      pendingId: paymentResult.transactionId,
-    });
-  };
-
-  const closeDialog = () => {
-    setSelectedAddon(null);
-    setSelectedPaymentMethod(null);
-    setPaymentStep("select_method");
-    setPaymentResult(null);
-    setManualReference("");
-  };
 
   const handleManageClick = (addonType: string) => {
     if (addonType === "appointment_scheduling") {
@@ -618,7 +499,7 @@ export default function AdditionalServicesPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleSubscribeClick(config)}
+                            onClick={() => navigate(`/dashboard/checkout?addon=${config.addonType}`)}
                             data-testid={`button-upgrade-${config.addonType}`}
                           >
                             <CreditCard className="w-3.5 h-3.5 mr-1" />
@@ -640,7 +521,7 @@ export default function AdditionalServicesPage() {
                       <div className="flex gap-2 flex-wrap">
                         <Button
                           size="sm"
-                          onClick={() => handleSubscribeClick(config)}
+                          onClick={() => navigate(`/dashboard/checkout?addon=${config.addonType}`)}
                           data-testid={`button-subscribe-${config.addonType}`}
                         >
                           <Sparkles className="w-4 h-4 mr-2" />
@@ -650,11 +531,11 @@ export default function AdditionalServicesPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => trialMutation.mutate(config.addonType)}
-                            disabled={trialMutation.isPending}
+                            onClick={() => handleStartTrial(config.addonType)}
+                            disabled={pendingTrials.has(config.addonType)}
                             data-testid={`button-trial-${config.addonType}`}
                           >
-                            {trialMutation.isPending ? (
+                            {pendingTrials.has(config.addonType) ? (
                               <Loader2 className="w-4 h-4 animate-spin mr-1" />
                             ) : (
                               <Clock className="w-3.5 h-3.5 mr-1" />
@@ -678,187 +559,6 @@ export default function AdditionalServicesPage() {
           })}
         </div>
       )}
-
-      <Dialog open={!!selectedAddon} onOpenChange={(open) => { if (!open) closeDialog(); }}>
-        <DialogContent className="max-w-md">
-          {paymentStep === "select_method" && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Pilih Metode Pembayaran</DialogTitle>
-                <DialogDescription>
-                  {selectedAddon && (
-                    <>Berlangganan <strong>{selectedAddon.name}</strong> seharga <strong>${selectedAddon.monthlyPriceUsd}/bulan</strong>.</>
-                  )}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-2 mt-2">
-                {PAYMENT_METHODS.map((method) => (
-                  <button
-                    key={method.value}
-                    onClick={() => setSelectedPaymentMethod(method.value)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-md border text-left transition-colors ${
-                      selectedPaymentMethod === method.value
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:bg-accent/50"
-                    }`}
-                    data-testid={`button-payment-method-${method.value}`}
-                  >
-                    {method.value === "crypto" ? (
-                      <Wallet className="w-5 h-5 text-muted-foreground shrink-0" />
-                    ) : (
-                      <CreditCard className="w-5 h-5 text-muted-foreground shrink-0" />
-                    )}
-                    <div>
-                      <p className="font-medium text-sm">{method.label}</p>
-                      <p className="text-xs text-muted-foreground">{method.description}</p>
-                    </div>
-                    {selectedPaymentMethod === method.value && (
-                      <CheckCircle className="w-4 h-4 text-primary ml-auto shrink-0" />
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex gap-2 mt-4">
-                <Button variant="outline" size="sm" className="flex-1" onClick={closeDialog} data-testid="button-cancel-subscribe">
-                  Batal
-                </Button>
-                <Button
-                  size="sm"
-                  className="flex-1"
-                  onClick={handleProceedToPayment}
-                  disabled={!selectedPaymentMethod || initiatePaymentMutation.isPending}
-                  data-testid="button-confirm-subscribe"
-                >
-                  {initiatePaymentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Lanjut ke Pembayaran
-                </Button>
-              </div>
-            </>
-          )}
-
-          {paymentStep === "qris" && paymentResult && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <QrCode className="w-5 h-5 text-primary" />
-                  Scan QRIS untuk Membayar
-                </DialogTitle>
-                <DialogDescription>
-                  Scan QR code ini dengan aplikasi perbankan atau e-wallet.
-                  Jumlah: <strong>Rp {paymentResult.amountIDR?.toLocaleString("id-ID") || "—"}</strong>
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="flex flex-col items-center gap-3 py-4">
-                {paymentResult.qrisUrl ? (
-                  <img
-                    src={paymentResult.qrisUrl}
-                    alt="QRIS payment code"
-                    className="w-56 h-56 rounded-md border object-contain"
-                    data-testid="img-qris"
-                  />
-                ) : (
-                  <div className="w-56 h-56 rounded-md border flex items-center justify-center bg-muted">
-                    <QrCode className="w-16 h-16 text-muted-foreground" />
-                  </div>
-                )}
-                {paymentResult.expiresAt && (
-                  <p className="text-xs text-muted-foreground">
-                    Kedaluwarsa: {new Date(paymentResult.expiresAt).toLocaleString("id-ID")}
-                  </p>
-                )}
-                {paymentResult.qrisString && (
-                  <button
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                    onClick={() => {
-                      navigator.clipboard.writeText(paymentResult.qrisString!);
-                      toast({ title: "QRIS string disalin" });
-                    }}
-                    data-testid="button-copy-qris"
-                  >
-                    <Copy className="w-3 h-3" />
-                    Salin QRIS string
-                  </button>
-                )}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  <span>Menunggu konfirmasi pembayaran...</span>
-                </div>
-              </div>
-
-              <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground space-y-1">
-                <p>1. Buka aplikasi perbankan atau e-wallet (GoPay, OVO, DANA, dll.)</p>
-                <p>2. Scan QR code di atas</p>
-                <p>3. Selesaikan pembayaran sebesar <strong>Rp {paymentResult.amountIDR?.toLocaleString("id-ID")}</strong></p>
-                <p>4. Halaman akan otomatis terupdate setelah pembayaran terdeteksi.</p>
-              </div>
-
-              <div className="flex gap-2 mt-2">
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => setPaymentStep("select_method")}>
-                  Kembali
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={handleQrisConfirm}
-                  disabled={confirmPaymentMutation.isPending}
-                  data-testid="button-ive-paid"
-                >
-                  {confirmPaymentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Sudah Bayar
-                </Button>
-              </div>
-            </>
-          )}
-
-          {paymentStep === "manual_ref" && paymentResult && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Instruksi Pembayaran</DialogTitle>
-                <DialogDescription>
-                  {paymentResult.instructions || "Selesaikan pembayaran dan masukkan referensi transaksi di bawah ini."}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="rounded-md bg-muted/50 p-3 text-sm space-y-1 mt-2">
-                <p><strong>Jumlah:</strong> ${paymentResult.amount} USD</p>
-                <p><strong>Order ID:</strong> <span className="font-mono text-xs">{paymentResult.orderId}</span></p>
-                <p className="text-xs text-muted-foreground">Gunakan Order ID ini sebagai keterangan/referensi pembayaran.</p>
-              </div>
-
-              <div className="mt-4 space-y-2">
-                <Label htmlFor="payment-reference">Referensi Transaksi / Nomor Bukti</Label>
-                <Input
-                  id="payment-reference"
-                  placeholder="Masukkan referensi pembayaran Anda..."
-                  value={manualReference}
-                  onChange={(e) => setManualReference(e.target.value)}
-                  data-testid="input-payment-reference"
-                />
-              </div>
-
-              <div className="flex gap-2 mt-4">
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => setPaymentStep("select_method")}>
-                  Kembali
-                </Button>
-                <Button
-                  size="sm"
-                  className="flex-1"
-                  onClick={handleConfirmPayment}
-                  disabled={!manualReference.trim() || confirmPaymentMutation.isPending}
-                  data-testid="button-submit-payment-ref"
-                >
-                  {confirmPaymentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Kirim Bukti Pembayaran
-                </Button>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
 
       <HospitalitySettingsDialog
         open={hospitalitySettingsOpen}
