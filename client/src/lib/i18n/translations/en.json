@@ -306,7 +306,22 @@
       "inviteSent": "Invitation sent",
       "supervisorDeleted": "Supervisor removed",
       "limitReached": "Supervisor limit reached",
-      "noAgentsAssigned": "No agents assigned"
+      "noAgentsAssigned": "No agents assigned",
+      "agentAssignedDesc": "Agent assigned to supervisor successfully.",
+      "agentAssignFailed": "Failed to assign agent",
+      "agentUnassigned": "Agent unassigned",
+      "agentUnassignedDesc": "Agent removed from supervisor successfully.",
+      "agentUnassignFailed": "Failed to unassign",
+      "supervisorAdded": "Supervisor added",
+      "supervisorUpdated": "Supervisor updated",
+      "supervisorUpdatedDesc": "Supervisor information has been updated.",
+      "supervisorRemoved": "Supervisor removed",
+      "agentAssigned": "Agent assigned",
+      "emailExists": "Email already exists",
+      "addFailed": "Failed to add supervisor",
+      "updateFailed": "Failed to update supervisor",
+      "removeFailed": "Failed to remove supervisor",
+      "limitDesc": "You've reached the supervisor limit for your plan. Please upgrade to add more supervisors."
     },
     "knowledgeSources": "Knowledge Sources",
     "domains": "Domains",
@@ -503,7 +518,8 @@
       "toneCasual": "Casual",
       "toneCasualDesc": "Friendly and relaxed",
       "tonePoetic": "Poetic",
-      "tonePoeticDesc": "Creative and expressive"
+      "tonePoeticDesc": "Creative and expressive",
+      "noAgentDesc": "Supervisors can still handle customer chats manually without an AI agent."
     },
     "sessions": {
       "title": "Chat Sessions",
@@ -591,7 +607,8 @@
       "appearance": "Appearance",
       "preChat": "Pre-Chat",
       "socialLinks": "Social & Links",
-      "embed": "Embed"
+      "embed": "Embed",
+      "agentSelected": "Agent selected"
     },
     "welcomeBubble": {
       "title": "Welcome Bubble",
@@ -1081,6 +1098,7 @@
     "email": "Email",
     "password": "Password",
     "loading": "Loading",
-    "failed": "Failed"
+    "failed": "Failed",
+    "tryAgain": "Please try again."
   }
 }

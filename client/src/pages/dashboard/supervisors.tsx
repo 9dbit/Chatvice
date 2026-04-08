@@ -230,7 +230,7 @@ export default function SupervisorsPage() {
       form.reset();
       setPhotoUrl("");
       toast({
-        title: "Supervisor added",
+        title: t("dashboard.supervisors.supervisorAdded"),
         description: "They can now log in to handle escalated chats.",
       });
     },
@@ -242,11 +242,11 @@ export default function SupervisorsPage() {
                              errorMessage.toLowerCase().includes("upgrade your plan");
       
       toast({
-        title: isDuplicate ? "Email already exists" : isLimitReached ? "Supervisor Limit Reached" : "Failed to add supervisor",
+        title: isDuplicate ? t("dashboard.supervisors.emailExists") : isLimitReached ? t("dashboard.supervisors.limitReached") : t("dashboard.supervisors.addFailed"),
         description: isDuplicate 
           ? "This email address has already been registered. Please use a different email."
           : isLimitReached
-          ? "You've reached the supervisor limit for your plan. Please upgrade to add more supervisors."
+          ? t("dashboard.supervisors.limitDesc")
           : "Something went wrong. Please try again.",
         variant: "destructive",
       });
@@ -263,13 +263,13 @@ export default function SupervisorsPage() {
       setPhotoUrl("");
       editForm.reset();
       toast({
-        title: "Supervisor updated",
-        description: "Supervisor information has been updated.",
+        title: t("dashboard.supervisors.supervisorUpdated"),
+        description: t("dashboard.supervisors.supervisorUpdatedDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to update supervisor",
+        title: t("dashboard.supervisors.updateFailed"),
         description: "Something went wrong. Please try again.",
         variant: "destructive",
       });
@@ -283,13 +283,13 @@ export default function SupervisorsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/supervisors", merchantId] });
       toast({
-        title: "Supervisor removed",
+        title: t("dashboard.supervisors.supervisorRemoved"),
         description: "They will no longer have access.",
       });
     },
     onError: () => {
       toast({
-        title: "Failed to remove supervisor",
+        title: t("dashboard.supervisors.removeFailed"),
         description: "Something went wrong. Please try again.",
         variant: "destructive",
       });
@@ -306,14 +306,14 @@ export default function SupervisorsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/agent-supervisor-mappings"] });
       setSelectedAgentId(null);
       toast({
-        title: "Agent assigned",
-        description: "Agent berhasil di-assign ke supervisor.",
+        title: t("dashboard.supervisors.agentAssigned"),
+        description: t("dashboard.supervisors.agentAssignedDesc"),
       });
     },
     onError: (error: Error) => {
       toast({
-        title: "Gagal assign agent",
-        description: error.message || "Silakan coba lagi.",
+        title: t("dashboard.supervisors.agentAssignFailed"),
+        description: error.message || t("common.tryAgain"),
         variant: "destructive",
       });
     },
@@ -328,14 +328,14 @@ export default function SupervisorsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/supervisors", merchantId] });
       queryClient.invalidateQueries({ queryKey: ["/api/agent-supervisor-mappings"] });
       toast({
-        title: "Agent di-unassign",
-        description: "Agent berhasil dihapus dari supervisor.",
+        title: t("dashboard.supervisors.agentUnassigned"),
+        description: t("dashboard.supervisors.agentUnassignedDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Gagal unassign",
-        description: "Silakan coba lagi.",
+        title: t("dashboard.supervisors.agentUnassignFailed"),
+        description: t("common.tryAgain"),
         variant: "destructive",
       });
     },

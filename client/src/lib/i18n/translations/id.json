@@ -306,7 +306,22 @@
       "inviteSent": "Undangan terkirim",
       "supervisorDeleted": "Supervisor dihapus",
       "limitReached": "Batas supervisor tercapai",
-      "noAgentsAssigned": "Tidak ada agen yang ditugaskan"
+      "noAgentsAssigned": "Tidak ada agen yang ditugaskan",
+      "agentAssignedDesc": "Agent berhasil di-assign ke supervisor.",
+      "agentAssignFailed": "Gagal assign agent",
+      "agentUnassigned": "Agent di-unassign",
+      "agentUnassignedDesc": "Agent berhasil dihapus dari supervisor.",
+      "agentUnassignFailed": "Gagal unassign",
+      "supervisorAdded": "Supervisor ditambahkan",
+      "supervisorUpdated": "Supervisor diperbarui",
+      "supervisorUpdatedDesc": "Informasi supervisor telah diperbarui.",
+      "supervisorRemoved": "Supervisor dihapus",
+      "agentAssigned": "Agent ditugaskan",
+      "emailExists": "Email sudah ada",
+      "addFailed": "Gagal menambahkan supervisor",
+      "updateFailed": "Gagal memperbarui supervisor",
+      "removeFailed": "Gagal menghapus supervisor",
+      "limitDesc": "Anda telah mencapai batas supervisor untuk paket Anda. Silakan upgrade untuk menambah lebih banyak supervisor."
     },
     "knowledgeSources": "Sumber Pengetahuan",
     "domains": "Domain",
@@ -503,7 +518,8 @@
       "toneCasual": "Santai",
       "toneCasualDesc": "Ramah dan santai",
       "tonePoetic": "Puitis",
-      "tonePoeticDesc": "Kreatif dan ekspresif"
+      "tonePoeticDesc": "Kreatif dan ekspresif",
+      "noAgentDesc": "Supervisor masih dapat menangani chat pelanggan secara manual tanpa agen AI."
     },
     "sessions": {
       "title": "Sesi Chat",
@@ -591,7 +607,8 @@
       "appearance": "Tampilan",
       "preChat": "Pra-Chat",
       "socialLinks": "Sosial & Tautan",
-      "embed": "Embed"
+      "embed": "Embed",
+      "agentSelected": "Agen dipilih"
     },
     "welcomeBubble": {
       "title": "Balon Sambutan",
@@ -1081,6 +1098,7 @@
     "email": "Email",
     "password": "Password",
     "loading": "Memuat",
-    "failed": "Gagal"
+    "failed": "Gagal",
+    "tryAgain": "Silakan coba lagi."
   }
 }

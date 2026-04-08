@@ -677,7 +677,7 @@ export default function WidgetPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
       toast({
-        title: "Agent selected",
+        title: t("dashboard.widget.agentSelected"),
         description: "The widget will now use the selected agent's settings.",
       });
     },

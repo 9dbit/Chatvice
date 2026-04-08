@@ -177,7 +177,7 @@ export default function AgentsPage() {
       form.reset();
       setPhotoUrl("");
       toast({
-        title: "Agent created",
+        title: t("dashboard.agents.agentCreated"),
         description: "Your new AI agent has been created successfully.",
       });
     },
@@ -209,7 +209,7 @@ export default function AgentsPage() {
       setIsDialogOpen(false);
       setPhotoUrl("");
       toast({
-        title: "Agent updated",
+        title: t("dashboard.agents.agentUpdated"),
         description: "Your agent has been updated successfully.",
       });
     },
@@ -222,7 +222,7 @@ export default function AgentsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
       toast({
-        title: "Agent deleted",
+        title: t("dashboard.agents.agentDeleted"),
         description: "The agent has been removed.",
       });
     },
@@ -1075,7 +1075,7 @@ export default function AgentsPage() {
         onContinueManual={() => {
           toast({
             title: "Manual Mode",
-            description: "Supervisors can still handle customer chats manually without an AI agent.",
+            description: t("dashboard.agents.noAgentDesc"),
           });
         }}
       />
