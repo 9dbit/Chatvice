@@ -937,7 +937,7 @@ export default function AppointmentsPage() {
                               {!svc.isActive && <Badge variant="outline" className="text-xs">{t("dashboard.common.inactive")}</Badge>}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {svc.durationMinutes} menit
+                              {svc.durationMinutes} {t("dashboard.appointments.minuteUnit")}
                               {svc.priceIdr ? ` · Rp ${svc.priceIdr.toLocaleString(language === "id" ? "id-ID" : "en-US")}` : ""}
                               {div ? ` · ${div.name}` : ""}
                             </div>
@@ -1021,7 +1021,7 @@ export default function AppointmentsPage() {
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      URL publik menggunakan slug bisnis Anda. Pelanggan dapat melihat waktu yang sudah dipesan (tanpa detail).
+                      {t("dashboard.appointments.publicUrlDesc")}
                     </p>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={() => window.open(publicCalendarLink, "_blank")} data-testid="button-open-public-calendar">

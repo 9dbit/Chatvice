@@ -1527,7 +1527,9 @@
       "more": "more",
       "phone": "Phone",
       "staffDescription": "Staff description",
-      "servicesDescription": "Services description"
+      "servicesDescription": "Services description",
+      "minuteUnit": "min",
+      "publicUrlDesc": "Public URL using your business slug. Customers can see booked times (without details)."
     },
     "sources": {
       "title": "Active Sources",
@@ -1714,6 +1716,13 @@
       "useEwalletOrMobileBanking": "Use e-wallet or mobile banking",
       "totalPayment": "TOTAL PAYMENT",
       "qrCodeNotAvailable": "QR Code not available"
+    },
+    "sidebar": {
+      "usagePlan": "Usage & Plan"
+    },
+    "layout": {
+      "errorLoadingPage": "Something went wrong loading this page.",
+      "reloadPage": "Reload page"
     }
   },
   "common": {

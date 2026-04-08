@@ -744,7 +744,7 @@ export function AppSidebar() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-xs font-medium">
                     <Coins className="w-3.5 h-3.5 text-primary" />
-                    <span>Usage & Plan</span>
+                    <span>{t("dashboard.sidebar.usagePlan")}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs px-1.5 py-0.5 rounded bg-primary text-white font-medium">

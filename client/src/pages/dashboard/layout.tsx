@@ -20,9 +20,14 @@ class PageErrorBoundary extends Component<
   render() {
     if (this.state.error) {
       const msg = (this.state.error as Error).message || "Unknown error";
-      const lang = typeof localStorage !== "undefined" ? localStorage.getItem("dashboard_language") || "en" : "en";
-      const errorText = lang === "id" ? "Terjadi kesalahan saat memuat halaman ini." : "Something went wrong loading this page.";
-      const reloadText = lang === "id" ? "Muat ulang halaman" : "Reload page";
+      const lang = typeof localStorage !== "undefined" ? localStorage.getItem("chatvice_language") || "en" : "en";
+      const translations: Record<string, Record<string, string>> = {
+        en: { errorText: "Something went wrong loading this page.", reloadText: "Reload page" },
+        id: { errorText: "Terjadi kesalahan saat memuat halaman ini.", reloadText: "Muat ulang halaman" }
+      };
+      const tr = translations[lang] || translations["en"];
+      const errorText = tr.errorText;
+      const reloadText = tr.reloadText;
       return (
         <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
           <AlertTriangle className="w-10 h-10 text-destructive" />

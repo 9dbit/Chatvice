@@ -1527,7 +1527,9 @@
       "more": "lagi",
       "phone": "Telp",
       "staffDescription": "Deskripsi staf",
-      "servicesDescription": "Deskripsi layanan"
+      "servicesDescription": "Deskripsi layanan",
+      "minuteUnit": "menit",
+      "publicUrlDesc": "URL publik menggunakan slug bisnis Anda. Pelanggan dapat melihat waktu yang sudah dipesan (tanpa detail)."
     },
     "sources": {
       "title": "Sumber Aktif",
@@ -1714,6 +1716,13 @@
       "useEwalletOrMobileBanking": "Gunakan e-wallet atau mobile banking",
       "totalPayment": "TOTAL PEMBAYARAN",
       "qrCodeNotAvailable": "QR Code tidak tersedia"
+    },
+    "sidebar": {
+      "usagePlan": "Penggunaan & Paket"
+    },
+    "layout": {
+      "errorLoadingPage": "Terjadi kesalahan saat memuat halaman ini.",
+      "reloadPage": "Muat ulang halaman"
     }
   },
   "common": {
