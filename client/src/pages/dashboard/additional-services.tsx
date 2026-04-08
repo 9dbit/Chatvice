@@ -94,7 +94,10 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
   });
 
   const saveMutation = useMutation({
-    mutationFn: (data: HospitalityForm) => apiRequest("PUT", "/api/merchant/hospitality-config", data),
+    mutationFn: async (data: HospitalityForm) => {
+      const res = await apiRequest("PUT", "/api/merchant/hospitality-config", data);
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/hospitality-config"] });
       toast({ title: "Tersimpan", description: "Pengaturan hospitality berhasil disimpan." });
@@ -114,7 +117,8 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
     setIsTesting(true);
     setSheetTestResult(null);
     try {
-      const result: SheetTestResult = await apiRequest("POST", "/api/merchant/hospitality-config/test-sheet", { googleSheetUrl });
+      const res = await apiRequest("POST", "/api/merchant/hospitality-config/test-sheet", { googleSheetUrl });
+      const result: SheetTestResult = await res.json();
       setSheetTestResult(result);
     } catch (err: any) {
       setSheetTestResult({ success: false, rowCount: 0, sampleRows: [], message: err.message || "Gagal mengakses sheet." });

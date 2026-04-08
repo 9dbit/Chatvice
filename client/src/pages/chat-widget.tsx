@@ -84,6 +84,9 @@ interface HotelOptionsPayload {
   hotelName: string;
   bookingUrl: string;
   options: HotelOptionItem[];
+  isAlternativeSuggestion?: boolean;
+  requestedCheckIn?: string;
+  requestedCheckOut?: string;
 }
 
 type HotelOptionsMessage = Message & {
@@ -3440,12 +3443,17 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     );
                   })()}
                   {isHotelOptions(msg) && (() => {
-                    const { hotelName, bookingUrl, options } = msg.payload;
+                    const { hotelName, bookingUrl, options, isAlternativeSuggestion, requestedCheckIn, requestedCheckOut } = msg.payload;
                     return (
                       <div className="w-full space-y-2" data-testid="section-hotel-options">
                         <p className="text-xs font-semibold" style={{ color: primaryColor }}>
                           {hotelName} — Ketersediaan Kamar
                         </p>
+                        {isAlternativeSuggestion && requestedCheckIn && (
+                          <div className="text-[10px] rounded-md px-2 py-1.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700 text-amber-700 dark:text-amber-400" data-testid="banner-alternative-dates">
+                            Tidak ada kamar tersedia untuk tanggal {requestedCheckIn}{requestedCheckOut ? ` – ${requestedCheckOut}` : ""}. Berikut opsi kamar yang tersedia:
+                          </div>
+                        )}
                         <div
                           className="flex gap-2 overflow-x-auto pb-1"
                           style={{ scrollSnapType: "x mandatory" }}

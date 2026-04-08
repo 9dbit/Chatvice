@@ -6051,11 +6051,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                     isAlmostFull: boolean;
                   }
 
-                  // Extract check-in/check-out dates from customer message if present
+                  // Extract dates mentioned by customer (check-in / check-out)
                   const datePattern = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}[\/\-]\d{2}[\/\-]\d{2})/g;
                   const mentionedDates = message.match(datePattern) ?? [];
+                  const requestedCheckIn = mentionedDates[0] ?? "";
+                  const requestedCheckOut = mentionedDates[1] ?? "";
 
-                  const hotelOptions: HotelOption[] = dataRows.map(row => {
+                  // Parse all rows
+                  const allRooms: HotelOption[] = dataRows.map(row => {
                     const cols = parseCSVLine(row);
                     const get = (...keys: string[]): string => {
                       for (const key of keys) {
@@ -6064,18 +6067,56 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                       }
                       return "";
                     };
-                    const roomName = get("room_name", "room type", "tipe kamar", "nama kamar") || cols[0] || "";
-                    const roomDescription = get("room_description", "description", "deskripsi", "keterangan") || get("notes", "catatan") || "";
-                    const priceRaw = get("price_per_night", "price", "harga per malam", "harga") || cols[1] || "0";
+                    // Flexible column name matching (canonical + Indonesian aliases + pipe-separated headers)
+                    const roomName = get("room_name", "room type", "room", "tipe kamar", "nama kamar", "jenis kamar") || cols[0] || "";
+                    const roomDescription = get("room_description", "description", "deskripsi", "keterangan", "detail") || "";
+                    const priceRaw = get("price_per_night", "price per night", "price", "harga per malam", "harga/malam", "harga") || cols[1] || "0";
                     const pricePerNight = parseInt(priceRaw.replace(/[^\d]/g, ""), 10) || 0;
-                    const availRaw = get("availability", "tersedia", "ketersediaan", "jumlah") || cols[2] || "0";
+                    const availRaw = get("availability", "available", "tersedia", "ketersediaan", "jumlah", "stok") || cols[2] || "0";
                     const availability = parseInt(availRaw.replace(/[^\d]/g, ""), 10) || 0;
-                    const checkIn = get("check_in", "check-in", "checkin", "check in") || (mentionedDates[0] ?? "");
-                    const checkOut = get("check_out", "check-out", "checkout", "check out") || (mentionedDates[1] ?? "");
-                    const imageUrl = get("image_url", "foto", "gambar", "image") || "";
-                    const bookingNotes = get("booking_url", "booking_notes", "url", "link") || "";
-                    return { roomName, roomDescription, pricePerNight, availability, checkIn, checkOut, imageUrl, bookingNotes, isCheapest: false, isAlmostFull: availability > 0 && availability < 3 };
+                    // Sheet may have date columns (for date-specific availability rows)
+                    const sheetCheckIn = get("check_in", "check-in", "checkin", "check in", "tanggal masuk");
+                    const sheetCheckOut = get("check_out", "check-out", "checkout", "check out", "tanggal keluar");
+                    const imageUrl = get("image_url", "image", "foto", "gambar", "photo") || "";
+                    const bookingNotes = get("booking_notes", "notes", "catatan", "link", "url") || "";
+                    return {
+                      roomName, roomDescription, pricePerNight, availability,
+                      checkIn: sheetCheckIn || requestedCheckIn,
+                      checkOut: sheetCheckOut || requestedCheckOut,
+                      imageUrl, bookingNotes,
+                      isCheapest: false,
+                      isAlmostFull: availability > 0 && availability < 3,
+                    };
                   }).filter(r => r.roomName);
+
+                  // Date-based filtering: if sheet has date columns AND customer requested dates, filter
+                  const sheetHasDateCols = headers.some(h => /check.?in|checkin|tanggal masuk/.test(h)) ||
+                    headers.some(h => /check.?out|checkout|tanggal keluar/.test(h));
+
+                  let hotelOptions: HotelOption[] = allRooms;
+                  let isAlternativeSuggestion = false;
+
+                  if (requestedCheckIn && sheetHasDateCols) {
+                    // Filter: room's check-in date must match or room must have availability > 0 for the requested period
+                    const dateMatched = allRooms.filter(r => {
+                      const roomCI = r.checkIn.replace(/[\-]/g, "/");
+                      const reqCI = requestedCheckIn.replace(/[\-]/g, "/");
+                      return !r.checkIn || roomCI === reqCI || r.checkIn === requestedCheckIn;
+                    }).filter(r => r.availability > 0);
+
+                    if (dateMatched.length > 0) {
+                      hotelOptions = dateMatched;
+                    } else {
+                      // No rooms match requested date — return all available rooms as alternative suggestion
+                      hotelOptions = allRooms.filter(r => r.availability > 0);
+                      isAlternativeSuggestion = true;
+                      console.log(`[Hospitality] No rooms for requested date ${requestedCheckIn} — showing ${hotelOptions.length} alternative rooms`);
+                    }
+                  } else {
+                    // No date filtering needed — show rooms with availability > 0, or all if none have count
+                    const withAvail = allRooms.filter(r => r.availability > 0);
+                    hotelOptions = withAvail.length > 0 ? withAvail : allRooms;
+                  }
 
                   // Check if user asked for cheapest — sort by price ascending
                   const wantsCheapest = /termurah|paling murah|cheapest|budget|murah/i.test(message);
@@ -6094,11 +6135,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                     hotelName: hospConfig.hotelName || "Hotel",
                     bookingUrl: hospConfig.bookingUrl || "",
                     options: hotelOptions,
+                    isAlternativeSuggestion,
+                    requestedCheckIn,
+                    requestedCheckOut,
                   };
 
                   await storage.createMessage({ sessionId, from: "chatvice", content: "", messageType: "hotelOptions", payload: hotelPayload });
                   broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "", messageType: "hotelOptions", payload: hotelPayload } });
-                  console.log(`[Hospitality] Broadcast hotel options: ${hotelOptions.length} rooms`);
+                  console.log(`[Hospitality] Broadcast hotel options: ${hotelOptions.length} rooms (alternative: ${isAlternativeSuggestion})`);
                 }
               }
             }
