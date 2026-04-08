@@ -170,9 +170,7 @@ export default function NotificationSettingsPage() {
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-page-title">
-          <Bell className="w-6 h-6" />
-          Notification Settings
-        </h1>
+          <Bell className="w-6 h-6" />{t("dashboard.notificationSettings.title")}</h1>
         <p className="text-muted-foreground">Configure sounds and notifications for various chat events</p>
       </div>
 

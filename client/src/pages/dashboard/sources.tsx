@@ -313,7 +313,7 @@ export default function SourcesPage() {
           </DialogTrigger>
           <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Add Knowledge Source</DialogTitle>
+              <DialogTitle>{t("dashboard.sources.addSource")}</DialogTitle>
               <DialogDescription>
                 Add a new source to train your AI agent.
               </DialogDescription>
@@ -325,7 +325,7 @@ export default function SourcesPage() {
                   name="type"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Source Type</FormLabel>
+                      <FormLabel>{t("dashboard.sources.sourceType")}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-source-type">
@@ -388,7 +388,7 @@ export default function SourcesPage() {
                     name="url"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Website URL</FormLabel>
+                        <FormLabel>{t("dashboard.sources.websiteUrl")}</FormLabel>
                         <FormControl>
                           <Input 
                             type="url"

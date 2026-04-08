@@ -248,7 +248,10 @@
       "soundEnabled": "Sound Enabled",
       "soundTemplate": "Sound Template",
       "testSound": "Test Sound",
-      "saved": "Notification settings saved"
+      "saved": "Notification settings saved",
+      "emailNotif": "Email Notifications",
+      "smsNotif": "SMS Notifications",
+      "pushNotif": "Push Notifications"
     },
     "leads": {
       "title": "Sales Leads",
@@ -258,7 +261,9 @@
       "capturedAt": "Captured At",
       "noLeads": "No leads yet",
       "leadsDesc": "Leads will appear here when customers interact with your Sales Agent.",
-      "exportLeads": "Export Leads"
+      "exportLeads": "Export Leads",
+      "source": "Source",
+      "createdAt": "Created At"
     },
     "logout": "Logout",
     "online": "Online",
@@ -281,7 +286,8 @@
       "offline": "Offline",
       "noSupervisors": "No supervisors yet",
       "inviteSent": "Invitation sent",
-      "supervisorDeleted": "Supervisor removed"
+      "supervisorDeleted": "Supervisor removed",
+      "limitReached": "Supervisor limit reached"
     },
     "knowledgeSources": "Knowledge Sources",
     "domains": "Domains",
@@ -412,7 +418,8 @@
       "showMore": "Show More",
       "showLess": "Show Less",
       "noResults": "No results found",
-      "tryAgain": "Try Again"
+      "tryAgain": "Try Again",
+      "expired": "Expired"
     },
     "overview": {
       "title": "Dashboard",
@@ -454,7 +461,11 @@
       "agentCreated": "Agent created successfully",
       "agentUpdated": "Agent updated successfully",
       "agentDeleted": "Agent deleted successfully",
-      "agentActivated": "Agent activated successfully"
+      "agentActivated": "Agent activated successfully",
+      "newAgent": "New AI Agent",
+      "closingMode": "Closing Statement Mode",
+      "includeBusinessName": "Include business name in thanks",
+      "addressCustomer": "Address customer by name"
     },
     "sessions": {
       "title": "Chat Sessions",
@@ -517,7 +528,18 @@
       "message": "Bubble Message",
       "delay": "Display Delay (seconds)",
       "enabled": "Enable Welcome Bubble",
-      "saved": "Welcome bubble settings saved"
+      "saved": "Welcome bubble settings saved",
+      "generalSettings": "General Settings",
+      "enableDesc": "Enable or disable welcome bubble",
+      "showBubble": "Show Welcome Bubble",
+      "reappearDesc": "Time before bubble reappears after being closed",
+      "promoImage": "Promo Image",
+      "promoImageDesc": "Add a promotional image above the bubble",
+      "enablePromo": "Enable Promo Image",
+      "messageContent": "Message Content",
+      "messageContentDesc": "Configure text displayed in the bubble",
+      "headline": "Headline",
+      "buttonDesc": "Configure the action button"
     },
     "triggers": {
       "title": "Triggers",
@@ -528,7 +550,10 @@
       "escalate": "Escalate to Human",
       "noTriggers": "No triggers configured",
       "triggerAdded": "Trigger added",
-      "triggerDeleted": "Trigger deleted"
+      "triggerDeleted": "Trigger deleted",
+      "keywords": "Trigger Keywords",
+      "test": "Test Triggers",
+      "noEscalation": "No escalation"
     },
     "quickReplies": {
       "title": "Quick Replies",
@@ -538,7 +563,9 @@
       "message": "Message",
       "noReplies": "No quick replies yet",
       "replyAdded": "Quick reply added",
-      "replyDeleted": "Quick reply deleted"
+      "replyDeleted": "Quick reply deleted",
+      "messageContent": "Message Content",
+      "addQuickReply": "Add Quick Reply"
     },
     "chatButtons": {
       "title": "Chat Buttons",
@@ -591,7 +618,14 @@
       "allSupervisors": "All Supervisors",
       "messages": "Messages",
       "chats": "Chats",
-      "noData": "No data for the selected period"
+      "noData": "No data for the selected period",
+      "messagesOverTime": "Messages Over Time",
+      "messagesOverTimeDesc": "Daily message volume for the past week",
+      "aiVsHuman": "AI vs Human Handling",
+      "aiVsHumanDesc": "Distribution of session handling",
+      "popularKeywords": "Popular Keywords",
+      "responseRate": "Response Rate",
+      "sessionOverview": "Session Overview"
     },
     "chatLogs": {
       "title": "Chat Logs",
@@ -614,7 +648,9 @@
       "lastSeen": "Last Seen",
       "totalChats": "Total Chats",
       "noUsers": "No user data yet",
-      "exportData": "Export Data"
+      "exportData": "Export Data",
+      "customerList": "Customer List",
+      "noData": "No customer data yet"
     },
     "livePreview": {
       "title": "Live Preview",
@@ -622,7 +658,8 @@
       "activeAgent": "Active Agent",
       "noActiveAgent": "No active agent",
       "previewMode": "Preview Mode",
-      "noAgentWarning": "Please set an active agent to preview the chat widget"
+      "noAgentWarning": "Please set an active agent to preview the chat widget",
+      "reload": "Reload"
     },
     "settings": {
       "title": "Settings",
@@ -633,7 +670,11 @@
       "businessName": "Business Name",
       "businessEmail": "Business Email",
       "timezone": "Timezone",
-      "saved": "Settings saved successfully"
+      "saved": "Settings saved successfully",
+      "companyName": "Company Name",
+      "profileInfo": "Profile Information",
+      "themePreference": "Theme Preference",
+      "apiCredentials": "API Credentials"
     },
     "profile": {
       "title": "Profile",
@@ -646,7 +687,12 @@
       "newPassword": "New Password",
       "confirmPassword": "Confirm Password",
       "saved": "Profile updated successfully",
-      "avatar": "Profile Picture"
+      "avatar": "Profile Picture",
+      "companyName": "Company Name",
+      "websiteName": "Website Name",
+      "profileInfo": "Profile Information",
+      "themePreference": "Theme Preference",
+      "apiCredentials": "API Credentials"
     },
     "teamActivity": {
       "title": "Team Activity",
@@ -656,7 +702,12 @@
       "chatsHandled": "Chats Handled",
       "avgResponseTime": "Avg Response Time",
       "satisfaction": "Satisfaction",
-      "noActivity": "No activity data for this period"
+      "noActivity": "No activity data for this period",
+      "totalSupervisors": "Total Supervisors",
+      "totalAgents": "Total AI Agents",
+      "onShift": "On Shift Now",
+      "supervisorOnline": "Supervisor Online",
+      "supervisorOffline": "Supervisor Offline"
     },
     "workScheduler": {
       "title": "Work Scheduler",
@@ -676,7 +727,9 @@
       "thursday": "Thursday",
       "friday": "Friday",
       "saturday": "Saturday",
-      "sunday": "Sunday"
+      "sunday": "Sunday",
+      "dayType": "Day Type",
+      "everyday": "Every Day"
     },
     "integrations": {
       "title": "Integrations",
@@ -710,7 +763,10 @@
       "domains": "Domains",
       "unlimited": "Unlimited",
       "used": "Used",
-      "of": "of"
+      "of": "of",
+      "conversationsUsed": "Conversations Used",
+      "checkoutCanceled": "Checkout canceled",
+      "upgradePlan": "Upgrade Plan"
     },
     "plans": {
       "title": "Plans",
@@ -755,7 +811,16 @@
       "paymentMethod": "Payment Method",
       "bankTransfer": "Bank Transfer",
       "noReferrals": "No referrals yet",
-      "shareLink": "Share your link to start earning"
+      "shareLink": "Share your link to start earning",
+      "commission": "Commission",
+      "daysCookie": "Days Cookie",
+      "minPayout": "Min Payout",
+      "commissionRate": "Commission Rate",
+      "cookieDuration": "Cookie Duration",
+      "pending": "Pending",
+      "withdrawalHistory": "Withdrawal History",
+      "totalEarnings": "Total Earnings",
+      "availableBalance": "Available Balance"
     },
     "dataUsage": {
       "title": "Data Usage",
@@ -763,7 +828,8 @@
       "storageUsed": "Storage Used",
       "apiCalls": "API Calls",
       "messagesStored": "Messages Stored",
-      "noData": "No usage data available"
+      "noData": "No usage data available",
+      "messagesSent": "Messages Sent"
     },
     "appointments": {
       "title": "Appointments",
@@ -783,7 +849,19 @@
       "division": "Division",
       "statusPending": "Pending",
       "statusConfirmed": "Confirmed",
-      "statusCompleted": "Completed"
+      "statusCompleted": "Completed",
+      "addDivision": "Add Division",
+      "addStaff": "Add Staff",
+      "addService": "Add Service",
+      "editService": "Edit Service",
+      "locationRoom": "Location / Room",
+      "divisionName": "Division Name",
+      "serviceName": "Service Name",
+      "durationMinutes": "Duration (minutes)",
+      "priceIDR": "Price (IDR)",
+      "editDivision": "Edit Division",
+      "editStaff": "Edit Staff",
+      "internalCalendarLink": "Internal Calendar Link (Staff)"
     },
     "sources": {
       "title": "Active Sources",
@@ -796,7 +874,16 @@
       "syncing": "Syncing...",
       "noSources": "No active sources",
       "sourceAdded": "Source added",
-      "sourceDeleted": "Source removed"
+      "sourceDeleted": "Source removed",
+      "sourceType": "Source Type",
+      "websiteUrl": "Website URL"
+    },
+    "billingDetails": {
+      "title": "Billing Details",
+      "awaitingPayment": "Awaiting Payment",
+      "amountToPay": "Amount to Pay",
+      "transferVA": "Transfer to Virtual Account",
+      "transferBank": "Transfer to Bank Account"
     }
   }
 }

@@ -336,7 +336,7 @@ export default function AffiliateDashboardPage() {
   const getStatusBadgeWithdrawal = (status: string) => {
     switch (status) {
       case "pending":
-        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"><Clock className="w-3 h-3 mr-1" />{t("dashboard.affiliate.pending")}</Badge>;
       case "approved":
         return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"><CheckCircle className="w-3 h-3 mr-1" />Approved</Badge>;
       case "processing":
@@ -375,15 +375,15 @@ export default function AffiliateDashboardPage() {
           <div className="grid grid-cols-3 gap-4 mb-8">
             <div className="text-center p-4 bg-muted/50 rounded-lg">
               <p className="text-2xl font-bold text-purple-600">{defaultCommission}%</p>
-              <p className="text-sm text-muted-foreground">Commission</p>
+              <p className="text-sm text-muted-foreground">{t("dashboard.affiliate.commission")}</p>
             </div>
             <div className="text-center p-4 bg-muted/50 rounded-lg">
               <p className="text-2xl font-bold text-purple-600">{cookieDays}</p>
-              <p className="text-sm text-muted-foreground">Days Cookie</p>
+              <p className="text-sm text-muted-foreground">{t("dashboard.affiliate.daysCookie")}</p>
             </div>
             <div className="text-center p-4 bg-muted/50 rounded-lg">
               <p className="text-2xl font-bold text-purple-600">${minimumPayout}</p>
-              <p className="text-sm text-muted-foreground">Min Payout</p>
+              <p className="text-sm text-muted-foreground">{t("dashboard.affiliate.minPayout")}</p>
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -414,11 +414,11 @@ export default function AffiliateDashboardPage() {
             <div className="py-4">
               <div className="bg-muted/50 rounded-lg p-4 space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Commission Rate</span>
+                  <span className="text-sm text-muted-foreground">{t("dashboard.affiliate.commissionRate")}</span>
                   <span className="font-medium">{defaultCommission}%</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Cookie Duration</span>
+                  <span className="text-sm text-muted-foreground">{t("dashboard.affiliate.cookieDuration")}</span>
                   <span className="font-medium">{cookieDays} days</span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -621,7 +621,7 @@ export default function AffiliateDashboardPage() {
                   <span className="font-bold text-green-600">${stats.paidEarnings.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center py-3">
-                  <span className="font-medium">Total Earnings</span>
+                  <span className="font-medium">{t("dashboard.affiliate.totalEarnings")}</span>
                   <span className="text-xl font-bold">${stats.totalEarnings.toFixed(2)}</span>
                 </div>
                 <Separator />
@@ -662,7 +662,7 @@ export default function AffiliateDashboardPage() {
                   <span className="font-bold text-purple-600">{(affiliate as any)?.commissionRate || defaultCommission}%</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b">
-                  <span className="text-muted-foreground">Cookie Duration</span>
+                  <span className="text-muted-foreground">{t("dashboard.affiliate.cookieDuration")}</span>
                   <span className="font-bold">{cookieDays} days</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b">
@@ -762,9 +762,7 @@ export default function AffiliateDashboardPage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <Wallet className="w-5 h-5" />
-                  Withdrawal History
-                </CardTitle>
+                  <Wallet className="w-5 h-5" />{t("dashboard.affiliate.withdrawalHistory")}</CardTitle>
                 <CardDescription>
                   Track your withdrawal requests
                 </CardDescription>
@@ -920,7 +918,7 @@ export default function AffiliateDashboardPage() {
           <div className="space-y-4 py-4">
             <div className="bg-muted/50 rounded-lg p-4">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Available Balance</span>
+                <span className="text-sm text-muted-foreground">{t("dashboard.affiliate.availableBalance")}</span>
                 <span className="font-bold text-lg">${stats.pendingEarnings.toFixed(2)}</span>
               </div>
             </div>

@@ -189,13 +189,13 @@ export default function WelcomeBubblePage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>General Settings</CardTitle>
-              <CardDescription>Enable or disable welcome bubble</CardDescription>
+              <CardTitle>{t("dashboard.welcomeBubble.generalSettings")}</CardTitle>
+              <CardDescription>{t("dashboard.welcomeBubble.enableDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label htmlFor="enabled">Show Welcome Bubble</Label>
+                  <Label htmlFor="enabled">{t("dashboard.welcomeBubble.showBubble")}</Label>
                   <p className="text-sm text-muted-foreground">Bubble will appear when page loads</p>
                 </div>
                 <Switch
@@ -214,7 +214,7 @@ export default function WelcomeBubblePage() {
                 <Clock className="w-4 h-4" />
                 Reappear Interval
               </CardTitle>
-              <CardDescription>Time before bubble reappears after being closed</CardDescription>
+              <CardDescription>{t("dashboard.welcomeBubble.reappearDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
@@ -249,13 +249,13 @@ export default function WelcomeBubblePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Promo Image</CardTitle>
-              <CardDescription>Add a promotional image above the bubble</CardDescription>
+              <CardTitle>{t("dashboard.welcomeBubble.promoImage")}</CardTitle>
+              <CardDescription>{t("dashboard.welcomeBubble.promoImageDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label htmlFor="promoEnabled">Enable Promo Image</Label>
+                  <Label htmlFor="promoEnabled">{t("dashboard.welcomeBubble.enablePromo")}</Label>
                   <p className="text-sm text-muted-foreground">Display image above the welcome bubble</p>
                 </div>
                 <Switch
@@ -353,12 +353,12 @@ export default function WelcomeBubblePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Message Content</CardTitle>
-              <CardDescription>Configure text displayed in the bubble</CardDescription>
+              <CardTitle>{t("dashboard.welcomeBubble.messageContent")}</CardTitle>
+              <CardDescription>{t("dashboard.welcomeBubble.messageContentDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="headline">Headline</Label>
+                <Label htmlFor="headline">{t("dashboard.welcomeBubble.headline")}</Label>
                 <Input
                   id="headline"
                   value={form.headline}
@@ -384,7 +384,7 @@ export default function WelcomeBubblePage() {
           <Card>
             <CardHeader>
               <CardTitle>Button</CardTitle>
-              <CardDescription>Configure the action button</CardDescription>
+              <CardDescription>{t("dashboard.welcomeBubble.buttonDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">

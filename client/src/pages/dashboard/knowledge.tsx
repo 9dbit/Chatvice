@@ -1996,7 +1996,7 @@ export default function KnowledgePage() {
               {approveDialog?.suggestion.contentSnippet}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setApproveDialog(null)} data-testid="button-cancel-approve">Cancel</Button>
+              <Button variant="outline" onClick={() => setApproveDialog(null)} data-testid="button-cancel-approve">{t("dashboard.common.cancel")}</Button>
               <Button
                 onClick={() => { if (approveDialog) handleApplySuggestion(approveDialog.suggestion, approveDialog.index); }}
                 disabled={applyingIndex !== null}
@@ -2025,7 +2025,7 @@ export default function KnowledgePage() {
               data-testid="textarea-modify-content"
             />
             <DialogFooter>
-              <Button variant="outline" onClick={() => setModifyDialog(null)} data-testid="button-cancel-modify">Cancel</Button>
+              <Button variant="outline" onClick={() => setModifyDialog(null)} data-testid="button-cancel-modify">{t("dashboard.common.cancel")}</Button>
               <Button
                 onClick={() => { if (modifyDialog) handleApplySuggestion(modifyDialog.suggestion, modifyDialog.index, modifyContent); }}
                 disabled={!modifyContent.trim() || applyingIndex !== null}
@@ -2185,7 +2185,7 @@ export default function KnowledgePage() {
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setReplaceConfirmOpen(false)} data-testid="button-cancel-replace">Cancel</Button>
+              <Button variant="outline" onClick={() => setReplaceConfirmOpen(false)} data-testid="button-cancel-replace">{t("dashboard.common.cancel")}</Button>
               <Button
                 onClick={handleReplaceAll}
                 disabled={isReplacing}
@@ -3665,7 +3665,7 @@ export default function KnowledgePage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsGenerateOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setIsGenerateOpen(false)}>{t("dashboard.common.cancel")}</Button>
             <Button 
               onClick={() => generateMutation.mutate(generateForm)} 
               disabled={!generateForm.businessType || !generateForm.category || generateMutation.isPending}
@@ -3763,7 +3763,7 @@ export default function KnowledgePage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditorOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setIsEditorOpen(false)}>{t("dashboard.common.cancel")}</Button>
             <Button 
               onClick={() => saveArticleMutation.mutate(editorForm)} 
               disabled={!editorForm.title || !editorForm.content || saveArticleMutation.isPending}

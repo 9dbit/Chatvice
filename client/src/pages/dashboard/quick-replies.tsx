@@ -133,9 +133,7 @@ export default function QuickRepliesPage() {
         }}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-reply">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Quick Reply
-            </Button>
+              <Plus className="w-4 h-4 mr-2" />{t("dashboard.quickReplies.addQuickReply")}</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -143,7 +141,7 @@ export default function QuickRepliesPage() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="shortcut">Shortcut</Label>
+                <Label htmlFor="shortcut">{t("dashboard.quickReplies.shortcut")}</Label>
                 <div className="flex items-center gap-2">
                   <span className="text-muted-foreground">/</span>
                   <Input
@@ -167,7 +165,7 @@ export default function QuickRepliesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="content">Message Content</Label>
+                <Label htmlFor="content">{t("dashboard.quickReplies.messageContent")}</Label>
                 <Textarea
                   id="content"
                   value={form.content}
@@ -179,7 +177,7 @@ export default function QuickRepliesPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>{t("dashboard.common.cancel")}</Button>
               <Button 
                 onClick={handleSubmit} 
                 disabled={!form.shortcut || !form.label || !form.content || createMutation.isPending || updateMutation.isPending}
@@ -219,7 +217,7 @@ export default function QuickRepliesPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-semibold mb-2">No quick replies yet</h3>
+            <h3 className="font-semibold mb-2">{t("dashboard.quickReplies.noReplies")}</h3>
             <p className="text-muted-foreground mb-4">Create your first quick reply to speed up responses</p>
             <Button onClick={() => setIsDialogOpen(true)} data-testid="button-create-first-reply">
               <Plus className="w-4 h-4 mr-2" />

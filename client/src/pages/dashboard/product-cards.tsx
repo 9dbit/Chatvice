@@ -583,7 +583,7 @@ export default function ProductCardsPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>{t("dashboard.common.cancel")}</Button>
               <Button 
                 onClick={handleSubmit} 
                 disabled={!form.title || createMutation.isPending || updateMutation.isPending}
@@ -678,7 +678,7 @@ export default function ProductCardsPage() {
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsAddSourceOpen(false)}>Cancel</Button>
+                      <Button variant="outline" onClick={() => setIsAddSourceOpen(false)}>{t("dashboard.common.cancel")}</Button>
                       <Button
                         onClick={() => addSourceMutation.mutate({ url: crawlerUrl, name: crawlerName })}
                         disabled={!crawlerUrl || addSourceMutation.isPending}

@@ -559,7 +559,7 @@ export default function SettingsPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <User className="w-5 h-5 text-primary" />
-                  <CardTitle>Profile Information</CardTitle>
+                  <CardTitle>{t("dashboard.settings.profileInfo")}</CardTitle>
                 </div>
                 <CardDescription>
                   Update your company profile and photo.
@@ -597,7 +597,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Company Name</Label>
+                  <Label>{t("dashboard.settings.companyName")}</Label>
                   <Input
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
@@ -644,7 +644,7 @@ export default function SettingsPage() {
                 <CardHeader>
                   <div className="flex items-center gap-2">
                     <Sun className="w-5 h-5 text-primary" />
-                    <CardTitle>Theme Preference</CardTitle>
+                    <CardTitle>{t("dashboard.settings.themePreference")}</CardTitle>
                   </div>
                   <CardDescription>
                     Choose your preferred color theme.
@@ -690,7 +690,7 @@ export default function SettingsPage() {
                 <CardHeader>
                   <div className="flex items-center gap-2">
                     <Key className="w-5 h-5 text-primary" />
-                    <CardTitle>API Credentials</CardTitle>
+                    <CardTitle>{t("dashboard.settings.apiCredentials")}</CardTitle>
                   </div>
                   <CardDescription>
                     Your unique merchant ID for API access and widget integration.

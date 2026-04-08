@@ -428,7 +428,7 @@ export default function SupervisorsPage() {
               </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Add New Supervisor</DialogTitle>
+                <DialogTitle>{t("dashboard.supervisors.addSupervisor")}</DialogTitle>
                 <DialogDescription>
                   Create login credentials for a new team member.
                 </DialogDescription>
@@ -551,7 +551,7 @@ export default function SupervisorsPage() {
             <div className="flex items-center gap-3">
               <Crown className="w-5 h-5 text-primary" />
               <div>
-                <p className="font-medium text-sm">Supervisor limit reached</p>
+                <p className="font-medium text-sm">{t("dashboard.supervisors.limitReached")}</p>
                 <p className="text-xs text-muted-foreground">
                   Upgrade your plan to add more supervisors
                 </p>

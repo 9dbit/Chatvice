@@ -103,15 +103,15 @@ function DivisionForm({ onSave, onCancel, initial }: { onSave: (data: any) => vo
   return (
     <div className="space-y-4">
       <div>
-        <Label htmlFor="div-name">Nama Divisi *</Label>
+        <Label htmlFor="div-name">{t("dashboard.appointments.divisionName")} *</Label>
         <Input id="div-name" value={name} onChange={e => setName(e.target.value)} placeholder="cth: Dermatologi, Bedah Umum" data-testid="input-division-name" />
       </div>
       <div>
-        <Label htmlFor="div-desc">Deskripsi</Label>
+        <Label htmlFor="div-desc">{t("dashboard.common.description")}</Label>
         <Textarea id="div-desc" value={description} onChange={e => setDescription(e.target.value)} placeholder="Deskripsi singkat divisi" rows={2} data-testid="input-division-description" />
       </div>
       <div>
-        <Label htmlFor="div-loc">Lokasi / Ruangan</Label>
+        <Label htmlFor="div-loc">{t("dashboard.appointments.locationRoom")}</Label>
         <Input id="div-loc" value={location} onChange={e => setLocation(e.target.value)} placeholder="cth: Lantai 2, Gedung A" data-testid="input-division-location" />
       </div>
       <div className="flex items-center gap-2">
@@ -137,7 +137,7 @@ function ProviderForm({ onSave, onCancel, divisions, initial }: { onSave: (data:
   return (
     <div className="space-y-4">
       <div>
-        <Label htmlFor="prov-name">Nama *</Label>
+        <Label htmlFor="prov-name">{t("dashboard.common.name")} *</Label>
         <Input id="prov-name" value={name} onChange={e => setName(e.target.value)} placeholder="Nama dokter / staf" data-testid="input-provider-name" />
       </div>
       <div>
@@ -147,7 +147,7 @@ function ProviderForm({ onSave, onCancel, divisions, initial }: { onSave: (data:
             <SelectValue placeholder="Pilih divisi..." />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__none__">Tidak ada</SelectItem>
+            <SelectItem value="__none__">{t("dashboard.common.none")}</SelectItem>
             {divisions.filter(d => d.isActive).map(d => (
               <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
             ))}
@@ -156,11 +156,11 @@ function ProviderForm({ onSave, onCancel, divisions, initial }: { onSave: (data:
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <Label htmlFor="prov-email">Email</Label>
+          <Label htmlFor="prov-email">{t("dashboard.common.email")}</Label>
           <Input id="prov-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" data-testid="input-provider-email" />
         </div>
         <div>
-          <Label htmlFor="prov-phone">Telepon</Label>
+          <Label htmlFor="prov-phone">{t("dashboard.common.phone")}</Label>
           <Input id="prov-phone" value={phone} onChange={e => setPhone(e.target.value)} placeholder="08xxx" data-testid="input-provider-phone" />
         </div>
       </div>
@@ -188,20 +188,20 @@ function ServiceForm({ onSave, onCancel, divisions, initial }: { onSave: (data: 
   return (
     <div className="space-y-4">
       <div>
-        <Label htmlFor="svc-name">Nama Layanan *</Label>
+        <Label htmlFor="svc-name">{t("dashboard.appointments.serviceName")} *</Label>
         <Input id="svc-name" value={name} onChange={e => setName(e.target.value)} placeholder="cth: Konsultasi Umum" data-testid="input-service-name" />
       </div>
       <div>
-        <Label htmlFor="svc-desc">Deskripsi</Label>
+        <Label htmlFor="svc-desc">{t("dashboard.common.description")}</Label>
         <Textarea id="svc-desc" value={description} onChange={e => setDescription(e.target.value)} rows={2} data-testid="input-service-description" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <Label htmlFor="svc-duration">Durasi (menit)</Label>
+          <Label htmlFor="svc-duration">{t("dashboard.appointments.durationMinutes")}</Label>
           <Input id="svc-duration" type="number" min={15} max={480} value={durationMinutes} onChange={e => setDurationMinutes(e.target.value)} data-testid="input-service-duration" />
         </div>
         <div>
-          <Label htmlFor="svc-price">Harga (IDR)</Label>
+          <Label htmlFor="svc-price">{t("dashboard.appointments.priceIDR")}</Label>
           <Input id="svc-price" type="number" min={0} value={priceIdr} onChange={e => setPriceIdr(e.target.value)} placeholder="0" data-testid="input-service-price" />
         </div>
       </div>
@@ -249,10 +249,12 @@ interface ProviderBlockedDate {
   reason: string | null;
 }
 
-const DAY_NAMES = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+const DAY_NAMES_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAY_NAMES_ID = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
 function SchedulePanel({ provider }: { provider: AppointmentProvider }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const DAY_NAMES = language === "id" ? DAY_NAMES_ID : DAY_NAMES_EN;
   const { toast } = useToast();
   const [newBlockedDate, setNewBlockedDate] = useState("");
   const [newBlockedReason, setNewBlockedReason] = useState("");
@@ -814,7 +816,7 @@ export default function AppointmentsPage() {
                               <Button variant="ghost" size="icon" data-testid={`button-edit-division-${div.id}`}><Pencil className="w-3.5 h-3.5" /></Button>
                             </DialogTrigger>
                             <DialogContent>
-                              <DialogHeader><DialogTitle>Edit Divisi</DialogTitle></DialogHeader>
+                              <DialogHeader><DialogTitle>{t("dashboard.appointments.editDivision")}</DialogTitle></DialogHeader>
                               <DivisionForm initial={div} onSave={data => updateDivision.mutate({ id: div.id, data })} onCancel={() => setDivisionDialog({ open: false })} />
                             </DialogContent>
                           </Dialog>
@@ -881,7 +883,7 @@ export default function AppointmentsPage() {
                                   <Button variant="ghost" size="icon" data-testid={`button-edit-provider-${prov.id}`}><Pencil className="w-3.5 h-3.5" /></Button>
                                 </DialogTrigger>
                                 <DialogContent>
-                                  <DialogHeader><DialogTitle>Edit Staf</DialogTitle></DialogHeader>
+                                  <DialogHeader><DialogTitle>{t("dashboard.appointments.editStaff")}</DialogTitle></DialogHeader>
                                   <ProviderForm divisions={divisions} initial={prov} onSave={data => updateProvider.mutate({ id: prov.id, data })} onCancel={() => setProviderDialog({ open: false })} />
                                 </DialogContent>
                               </Dialog>
@@ -946,7 +948,7 @@ export default function AppointmentsPage() {
                                 <Button variant="ghost" size="icon" data-testid={`button-edit-service-${svc.id}`}><Pencil className="w-3.5 h-3.5" /></Button>
                               </DialogTrigger>
                               <DialogContent>
-                                <DialogHeader><DialogTitle>Edit Layanan</DialogTitle></DialogHeader>
+                                <DialogHeader><DialogTitle>{t("dashboard.appointments.editService")}</DialogTitle></DialogHeader>
                                 <ServiceForm divisions={divisions} initial={svc} onSave={data => updateService.mutate({ id: svc.id, data })} onCancel={() => setServiceDialog({ open: false })} />
                               </DialogContent>
                             </Dialog>
@@ -970,7 +972,7 @@ export default function AppointmentsPage() {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <LinkIcon className="w-4 h-4" />
-                  Link Kalender Internal (Staf)
+                  {t("dashboard.appointments.internalCalendarLink")}
                 </CardTitle>
                 <CardDescription>
                   Bagikan link ini kepada staf Anda. Mereka dapat melihat jadwal booking tanpa perlu login. Link bersifat view-only.

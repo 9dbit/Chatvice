@@ -522,7 +522,7 @@ export default function BillingDetailsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Billing Details</h1>
+        <h1 className="text-2xl font-bold">{t("dashboard.billingDetails.title")}</h1>
         <p className="text-muted-foreground">
           Manage your billing information and payment methods.
         </p>
@@ -537,7 +537,7 @@ export default function BillingDetailsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Timer className="w-5 h-5 text-amber-500" />
-                <CardTitle className="text-lg">Awaiting Payment</CardTitle>
+                <CardTitle className="text-lg">{t("dashboard.billingDetails.awaitingPayment")}</CardTitle>
               </div>
               <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
                 {pendingPaymentDetails.planName} - {pendingPaymentDetails.billingInterval === 'yearly' ? 'Yearly' : 'Monthly'}
@@ -576,7 +576,7 @@ export default function BillingDetailsPage() {
 
             {/* Amount */}
             <div className="text-center py-2">
-              <p className="text-sm text-muted-foreground">Amount to Pay</p>
+              <p className="text-sm text-muted-foreground">{t("dashboard.billingDetails.amountToPay")}</p>
               <p className="text-2xl font-bold text-primary">{pendingPaymentDetails.amountFormatted}</p>
             </div>
 
@@ -592,7 +592,7 @@ export default function BillingDetailsPage() {
 
             {pendingPaymentDetails.paymentMethod === 'virtual_account' && pendingPaymentDetails.vaNumber && (
               <div className="flex flex-col items-center gap-4 p-4 bg-muted/30 rounded-lg border">
-                <p className="text-sm font-medium">Transfer to Virtual Account</p>
+                <p className="text-sm font-medium">{t("dashboard.billingDetails.transferVA")}</p>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">Bank:</span>
                   <span className="font-medium">{getBankName(pendingPaymentDetails.bankCode || '')}</span>
@@ -617,7 +617,7 @@ export default function BillingDetailsPage() {
 
             {pendingPaymentDetails.paymentMethod === 'bank_transfer' && pendingPaymentDetails.accountNumber && (
               <div className="flex flex-col items-center gap-4 p-4 bg-muted/30 rounded-lg border">
-                <p className="text-sm font-medium">Transfer to Bank Account</p>
+                <p className="text-sm font-medium">{t("dashboard.billingDetails.transferBank")}</p>
                 <div className="grid grid-cols-2 gap-4 text-sm w-full max-w-sm">
                   <div className="text-muted-foreground">Bank:</div>
                   <div className="font-medium">Bank Danamon</div>
@@ -760,7 +760,7 @@ export default function BillingDetailsPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <Timer className="w-5 h-5 text-amber-500" />
-              <CardTitle className="text-base font-semibold text-amber-700 dark:text-amber-400">Awaiting Payment</CardTitle>
+              <CardTitle className="text-base font-semibold text-amber-700 dark:text-amber-400">{t("dashboard.billingDetails.awaitingPayment")}</CardTitle>
               <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                 {customInvoices.filter(inv => inv.status === 'pending' || inv.status === 'awaiting_confirmation').length}
               </Badge>

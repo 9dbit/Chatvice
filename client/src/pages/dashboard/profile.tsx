@@ -407,7 +407,7 @@ export default function ProfilePage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-muted-foreground text-sm">Company Name</Label>
+              <Label className="text-muted-foreground text-sm">{t("dashboard.profile.companyName")}</Label>
               {isEditing ? (
                 <Input
                   value={formData.companyName}
@@ -422,7 +422,7 @@ export default function ProfilePage() {
             </div>
             
             <div className="space-y-2">
-              <Label className="text-muted-foreground text-sm">Website Name</Label>
+              <Label className="text-muted-foreground text-sm">{t("dashboard.profile.websiteName")}</Label>
               {isEditing ? (
                 <Input
                   value={formData.officialWebsiteName}

@@ -304,9 +304,7 @@ export default function WorkSchedulerPage() {
         }}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-shift">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Shift
-            </Button>
+              <Plus className="w-4 h-4 mr-2" />{t("dashboard.workScheduler.addShift")}</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -314,7 +312,7 @@ export default function WorkSchedulerPage() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="shiftName">Shift Name</Label>
+                <Label htmlFor="shiftName">{t("dashboard.workScheduler.shiftName")}</Label>
                 <Input
                   id="shiftName"
                   value={shiftForm.name}
@@ -324,16 +322,16 @@ export default function WorkSchedulerPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="dayType">Day Type</Label>
+                <Label htmlFor="dayType">{t("dashboard.workScheduler.dayType")}</Label>
                 <Select value={shiftForm.dayType} onValueChange={(v) => setShiftForm({ ...shiftForm, dayType: v })}>
                   <SelectTrigger id="dayType" data-testid="select-day-type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="everyday">Every Day</SelectItem>
+                    <SelectItem value="everyday">{t("dashboard.workScheduler.everyday")}</SelectItem>
                     <SelectItem value="weekday">Weekdays (Mon-Fri)</SelectItem>
                     <SelectItem value="weekend">Weekend (Sat-Sun)</SelectItem>
-                    <SelectItem value="monday">Monday</SelectItem>
+                    <SelectItem value="monday">{t("dashboard.workScheduler.monday")}</SelectItem>
                     <SelectItem value="tuesday">Tuesday</SelectItem>
                     <SelectItem value="wednesday">Wednesday</SelectItem>
                     <SelectItem value="thursday">Thursday</SelectItem>
@@ -379,7 +377,7 @@ export default function WorkSchedulerPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddShiftOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setIsAddShiftOpen(false)}>{t("dashboard.common.cancel")}</Button>
               <Button 
                 onClick={handleSubmitShift} 
                 disabled={createShiftMutation.isPending || updateShiftMutation.isPending}

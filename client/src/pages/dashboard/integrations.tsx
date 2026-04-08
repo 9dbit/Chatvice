@@ -333,9 +333,7 @@ export default function IntegrationsPage() {
                   "Coming Soon"
                 ) : (
                   <>
-                    <Plug className="w-4 h-4 mr-2" />
-                    Connect
-                  </>
+                    <Plug className="w-4 h-4 mr-2" />{t("dashboard.integrations.connect")}</>
                 )}
               </Button>
             </CardContent>

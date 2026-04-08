@@ -120,7 +120,7 @@ export default function TriggersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Escalation Triggers</h1>
+        <h1 className="text-2xl font-bold">{t("dashboard.triggers.title")}</h1>
         <p className="text-muted-foreground">
           Define keywords that automatically escalate conversations to human supervisors.
         </p>
@@ -131,7 +131,7 @@ export default function TriggersPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Zap className="w-5 h-5 text-primary" />
-              <CardTitle>Trigger Keywords</CardTitle>
+              <CardTitle>{t("dashboard.triggers.keywords")}</CardTitle>
             </div>
             <CardDescription>
               When a customer message contains any of these keywords, Chatvice will
@@ -190,7 +190,7 @@ export default function TriggersPage() {
             ) : (
               <div className="text-center py-8 bg-muted/30 rounded-lg">
                 <Zap className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-                <p className="text-muted-foreground">No triggers configured</p>
+                <p className="text-muted-foreground">{t("dashboard.triggers.noTriggers")}</p>
                 <p className="text-sm text-muted-foreground">
                   Add keywords that should escalate to supervisors
                 </p>
@@ -223,7 +223,7 @@ export default function TriggersPage() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <HeadphonesIcon className="w-5 h-5 text-primary" />
-                <CardTitle className="text-lg">Test Triggers</CardTitle>
+                <CardTitle className="text-lg">{t("dashboard.triggers.test")}</CardTitle>
               </div>
               <CardDescription>
                 Type a message to test if it would trigger escalation.
@@ -258,7 +258,7 @@ export default function TriggersPage() {
                     <div className="flex items-center gap-2">
                       <Zap className="w-4 h-4 text-status-online" />
                       <div>
-                        <p className="text-sm font-medium">No escalation</p>
+                        <p className="text-sm font-medium">{t("dashboard.triggers.noEscalation")}</p>
                         <p className="text-xs text-muted-foreground">
                           AI will handle this message
                         </p>

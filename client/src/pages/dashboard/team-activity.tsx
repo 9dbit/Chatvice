@@ -131,7 +131,7 @@ export default function TeamActivityPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Total Supervisor</CardDescription>
+            <CardDescription>{t("dashboard.teamActivity.totalSupervisors")}</CardDescription>
             <CardTitle className="text-3xl">{supervisors.length}</CardTitle>
           </CardHeader>
           <CardContent>
@@ -142,7 +142,7 @@ export default function TeamActivityPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Total AI Agents</CardDescription>
+            <CardDescription>{t("dashboard.teamActivity.totalAgents")}</CardDescription>
             <CardTitle className="text-3xl">{agents.length}</CardTitle>
           </CardHeader>
           <CardContent>
@@ -153,7 +153,7 @@ export default function TeamActivityPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>On Shift Now</CardDescription>
+            <CardDescription>{t("dashboard.teamActivity.onShift")}</CardDescription>
             <CardTitle className="text-3xl text-green-500">{supervisorsOnShift + agentsOnShift}</CardTitle>
           </CardHeader>
           <CardContent>
@@ -164,7 +164,7 @@ export default function TeamActivityPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Supervisor Online</CardDescription>
+            <CardDescription>{t("dashboard.teamActivity.supervisorOnline")}</CardDescription>
             <CardTitle className="text-3xl text-green-500">{onlineSupervisors}</CardTitle>
           </CardHeader>
           <CardContent>
@@ -175,7 +175,7 @@ export default function TeamActivityPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Supervisor Offline</CardDescription>
+            <CardDescription>{t("dashboard.teamActivity.supervisorOffline")}</CardDescription>
             <CardTitle className="text-3xl text-muted-foreground">{supervisors.length - onlineSupervisors}</CardTitle>
           </CardHeader>
           <CardContent>

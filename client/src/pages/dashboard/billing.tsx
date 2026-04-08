@@ -956,7 +956,7 @@ export default function BillingPage() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Billing & Subscription</h1>
-          <p className="text-muted-foreground">Manage your subscription and billing</p>
+          <p className="text-muted-foreground">{t("dashboard.billing.subtitle")}</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Skeleton className="h-40" />
@@ -996,7 +996,7 @@ export default function BillingPage() {
             <div className="flex items-center gap-3">
               <AlertTriangle className="w-5 h-5 text-yellow-600" />
               <div>
-                <p className="font-medium text-yellow-700">Checkout canceled</p>
+                <p className="font-medium text-yellow-700">{t("dashboard.billing.checkoutCanceled")}</p>
                 <p className="text-sm text-yellow-600">No changes were made to your subscription.</p>
               </div>
             </div>
@@ -1009,7 +1009,7 @@ export default function BillingPage() {
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <Crown className="w-4 h-4 text-primary" />
-              <CardTitle className="text-sm font-medium">Current Plan</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("dashboard.billing.currentPlan")}</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
@@ -1034,7 +1034,7 @@ export default function BillingPage() {
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-primary" />
-              <CardTitle className="text-sm font-medium">Conversations Used</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("dashboard.billing.conversationsUsed")}</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
@@ -1923,9 +1923,7 @@ export default function BillingPage() {
                       }
                     />
                   ) : isCurrent ? (
-                    <Button variant="outline" disabled className="w-full" size="sm" data-testid={`button-current-plan-${plan.id}`}>
-                      Current Plan
-                    </Button>
+                    <Button variant="outline" disabled className="w-full" size="sm" data-testid={`button-current-plan-${plan.id}`}>{t("dashboard.billing.currentPlan")}</Button>
                   ) : isFree ? (
                     <Button 
                       variant="outline" 

@@ -124,7 +124,7 @@ export default function UserDataPage() {
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <CardTitle className="text-base">Customer List</CardTitle>
+                <CardTitle className="text-base">{t("dashboard.userData.customerList")}</CardTitle>
                 <CardDescription>
                   {filteredData.length} customers found
                   {hasDateFilters && (
@@ -304,7 +304,7 @@ export default function UserDataPage() {
           ) : (
             <div className="text-center py-12">
               <Users className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
-              <p className="text-muted-foreground font-medium">No customer data yet</p>
+              <p className="text-muted-foreground font-medium">{t("dashboard.userData.noData")}</p>
               <p className="text-sm text-muted-foreground mt-1">
                 {searchQuery || hasDateFilters
                   ? "No results found with current filters"

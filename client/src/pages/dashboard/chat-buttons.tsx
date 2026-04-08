@@ -173,7 +173,7 @@ export default function ChatButtonsPage() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="label">Button Label</Label>
+                <Label htmlFor="label">{t("dashboard.chatButtons.buttonLabel")}</Label>
                 <Input
                   id="label"
                   value={form.label}
@@ -222,7 +222,7 @@ export default function ChatButtonsPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>{t("dashboard.common.cancel")}</Button>
               <Button 
                 onClick={handleSubmit} 
                 disabled={!form.label || createMutation.isPending || updateMutation.isPending}

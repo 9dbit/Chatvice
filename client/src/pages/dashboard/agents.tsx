@@ -311,7 +311,7 @@ export default function AgentsPage() {
             }}
           >
             <Plus className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">New AI Agent</span>
+            <span className="hidden sm:inline">{t("dashboard.agents.newAgent")}</span>
           </Button>
         </div>
       </div>
@@ -369,7 +369,7 @@ export default function AgentsPage() {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Agent Name</FormLabel>
+                        <FormLabel>{t("dashboard.agents.agentName")}</FormLabel>
                         <FormControl>
                           <Input placeholder="e.g., Support Agent" data-testid="input-agent-name" {...field} />
                         </FormControl>
@@ -564,7 +564,7 @@ export default function AgentsPage() {
                         name="closingStatementMode"
                         render={({ field }) => (
                           <FormItem className="space-y-2">
-                            <FormLabel className="text-xs">Closing Statement Mode</FormLabel>
+                            <FormLabel className="text-xs">{t("dashboard.agents.closingMode")}</FormLabel>
                             <FormControl>
                               <div className="flex gap-2">
                                 <Button
@@ -627,7 +627,7 @@ export default function AgentsPage() {
                             name="closingStatementAutoIncludeBusinessName"
                             render={({ field }) => (
                               <FormItem className="flex flex-row items-center justify-between">
-                                <FormLabel className="text-xs">Include business name in thanks</FormLabel>
+                                <FormLabel className="text-xs">{t("dashboard.agents.includeBusinessName")}</FormLabel>
                                 <FormControl>
                                   <Switch
                                     checked={field.value}
@@ -644,7 +644,7 @@ export default function AgentsPage() {
                             name="closingStatementAutoIncludeCustomerName"
                             render={({ field }) => (
                               <FormItem className="flex flex-row items-center justify-between">
-                                <FormLabel className="text-xs">Address customer by name</FormLabel>
+                                <FormLabel className="text-xs">{t("dashboard.agents.addressCustomer")}</FormLabel>
                                 <FormControl>
                                   <Switch
                                     checked={field.value}

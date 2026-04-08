@@ -259,8 +259,8 @@ export default function AnalyticsPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Messages Over Time</CardTitle>
-            <CardDescription>Daily message volume for the past week</CardDescription>
+            <CardTitle>{t("dashboard.analytics.messagesOverTime")}</CardTitle>
+            <CardDescription>{t("dashboard.analytics.messagesOverTimeDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
@@ -291,8 +291,8 @@ export default function AnalyticsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>AI vs Human Handling</CardTitle>
-            <CardDescription>Distribution of session handling</CardDescription>
+            <CardTitle>{t("dashboard.analytics.aiVsHuman")}</CardTitle>
+            <CardDescription>{t("dashboard.analytics.aiVsHumanDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[300px] flex items-center justify-center">
@@ -326,7 +326,7 @@ export default function AnalyticsPage() {
             Chat Topics
             {!canViewChatTopics && <Lock className="w-3 h-3" />}
           </TabsTrigger>
-          <TabsTrigger value="keywords">Popular Keywords</TabsTrigger>
+          <TabsTrigger value="keywords">{t("dashboard.analytics.popularKeywords")}</TabsTrigger>
           <TabsTrigger value="locations" className="flex items-center gap-2">
             <MapPin className="w-3 h-3" />
             Locations
@@ -657,11 +657,11 @@ export default function AnalyticsPage() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground text-sm">Total Messages</span>
+                    <span className="text-muted-foreground text-sm">{t("dashboard.analytics.totalMessages")}</span>
                     <span className="text-2xl font-bold">{performanceAnalytics?.comparison.agents.totalMessages || 0}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground text-sm">Avg Response Time</span>
+                    <span className="text-muted-foreground text-sm">{t("dashboard.analytics.avgResponseTime")}</span>
                     <span className="text-lg font-semibold">{performanceAnalytics?.comparison.agents.avgResponseTimeFormatted || "N/A"}</span>
                   </div>
                 </CardContent>
@@ -676,11 +676,11 @@ export default function AnalyticsPage() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground text-sm">Total Messages</span>
+                    <span className="text-muted-foreground text-sm">{t("dashboard.analytics.totalMessages")}</span>
                     <span className="text-2xl font-bold">{performanceAnalytics?.comparison.supervisors.totalMessages || 0}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground text-sm">Avg Response Time</span>
+                    <span className="text-muted-foreground text-sm">{t("dashboard.analytics.avgResponseTime")}</span>
                     <span className="text-lg font-semibold">{performanceAnalytics?.comparison.supervisors.avgResponseTimeFormatted || "N/A"}</span>
                   </div>
                 </CardContent>
@@ -692,7 +692,7 @@ export default function AnalyticsPage() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-base">Total Messages</CardTitle>
+                    <CardTitle className="text-base">{t("dashboard.analytics.totalMessages")}</CardTitle>
                     <CardDescription>Messages handled per day</CardDescription>
                   </div>
                   <div className="flex flex-wrap gap-3">
