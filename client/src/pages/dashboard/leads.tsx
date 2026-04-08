@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -37,6 +38,7 @@ interface LeadStats {
 }
 
 export default function LeadsPage() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -123,7 +125,7 @@ export default function LeadsPage() {
     <div className="space-y-6 p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Sales Leads</h1>
+          <h1 className="text-2xl font-bold">{t("dashboard.leads.title")}</h1>
           <p className="text-muted-foreground">Track and manage your sales pipeline</p>
         </div>
       </div>
@@ -232,7 +234,7 @@ export default function LeadsPage() {
           {filteredLeads.length === 0 ? (
             <div className="text-center py-12">
               <Target className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No leads yet</h3>
+              <h3 className="text-lg font-medium mb-2">{t("dashboard.leads.noLeads")}</h3>
               <p className="text-muted-foreground">
                 Leads will appear here when customers interact with your Sales Agent.
               </p>

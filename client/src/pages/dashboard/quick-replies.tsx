@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -20,6 +21,7 @@ type QuickReplyFormData = {
 };
 
 export default function QuickRepliesPage() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingReply, setEditingReply] = useState<QuickReply | null>(null);
@@ -119,7 +121,7 @@ export default function QuickRepliesPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">Quick Replies</h1>
+          <h1 className="text-2xl font-bold" data-testid="text-page-title">{t("dashboard.quickReplies.title")}</h1>
           <p className="text-muted-foreground">Create quick replies that can be used with the "/" shortcut</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {

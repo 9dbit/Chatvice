@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -70,6 +71,7 @@ const COUNTRIES = [
 ];
 
 export default function AffiliateDashboardPage() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
@@ -365,7 +367,7 @@ export default function AffiliateDashboardPage() {
           <div className="w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mx-auto mb-6">
             <DollarSign className="w-8 h-8 text-purple-600" />
           </div>
-          <h2 className="text-2xl font-bold mb-3">Join Our Affiliate Program</h2>
+          <h2 className="text-2xl font-bold mb-3">{t("dashboard.affiliate.title")}</h2>
           <p className="text-muted-foreground mb-6">
             Earn {defaultCommission}% commission for every customer you refer. 
             Share your unique link and start earning passive income today.
@@ -511,7 +513,7 @@ export default function AffiliateDashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Affiliate Dashboard</h1>
+          <h1 className="text-2xl font-bold">{t("dashboard.affiliate.title")}</h1>
           <p className="text-muted-foreground">Track your referrals and earnings</p>
         </div>
         <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 w-fit">

@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -331,6 +332,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
 }
 
 export default function AdditionalServicesPage() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [hospitalitySettingsOpen, setHospitalitySettingsOpen] = useState(false);

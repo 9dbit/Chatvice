@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -62,6 +63,7 @@ type ShiftFormData = {
 };
 
 export default function WorkSchedulerPage() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [isAddShiftOpen, setIsAddShiftOpen] = useState(false);
   const [editingShift, setEditingShift] = useState<WorkShift | null>(null);
@@ -266,7 +268,7 @@ export default function WorkSchedulerPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">Work Scheduler</h1>
+          <h1 className="text-2xl font-bold" data-testid="text-page-title">{t("dashboard.workScheduler.title")}</h1>
           <p className="text-muted-foreground">Manage shift schedules for supervisors and AI agents</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">

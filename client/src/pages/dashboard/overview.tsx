@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLanguage } from "@/hooks/use-language";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +23,7 @@ interface AnalyticsData {
 }
 
 export default function DashboardOverview() {
+  const { t } = useLanguage();
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
@@ -86,32 +88,32 @@ export default function DashboardOverview() {
 
   const statCards = [
     {
-      title: "Active Sessions",
+      title: t("dashboard.overview.activeSessions"),
       value: stats?.activeSessions ?? 0,
       total: stats?.totalSessions ?? 0,
       icon: Users,
       description: "Active in last 24h",
     },
     {
-      title: "Messages Today",
+      title: t("dashboard.overview.messagesDay"),
       value: stats?.messagesToday ?? 0,
       total: stats?.messagesThisWeek ?? 0,
       icon: MessageSquare,
       description: `${stats?.messagesThisWeek ?? 0} this week`,
     },
     {
-      title: "AI Resolution Rate",
+      title: t("dashboard.overview.aiResolution"),
       value: `${stats?.aiResolutionRate ?? 0}%`,
       total: null,
       icon: Bot,
       description: `${stats?.aiSessions ?? 0} AI / ${stats?.humanSessions ?? 0} Human`,
     },
     {
-      title: "Avg Response Time",
+      title: t("dashboard.overview.avgResponse"),
       value: `${stats?.avgResponseTime ?? 0}s`,
       total: null,
       icon: Clock,
-      description: "AI response latency",
+      description: t("dashboard.overview.aiResponseLatency"),
     },
   ];
 

@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -50,6 +51,7 @@ const categoryLabels: Record<string, string> = {
 };
 
 export default function IntegrationsPage() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -243,7 +245,7 @@ export default function IntegrationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold" data-testid="text-integrations-title">Integrations</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold" data-testid="text-integrations-title">{t("dashboard.integrations.title")}</h1>
         <p className="text-muted-foreground mt-1 text-sm sm:text-base">
           Connect Chatvice with your favorite tools and platforms
         </p>

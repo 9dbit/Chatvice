@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -40,6 +41,7 @@ type RecommendationSettings = {
 };
 
 export default function ProductCardsPage() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCard, setEditingCard] = useState<ProductCard | null>(null);

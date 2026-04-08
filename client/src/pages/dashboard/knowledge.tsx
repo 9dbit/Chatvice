@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -336,6 +337,7 @@ function SortableEntryCard({
 }
 
 export default function KnowledgePage() {
+  const { t } = useLanguage();
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
   const [content, setContent] = useState("");
@@ -3941,7 +3943,7 @@ export default function KnowledgePage() {
                 setFilePreview(null);
               }}
             >
-              Batal
+              {t("dashboard.common.cancel")}
             </Button>
             <Button
               onClick={confirmAndSaveSource}
@@ -3956,7 +3958,7 @@ export default function KnowledgePage() {
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Konfirmasi & Simpan
+                  {t("dashboard.common.confirm")}
                 </>
               )}
             </Button>

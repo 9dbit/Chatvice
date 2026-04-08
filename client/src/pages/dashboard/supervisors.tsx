@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -86,6 +87,7 @@ type AddSupervisorData = z.infer<typeof addSupervisorSchema>;
 type EditSupervisorData = z.infer<typeof editSupervisorSchema>;
 
 export default function SupervisorsPage() {
+  const { t } = useLanguage();
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -569,7 +571,7 @@ export default function SupervisorsPage() {
         <Card className="border-dashed">
           <CardContent className="py-12 text-center">
             <Users className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
-            <p className="text-lg font-medium text-muted-foreground">No supervisors yet</p>
+            <p className="text-lg font-medium text-muted-foreground">{t("dashboard.supervisors.noSupervisors")}</p>
             <p className="text-sm text-muted-foreground mb-4">
               {canAddMore 
                 ? "Add team members who can handle escalated conversations"

@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -32,6 +33,7 @@ const sourceSchema = z.object({
 type SourceFormData = z.infer<typeof sourceSchema>;
 
 export default function SourcesPage() {
+  const { t } = useLanguage();
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -552,7 +554,7 @@ export default function SourcesPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Active Sources</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.sources.title")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">{activeCount}</p>

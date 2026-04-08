@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import {
 import type { Agent, WelcomeBubble, QuickReply, ProductCard, ChatButton, SuggestedQuestion } from "@shared/schema";
 
 export default function LivePreviewPage() {
+  const { t } = useLanguage();
   const merchantId = localStorage.getItem("merchantId") || "";
   const [widgetKey, setWidgetKey] = useState(0);
 
@@ -87,7 +89,7 @@ export default function LivePreviewPage() {
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">Live Preview</h1>
+          <h1 className="text-2xl font-bold" data-testid="text-page-title">{t("dashboard.livePreview.title")}</h1>
           <p className="text-muted-foreground text-sm sm:text-base">
             Real-time preview of your widget with all current settings
           </p>

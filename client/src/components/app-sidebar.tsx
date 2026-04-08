@@ -16,16 +16,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { DashboardLanguageSwitcher } from "@/components/dashboard-language-switcher";
 import {
   LayoutDashboard,
   MessageSquare,
@@ -61,8 +52,6 @@ import {
   Sparkles,
   Calendar,
   Hotel,
-  Languages,
-  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -73,7 +62,6 @@ import { useTheme } from "@/components/theme-provider";
 import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 import { useLanguage } from "@/hooks/use-language";
-import type { Language } from "@/lib/i18n";
 
 import { rolePermissions } from "@shared/schema";
 
@@ -305,9 +293,7 @@ export function AppSidebar() {
   const hasPlayedInitialRef = useRef(false);
   const { resolvedTheme } = useTheme();
   const chatviceLogo = resolvedTheme === "dark" ? chatviceLogoDark : chatviceLogoLight;
-  const { language, setLanguage, t } = useLanguage();
-  const [pendingLang, setPendingLang] = useState<Language | null>(null);
-  const [langSwitching, setLangSwitching] = useState(false);
+  const { t } = useLanguage();
 
   const isAdmin = userType === "merchant";
   const permissions = isAdmin ? rolePermissions.administrator : rolePermissions.supervisor;
@@ -494,25 +480,6 @@ export function AppSidebar() {
     setLocation("/");
   };
 
-  const handleLangSwitch = (lang: Language) => {
-    if (lang === language) return;
-    setPendingLang(lang);
-  };
-
-  const handleLangConfirm = () => {
-    if (!pendingLang) return;
-    setLangSwitching(true);
-    setTimeout(() => {
-      setLanguage(pendingLang);
-      setPendingLang(null);
-      setLangSwitching(false);
-    }, 350);
-  };
-
-  const handleLangCancel = () => {
-    setPendingLang(null);
-  };
-
   const getMenuItemTitle = (item: MenuItem): string => {
     if (item.id && menuItemTranslationKeys[item.id]) {
       const translated = t(menuItemTranslationKeys[item.id]);
@@ -527,31 +494,8 @@ export function AppSidebar() {
 
   const isChatSessionsActive = location === "/dashboard/sessions" || location.startsWith("/dashboard/sessions/");
 
-  const pendingLangName = pendingLang === "en" ? "English" : pendingLang === "id" ? "Bahasa Indonesia" : pendingLang || "";
-
   return (
     <>
-      <AlertDialog open={!!pendingLang} onOpenChange={(open) => { if (!open) handleLangCancel(); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("dashboard.languageSwitcher.confirmTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("dashboard.languageSwitcher.confirmDesc").replace("{{lang}}", pendingLangName)}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleLangCancel}>{t("dashboard.languageSwitcher.cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleLangConfirm}>{t("dashboard.languageSwitcher.confirm")}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {langSwitching && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/60 backdrop-blur-sm pointer-events-none">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      )}
-
     <Sidebar>
       <SidebarHeader className="p-3">
         <Link href="/" className="flex flex-col items-start gap-1.5 hover:opacity-80 transition-opacity cursor-pointer" data-testid="link-sidebar-logo">
@@ -950,32 +894,7 @@ export function AppSidebar() {
         )}
 
         {/* Language Switcher - EN / ID only */}
-        <div className="flex items-center justify-between gap-2 px-0.5">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Languages className="w-3.5 h-3.5" />
-            <span>{t("dashboard.languageSwitcher.label")}</span>
-          </div>
-          <div className="flex items-center gap-1" data-testid="dashboard-lang-switcher">
-            <Button
-              variant={language === "en" ? "default" : "ghost"}
-              size="sm"
-              className="text-xs font-semibold"
-              onClick={() => handleLangSwitch("en")}
-              data-testid="button-lang-en"
-            >
-              EN
-            </Button>
-            <Button
-              variant={language === "id" ? "default" : "ghost"}
-              size="sm"
-              className="text-xs font-semibold"
-              onClick={() => handleLangSwitch("id")}
-              data-testid="button-lang-id"
-            >
-              ID
-            </Button>
-          </div>
-        </div>
+        <DashboardLanguageSwitcher />
 
         <Button
           variant="ghost"

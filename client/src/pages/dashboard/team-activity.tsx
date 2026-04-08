@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -87,6 +88,7 @@ function getStatusIcon(status: string) {
 }
 
 export default function TeamActivityPage() {
+  const { t } = useLanguage();
   const { data: activity, isLoading } = useQuery<TeamActivity>({
     queryKey: ["/api/team/activity"],
     refetchInterval: 10000,
@@ -121,7 +123,7 @@ export default function TeamActivityPage() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-page-title">
           <Users className="w-6 h-6" />
-          Team Activity
+          {t("dashboard.teamActivity.title")}
         </h1>
         <p className="text-muted-foreground">Monitor supervisor and AI agent activity in real-time</p>
       </div>

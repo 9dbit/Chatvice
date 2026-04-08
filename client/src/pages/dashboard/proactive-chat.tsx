@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ const DEFAULT_DELAY = 8;
 const MAX_TEMPLATES = 5;
 
 export default function ProactiveChatPage() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const merchantId = localStorage.getItem("merchantId");
 
@@ -157,7 +159,7 @@ export default function ProactiveChatPage() {
           <div className="flex items-center gap-2 mb-2">
             <Badge className="text-xs font-medium">Widget Setting</Badge>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">Proactive Chat</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">{t("dashboard.proactiveChat.title")}</h1>
           <p className="text-sm text-white/80 mt-1 max-w-md">
             Automatically reach out to visitors before they ask — turning passive browsing into active conversations.
           </p>

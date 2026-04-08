@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -21,6 +22,7 @@ type ChatButtonFormData = {
 };
 
 export default function ChatButtonsPage() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingButton, setEditingButton] = useState<ChatButton | null>(null);
@@ -148,7 +150,7 @@ export default function ChatButtonsPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-page-title">
             <MousePointer2 className="w-6 h-6" />
-            Chat Buttons
+            {t("dashboard.chatButtons.title")}
           </h1>
           <p className="text-muted-foreground">Create action buttons that appear in chat based on trigger words</p>
         </div>

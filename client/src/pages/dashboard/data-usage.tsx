@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -50,6 +51,7 @@ function getFileTypeIcon(mimeType: string) {
 }
 
 export default function DataUsagePage() {
+  const { t } = useLanguage();
   const { data: usage, isLoading } = useQuery<StorageUsageData>({
     queryKey: ["/api/merchant/storage-usage"],
   });
@@ -77,7 +79,7 @@ export default function DataUsagePage() {
   return (
     <div className="p-6 space-y-6" data-testid="page-data-usage">
       <div>
-        <h1 className="text-2xl font-bold" data-testid="text-page-title">Data Usage</h1>
+        <h1 className="text-2xl font-bold" data-testid="text-page-title">{t("dashboard.dataUsage.title")}</h1>
         <p className="text-muted-foreground" data-testid="text-page-description">
           Monitor your storage usage and media uploads
         </p>

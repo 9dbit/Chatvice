@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -84,6 +85,7 @@ const AGENT_TYPES = {
 type AgentFormData = z.infer<typeof agentSchema>;
 
 export default function AgentsPage() {
+  const { t } = useLanguage();
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -284,7 +286,7 @@ export default function AgentsPage() {
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold">AI Agents</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">{t("dashboard.agents.title")}</h1>
           <p className="text-sm text-muted-foreground">
             Manage your AI agents with different knowledge bases.
           </p>
@@ -1048,7 +1050,7 @@ export default function AgentsPage() {
               <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-muted/70 flex items-center justify-center mb-3 sm:mb-4">
                 <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground" />
               </div>
-              <h3 className="font-semibold mb-2 text-sm sm:text-base">No agents yet</h3>
+              <h3 className="font-semibold mb-2 text-sm sm:text-base">{t("dashboard.agents.noAgents")}</h3>
               <p className="text-xs sm:text-sm text-muted-foreground text-left max-w-sm mb-4 sm:mb-6">
                 Create your first AI agent to start automating customer support.
               </p>

@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
@@ -134,6 +135,7 @@ interface PendingPaymentDetails {
 }
 
 export default function BillingPage() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [isAnnual, setIsAnnual] = useState(false);
@@ -2000,7 +2002,7 @@ export default function BillingPage() {
                             ) : isActive ? (
                               <Badge variant="secondary" className="text-xs">
                                 <CheckCircle className="w-3 h-3 mr-1" />
-                                Aktif
+                                {t("dashboard.common.active")}
                               </Badge>
                             ) : null}
                           </div>
@@ -2034,7 +2036,7 @@ export default function BillingPage() {
                           onClick={() => navigate(config.addonType === "appointment_scheduling" ? "/dashboard/appointments" : "/dashboard/additional-services")}
                           data-testid={`button-manage-addon-${config.addonType}`}
                         >
-                          Kelola
+                          {t("dashboard.common.manage")}
                           <ArrowRight className="w-3 h-3 ml-1" />
                         </Button>
                       ) : (

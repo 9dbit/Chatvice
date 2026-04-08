@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -123,6 +124,7 @@ function SupervisorColumn({ log }: { log: SupervisorLog }) {
 }
 
 export default function ChatMonitoringPage() {
+  const { t } = useLanguage();
   const { data: logs, isLoading, isError, refetch, isFetching } = useQuery<SupervisorLog[]>({
     queryKey: ["/api/chat-monitoring/logs"],
     refetchInterval: 5000,
@@ -153,7 +155,7 @@ export default function ChatMonitoringPage() {
         <div className="flex items-center gap-3">
           <Eye className="w-8 h-8 text-primary" />
           <div>
-            <h1 className="text-2xl font-bold" data-testid="text-page-title">Chat Monitoring</h1>
+            <h1 className="text-2xl font-bold" data-testid="text-page-title">{t("dashboard.chatMonitoring.title")}</h1>
             <p className="text-muted-foreground">
               Realtime supervisor conversation logs
             </p>
@@ -190,8 +192,8 @@ export default function ChatMonitoringPage() {
         <Card className="p-8">
           <div className="text-center text-muted-foreground">
             <User className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-medium mb-2">No Supervisors Found</h3>
-            <p className="text-sm">Add supervisors in the Supervisors page to start monitoring their conversations.</p>
+            <h3 className="text-lg font-medium mb-2">{t("dashboard.chatMonitoring.noSupervisors")}</h3>
+            <p className="text-sm">{t("dashboard.chatMonitoring.noSupervisorsDesc")}</p>
           </div>
         </Card>
       ) : (

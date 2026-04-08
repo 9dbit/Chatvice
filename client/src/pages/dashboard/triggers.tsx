@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -11,6 +12,7 @@ import { Zap, Plus, X, AlertTriangle, HeadphonesIcon, Lightbulb } from "lucide-r
 import type { Trigger } from "@shared/schema";
 
 export default function TriggersPage() {
+  const { t } = useLanguage();
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
   const [newTrigger, setNewTrigger] = useState("");

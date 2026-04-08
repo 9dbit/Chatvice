@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -128,6 +129,7 @@ const AGENT_COLOR = "#6b5dfc";
 const SUPERVISOR_COLOR = "#22c55e";
 
 export default function AnalyticsPage() {
+  const { t } = useLanguage();
   const merchantId = localStorage.getItem("merchantId") || "";
   const [performancePeriod, setPerformancePeriod] = useState<"daily" | "weekly" | "monthly" | "yearly">("daily");
 
@@ -217,7 +219,7 @@ export default function AnalyticsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Analytics</h1>
+          <h1 className="text-2xl font-bold">{t("dashboard.analytics.title")}</h1>
           <p className="text-muted-foreground">
             Monitor your chatbot performance and customer insights.
           </p>
@@ -611,7 +613,7 @@ export default function AnalyticsPage() {
             {/* Period Filter */}
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold">Agent & Supervisor Performance</h3>
+                <h3 className="text-lg font-semibold">{t("dashboard.analytics.performanceByAgent")}</h3>
                 <p className="text-sm text-muted-foreground">Compare message handling and response times</p>
               </div>
               <Select value={performancePeriod} onValueChange={(v) => setPerformancePeriod(v as typeof performancePeriod)}>
@@ -669,7 +671,7 @@ export default function AnalyticsPage() {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     <HeadphonesIcon className="w-4 h-4 text-green-500" />
-                    All Supervisors
+                    {t("dashboard.analytics.allSupervisors")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -950,7 +952,7 @@ export default function AnalyticsPage() {
                   <div>
                     <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
                       <HeadphonesIcon className="w-4 h-4 text-green-500" />
-                      Supervisors
+                      {t("dashboard.supervisors.title")}
                     </h4>
                     <div className="space-y-2">
                       {(performanceAnalytics?.supervisors || []).length > 0 ? (
@@ -998,11 +1000,11 @@ export default function AnalyticsPage() {
             <div className="flex items-center justify-center gap-6 text-sm">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded" style={{ backgroundColor: AGENT_COLOR }} />
-                <span className="text-muted-foreground">AI Agents</span>
+                <span className="text-muted-foreground">{t("dashboard.aiAgents")}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded" style={{ backgroundColor: SUPERVISOR_COLOR }} />
-                <span className="text-muted-foreground">Supervisors</span>
+                <span className="text-muted-foreground">{t("dashboard.supervisors.title")}</span>
               </div>
             </div>
           </div>

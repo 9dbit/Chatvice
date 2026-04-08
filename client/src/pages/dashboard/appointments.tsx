@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -79,7 +80,13 @@ const STATUS_COLORS: Record<string, string> = {
   completed: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
 };
 
-const STATUS_LABELS: Record<string, string> = {
+const STATUS_LABELS_EN: Record<string, string> = {
+  pending: "Pending",
+  confirmed: "Confirmed",
+  cancelled: "Cancelled",
+  completed: "Completed",
+};
+const STATUS_LABELS_ID: Record<string, string> = {
   pending: "Menunggu",
   confirmed: "Dikonfirmasi",
   cancelled: "Dibatalkan",
@@ -87,6 +94,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 function DivisionForm({ onSave, onCancel, initial }: { onSave: (data: any) => void; onCancel: () => void; initial?: Partial<AppointmentDivision> }) {
+  const { t } = useLanguage();
   const [name, setName] = useState(initial?.name || "");
   const [description, setDescription] = useState(initial?.description || "");
   const [location, setLocation] = useState(initial?.location || "");
@@ -108,17 +116,18 @@ function DivisionForm({ onSave, onCancel, initial }: { onSave: (data: any) => vo
       </div>
       <div className="flex items-center gap-2">
         <Switch id="div-active" checked={isActive} onCheckedChange={setIsActive} data-testid="switch-division-active" />
-        <Label htmlFor="div-active">Aktif</Label>
+        <Label htmlFor="div-active">{t("dashboard.common.enabled")}</Label>
       </div>
       <div className="flex gap-2 pt-2">
-        <Button onClick={() => onSave({ name, description, location, isActive })} disabled={!name} data-testid="button-save-division">Simpan</Button>
-        <Button variant="outline" onClick={onCancel} data-testid="button-cancel-division">Batal</Button>
+        <Button onClick={() => onSave({ name, description, location, isActive })} disabled={!name} data-testid="button-save-division">{t("dashboard.common.save")}</Button>
+        <Button variant="outline" onClick={onCancel} data-testid="button-cancel-division">{t("dashboard.common.cancel")}</Button>
       </div>
     </div>
   );
 }
 
 function ProviderForm({ onSave, onCancel, divisions, initial }: { onSave: (data: any) => void; onCancel: () => void; divisions: AppointmentDivision[]; initial?: Partial<AppointmentProvider> }) {
+  const { t } = useLanguage();
   const [name, setName] = useState(initial?.name || "");
   const [divisionId, setDivisionId] = useState(initial?.divisionId || "");
   const [email, setEmail] = useState(initial?.email || "");
@@ -132,7 +141,7 @@ function ProviderForm({ onSave, onCancel, divisions, initial }: { onSave: (data:
         <Input id="prov-name" value={name} onChange={e => setName(e.target.value)} placeholder="Nama dokter / staf" data-testid="input-provider-name" />
       </div>
       <div>
-        <Label htmlFor="prov-div">Divisi</Label>
+        <Label htmlFor="prov-div">{t("dashboard.appointments.division")}</Label>
         <Select value={divisionId} onValueChange={setDivisionId}>
           <SelectTrigger id="prov-div" data-testid="select-provider-division">
             <SelectValue placeholder="Pilih divisi..." />
@@ -157,17 +166,18 @@ function ProviderForm({ onSave, onCancel, divisions, initial }: { onSave: (data:
       </div>
       <div className="flex items-center gap-2">
         <Switch id="prov-active" checked={isActive} onCheckedChange={setIsActive} data-testid="switch-provider-active" />
-        <Label htmlFor="prov-active">Aktif</Label>
+        <Label htmlFor="prov-active">{t("dashboard.common.enabled")}</Label>
       </div>
       <div className="flex gap-2 pt-2">
-        <Button onClick={() => onSave({ name, divisionId: divisionId === "__none__" ? null : divisionId || null, email: email || null, phone: phone || null, isActive })} disabled={!name} data-testid="button-save-provider">Simpan</Button>
-        <Button variant="outline" onClick={onCancel} data-testid="button-cancel-provider">Batal</Button>
+        <Button onClick={() => onSave({ name, divisionId: divisionId === "__none__" ? null : divisionId || null, email: email || null, phone: phone || null, isActive })} disabled={!name} data-testid="button-save-provider">{t("dashboard.common.save")}</Button>
+        <Button variant="outline" onClick={onCancel} data-testid="button-cancel-provider">{t("dashboard.common.cancel")}</Button>
       </div>
     </div>
   );
 }
 
 function ServiceForm({ onSave, onCancel, divisions, initial }: { onSave: (data: any) => void; onCancel: () => void; divisions: AppointmentDivision[]; initial?: Partial<AppointmentService> }) {
+  const { t } = useLanguage();
   const [name, setName] = useState(initial?.name || "");
   const [description, setDescription] = useState(initial?.description || "");
   const [durationMinutes, setDurationMinutes] = useState(String(initial?.durationMinutes ?? 60));
@@ -196,7 +206,7 @@ function ServiceForm({ onSave, onCancel, divisions, initial }: { onSave: (data: 
         </div>
       </div>
       <div>
-        <Label htmlFor="svc-div">Divisi</Label>
+        <Label htmlFor="svc-div">{t("dashboard.appointments.division")}</Label>
         <Select value={divisionId} onValueChange={setDivisionId}>
           <SelectTrigger id="svc-div" data-testid="select-service-division">
             <SelectValue placeholder="Pilih divisi..." />
@@ -211,11 +221,11 @@ function ServiceForm({ onSave, onCancel, divisions, initial }: { onSave: (data: 
       </div>
       <div className="flex items-center gap-2">
         <Switch id="svc-active" checked={isActive} onCheckedChange={setIsActive} data-testid="switch-service-active" />
-        <Label htmlFor="svc-active">Aktif</Label>
+        <Label htmlFor="svc-active">{t("dashboard.common.enabled")}</Label>
       </div>
       <div className="flex gap-2 pt-2">
-        <Button onClick={() => onSave({ name, description: description || null, durationMinutes: parseInt(durationMinutes) || 60, priceIdr: priceIdr ? parseInt(priceIdr) : null, divisionId: divisionId === "__none__" ? null : divisionId || null, isActive })} disabled={!name} data-testid="button-save-service">Simpan</Button>
-        <Button variant="outline" onClick={onCancel} data-testid="button-cancel-service">Batal</Button>
+        <Button onClick={() => onSave({ name, description: description || null, durationMinutes: parseInt(durationMinutes) || 60, priceIdr: priceIdr ? parseInt(priceIdr) : null, divisionId: divisionId === "__none__" ? null : divisionId || null, isActive })} disabled={!name} data-testid="button-save-service">{t("dashboard.common.save")}</Button>
+        <Button variant="outline" onClick={onCancel} data-testid="button-cancel-service">{t("dashboard.common.cancel")}</Button>
       </div>
     </div>
   );
@@ -242,6 +252,7 @@ interface ProviderBlockedDate {
 const DAY_NAMES = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
 function SchedulePanel({ provider }: { provider: AppointmentProvider }) {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [newBlockedDate, setNewBlockedDate] = useState("");
   const [newBlockedReason, setNewBlockedReason] = useState("");
@@ -324,10 +335,10 @@ function SchedulePanel({ provider }: { provider: AppointmentProvider }) {
       {/* Weekly Schedule */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-medium flex items-center gap-2"><Clock className="w-4 h-4" /> Jadwal Mingguan</h4>
+          <h4 className="text-sm font-medium flex items-center gap-2"><Clock className="w-4 h-4" /> {t("dashboard.appointments.weeklySchedule")}</h4>
           <Button size="sm" onClick={handleSave} disabled={saveSchedulesMutation.isPending} data-testid={`button-save-schedule-${provider.id}`}>
             {saveSchedulesMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
-            Simpan Jadwal
+            {t("dashboard.common.save")}
           </Button>
         </div>
         <div className="space-y-2">
@@ -417,6 +428,8 @@ function CalendarView({ appointments, providers, divisions, services, currentMon
   currentMonth: string;
   onMonthChange: (month: string) => void;
 }) {
+  const { t, language } = useLanguage();
+  const STATUS_LABELS = language === "id" ? STATUS_LABELS_ID : STATUS_LABELS_EN;
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const [year, monthNum] = currentMonth.split("-").map(Number);
@@ -547,7 +560,9 @@ function CalendarView({ appointments, providers, divisions, services, currentMon
 }
 
 export default function AppointmentsPage() {
+  const { t, language } = useLanguage();
   const { toast } = useToast();
+  const STATUS_LABELS = language === "id" ? STATUS_LABELS_ID : STATUS_LABELS_EN;
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().substring(0, 7));
   const [divisionDialog, setDivisionDialog] = useState<{ open: boolean; editing?: AppointmentDivision }>({ open: false });
   const [providerDialog, setProviderDialog] = useState<{ open: boolean; editing?: AppointmentProvider }>({ open: false });
@@ -675,16 +690,16 @@ export default function AppointmentsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
           <Calendar className="w-6 h-6 text-primary" />
-          Penjadwalan Janji Temu
+          {t("dashboard.appointments.title")}
         </h1>
-        <p className="text-muted-foreground mt-1">Kelola jadwal, layanan, dan divisi untuk sistem booking Anda.</p>
+        <p className="text-muted-foreground mt-1">{t("dashboard.appointments.subtitle")}</p>
       </div>
 
       <Tabs defaultValue="calendar">
         <TabsList data-testid="tabs-appointments">
-          <TabsTrigger value="calendar" data-testid="tab-calendar">Kalender</TabsTrigger>
-          <TabsTrigger value="settings" data-testid="tab-settings">Pengaturan</TabsTrigger>
-          <TabsTrigger value="link" data-testid="tab-link">Link Kalender</TabsTrigger>
+          <TabsTrigger value="calendar" data-testid="tab-calendar">{t("dashboard.appointments.upcoming")}</TabsTrigger>
+          <TabsTrigger value="settings" data-testid="tab-settings">{t("dashboard.common.settings")}</TabsTrigger>
+          <TabsTrigger value="link" data-testid="tab-link">Link</TabsTrigger>
         </TabsList>
 
         {/* ── CALENDAR TAB ── */}
@@ -712,11 +727,11 @@ export default function AppointmentsPage() {
 
           <Card className="mt-4">
             <CardHeader>
-              <CardTitle className="text-base">Daftar Janji Temu Bulan Ini</CardTitle>
+              <CardTitle className="text-base">{t("dashboard.appointments.monthlyList")}</CardTitle>
             </CardHeader>
             <CardContent>
               {appointments.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Belum ada janji temu bulan ini.</p>
+                <p className="text-sm text-muted-foreground text-center py-8">{t("dashboard.appointments.noAppointments")}</p>
               ) : (
                 <div className="space-y-2">
                   {appointments.map(a => {
@@ -746,8 +761,8 @@ export default function AppointmentsPage() {
                           <SelectContent>
                             <SelectItem value="pending">Menunggu</SelectItem>
                             <SelectItem value="confirmed">Konfirmasi</SelectItem>
-                            <SelectItem value="completed">Selesai</SelectItem>
-                            <SelectItem value="cancelled">Batalkan</SelectItem>
+                            <SelectItem value="completed">{t("dashboard.appointments.status")}</SelectItem>
+                            <SelectItem value="cancelled">{t("dashboard.appointments.cancelled")}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -774,7 +789,7 @@ export default function AppointmentsPage() {
                     <Button size="sm" data-testid="button-add-division"><Plus className="w-4 h-4 mr-1" /> Tambah</Button>
                   </DialogTrigger>
                   <DialogContent>
-                    <DialogHeader><DialogTitle>Tambah Divisi</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>{t("dashboard.common.add")}</DialogTitle></DialogHeader>
                     <DivisionForm onSave={data => createDivision.mutate(data)} onCancel={() => setDivisionDialog({ open: false })} />
                   </DialogContent>
                 </Dialog>
@@ -789,7 +804,7 @@ export default function AppointmentsPage() {
                         <div>
                           <div className="font-medium text-sm flex items-center gap-2">
                             {div.name}
-                            {!div.isActive && <Badge variant="outline" className="text-xs">Nonaktif</Badge>}
+                            {!div.isActive && <Badge variant="outline" className="text-xs">{t("dashboard.common.inactive")}</Badge>}
                           </div>
                           {div.location && <div className="text-xs text-muted-foreground">{div.location}</div>}
                         </div>
@@ -824,7 +839,7 @@ export default function AppointmentsPage() {
                     <Button size="sm" data-testid="button-add-provider"><Plus className="w-4 h-4 mr-1" /> Tambah</Button>
                   </DialogTrigger>
                   <DialogContent>
-                    <DialogHeader><DialogTitle>Tambah Staf</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>{t("dashboard.common.add")}</DialogTitle></DialogHeader>
                     <ProviderForm divisions={divisions} onSave={data => createProvider.mutate(data)} onCancel={() => setProviderDialog({ open: false })} />
                   </DialogContent>
                 </Dialog>
@@ -843,7 +858,7 @@ export default function AppointmentsPage() {
                             <div>
                               <div className="font-medium text-sm flex items-center gap-2">
                                 {prov.name}
-                                {!prov.isActive && <Badge variant="outline" className="text-xs">Nonaktif</Badge>}
+                                {!prov.isActive && <Badge variant="outline" className="text-xs">{t("dashboard.common.inactive")}</Badge>}
                               </div>
                               <div className="text-xs text-muted-foreground">
                                 {div ? div.name : ""}
@@ -900,7 +915,7 @@ export default function AppointmentsPage() {
                     <Button size="sm" data-testid="button-add-service"><Plus className="w-4 h-4 mr-1" /> Tambah</Button>
                   </DialogTrigger>
                   <DialogContent>
-                    <DialogHeader><DialogTitle>Tambah Layanan</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>{t("dashboard.common.add")}</DialogTitle></DialogHeader>
                     <ServiceForm divisions={divisions} onSave={data => createService.mutate(data)} onCancel={() => setServiceDialog({ open: false })} />
                   </DialogContent>
                 </Dialog>
@@ -917,7 +932,7 @@ export default function AppointmentsPage() {
                           <div>
                             <div className="font-medium text-sm flex items-center gap-2">
                               {svc.name}
-                              {!svc.isActive && <Badge variant="outline" className="text-xs">Nonaktif</Badge>}
+                              {!svc.isActive && <Badge variant="outline" className="text-xs">{t("dashboard.common.inactive")}</Badge>}
                             </div>
                             <div className="text-xs text-muted-foreground">
                               {svc.durationMinutes} menit

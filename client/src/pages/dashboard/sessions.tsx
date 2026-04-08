@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -256,6 +257,7 @@ const TRANSLATE_LANGUAGES = [
 ];
 
 export default function SessionsPage() {
+  const { t } = useLanguage();
   const { data: authData } = useQuery<{ authenticated: boolean; merchantId?: string }>({
     queryKey: ["/api/auth/me"],
   });
@@ -425,7 +427,7 @@ export default function SessionsPage() {
       playIncomingChatSound();
       toast({
         title: "Pesan baru!",
-        description: `${newSessions.length} sesi baru dimulai`,
+        description: `${newSessions.length} new sessions started`,
         duration: 5000,
       });
     }

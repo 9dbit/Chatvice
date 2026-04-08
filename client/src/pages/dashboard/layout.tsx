@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { AIHelpBubble } from "@/components/ai-help-bubble";
 import { MerchantNotificationCenter } from "@/components/merchant-notification-center";
 import { ChevronRight, Home, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
+import { useLanguage } from "@/hooks/use-language";
 
 class PageErrorBoundary extends Component<
   { children: ReactNode },
@@ -72,50 +73,52 @@ import AdditionalServicesPage from "./additional-services";
 import AppointmentsPage from "./appointments";
 import type { Merchant } from "@shared/schema";
 
-const pageNames: Record<string, string> = {
-  "": "Overview",
-  "profile": "Profile",
-  "affiliate": "Affiliate",
-  "agents": "Agents",
-  "leads": "Sales Leads",
-  "sources": "Sources",
-  "analytics": "Analytics",
-  "sessions": "Chat Sessions",
-  "chat-logs": "Chat Logs",
-  "user-data": "User Data",
-  "knowledge": "Knowledge Base",
-  "triggers": "Triggers",
-  "widget": "Widget",
-  "supervisors": "Supervisors",
-  "integrations": "Integrations",
-  "plans": "Plans",
-  "billing": "Billing",
-  "settings": "Settings",
-  "work-scheduler": "Work Scheduler",
-  "quick-replies": "Quick Replies",
-  "welcome-bubble": "Welcome Bubble",
-  "product-cards": "Product Cards",
-  "team-activity": "Team Activity",
-  "chat-buttons": "Chat Buttons",
-  "live-preview": "Live Preview",
+const pageTranslationKeys: Record<string, string> = {
+  "": "dashboard.overview.title",
+  "profile": "dashboard.profile.title",
+  "affiliate": "dashboard.affiliate.title",
+  "agents": "dashboard.agents.title",
+  "leads": "dashboard.leads.title",
+  "sources": "dashboard.sources.title",
+  "analytics": "dashboard.analytics.title",
+  "sessions": "dashboard.sessions.title",
+  "chat-logs": "dashboard.chatLogs.title",
+  "user-data": "dashboard.userData.title",
+  "knowledge": "dashboard.knowledge.title",
+  "triggers": "dashboard.triggers.title",
+  "widget": "dashboard.widget.title",
+  "supervisors": "dashboard.supervisors.title",
+  "integrations": "dashboard.integrations.title",
+  "plans": "dashboard.plans.title",
+  "billing": "dashboard.billing.title",
+  "settings": "dashboard.settings.title",
+  "work-scheduler": "dashboard.workScheduler.title",
+  "quick-replies": "dashboard.quickReplies.title",
+  "welcome-bubble": "dashboard.welcomeBubble.title",
+  "product-cards": "dashboard.productCards.title",
+  "team-activity": "dashboard.teamActivity.title",
+  "chat-buttons": "dashboard.chatButtons.title",
+  "live-preview": "dashboard.livePreview.title",
   "checkout": "Checkout",
-  "chat-monitoring": "Chat Monitoring",
-  "data-usage": "Data Usage",
-  "proactive-chat": "Proactive Chat",
-  "additional-services": "Additional Services",
-  "appointments": "Janji Temu",
+  "chat-monitoring": "dashboard.chatMonitoring.title",
+  "data-usage": "dashboard.dataUsage.title",
+  "proactive-chat": "dashboard.proactiveChat.title",
+  "additional-services": "dashboard.additionalServices.title",
+  "appointments": "dashboard.appointments.title",
 };
 
 function Breadcrumb({ location }: { location: string }) {
+  const { t } = useLanguage();
   const pathParts = location.replace("/dashboard", "").split("/").filter(Boolean);
   const currentPage = pathParts[0] || "";
-  const pageName = pageNames[currentPage] || "Dashboard";
+  const tKey = pageTranslationKeys[currentPage];
+  const pageName = tKey ? t(tKey) : "Dashboard";
 
   return (
     <nav className="flex items-center gap-1 text-sm" data-testid="nav-breadcrumb">
       <Link href="/dashboard" className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
         <Home className="w-4 h-4" />
-        <span className="hidden sm:inline">Dashboard</span>
+        <span className="hidden sm:inline">{t("dashboard.overview.title")}</span>
       </Link>
       {currentPage && (
         <>

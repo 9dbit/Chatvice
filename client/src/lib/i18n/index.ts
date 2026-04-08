@@ -48,19 +48,26 @@ export const languages: LanguageOption[] = [
   { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', flag: 'HI' },
 ];
 
-export const translations: Record<Language, any> = {
-  en,
-  id,
-  zh,
-  ja,
-  ko,
-  th,
-  vi,
-  de,
-  ru,
-  ar,
-  km,
-  hi,
+type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+
+export type TranslationDict = typeof en;
+export type PartialTranslationDict = DeepPartial<TranslationDict>;
+
+export const translations: Record<Language, PartialTranslationDict> = {
+  en: en as TranslationDict,
+  id: id as PartialTranslationDict,
+  zh: zh as PartialTranslationDict,
+  ja: ja as PartialTranslationDict,
+  ko: ko as PartialTranslationDict,
+  th: th as PartialTranslationDict,
+  vi: vi as PartialTranslationDict,
+  de: de as PartialTranslationDict,
+  ru: ru as PartialTranslationDict,
+  ar: ar as PartialTranslationDict,
+  km: km as PartialTranslationDict,
+  hi: hi as PartialTranslationDict,
 };
 
 const STORAGE_KEY = 'chatvice_language';
@@ -84,7 +91,7 @@ export function setStoredLanguage(lang: Language): void {
   }
 }
 
-export function getTranslation(lang: Language): any {
+export function getTranslation(lang: Language): PartialTranslationDict {
   return translations[lang] || translations.en;
 }
 
@@ -96,12 +103,12 @@ type NestedKeyOf<ObjectType extends object> = {
 
 export type TranslationKey = NestedKeyOf<typeof en>;
 
-export function t(translations: any, key: string): string {
+export function t(translationDict: PartialTranslationDict, key: string): string {
   const keys = key.split('.');
-  let result: any = translations;
+  let result: unknown = translationDict;
   for (const k of keys) {
-    if (result && typeof result === 'object' && k in result) {
-      result = result[k];
+    if (result && typeof result === 'object' && k in (result as Record<string, unknown>)) {
+      result = (result as Record<string, unknown>)[k];
     } else {
       return key;
     }

@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -43,6 +44,7 @@ import { useTheme } from "@/components/theme-provider";
 import type { Merchant } from "@shared/schema";
 
 export default function SettingsPage() {
+  const { t } = useLanguage();
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
@@ -521,7 +523,7 @@ export default function SettingsPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold" data-testid="text-settings-title">Settings</h1>
+        <h1 className="text-2xl font-semibold" data-testid="text-settings-title">{t("dashboard.settings.title")}</h1>
         <p className="text-muted-foreground">
           Manage your account and preferences.
         </p>

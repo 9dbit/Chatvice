@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -68,6 +69,7 @@ function validatePhoneByCountry(phone: string, countryCode: string): { valid: bo
 }
 
 export default function ProfilePage() {
+  const { t } = useLanguage();
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);

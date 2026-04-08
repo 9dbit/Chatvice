@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/use-language";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -47,6 +48,7 @@ const leadStatusConfig = {
 };
 
 export default function ChatLogsPage() {
+  const { t } = useLanguage();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedLog, setSelectedLog] = useState<ChatLog | null>(null);
   const [filterLeadStatus, setFilterLeadStatus] = useState<string>("all");
@@ -178,7 +180,7 @@ export default function ChatLogsPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
             <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
-            Chat Logs & Leads
+            {t("dashboard.chatLogs.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
             Customer conversation history with contact details and lead management
