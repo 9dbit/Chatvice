@@ -198,6 +198,22 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Bootstrap default addon configs if they don't exist yet
+  try {
+    const existingConfigs = await storage.getAddonConfigs();
+    const defaultAddons = [
+      { addonType: "appointment_scheduling", name: "Smart Appointment Scheduling", description: "AI-powered appointment booking with calendar management", monthlyPriceUsd: 15, isEnabled: true },
+      { addonType: "hospitality", name: "Hospitality AI Assistant", description: "Hotel availability checker and room booking assistant", monthlyPriceUsd: 20, isEnabled: true },
+    ];
+    for (const addon of defaultAddons) {
+      if (!existingConfigs.find(c => c.addonType === addon.addonType)) {
+        await storage.upsertAddonConfig(addon);
+      }
+    }
+  } catch (err) {
+    console.error("[Bootstrap] Failed to seed addon configs:", err);
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

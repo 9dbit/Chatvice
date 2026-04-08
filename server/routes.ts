@@ -5863,13 +5863,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           if (apptAddon && apptAddon.isActive) {
 
             if (hasCheckAvailability) {
-              // Fetch available slots and broadcast as structured payload
+              // Fetch available slots for all active providers today
               const providers = await storage.getAppointmentProviders(resolvedMerchantId);
               const today = new Date().toISOString().split("T")[0];
               const slotsByProvider: Array<{ providerName: string; date: string; slots: string[] }> = [];
               for (const prov of providers) {
                 if (!prov.isActive) continue;
-                const slots = await getAvailableSlots(prov.id, today);
+                const slots = await getAvailableSlots(resolvedMerchantId, prov.id, today);
                 if (slots.length > 0) {
                   slotsByProvider.push({ providerName: prov.name, date: today, slots: slots.slice(0, 5) });
                 }
@@ -5889,11 +5889,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                 try {
                   const session = await storage.getSession(sessionId);
                   const booked = await bookSlot({
+                    merchantId: resolvedMerchantId,
+                    serviceId: null,
                     providerId: provider.id,
+                    divisionId: provider.divisionId || null,
+                    sessionId,
+                    customerName: session?.customerName || "Customer",
+                    customerPhone: null,
+                    customerEmail: null,
                     appointmentDate: apptDate.trim(),
                     appointmentTime: apptTime.trim(),
-                    customerName: session?.customerName || "Customer",
-                    customerEmail: null,
                     notes: null,
                   });
                   const bookedPayload = { type: "appointment_booked", appointment: booked };
@@ -5902,8 +5907,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                   console.log(`[Appointment] Booked slot: ${apptDate} ${apptTime} with provider ${provider.name}`);
                 } catch (bookErr: any) {
                   const errMsg = bookErr?.message || "Booking failed";
-                  const errPayload = { type: "appointment_error", error: errMsg };
-                  await storage.createMessage({ sessionId, from: "chatvice", content: `Maaf, terjadi masalah saat booking: ${errMsg}`, messageType: "appointment_error", payload: errPayload });
+                  await storage.createMessage({ sessionId, from: "chatvice", content: `Maaf, terjadi masalah saat booking: ${errMsg}` });
                   broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: `Maaf, terjadi masalah saat booking: ${errMsg}` } });
                 }
               }
@@ -5911,8 +5915,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
             if (hasGetMyAppointments) {
               const session = await storage.getSession(sessionId);
-              const upcoming = await getUpcomingAppointments(resolvedMerchantId, undefined, 5);
-              const filtered = upcoming.filter(a => a.customerName === (session?.customerName || ""));
+              // getUpcomingAppointments takes (merchantId, hoursAhead?); default 24h window
+              const upcoming = await getUpcomingAppointments(resolvedMerchantId, 168); // 1 week ahead
+              const customerName = session?.customerName || "";
+              const filtered = customerName
+                ? upcoming.filter(a => a.customerName === customerName)
+                : upcoming.slice(0, 5);
               const myApptPayload = { type: "appointment_list", appointments: filtered };
               await storage.createMessage({ sessionId, from: "chatvice", content: "", messageType: "appointment_list", payload: myApptPayload });
               broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "", messageType: "appointment_list", payload: myApptPayload } });
@@ -5921,10 +5929,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             if (hasCancelAppointment && cancelAppointmentMatch) {
               const apptId = cancelAppointmentMatch[1]?.trim();
               if (apptId) {
-                await storage.updateAppointment(apptId, { status: "cancelled" });
-                const cancelPayload = { type: "appointment_cancelled", appointmentId: apptId };
-                await storage.createMessage({ sessionId, from: "chatvice", content: "Appointment Anda telah dibatalkan.", messageType: "appointment_cancelled", payload: cancelPayload });
-                broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "Appointment Anda telah dibatalkan." } });
+                // Validate the appointment belongs to this merchant for security
+                const apptToCancel = await storage.getAppointment(apptId);
+                if (apptToCancel && apptToCancel.merchantId === resolvedMerchantId) {
+                  await storage.updateAppointment(apptId, { status: "cancelled" });
+                  const cancelPayload = { type: "appointment_cancelled", appointmentId: apptId };
+                  await storage.createMessage({ sessionId, from: "chatvice", content: "Appointment Anda telah dibatalkan.", messageType: "appointment_cancelled", payload: cancelPayload });
+                  broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "Appointment Anda telah dibatalkan." } });
+                } else {
+                  console.warn(`[Appointment] Cancel rejected: appointment ${apptId} not found or wrong merchant`);
+                }
               }
             }
           }
