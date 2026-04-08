@@ -587,11 +587,11 @@ export function AppSidebar() {
                 );
               })()}
               {isAdmin && activeAddonTypes.includes("hospitality") && (() => {
-                const isActive = isItemActive("/dashboard/plans");
+                const isActive = isItemActive("/dashboard/additional-services");
                 return (
                   <SidebarMenuItem key="hospitality-ai">
                     <SidebarMenuButton asChild className={isActive ? "bg-sidebar-accent" : ""}>
-                      <Link href="/dashboard/plans#hospitality" data-testid="link-sidebar-hospitality">
+                      <Link href="/dashboard/additional-services" data-testid="link-sidebar-hospitality">
                         <Hotel className="w-4 h-4" />
                         <span className="flex-1">Hospitality AI</span>
                       </Link>

@@ -1213,8 +1213,8 @@ export default function CheckoutPage() {
     );
   }
   
-  // In resume mode or invoice mode, we don't need planId - show payment directly
-  if (!isResumeMode && !isInvoiceMode && (!planId || !selectedPlan)) {
+  // In resume mode, invoice mode, or addon mode, we don't need planId - show payment directly
+  if (!isResumeMode && !isInvoiceMode && !isAddonMode && (!planId || !selectedPlan)) {
     return (
       <div className="max-w-lg mx-auto py-6 px-4 md:py-8 space-y-4">
         <Card>

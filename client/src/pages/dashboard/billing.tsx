@@ -240,11 +240,27 @@ export default function BillingPage() {
   });
   const addonTrialMutation = useMutation({
     mutationFn: async (addonType: string) => {
-      const res = await apiRequest("POST", "/api/merchant/addons/start-trial", { addonType });
-      return res.json();
+      const res = await fetch("/api/merchant/addons/start-trial", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ addonType }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 409) {
+          if (body.error === "Trial already used for this addon") {
+            throw new Error("Trial sudah pernah digunakan untuk fitur ini.");
+          }
+          throw new Error("Fitur ini sudah aktif di akun Anda.");
+        }
+        throw new Error(body.error || "Tidak dapat memulai trial");
+      }
+      return body;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
       toast({ title: "Trial dimulai!", description: "Masa percobaan gratis 7 hari Anda sekarang aktif." });
     },
     onError: (err: any) => {
@@ -2015,7 +2031,7 @@ export default function BillingPage() {
                           size="sm"
                           variant="outline"
                           className="flex-1"
-                          onClick={() => navigate(config.addonType === "appointment_scheduling" ? "/dashboard/appointments" : "/dashboard/plans")}
+                          onClick={() => navigate(config.addonType === "appointment_scheduling" ? "/dashboard/appointments" : "/dashboard/additional-services")}
                           data-testid={`button-manage-addon-${config.addonType}`}
                         >
                           Kelola
