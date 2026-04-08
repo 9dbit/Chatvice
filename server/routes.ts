@@ -10600,20 +10600,26 @@ Rules:
       const merchantId = req.session.merchantId!;
 
       const localTx = await storage.getPaymentTransactionByExternalId(transactionId);
+
+      // Ownership check: ensure the transaction belongs to this merchant
+      if (!localTx || localTx.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Transaction not found" });
+      }
+
       const gatewayStatus = await checkPaymentStatus(transactionId);
 
       const status = (gatewayStatus.success && gatewayStatus.data?.status)
         ? gatewayStatus.data.status
-        : (localTx?.status?.toUpperCase() || "PENDING");
+        : (localTx.status?.toUpperCase() || "PENDING");
 
-      const gr = localTx?.gatewayResponse as Record<string, any> || {};
+      const gr = localTx.gatewayResponse as Record<string, any> || {};
       return res.json({
         status,
         transactionId,
         addonType: gr.addonType || null,
         type: gr.type || "subscription",
-        amount: localTx?.amount,
-        paidAt: gatewayStatus.data?.paidAt || localTx?.paidAt,
+        amount: localTx.amount,
+        paidAt: gatewayStatus.data?.paidAt || localTx.paidAt,
       });
     } catch (err: any) {
       console.error("check-payment error:", err);

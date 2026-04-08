@@ -24,7 +24,6 @@ export function handleSessionExpired() {
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     if (res.status === 401) {
-      handleSessionExpired();
       throw new Error("Sesi berakhir. Silakan login kembali.");
     }
     const text = (await res.text()) || res.statusText;
