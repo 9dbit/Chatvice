@@ -254,7 +254,7 @@ export default function BillingPage() {
           if (body.error === "Trial already used for this addon") {
             throw new Error("Trial sudah pernah digunakan untuk fitur ini.");
           }
-          throw new Error("Fitur ini sudah aktif di akun Anda.");
+          throw new Error(t("dashboard.billing.featureAlreadyActive"));
         }
         throw new Error(body.error || t("dashboard.billing.trialStartFailed"));
       }
@@ -2011,16 +2011,16 @@ export default function BillingPage() {
                   <CardContent className="space-y-3 pt-0">
                     {config.addonType === "appointment_scheduling" && (
                       <ul className="text-sm text-muted-foreground space-y-1">
-                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Manajemen divisi &amp; staf</li>
-                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Kalender internal dengan link berbagi</li>
-                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Cek ketersediaan via AI chatbot</li>
-                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Notifikasi WhatsApp otomatis</li>
+                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> {t("dashboard.billing.featureDivisionMgmt")}</li>
+                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> {t("dashboard.billing.featureCalendarLink")}</li>
+                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> {t("dashboard.billing.featureAIAvailability")}</li>
+                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> {t("dashboard.billing.featureWhatsApp")}</li>
                       </ul>
                     )}
                     {config.addonType === "hospitality" && (
                       <ul className="text-sm text-muted-foreground space-y-1">
-                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Data kamar real-time dari Google Sheet</li>
-                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Kartu kamar interaktif di chat widget</li>
+                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> {t("dashboard.billing.featureRoomData")}</li>
+                        <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> {t("dashboard.billing.roomCardsFeature")}</li>
                         <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Badge "Harga Terbaik" &amp; "Hampir Penuh"</li>
                         <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Tombol "Pesan Sekarang" ke URL pemesanan</li>
                       </ul>

@@ -931,7 +931,14 @@
       "upgradePlan": "Upgrade Plan",
       "trialStarted": "Trial started!",
       "trialStartedDesc": "Your 7-day free trial is now active.",
-      "trialStartFailed": "Unable to start trial"
+      "trialStartFailed": "Unable to start trial",
+      "featureAlreadyActive": "This feature is already active on your account.",
+      "roomCardsFeature": "Interactive room cards in chat widget",
+      "featureDivisionMgmt": "Division & staff management",
+      "featureCalendarLink": "Internal calendar with share link",
+      "featureAIAvailability": "Availability check via AI chatbot",
+      "featureWhatsApp": "Automatic WhatsApp notifications",
+      "featureRoomData": "Real-time room data from Google Sheet"
     },
     "plans": {
       "title": "Plans",
@@ -1005,7 +1012,11 @@
       "amount": "Amount",
       "method": "Method",
       "pendingEarnings": "Pending Earnings",
-      "withdrawalRequested": "Withdrawal Requested"
+      "withdrawalRequested": "Withdrawal Requested",
+      "paymentMethodDeleted": "Payment Method Deleted",
+      "withdrawalSubmitted": "Your withdrawal request has been submitted for approval.",
+      "applyNow": "Apply Now",
+      "learnMore": "Learn More"
     },
     "dataUsage": {
       "title": "Data Usage",
@@ -1081,7 +1092,16 @@
       "serviceAdded": "Service added",
       "serviceUpdated": "Service updated",
       "serviceDeleted": "Service deleted",
-      "shareWhatsApp": "Share via WhatsApp"
+      "shareWhatsApp": "Share via WhatsApp",
+      "loadingSchedule": "Loading schedule",
+      "noDivisions": "No divisions yet.",
+      "noStaff": "No staff registered yet.",
+      "noServices": "No services registered yet.",
+      "openCalendar": "Open Calendar",
+      "openPublicCalendar": "Open Public Calendar",
+      "divisionTitle": "Division",
+      "staffTitle": "Staff / Service Providers",
+      "servicesTitle": "Services"
     },
     "sources": {
       "title": "Active Sources",
@@ -1135,6 +1155,7 @@
     "loading": "Loading",
     "failed": "Failed",
     "tryAgain": "Please try again.",
-    "free": "Free"
+    "free": "Free",
+    "error": "Error"
   }
 }

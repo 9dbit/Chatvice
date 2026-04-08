@@ -137,7 +137,7 @@ export default function AffiliateDashboardPage() {
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
+        title: t("common.error"),
         description: error.message,
         variant: "destructive",
       });
@@ -164,7 +164,7 @@ export default function AffiliateDashboardPage() {
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
+        title: t("common.error"),
         description: error.message,
         variant: "destructive",
       });
@@ -182,14 +182,14 @@ export default function AffiliateDashboardPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Payment Method Deleted",
+        title: t("dashboard.affiliate.paymentMethodDeleted"),
         description: "Your payment method has been removed.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/affiliate/payment-methods"] });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
+        title: t("common.error"),
         description: error.message,
         variant: "destructive",
       });
@@ -208,7 +208,7 @@ export default function AffiliateDashboardPage() {
     onSuccess: () => {
       toast({
         title: t("dashboard.affiliate.withdrawalRequested"),
-        description: "Your withdrawal request has been submitted for approval.",
+        description: t("dashboard.affiliate.withdrawalSubmitted"),
       });
       setWithdrawDialogOpen(false);
       setWithdrawAmount("");
@@ -218,7 +218,7 @@ export default function AffiliateDashboardPage() {
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
+        title: t("common.error"),
         description: error.message,
         variant: "destructive",
       });
@@ -388,12 +388,12 @@ export default function AffiliateDashboardPage() {
           </div>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button onClick={() => setApplyDialogOpen(true)} className="bg-purple-600 hover:bg-purple-700" data-testid="button-apply-affiliate">
-              Apply Now
+              {t("dashboard.affiliate.applyNow")}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
             <Link href="/affiliate">
               <Button variant="outline" data-testid="button-learn-more">
-                Learn More
+                {t("dashboard.affiliate.learnMore")}
                 <ExternalLink className="w-4 h-4 ml-2" />
               </Button>
             </Link>

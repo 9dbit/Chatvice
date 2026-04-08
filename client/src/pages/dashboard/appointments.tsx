@@ -330,7 +330,7 @@ function SchedulePanel({ provider }: { provider: AppointmentProvider }) {
     saveSchedulesMutation.mutate(rows);
   };
 
-  if (schedulesLoading) return <div className="flex items-center gap-2 py-4"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm text-muted-foreground">Memuat jadwal...</span></div>;
+  if (schedulesLoading) return <div className="flex items-center gap-2 py-4"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm text-muted-foreground">{t("dashboard.appointments.loadingSchedule")}...</span></div>;
 
   return (
     <div className="space-y-6">
@@ -783,7 +783,7 @@ export default function AppointmentsPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2">
                 <div>
-                  <CardTitle className="text-base flex items-center gap-2"><Users className="w-4 h-4" /> Divisi</CardTitle>
+                  <CardTitle className="text-base flex items-center gap-2"><Users className="w-4 h-4" /> {t("dashboard.appointments.divisionTitle")}</CardTitle>
                   <CardDescription>{t("dashboard.appointments.divisionDesc")}</CardDescription>
                 </div>
                 <Dialog open={divisionDialog.open && !divisionDialog.editing} onOpenChange={open => setDivisionDialog({ open })}>
@@ -798,7 +798,7 @@ export default function AppointmentsPage() {
               </CardHeader>
               <CardContent>
                 {divisions.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">Belum ada divisi.</p>
+                  <p className="text-sm text-muted-foreground text-center py-6">{t("dashboard.appointments.noDivisions")}</p>
                 ) : (
                   <div className="space-y-2">
                     {divisions.map(div => (
@@ -833,7 +833,7 @@ export default function AppointmentsPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2">
                 <div>
-                  <CardTitle className="text-base flex items-center gap-2"><User className="w-4 h-4" /> Staf / Penyedia Layanan</CardTitle>
+                  <CardTitle className="text-base flex items-center gap-2"><User className="w-4 h-4" /> {t("dashboard.appointments.staffTitle")}</CardTitle>
                   <CardDescription>Daftarkan dokter, terapis, atau staf yang melayani booking.</CardDescription>
                 </div>
                 <Dialog open={providerDialog.open && !providerDialog.editing} onOpenChange={open => setProviderDialog({ open })}>
@@ -848,7 +848,7 @@ export default function AppointmentsPage() {
               </CardHeader>
               <CardContent>
                 {providers.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">Belum ada staf terdaftar.</p>
+                  <p className="text-sm text-muted-foreground text-center py-6">{t("dashboard.appointments.noStaff")}</p>
                 ) : (
                   <div className="space-y-2">
                     {providers.map(prov => {
@@ -909,7 +909,7 @@ export default function AppointmentsPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2">
                 <div>
-                  <CardTitle className="text-base flex items-center gap-2"><Layers className="w-4 h-4" /> Layanan</CardTitle>
+                  <CardTitle className="text-base flex items-center gap-2"><Layers className="w-4 h-4" /> {t("dashboard.appointments.servicesTitle")}</CardTitle>
                   <CardDescription>Definisikan layanan yang tersedia untuk dipesan pelanggan.</CardDescription>
                 </div>
                 <Dialog open={serviceDialog.open && !serviceDialog.editing} onOpenChange={open => setServiceDialog({ open })}>
@@ -924,7 +924,7 @@ export default function AppointmentsPage() {
               </CardHeader>
               <CardContent>
                 {services.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">Belum ada layanan terdaftar.</p>
+                  <p className="text-sm text-muted-foreground text-center py-6">{t("dashboard.appointments.noServices")}</p>
                 ) : (
                   <div className="space-y-2">
                     {services.map(svc => {
@@ -991,7 +991,7 @@ export default function AppointmentsPage() {
                       Link ini unik dan aman. Jika perlu mengganti link (misalnya keamanan), hubungi dukungan.
                     </p>
                     <Button variant="outline" size="sm" onClick={() => window.open(calendarLink, "_blank")} data-testid="button-open-calendar">
-                      Buka Kalender
+                      {t("dashboard.appointments.openCalendar")}
                     </Button>
                   </>
                 ) : (
@@ -1025,7 +1025,7 @@ export default function AppointmentsPage() {
                     </p>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={() => window.open(publicCalendarLink, "_blank")} data-testid="button-open-public-calendar">
-                        Buka Kalender Publik
+                        {t("dashboard.appointments.openPublicCalendar")}
                       </Button>
                       <Button
                         variant="outline"

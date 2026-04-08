@@ -931,7 +931,14 @@
       "upgradePlan": "Upgrade Paket",
       "trialStarted": "Trial dimulai!",
       "trialStartedDesc": "Masa percobaan gratis 7 hari Anda sekarang aktif.",
-      "trialStartFailed": "Tidak dapat memulai trial"
+      "trialStartFailed": "Tidak dapat memulai trial",
+      "featureAlreadyActive": "Fitur ini sudah aktif di akun Anda.",
+      "roomCardsFeature": "Kartu kamar interaktif di chat widget",
+      "featureDivisionMgmt": "Manajemen divisi & staf",
+      "featureCalendarLink": "Kalender internal dengan link berbagi",
+      "featureAIAvailability": "Cek ketersediaan via AI chatbot",
+      "featureWhatsApp": "Notifikasi WhatsApp otomatis",
+      "featureRoomData": "Data kamar real-time dari Google Sheet"
     },
     "plans": {
       "title": "Paket",
@@ -1005,7 +1012,11 @@
       "amount": "Jumlah",
       "method": "Metode",
       "pendingEarnings": "Pendapatan Tertunda",
-      "withdrawalRequested": "Penarikan Diminta"
+      "withdrawalRequested": "Penarikan Diminta",
+      "paymentMethodDeleted": "Metode Pembayaran Dihapus",
+      "withdrawalSubmitted": "Permintaan penarikan Anda telah diajukan untuk persetujuan.",
+      "applyNow": "Daftar Sekarang",
+      "learnMore": "Pelajari Lebih Lanjut"
     },
     "dataUsage": {
       "title": "Penggunaan Data",
@@ -1081,7 +1092,16 @@
       "serviceAdded": "Layanan ditambahkan",
       "serviceUpdated": "Layanan diperbarui",
       "serviceDeleted": "Layanan dihapus",
-      "shareWhatsApp": "Bagikan via WhatsApp"
+      "shareWhatsApp": "Bagikan via WhatsApp",
+      "loadingSchedule": "Memuat jadwal",
+      "noDivisions": "Belum ada divisi.",
+      "noStaff": "Belum ada staf terdaftar.",
+      "noServices": "Belum ada layanan terdaftar.",
+      "openCalendar": "Buka Kalender",
+      "openPublicCalendar": "Buka Kalender Publik",
+      "divisionTitle": "Divisi",
+      "staffTitle": "Staf / Penyedia Layanan",
+      "servicesTitle": "Layanan"
     },
     "sources": {
       "title": "Sumber Aktif",
@@ -1135,6 +1155,7 @@
     "loading": "Memuat",
     "failed": "Gagal",
     "tryAgain": "Silakan coba lagi.",
-    "free": "Gratis"
+    "free": "Gratis",
+    "error": "Error"
   }
 }
