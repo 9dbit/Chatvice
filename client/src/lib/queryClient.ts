@@ -8,24 +8,24 @@ function getLoginRedirectUrl(): string {
   return "/login";
 }
 
-let sessionExpiredRedirectTimeout: ReturnType<typeof setTimeout> | null = null;
+let sessionExpiredHandled = false;
 
-function handleSessionExpired() {
+export function handleSessionExpired() {
+  if (sessionExpiredHandled) return;
+  sessionExpiredHandled = true;
   localStorage.removeItem("merchantId");
   localStorage.removeItem("userType");
-  if (sessionExpiredRedirectTimeout) return;
-  sessionExpiredRedirectTimeout = setTimeout(() => {
+  window.dispatchEvent(new CustomEvent("session-expired"));
+  setTimeout(() => {
     window.location.href = getLoginRedirectUrl();
-  }, 2000);
+  }, 2500);
 }
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     if (res.status === 401) {
       handleSessionExpired();
-      const err = new Error("Session expired. Please login again.");
-      (err as any).status = 401;
-      throw err;
+      throw new Error("Sesi berakhir. Silakan login kembali.");
     }
     const text = (await res.text()) || res.statusText;
     throw new Error(`${res.status}: ${text}`);
@@ -64,7 +64,7 @@ export const getQueryFn: <T>(options: {
         return null;
       }
       handleSessionExpired();
-      throw new Error("Session expired");
+      throw new Error("Sesi berakhir. Silakan login kembali.");
     }
 
     await throwIfResNotOk(res);

@@ -10593,6 +10593,34 @@ Rules:
     }
   });
 
+  // GET /api/billing/check-payment/:transactionId - Check payment status for addon or subscription
+  app.get("/api/billing/check-payment/:transactionId", requireMerchant, async (req, res) => {
+    try {
+      const { transactionId } = req.params;
+      const merchantId = req.session.merchantId!;
+
+      const localTx = await storage.getPaymentTransactionByExternalId(transactionId);
+      const gatewayStatus = await checkPaymentStatus(transactionId);
+
+      const status = (gatewayStatus.success && gatewayStatus.data?.status)
+        ? gatewayStatus.data.status
+        : (localTx?.status?.toUpperCase() || "PENDING");
+
+      const gr = localTx?.gatewayResponse as Record<string, any> || {};
+      return res.json({
+        status,
+        transactionId,
+        addonType: gr.addonType || null,
+        type: gr.type || "subscription",
+        amount: localTx?.amount,
+        paidAt: gatewayStatus.data?.paidAt || localTx?.paidAt,
+      });
+    } catch (err: any) {
+      console.error("check-payment error:", err);
+      res.status(500).json({ error: err.message || "Failed to check payment status" });
+    }
+  });
+
   app.post("/api/billing/cancel", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
@@ -23943,6 +23971,31 @@ Please create a comprehensive help center article that would be useful for custo
         if (!qrisResult.success) {
           return res.status(502).json({ error: qrisResult.error || "Failed to create payment" });
         }
+        const transactionId = qrisResult.data?.transactionId || orderId;
+        try {
+          const txId = "ptx_" + crypto.randomBytes(8).toString("hex");
+          await storage.createPaymentTransaction({
+            id: txId,
+            merchantId,
+            externalId: transactionId,
+            amount: amountIDR,
+            status: "pending",
+            paymentMethod: "qris",
+            merchantEmail: merchant.email,
+            merchantCompanyName: merchant.companyName,
+            qrisUrl: qrisResult.data?.qrisImageUrl || null,
+            gatewayResponse: {
+              addonType,
+              type: "addon",
+              qrisString: qrisResult.data?.qrisString,
+              orderId,
+            },
+            expiresAt: qrisResult.data?.expiryTime ? new Date(qrisResult.data.expiryTime) : null,
+            invoiceNumber: orderId,
+          });
+        } catch (saveErr) {
+          console.warn("[addon] Could not save QRIS transaction to local DB:", saveErr);
+        }
         return res.json({
           orderId,
           addonType,
@@ -23952,7 +24005,7 @@ Please create a comprehensive help center article that would be useful for custo
           currency: "IDR",
           qrisUrl: qrisResult.data?.qrisImageUrl || null,
           qrisString: qrisResult.data?.qrisString || null,
-          transactionId: qrisResult.data?.transactionId || orderId,
+          transactionId,
           expiresAt: qrisResult.data?.expiryTime || null,
         });
       }
@@ -23964,7 +24017,7 @@ Please create a comprehensive help center article that would be useful for custo
         paymentMethod,
         amount: addonConfig.monthlyPriceUsd,
         currency: "USD",
-        instructions: "Complete payment through your selected payment provider and provide the transaction reference for confirmation.",
+        instructions: "Selesaikan pembayaran melalui penyedia pembayaran yang dipilih dan berikan referensi transaksi untuk konfirmasi.",
       });
     } catch (err) {
       console.error("Addon initiate-payment error:", err);

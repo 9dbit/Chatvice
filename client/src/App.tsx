@@ -1,6 +1,7 @@
 import { Switch, Route, useLocation } from "wouter";
 import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -74,6 +75,22 @@ function ScrollToTop() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [location]);
   
+  return null;
+}
+
+function SessionExpiredListener() {
+  const { toast } = useToast();
+  useEffect(() => {
+    const handler = () => {
+      toast({
+        title: "Sesi berakhir",
+        description: "Sesi Anda telah berakhir. Silakan login kembali.",
+        variant: "destructive",
+      });
+    };
+    window.addEventListener("session-expired", handler);
+    return () => window.removeEventListener("session-expired", handler);
+  }, [toast]);
   return null;
 }
 
@@ -290,6 +307,7 @@ function App() {
           <TooltipProvider>
             <DynamicHead />
             <ScrollToTop />
+            <SessionExpiredListener />
             <Toaster />
             <Router />
             <GlobalHelpBubble />

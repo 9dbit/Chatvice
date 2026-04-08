@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,7 +73,7 @@ const addonIcons: Record<string, React.ComponentType<{ className?: string }>> = 
 
 const PAYMENT_METHODS = [
   { value: "kompas_pay", label: "Kompas Pay", description: "QRIS, Virtual Account, Transfer" },
-  { value: "paypal", label: "PayPal", description: "International card/wallet" },
+  { value: "paypal", label: "PayPal", description: "Kartu/dompet internasional" },
   { value: "crypto", label: "Cryptocurrency", description: "BTC, ETH, USDT, dll." },
 ];
 
@@ -358,6 +358,37 @@ export default function AdditionalServicesPage() {
   const [paymentResult, setPaymentResult] = useState<PaymentInitResult | null>(null);
   const [manualReference, setManualReference] = useState("");
   const [hospitalitySettingsOpen, setHospitalitySettingsOpen] = useState(false);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPolling = () => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    if (paymentStep === "qris" && paymentResult?.transactionId) {
+      const txId = paymentResult.transactionId;
+      stopPolling();
+      pollIntervalRef.current = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/billing/check-payment/${encodeURIComponent(txId)}`, { credentials: "include" });
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.status === "PAID" || data.status === "paid" || data.status === "completed" || data.status === "SUCCESS") {
+            stopPolling();
+            queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
+            closeDialog();
+            toast({ title: "Pembayaran berhasil!", description: "Addon sedang diaktifkan. Halaman akan diperbarui otomatis." });
+          }
+        } catch (_) {}
+      }, 5000);
+    } else {
+      stopPolling();
+    }
+    return stopPolling;
+  }, [paymentStep, paymentResult?.transactionId]);
 
   const { data: addonConfigs = [], isLoading: configsLoading } = useQuery<AddonConfig[]>({
     queryKey: ["/api/addon-configs"],
@@ -381,7 +412,7 @@ export default function AdditionalServicesPage() {
       }
     },
     onError: (err: any) => {
-      toast({ title: "Payment failed", description: err.message || "Could not initiate payment", variant: "destructive" });
+      toast({ title: "Gagal memulai pembayaran", description: err.message || "Tidak dapat memproses pembayaran", variant: "destructive" });
     },
   });
 
@@ -423,10 +454,10 @@ export default function AdditionalServicesPage() {
       apiRequest("DELETE", `/api/merchant/addons/${addonType}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
-      toast({ title: "Addon deactivated", description: "Additional service has been deactivated." });
+      toast({ title: "Addon dinonaktifkan", description: "Layanan tambahan telah dinonaktifkan." });
     },
     onError: (err: any) => {
-      toast({ title: "Failed", description: err.message || "An error occurred", variant: "destructive" });
+      toast({ title: "Gagal", description: err.message || "Terjadi kesalahan", variant: "destructive" });
     },
   });
 
@@ -555,19 +586,19 @@ export default function AdditionalServicesPage() {
 
                   {config.addonType === "appointment_scheduling" && (
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Division & staff management</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Internal calendar with shareable links</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Availability check via AI chatbot</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Automatic WhatsApp notifications</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Manajemen divisi &amp; staf</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Kalender internal dengan link yang bisa dibagikan</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Cek ketersediaan via AI chatbot</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Notifikasi WhatsApp otomatis</li>
                     </ul>
                   )}
 
                   {config.addonType === "hospitality" && (
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Real-time room data from Google Sheet</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Interactive room cards in chat widget</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> "Best Price" &amp; "Almost Full" badges</li>
-                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> "Book Now" button directly to booking page</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Data kamar real-time dari Google Sheet</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Kartu kamar interaktif di chat widget</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Badge "Harga Terbaik" &amp; "Hampir Penuh"</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Tombol "Pesan Sekarang" langsung ke halaman pemesanan</li>
                     </ul>
                   )}
 
@@ -591,7 +622,7 @@ export default function AdditionalServicesPage() {
                             data-testid={`button-upgrade-${config.addonType}`}
                           >
                             <CreditCard className="w-3.5 h-3.5 mr-1" />
-                            Subscribe
+                            Berlangganan
                           </Button>
                         )}
                         <Button
@@ -602,7 +633,7 @@ export default function AdditionalServicesPage() {
                           disabled={cancelMutation.isPending}
                           data-testid={`button-cancel-${config.addonType}`}
                         >
-                          {cancelMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Deactivate"}
+                          {cancelMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Nonaktifkan"}
                         </Button>
                       </>
                     ) : (
@@ -613,7 +644,7 @@ export default function AdditionalServicesPage() {
                           data-testid={`button-subscribe-${config.addonType}`}
                         >
                           <Sparkles className="w-4 h-4 mr-2" />
-                          Activate — ${config.monthlyPriceUsd}/mo
+                          Aktifkan — ${config.monthlyPriceUsd}/bulan
                         </Button>
                         {!usedTrial && (
                           <Button
@@ -628,7 +659,7 @@ export default function AdditionalServicesPage() {
                             ) : (
                               <Clock className="w-3.5 h-3.5 mr-1" />
                             )}
-                            Try Free 7 Days
+                            Coba Gratis 7 Hari
                           </Button>
                         )}
                       </div>
@@ -638,7 +669,7 @@ export default function AdditionalServicesPage() {
                   {!active && (
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>Payment processed after method confirmation.{usedTrial ? " Trial already used." : ""}</span>
+                      <span>Pembayaran diproses setelah konfirmasi metode.{usedTrial ? " Trial sudah pernah digunakan." : ""}</span>
                     </div>
                   )}
                 </CardContent>
@@ -653,10 +684,10 @@ export default function AdditionalServicesPage() {
           {paymentStep === "select_method" && (
             <>
               <DialogHeader>
-                <DialogTitle>Choose Payment Method</DialogTitle>
+                <DialogTitle>Pilih Metode Pembayaran</DialogTitle>
                 <DialogDescription>
                   {selectedAddon && (
-                    <>Subscribe to <strong>{selectedAddon.name}</strong> for <strong>${selectedAddon.monthlyPriceUsd}/month</strong>.</>
+                    <>Berlangganan <strong>{selectedAddon.name}</strong> seharga <strong>${selectedAddon.monthlyPriceUsd}/bulan</strong>.</>
                   )}
                 </DialogDescription>
               </DialogHeader>
@@ -691,7 +722,7 @@ export default function AdditionalServicesPage() {
 
               <div className="flex gap-2 mt-4">
                 <Button variant="outline" size="sm" className="flex-1" onClick={closeDialog} data-testid="button-cancel-subscribe">
-                  Cancel
+                  Batal
                 </Button>
                 <Button
                   size="sm"
@@ -701,7 +732,7 @@ export default function AdditionalServicesPage() {
                   data-testid="button-confirm-subscribe"
                 >
                   {initiatePaymentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Continue to Payment
+                  Lanjut ke Pembayaran
                 </Button>
               </div>
             </>
@@ -712,11 +743,11 @@ export default function AdditionalServicesPage() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <QrCode className="w-5 h-5 text-primary" />
-                  Scan QRIS to Pay
+                  Scan QRIS untuk Membayar
                 </DialogTitle>
                 <DialogDescription>
-                  Scan this QR code with your banking app or e-wallet.
-                  Amount: <strong>Rp {paymentResult.amountIDR?.toLocaleString("id-ID") || "—"}</strong>
+                  Scan QR code ini dengan aplikasi perbankan atau e-wallet.
+                  Jumlah: <strong>Rp {paymentResult.amountIDR?.toLocaleString("id-ID") || "—"}</strong>
                 </DialogDescription>
               </DialogHeader>
 
@@ -735,7 +766,7 @@ export default function AdditionalServicesPage() {
                 )}
                 {paymentResult.expiresAt && (
                   <p className="text-xs text-muted-foreground">
-                    Expires: {new Date(paymentResult.expiresAt).toLocaleString("id-ID")}
+                    Kedaluwarsa: {new Date(paymentResult.expiresAt).toLocaleString("id-ID")}
                   </p>
                 )}
                 {paymentResult.qrisString && (
@@ -743,36 +774,41 @@ export default function AdditionalServicesPage() {
                     className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
                     onClick={() => {
                       navigator.clipboard.writeText(paymentResult.qrisString!);
-                      toast({ title: "QRIS string copied" });
+                      toast({ title: "QRIS string disalin" });
                     }}
                     data-testid="button-copy-qris"
                   >
                     <Copy className="w-3 h-3" />
-                    Copy QRIS string
+                    Salin QRIS string
                   </button>
                 )}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span>Menunggu konfirmasi pembayaran...</span>
+                </div>
               </div>
 
               <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground space-y-1">
-                <p>1. Open your banking app or e-wallet (GoPay, OVO, DANA, etc.)</p>
-                <p>2. Scan the QR code above</p>
-                <p>3. Complete the payment of <strong>Rp {paymentResult.amountIDR?.toLocaleString("id-ID")}</strong></p>
-                <p>4. Click "I've Paid" below — your addon will be activated after verification.</p>
+                <p>1. Buka aplikasi perbankan atau e-wallet (GoPay, OVO, DANA, dll.)</p>
+                <p>2. Scan QR code di atas</p>
+                <p>3. Selesaikan pembayaran sebesar <strong>Rp {paymentResult.amountIDR?.toLocaleString("id-ID")}</strong></p>
+                <p>4. Halaman akan otomatis terupdate setelah pembayaran terdeteksi.</p>
               </div>
 
               <div className="flex gap-2 mt-2">
                 <Button variant="outline" size="sm" className="flex-1" onClick={() => setPaymentStep("select_method")}>
-                  Back
+                  Kembali
                 </Button>
                 <Button
                   size="sm"
+                  variant="outline"
                   className="flex-1"
                   onClick={handleQrisConfirm}
                   disabled={confirmPaymentMutation.isPending}
                   data-testid="button-ive-paid"
                 >
                   {confirmPaymentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  I've Paid
+                  Sudah Bayar
                 </Button>
               </div>
             </>
@@ -781,23 +817,23 @@ export default function AdditionalServicesPage() {
           {paymentStep === "manual_ref" && paymentResult && (
             <>
               <DialogHeader>
-                <DialogTitle>Payment Instructions</DialogTitle>
+                <DialogTitle>Instruksi Pembayaran</DialogTitle>
                 <DialogDescription>
-                  {paymentResult.instructions || "Complete your payment and enter the transaction reference below."}
+                  {paymentResult.instructions || "Selesaikan pembayaran dan masukkan referensi transaksi di bawah ini."}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="rounded-md bg-muted/50 p-3 text-sm space-y-1 mt-2">
-                <p><strong>Amount:</strong> ${paymentResult.amount} USD</p>
+                <p><strong>Jumlah:</strong> ${paymentResult.amount} USD</p>
                 <p><strong>Order ID:</strong> <span className="font-mono text-xs">{paymentResult.orderId}</span></p>
-                <p className="text-xs text-muted-foreground">Use this order ID as your payment description/reference.</p>
+                <p className="text-xs text-muted-foreground">Gunakan Order ID ini sebagai keterangan/referensi pembayaran.</p>
               </div>
 
               <div className="mt-4 space-y-2">
-                <Label htmlFor="payment-reference">Transaction Reference / Receipt Number</Label>
+                <Label htmlFor="payment-reference">Referensi Transaksi / Nomor Bukti</Label>
                 <Input
                   id="payment-reference"
-                  placeholder="Enter your payment reference..."
+                  placeholder="Masukkan referensi pembayaran Anda..."
                   value={manualReference}
                   onChange={(e) => setManualReference(e.target.value)}
                   data-testid="input-payment-reference"
@@ -806,7 +842,7 @@ export default function AdditionalServicesPage() {
 
               <div className="flex gap-2 mt-4">
                 <Button variant="outline" size="sm" className="flex-1" onClick={() => setPaymentStep("select_method")}>
-                  Back
+                  Kembali
                 </Button>
                 <Button
                   size="sm"
@@ -816,7 +852,7 @@ export default function AdditionalServicesPage() {
                   data-testid="button-submit-payment-ref"
                 >
                   {confirmPaymentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Submit Payment
+                  Kirim Bukti Pembayaran
                 </Button>
               </div>
             </>
