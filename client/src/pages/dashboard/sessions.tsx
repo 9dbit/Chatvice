@@ -1843,7 +1843,7 @@ export default function SessionsPage() {
                                   {translatingIds.has(String(msg.id)) ? (
                                     <>
                                       <Loader2 className="w-3 h-3 mt-0.5 flex-shrink-0 animate-spin" />
-                                      <span>Translating…</span>
+                                      <span>{t("dashboard.sessions.translating")}</span>
                                     </>
                                   ) : translations.has(String(msg.id)) ? (
                                     <>
@@ -1861,7 +1861,7 @@ export default function SessionsPage() {
                                 <div>
                                   <div className="flex items-center gap-1.5 mb-2 justify-end">
                                     <ShoppingBag className="w-3.5 h-3.5 text-primary" />
-                                    <span className="text-[11px] font-medium text-muted-foreground">Produk rekomendasi:</span>
+                                    <span className="text-[11px] font-medium text-muted-foreground">{t("dashboard.sessions.productRecommendations")}</span>
                                   </div>
                                   <div className="grid grid-cols-2 gap-2.5 max-w-[450px]">
                                     {productCards.filter(c => c.isActive).slice(0, 2).map((card) => (

@@ -693,7 +693,9 @@
       "autoTranslate": "Auto Translate",
       "takeOver": "Take Over",
       "returnToBot": "Return to Bot",
-      "imageUnavailable": "Image unavailable"
+      "imageUnavailable": "Image unavailable",
+      "productRecommendations": "Product recommendations:",
+      "translating": "Translating..."
     },
     "knowledge": {
       "title": "Knowledge Base",
@@ -1730,7 +1732,10 @@
       "staffDescription": "Staff description",
       "servicesDescription": "Services description",
       "minuteUnit": "min",
-      "publicUrlDesc": "Public URL using your business slug. Customers can see booked times (without details)."
+      "publicUrlDesc": "Public URL using your business slug. Customers can see booked times (without details).",
+      "calendarLinkSafe": "This link is unique and secure. If you need to change it (e.g., for security), contact support.",
+      "publicCalendarShareDesc": "This link can be shared with customers to view available slots. It does not display personal data.",
+      "whatsappShareMsg": "Hey! Check our booking availability schedule here: {link}"
     },
     "sources": {
       "title": "Active Sources",

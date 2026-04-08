@@ -693,7 +693,9 @@
       "autoTranslate": "Terjemahkan Otomatis",
       "takeOver": "Ambil Alih",
       "returnToBot": "Kembalikan ke Bot",
-      "imageUnavailable": "Gambar tidak tersedia"
+      "imageUnavailable": "Gambar tidak tersedia",
+      "productRecommendations": "Produk rekomendasi:",
+      "translating": "Menerjemahkan..."
     },
     "knowledge": {
       "title": "Basis Pengetahuan",
@@ -1730,7 +1732,10 @@
       "staffDescription": "Deskripsi staf",
       "servicesDescription": "Deskripsi layanan",
       "minuteUnit": "menit",
-      "publicUrlDesc": "URL publik menggunakan slug bisnis Anda. Pelanggan dapat melihat waktu yang sudah dipesan (tanpa detail)."
+      "publicUrlDesc": "URL publik menggunakan slug bisnis Anda. Pelanggan dapat melihat waktu yang sudah dipesan (tanpa detail).",
+      "calendarLinkSafe": "Link ini unik dan aman. Jika perlu mengganti link (misalnya keamanan), hubungi dukungan.",
+      "publicCalendarShareDesc": "Link ini bisa dibagikan kepada pelanggan untuk melihat ketersediaan slot. Tidak menampilkan data pribadi.",
+      "whatsappShareMsg": "Hei! Cek jadwal ketersediaan booking kami di sini: {link}"
     },
     "sources": {
       "title": "Sumber Aktif",

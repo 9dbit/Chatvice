@@ -988,7 +988,7 @@ export default function AppointmentsPage() {
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Link ini unik dan aman. Jika perlu mengganti link (misalnya keamanan), hubungi dukungan.
+                      {t("dashboard.appointments.calendarLinkSafe")}
                     </p>
                     <Button variant="outline" size="sm" onClick={() => window.open(calendarLink, "_blank")} data-testid="button-open-calendar">
                       {t("dashboard.appointments.openCalendar")}
@@ -1008,7 +1008,7 @@ export default function AppointmentsPage() {
                   {t("dashboard.appointments.publicCalendarLink")}
                 </CardTitle>
                 <CardDescription>
-                  Link ini bisa dibagikan kepada pelanggan untuk melihat ketersediaan slot. Tidak menampilkan data pribadi.
+                  {t("dashboard.appointments.publicCalendarShareDesc")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1032,7 +1032,7 @@ export default function AppointmentsPage() {
                         size="sm"
                         onClick={() => {
                           if (publicCalendarLink) {
-                            const waMsg = encodeURIComponent(`Hei! Cek jadwal ketersediaan booking kami di sini: ${publicCalendarLink}`);
+                            const waMsg = encodeURIComponent(t("dashboard.appointments.whatsappShareMsg").replace("{link}", publicCalendarLink));
                             window.open(`https://wa.me/?text=${waMsg}`, "_blank");
                           }
                         }}
