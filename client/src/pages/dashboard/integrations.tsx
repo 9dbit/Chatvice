@@ -70,10 +70,10 @@ export default function IntegrationsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notification-settings"] });
-      toast({ title: "Settings saved successfully" });
+      toast({ title: t("dashboard.integrations.saved") });
     },
     onError: () => {
-      toast({ title: "Failed to save settings", variant: "destructive" });
+      toast({ title: t("dashboard.integrations.saveFailed"), variant: "destructive" });
     },
   });
 
@@ -81,7 +81,7 @@ export default function IntegrationsPage() {
     {
       id: "push-notifications",
       name: "Browser Notifications",
-      description: "Desktop alerts with sound when dashboard tab is open in background",
+      description: t("dashboard.integrations.toast.desktopAlertsWithSoundDesc"),
       icon: BellRing,
       category: "notifications",
       status: settings?.browserPushEnabled ? "connected" : "available",
@@ -91,7 +91,7 @@ export default function IntegrationsPage() {
     {
       id: "telegram",
       name: "Telegram Bot",
-      description: "Receive chat notifications via Telegram even when browser is closed",
+      description: t("dashboard.integrations.toast.receiveChatNotificationsViaDesc"),
       icon: SiTelegram,
       category: "notifications",
       status: settings?.telegramEnabled ? "connected" : "available",
@@ -101,7 +101,7 @@ export default function IntegrationsPage() {
     {
       id: "slack",
       name: "Slack",
-      description: "Receive escalation notifications and manage conversations directly in Slack",
+      description: t("dashboard.integrations.toast.receiveEscalationNotificationsAndDesc"),
       icon: SiSlack,
       category: "messaging",
       status: "available",
@@ -110,7 +110,7 @@ export default function IntegrationsPage() {
     {
       id: "whatsapp",
       name: "WhatsApp Business",
-      description: "Connect your WhatsApp Business account to handle customer inquiries",
+      description: t("dashboard.integrations.toast.connectYourWhatsappBusinessDesc"),
       icon: SiWhatsapp,
       category: "messaging",
       status: "coming_soon",
@@ -119,7 +119,7 @@ export default function IntegrationsPage() {
     {
       id: "messenger",
       name: "Facebook Messenger",
-      description: "Manage Facebook Messenger conversations through Chatvice",
+      description: t("dashboard.integrations.toast.manageFacebookMessengerConversationsDesc"),
       icon: SiMessenger,
       category: "messaging",
       status: "coming_soon",
@@ -128,7 +128,7 @@ export default function IntegrationsPage() {
     {
       id: "instagram",
       name: "Instagram DM",
-      description: "Handle Instagram Direct Messages with AI-powered responses",
+      description: t("dashboard.integrations.toast.handleInstagramDirectMessagesDesc"),
       icon: SiInstagram,
       category: "messaging",
       status: "coming_soon",
@@ -136,7 +136,7 @@ export default function IntegrationsPage() {
     {
       id: "zendesk",
       name: "Zendesk",
-      description: "Sync tickets and conversations with your Zendesk helpdesk",
+      description: t("dashboard.integrations.toast.syncTicketsAndConversationsDesc"),
       icon: SiZendesk,
       category: "helpdesk",
       status: "available",
@@ -145,7 +145,7 @@ export default function IntegrationsPage() {
     {
       id: "salesforce",
       name: "Salesforce",
-      description: "Integrate with Salesforce CRM for unified customer data",
+      description: t("dashboard.integrations.toast.integrateWithSalesforceCrmDesc"),
       icon: SiSalesforce,
       category: "crm",
       status: "coming_soon",
@@ -153,7 +153,7 @@ export default function IntegrationsPage() {
     {
       id: "hubspot",
       name: "HubSpot",
-      description: "Connect HubSpot CRM to sync contacts and conversation history",
+      description: t("dashboard.integrations.toast.connectHubspotCrmToDesc"),
       icon: SiHubspot,
       category: "crm",
       status: "available",
@@ -161,7 +161,7 @@ export default function IntegrationsPage() {
     {
       id: "intercom",
       name: "Intercom",
-      description: "Migrate from Intercom or use alongside for enhanced support",
+      description: t("dashboard.integrations.toast.migrateFromIntercomOrDesc"),
       icon: SiIntercom,
       category: "helpdesk",
       status: "coming_soon",
@@ -169,7 +169,7 @@ export default function IntegrationsPage() {
     {
       id: "shopify",
       name: "Shopify",
-      description: "Access order data and provide shopping assistance to customers",
+      description: t("dashboard.integrations.toast.accessOrderDataAndDesc"),
       icon: SiShopify,
       category: "ecommerce",
       status: "available",
@@ -199,7 +199,7 @@ export default function IntegrationsPage() {
 
   async function handleTestTelegram() {
     if (!localBotToken || !localChatId) {
-      toast({ title: "Please enter Bot Token and Chat ID first", variant: "destructive" });
+      toast({ title: t("dashboard.integrations.botTokenRequired"), variant: "destructive" });
       return;
     }
     
@@ -212,25 +212,25 @@ export default function IntegrationsPage() {
     try {
       const res = await apiRequest("POST", "/api/notification-settings/test-telegram");
       if (res.ok) {
-        toast({ title: "Test notification sent! Check your Telegram." });
+        toast({ title: t("dashboard.integrations.testSent") });
       } else {
-        toast({ title: "Failed to send test notification", variant: "destructive" });
+        toast({ title: t("dashboard.integrations.testFailed"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Failed to send test notification", variant: "destructive" });
+      toast({ title: t("dashboard.integrations.testFailed"), variant: "destructive" });
     }
   }
 
   async function requestNotificationPermission() {
     if (!("Notification" in window)) {
-      toast({ title: "Browser doesn't support notifications", variant: "destructive" });
+      toast({ title: t("dashboard.integrations.browserNotSupported"), variant: "destructive" });
       return;
     }
 
     const permission = await Notification.requestPermission();
     if (permission === "granted") {
       updateMutation.mutate({ browserPushEnabled: true });
-      toast({ title: "Browser notifications enabled!" });
+      toast({ title: t("dashboard.integrations.browserEnabled") });
       
       // Send test notification
       new Notification("Chatvice Notifications Enabled", {
@@ -238,7 +238,7 @@ export default function IntegrationsPage() {
         icon: "/favicon.ico",
       });
     } else {
-      toast({ title: "Notification permission denied", variant: "destructive" });
+      toast({ title: t("dashboard.integrations.permissionDenied"), variant: "destructive" });
     }
   }
 
@@ -459,12 +459,12 @@ export default function IntegrationsPage() {
                   const res = await apiRequest("POST", "/api/merchant/telegram/setup-webhook");
                   const data = await res.json();
                   if (data.success) {
-                    toast({ title: "Telegram webhook set up for supervisor replies" });
+                    toast({ title: t("dashboard.integrations.telegramWebhookSet") });
                   } else {
-                    toast({ title: "Failed to set webhook", variant: "destructive" });
+                    toast({ title: t("dashboard.integrations.webhookFailed"), variant: "destructive" });
                   }
                 } catch {
-                  toast({ title: "Failed to set webhook", variant: "destructive" });
+                  toast({ title: t("dashboard.integrations.webhookFailed"), variant: "destructive" });
                 }
               }}
               data-testid="button-setup-telegram-webhook"

@@ -83,10 +83,10 @@ export default function ProactiveChatPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
-      toast({ title: "Settings saved", description: "Proactive Chat settings have been updated." });
+      toast({ title: t("dashboard.proactive-chat.toast.settingsSaved"), description: t("dashboard.proactive-chat.toast.proactiveChatSettingsHaveDesc") });
     },
     onError: () => {
-      toast({ title: "Save failed", description: "Could not save settings. Please try again.", variant: "destructive" });
+      toast({ title: t("dashboard.proactive-chat.toast.saveFailed"), description: t("dashboard.proactive-chat.toast.couldNotSaveSettingsDesc"), variant: "destructive" });
     },
   });
 
@@ -171,22 +171,22 @@ export default function ProactiveChatPage() {
         {[
           {
             icon: Eye,
-            title: "Visitor Tracking",
+            title: t("dashboard.proactive-chat.toast.visitorTracking"),
             desc: "Every visitor on your website is silently tracked in real time — always active, no opt-in needed.",
           },
           {
             icon: Bot,
-            title: "AI Greeting",
+            title: t("dashboard.proactive-chat.toast.aiGreeting"),
             desc: "After the configured delay, your AI agent sends a warm, context-aware greeting to the visitor.",
           },
           {
             icon: MessageCircle,
-            title: "Widget Auto-Open",
+            title: t("dashboard.proactive-chat.toast.widgetAutoopen"),
             desc: "The chat widget automatically opens when the AI greeting is sent, inviting visitors to respond.",
           },
           {
             icon: Users,
-            title: "Live Visitor Panel",
+            title: t("dashboard.proactive-chat.toast.liveVisitorPanel"),
             desc: "Supervisors see all active website visitors in real time and can initiate conversations proactively.",
           },
         ].map(({ icon: Icon, title, desc }) => (

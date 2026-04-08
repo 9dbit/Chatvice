@@ -68,10 +68,10 @@ export default function WelcomeBubblePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/welcome-bubble"] });
-      toast({ title: "Welcome bubble saved successfully" });
+      toast({ title: t("dashboard.welcomeBubble.saved") });
     },
     onError: () => {
-      toast({ title: "Failed to save welcome bubble", variant: "destructive" });
+      toast({ title: t("dashboard.welcomeBubble.saveFailed"), variant: "destructive" });
     },
   });
 
@@ -81,12 +81,12 @@ export default function WelcomeBubblePage() {
 
     const allowedTypes = ['image/png', 'image/gif', 'image/jpeg', 'image/jpg', 'image/webp', 'video/mp4'];
     if (!allowedTypes.includes(file.type)) {
-      toast({ title: "Please select a PNG, GIF, JPG, WebP image or MP4 video", variant: "destructive" });
+      toast({ title: t("dashboard.welcomeBubble.invalidFormat"), variant: "destructive" });
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      toast({ title: "File must be less than 5MB", variant: "destructive" });
+      toast({ title: t("dashboard.welcomeBubble.fileTooLarge"), variant: "destructive" });
       return;
     }
 
@@ -118,7 +118,7 @@ export default function WelcomeBubblePage() {
 
       const data = await response.json();
       setForm({ ...form, promoImageUrl: data.url, promoImageEnabled: true });
-      toast({ title: "Image uploaded successfully" });
+      toast({ title: t("dashboard.welcomeBubble.imageUploaded") });
     } catch (error: any) {
       clearInterval(progressInterval);
       toast({ title: error.message || "Failed to upload image", variant: "destructive" });
@@ -132,7 +132,7 @@ export default function WelcomeBubblePage() {
 
   const addActionButton = () => {
     if (form.actionButtons.length >= 5) {
-      toast({ title: "Maximum 5 action buttons reached", variant: "destructive" });
+      toast({ title: t("dashboard.welcomeBubble.maxButtons"), variant: "destructive" });
       return;
     }
     setForm({

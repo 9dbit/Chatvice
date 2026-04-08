@@ -63,8 +63,8 @@ export default function LeadsPage() {
       setIsEditDialogOpen(false);
       setSelectedLead(null);
       toast({
-        title: "Lead updated",
-        description: "Lead information has been updated successfully.",
+        title: t("dashboard.leads.toast.leadUpdated"),
+        description: t("dashboard.leads.toast.leadInformationHasBeenDesc"),
       });
     },
   });
@@ -77,8 +77,8 @@ export default function LeadsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/leads/stats"] });
       toast({
-        title: "Lead deleted",
-        description: "Lead has been removed.",
+        title: t("dashboard.leads.toast.leadDeleted"),
+        description: t("dashboard.leads.toast.leadHasBeenRemovedDesc"),
       });
     },
   });

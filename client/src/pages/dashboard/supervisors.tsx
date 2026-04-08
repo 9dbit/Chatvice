@@ -184,8 +184,8 @@ export default function SupervisorsPage() {
 
     if (file.size > 5 * 1024 * 1024) {
       toast({
-        title: "File too large",
-        description: "Please upload an image smaller than 5MB",
+        title: t("dashboard.supervisors.toast.fileTooLarge"),
+        description: t("dashboard.supervisors.toast.pleaseUploadAnImageDesc"),
         variant: "destructive",
       });
       return;
@@ -199,8 +199,8 @@ export default function SupervisorsPage() {
       setUploadingPhoto(false);
     } catch (error) {
       toast({
-        title: "Upload failed",
-        description: "Failed to process the image file",
+        title: t("dashboard.supervisors.toast.uploadFailed"),
+        description: t("dashboard.supervisors.toast.failedToProcessTheDesc"),
         variant: "destructive",
       });
       setUploadingPhoto(false);
@@ -231,7 +231,7 @@ export default function SupervisorsPage() {
       setPhotoUrl("");
       toast({
         title: t("dashboard.supervisors.supervisorAdded"),
-        description: "They can now log in to handle escalated chats.",
+        description: t("dashboard.supervisors.toast.theyCanNowLogDesc"),
       });
     },
     onError: (error: Error) => {
@@ -270,7 +270,7 @@ export default function SupervisorsPage() {
     onError: () => {
       toast({
         title: t("dashboard.supervisors.updateFailed"),
-        description: "Something went wrong. Please try again.",
+        description: t("dashboard.supervisors.toast.somethingWentWrongPleaseDesc"),
         variant: "destructive",
       });
     },
@@ -284,13 +284,13 @@ export default function SupervisorsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/supervisors", merchantId] });
       toast({
         title: t("dashboard.supervisors.supervisorRemoved"),
-        description: "They will no longer have access.",
+        description: t("dashboard.supervisors.toast.theyWillNoLongerDesc"),
       });
     },
     onError: () => {
       toast({
         title: t("dashboard.supervisors.removeFailed"),
-        description: "Something went wrong. Please try again.",
+        description: t("dashboard.supervisors.toast.somethingWentWrongPleaseDesc"),
         variant: "destructive",
       });
     },

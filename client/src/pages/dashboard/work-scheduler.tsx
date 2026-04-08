@@ -100,10 +100,10 @@ export default function WorkSchedulerPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/work-scheduler/timezone"] });
-      toast({ title: "Timezone updated successfully" });
+      toast({ title: t("dashboard.scheduler.timezoneUpdated") });
     },
     onError: () => {
-      toast({ title: "Failed to update timezone", variant: "destructive" });
+      toast({ title: t("dashboard.scheduler.timezoneUpdateFailed"), variant: "destructive" });
     },
   });
 
@@ -135,10 +135,10 @@ export default function WorkSchedulerPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/work-scheduler/shifts"] });
       setIsAddShiftOpen(false);
       resetShiftForm();
-      toast({ title: "Shift created successfully" });
+      toast({ title: t("dashboard.scheduler.shiftCreated") });
     },
     onError: () => {
-      toast({ title: "Failed to create shift", variant: "destructive" });
+      toast({ title: t("dashboard.scheduler.shiftCreateFailed"), variant: "destructive" });
     },
   });
 
@@ -150,7 +150,7 @@ export default function WorkSchedulerPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/work-scheduler/shifts"] });
       setEditingShift(null);
       resetShiftForm();
-      toast({ title: "Shift updated successfully" });
+      toast({ title: t("dashboard.scheduler.shiftUpdated") });
     },
   });
 
@@ -160,7 +160,7 @@ export default function WorkSchedulerPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/work-scheduler/shifts"] });
-      toast({ title: "Shift deleted successfully" });
+      toast({ title: t("dashboard.scheduler.shiftDeleted") });
     },
   });
 
@@ -171,7 +171,7 @@ export default function WorkSchedulerPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/work-scheduler/assignments"] });
       setIsAssignOpen(false);
-      toast({ title: "Assignment created successfully" });
+      toast({ title: t("dashboard.scheduler.assignmentCreated") });
     },
   });
 
@@ -181,7 +181,7 @@ export default function WorkSchedulerPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/work-scheduler/assignments"] });
-      toast({ title: "Assignment deleted" });
+      toast({ title: t("dashboard.scheduler.assignmentDeleted") });
     },
   });
 

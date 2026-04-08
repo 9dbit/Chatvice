@@ -83,14 +83,14 @@ export default function SourcesPage() {
       }
       setIsDialogOpen(false);
       toast({
-        title: "Source added",
-        description: "Your knowledge source has been added successfully.",
+        title: t("dashboard.sources.added"),
+        description: t("dashboard.sources.addedDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to add source",
-        description: "Please try again.",
+        title: t("dashboard.sources.addFailed"),
+        description: t("dashboard.sources.toast.pleaseTryAgainDesc"),
         variant: "destructive",
       });
     },
@@ -103,8 +103,8 @@ export default function SourcesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
       toast({
-        title: "Source updated",
-        description: "Your source has been updated.",
+        title: t("dashboard.sources.toast.sourceUpdated"),
+        description: t("dashboard.sources.toast.yourSourceHasBeenDesc"),
       });
     },
   });
@@ -116,8 +116,8 @@ export default function SourcesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
       toast({
-        title: "Source deleted",
-        description: "The source has been removed.",
+        title: t("dashboard.sources.toast.sourceDeleted"),
+        description: t("dashboard.sources.toast.theSourceHasBeenDesc"),
       });
     },
   });
@@ -145,10 +145,10 @@ export default function SourcesPage() {
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       setIsDialogOpen(false);
-      toast({ title: "Source added", description: "Document uploaded successfully." });
+      toast({ title: t("dashboard.sources.added"), description: "Document uploaded successfully." });
     },
     onError: (err: Error) => {
-      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+      toast({ title: t("dashboard.sources.toast.uploadFailed"), description: err.message, variant: "destructive" });
     },
   });
 
@@ -160,10 +160,10 @@ export default function SourcesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
       form.reset();
       setIsDialogOpen(false);
-      toast({ title: "Source added", description: "Google Doc imported successfully." });
+      toast({ title: t("dashboard.sources.added"), description: "Google Doc imported successfully." });
     },
     onError: () => {
-      toast({ title: "Import failed", description: "Could not import Google Doc. Make sure it's publicly accessible.", variant: "destructive" });
+      toast({ title: t("dashboard.sources.toast.importFailed"), description: t("dashboard.sources.toast.couldNotImportGoogleDesc"), variant: "destructive" });
     },
   });
 
@@ -175,10 +175,10 @@ export default function SourcesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
       form.reset();
       setIsDialogOpen(false);
-      toast({ title: "Source added", description: "Google Sheet imported successfully." });
+      toast({ title: t("dashboard.sources.added"), description: "Google Sheet imported successfully." });
     },
     onError: () => {
-      toast({ title: "Import failed", description: "Could not import Google Sheet. Make sure it's publicly accessible.", variant: "destructive" });
+      toast({ title: t("dashboard.sources.toast.importFailed"), description: t("dashboard.sources.toast.couldNotImportGoogleDesc"), variant: "destructive" });
     },
   });
 
@@ -190,10 +190,10 @@ export default function SourcesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
       setIsTemplateDialogOpen(false);
       setTemplateSheetUrl("");
-      toast({ title: "Transaction Record added", description: "Google Sheet template imported successfully. Auto-sync every 1 minute is active." });
+      toast({ title: t("dashboard.sources.toast.transactionRecordAdded"), description: t("dashboard.sources.toast.googleSheetTemplateImportedDesc") });
     },
     onError: () => {
-      toast({ title: "Import failed", description: "Could not import Google Sheet. Make sure you've copied the template and set sharing to 'Anyone with the link can view'.", variant: "destructive" });
+      toast({ title: t("dashboard.sources.toast.importFailed"), description: t("dashboard.sources.toast.couldNotImportGoogleDesc"), variant: "destructive" });
     },
   });
 
@@ -268,14 +268,14 @@ export default function SourcesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
       toast({
-        title: "Source updated",
-        description: "Source content has been refreshed.",
+        title: t("dashboard.sources.toast.sourceUpdated"),
+        description: t("dashboard.sources.toast.sourceContentHasBeenDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Update failed",
-        description: "Could not refresh source content.",
+        title: t("dashboard.sources.toast.updateFailed"),
+        description: t("dashboard.sources.toast.couldNotRefreshSourceDesc"),
         variant: "destructive",
       });
     },

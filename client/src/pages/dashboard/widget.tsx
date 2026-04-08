@@ -166,14 +166,14 @@ export default function WidgetPage() {
     onSuccess: () => {
       refetchSecret();
       toast({
-        title: "Secret key regenerated",
-        description: "Your new secret key has been generated. Make sure to update your server code.",
+        title: t("dashboard.widget.keyRegenerated"),
+        description: t("dashboard.widget.keyRegeneratedDesc2"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to regenerate",
-        description: "Please try again.",
+        title: t("dashboard.widget.regenFailed"),
+        description: t("common.tryAgain"),
         variant: "destructive",
       });
     },
@@ -213,8 +213,8 @@ export default function WidgetPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Domain added",
-        description: "Please validate the domain to confirm widget installation.",
+        title: t("dashboard.widget.domainAdded"),
+        description: t("dashboard.widget.domainValidateDesc"),
       });
       setNewDomain("");
       refetchDomains();
@@ -222,13 +222,13 @@ export default function WidgetPage() {
     onError: (error: any) => {
       if (error?.requiresUpgrade) {
         toast({
-          title: "Domain limit reached",
-          description: "Upgrade your plan to add more domains.",
+          title: t("dashboard.widget.domainLimitReached"),
+          description: t("dashboard.widget.domainLimitDesc"),
           variant: "destructive",
         });
       } else {
         toast({
-          title: "Failed to add domain",
+          title: t("dashboard.widget.domainAddFailed"),
           description: error?.message || "Please try again.",
           variant: "destructive",
         });
@@ -242,15 +242,15 @@ export default function WidgetPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Domain removed",
-        description: "The domain has been removed from your allowed list.",
+        title: t("dashboard.widget.domainRemoved"),
+        description: t("dashboard.widget.domainRemovedDesc"),
       });
       refetchDomains();
     },
     onError: () => {
       toast({
-        title: "Failed to remove domain",
-        description: "Please try again.",
+        title: t("dashboard.widget.domainRemoveFailed"),
+        description: t("common.tryAgain"),
         variant: "destructive",
       });
     },
@@ -273,8 +273,8 @@ export default function WidgetPage() {
     onError: () => {
       setValidatingDomainId(null);
       toast({
-        title: "Validation failed",
-        description: "Please try again.",
+        title: t("common.validationFailed"),
+        description: t("common.tryAgain"),
         variant: "destructive",
       });
     },
@@ -384,8 +384,8 @@ export default function WidgetPage() {
     
     if (file.size > 2 * 1024 * 1024) {
       toast({
-        title: "File too large",
-        description: "Please select an image under 2MB.",
+        title: t("common.fileTooLarge"),
+        description: t("dashboard.widget.imageTooLarge"),
         variant: "destructive",
       });
       return;
@@ -406,8 +406,8 @@ export default function WidgetPage() {
     
     if (file.size > 2 * 1024 * 1024) {
       toast({
-        title: "File too large",
-        description: "Please select an image under 2MB.",
+        title: t("common.fileTooLarge"),
+        description: t("dashboard.widget.imageTooLarge"),
         variant: "destructive",
       });
       return;
@@ -415,8 +415,8 @@ export default function WidgetPage() {
     
     if (!file.type.match(/^image\/(png|gif|jpeg|jpg|svg\+xml|webp)$/)) {
       toast({
-        title: "Invalid file type",
-        description: "Please upload a PNG, GIF, JPG, SVG, or WebP file.",
+        title: t("common.invalidFileType"),
+        description: t("dashboard.widget.invalidFileType"),
         variant: "destructive",
       });
       return;
@@ -456,9 +456,9 @@ export default function WidgetPage() {
       ctx.drawImage(img, 0, 0);
       const flippedUrl = canvas.toDataURL("image/webp", 0.9);
       setConfig({ ...config, iconUrl: flippedUrl });
-      toast({ title: "Image flipped", description: `Image flipped ${direction}ly and converted to WebP.` });
+      toast({ title: t("dashboard.widget.imageFlipped"), description: `Image flipped ${direction}ly and converted to WebP.` });
     } catch (error) {
-      toast({ title: "Failed to flip image", description: "Please try again.", variant: "destructive" });
+      toast({ title: "Failed to flip image", description: t("common.tryAgain"), variant: "destructive" });
     }
     setIsProcessingImage(false);
   };
@@ -485,11 +485,11 @@ export default function WidgetPage() {
       const newSize = webpUrl.length;
       const saved = Math.round((1 - newSize / originalSize) * 100);
       toast({ 
-        title: "Converted to WebP", 
+        title: t("dashboard.widget.convertedWebP"), 
         description: saved > 0 ? `Reduced file size by ~${saved}%` : "Image converted to WebP format."
       });
     } catch (error) {
-      toast({ title: "Failed to convert", description: "Please try again.", variant: "destructive" });
+      toast({ title: "Failed to convert", description: t("common.tryAgain"), variant: "destructive" });
     }
     setIsProcessingImage(false);
   };
@@ -521,8 +521,8 @@ export default function WidgetPage() {
     
     if (file.size > 1 * 1024 * 1024) {
       toast({
-        title: "File terlalu besar",
-        description: "Maksimum ukuran file adalah 1MB.",
+        title: t("common.fileTooLarge"),
+        description: t("dashboard.widget.maxSizeMBDesc"),
         variant: "destructive",
       });
       return;
@@ -530,8 +530,8 @@ export default function WidgetPage() {
     
     if (!file.type.match(/^image\/(png|jpeg|jpg|svg\+xml|webp|gif)$/)) {
       toast({
-        title: "Format file tidak valid",
-        description: "Gunakan file PNG, JPG, SVG, WebP, atau GIF.",
+        title: t("common.invalidFileType"),
+        description: t("dashboard.widget.invalidFileType"),
         variant: "destructive",
       });
       return;
@@ -558,7 +558,7 @@ export default function WidgetPage() {
     // Check limit before proceeding
     if (bgRemovalStatus && bgRemovalStatus.limit >= 0 && bgRemovalStatus.used >= bgRemovalStatus.limit) {
       toast({ 
-        title: "Limit reached", 
+        title: t("common.limitReached"), 
         description: `You've used all ${bgRemovalStatus.limit} background removals this month. Upgrade your plan for more.`,
         variant: "destructive" 
       });
@@ -575,7 +575,7 @@ export default function WidgetPage() {
       
       if (response.limitReached) {
         toast({ 
-          title: "Limit reached", 
+          title: t("common.limitReached"), 
           description: `You've used all ${response.limit} background removals this month.`,
           variant: "destructive" 
         });
@@ -590,13 +590,13 @@ export default function WidgetPage() {
           setBgRemovalStatus({ used: response.used, limit: response.limit });
         }
         refetchBgStatus();
-        toast({ title: "Background removed", description: "Image background has been removed." });
+        toast({ title: t("dashboard.widget.bgRemoved"), description: t("dashboard.widget.bgRemovedDesc") });
       } else {
-        throw new Error("No image returned");
+        throw new Error(t("dashboard.widget.noImageReturned"));
       }
     } catch (error: any) {
       toast({ 
-        title: "Failed to remove background", 
+        title: t("dashboard.widget.bgRemoveFailed"), 
         description: error?.message || "Please try again.", 
         variant: "destructive" 
       });
@@ -656,14 +656,14 @@ export default function WidgetPage() {
         queryClient.invalidateQueries({ queryKey: ["/api/agents", merchant.activeAgentId, "widget-settings"] });
       }
       toast({
-        title: "Widget settings saved",
-        description: "Your changes have been applied.",
+        title: t("dashboard.widget.settingsSaved"),
+        description: t("common.changesSaved"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to save",
-        description: "Something went wrong. Please try again.",
+        title: t("common.failedToSave"),
+        description: t("common.tryAgainDesc"),
         variant: "destructive",
       });
     },
@@ -678,13 +678,13 @@ export default function WidgetPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
       toast({
         title: t("dashboard.widget.agentSelected"),
-        description: "The widget will now use the selected agent's settings.",
+        description: t("dashboard.widget.agentSelectedDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to select agent",
-        description: "Please try again.",
+        title: t("dashboard.widget.agentSelectFailed"),
+        description: t("common.tryAgain"),
         variant: "destructive",
       });
     },
@@ -711,14 +711,14 @@ export default function WidgetPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
       toast({
-        title: "Social media settings saved",
-        description: "Your changes have been applied.",
+        title: t("dashboard.widget.socialSaved"),
+        description: t("common.changesSaved"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to save",
-        description: "Something went wrong. Please try again.",
+        title: t("common.failedToSave"),
+        description: t("common.tryAgainDesc"),
         variant: "destructive",
       });
     },
@@ -735,14 +735,14 @@ export default function WidgetPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
       toast({
-        title: "Pre-chat form saved",
-        description: "Your changes have been applied.",
+        title: t("dashboard.widget.prechatSaved"),
+        description: t("common.changesSaved"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to save",
-        description: "Something went wrong. Please try again.",
+        title: t("common.failedToSave"),
+        description: t("common.tryAgainDesc"),
         variant: "destructive",
       });
     },
@@ -890,7 +890,7 @@ async function handleLogin() {
     navigator.clipboard.writeText(text);
     setCopied(label);
     toast({
-      title: "Copied!",
+      title: t("common.copied"),
       description: `${label} copied to clipboard.`,
     });
     setTimeout(() => setCopied(null), 2000);
@@ -1826,14 +1826,14 @@ async function handleLogin() {
                         if (data.description) {
                           setPreChatConfig({ ...preChatConfig, welcomeDescription: data.description });
                           toast({
-                            title: "Description generated",
-                            description: "AI has created a welcome description for you.",
+                            title: t("dashboard.widget.descriptionGenerated"),
+                            description: t("dashboard.widget.descriptionGeneratedDesc"),
                           });
                         }
                       } catch (error) {
                         toast({
-                          title: "Generation failed",
-                          description: "Could not generate description. Please try again.",
+                          title: t("common.generationFailed"),
+                          description: t("dashboard.widget.generationFailedDesc"),
                           variant: "destructive"
                         });
                       } finally {
@@ -1882,12 +1882,12 @@ async function handleLogin() {
                     const file = e.target.files?.[0];
                     if (!file) return;
                     if (file.size > 5 * 1024 * 1024) {
-                      toast({ title: "File too large", description: "Maximum size is 5MB.", variant: "destructive" });
+                      toast({ title: t("common.fileTooLarge"), description: t("dashboard.widget.maxSizeDesc"), variant: "destructive" });
                       return;
                     }
                     const allowed = ["image/jpeg", "image/png", "image/gif", "image/webp", "video/mp4"];
                     if (!allowed.includes(file.type)) {
-                      toast({ title: "Invalid format", description: "Only JPG, PNG, GIF, WebP, MP4 are allowed.", variant: "destructive" });
+                      toast({ title: t("common.invalidFormat"), description: t("dashboard.widget.invalidFormatDesc"), variant: "destructive" });
                       return;
                     }
                     setUploadingBanner(true);
@@ -1896,12 +1896,12 @@ async function handleLogin() {
                       formData.append("file", file);
                       formData.append("type", "prechat_banner");
                       const res = await fetch("/api/upload", { method: "POST", body: formData, credentials: "include" });
-                      if (!res.ok) throw new Error("Upload failed");
+                      if (!res.ok) throw new Error(t("common.uploadFailed"));
                       const data = await res.json();
                       setPreChatConfig({ ...preChatConfig, prechatBannerUrl: data.url });
-                      toast({ title: "Banner uploaded", description: "Click Save to apply changes." });
+                      toast({ title: t("dashboard.widget.bannerUploaded"), description: t("dashboard.widget.clickSaveDesc") });
                     } catch {
-                      toast({ title: "Upload failed", description: "Please try again.", variant: "destructive" });
+                      toast({ title: t("common.uploadFailed"), description: t("common.tryAgain"), variant: "destructive" });
                     } finally {
                       setUploadingBanner(false);
                       if (bannerInputRef.current) bannerInputRef.current.value = "";

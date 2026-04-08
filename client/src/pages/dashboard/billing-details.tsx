@@ -219,16 +219,16 @@ export default function BillingDetailsPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Payment Cancelled",
-        description: "Your pending payment has been cancelled.",
+        title: t("dashboard.billing.paymentCancelled"),
+        description: t("dashboard.billing.paymentCancelledDesc"),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/billing/pending-payment-details"] });
       queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to cancel payment. Please try again.",
+        title: t("common.error"),
+        description: t("dashboard.billing.cancelFailed"),
         variant: "destructive",
       });
     },
@@ -241,8 +241,8 @@ export default function BillingDetailsPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Invoice Cancelled",
-        description: "Your custom plan invoice has been cancelled.",
+        title: t("dashboard.billing.invoiceCancelled"),
+        description: t("dashboard.billing.invoiceCancelledDesc"),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-invoices"] });
       setShowCancelInvoiceConfirm(false);
@@ -250,8 +250,8 @@ export default function BillingDetailsPage() {
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to cancel invoice. Please try again.",
+        title: t("common.error"),
+        description: t("dashboard.billing.invoiceCancelFailed"),
         variant: "destructive",
       });
     },
@@ -297,8 +297,8 @@ export default function BillingDetailsPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Payment Proof Submitted",
-        description: "Your payment proof is being reviewed by admin.",
+        title: t("dashboard.billing.proofSubmitted"),
+        description: t("dashboard.billing.proofSubmittedDesc"),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-invoices"] });
       setSelectedProofInvoice(null);
@@ -311,7 +311,7 @@ export default function BillingDetailsPage() {
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
+        title: t("common.error"),
         description: error.message || "Failed to submit payment proof.",
         variant: "destructive",
       });
@@ -343,14 +343,14 @@ export default function BillingDetailsPage() {
       setSelectedInvoiceForPayment(null);
       
       toast({
-        title: "Payment Method Selected",
-        description: "Please complete your payment using the selected method.",
+        title: t("dashboard.billing.paymentMethodSelected"),
+        description: t("dashboard.billing.paymentMethodSelectedDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to select payment method. Please try again.",
+        title: t("common.error"),
+        description: t("dashboard.billing.selectMethodFailed"),
         variant: "destructive",
       });
     },
@@ -428,8 +428,8 @@ export default function BillingDetailsPage() {
           await writable.write(blob);
           await writable.close();
           toast({
-            title: "Saved!",
-            description: "Order details saved to your device.",
+            title: t("common.saved"),
+            description: t("dashboard.billing.orderSaved"),
           });
           return;
         } catch (e) {
@@ -448,14 +448,14 @@ export default function BillingDetailsPage() {
       URL.revokeObjectURL(url);
       
       toast({
-        title: "Downloaded!",
-        description: "Order details image has been downloaded.",
+        title: t("dashboard.billing.downloaded"),
+        description: t("dashboard.billing.orderDownloaded"),
       });
     } catch (error) {
       console.error('Failed to save image:', error);
       toast({
-        title: "Error",
-        description: "Failed to save image. Please try again.",
+        title: t("common.error"),
+        description: t("dashboard.billing.imageSaveFailed"),
         variant: "destructive",
       });
     } finally {
@@ -479,14 +479,14 @@ export default function BillingDetailsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
       toast({
-        title: "Billing details updated",
-        description: "Your billing information has been saved.",
+        title: t("dashboard.billing.billingUpdated"),
+        description: t("dashboard.billing.billingUpdatedDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to update",
-        description: "Something went wrong. Please try again.",
+        title: t("dashboard.billing.updateFailed"),
+        description: t("common.tryAgainDesc"),
         variant: "destructive",
       });
     },
@@ -502,7 +502,7 @@ export default function BillingDetailsPage() {
       date: new Date().toISOString(),
       amount: 0,
       status: "paid",
-      description: "Trial Period",
+      description: t("dashboard.billing.trialPeriod"),
     },
   ];
 
@@ -559,7 +559,7 @@ export default function BillingDetailsPage() {
                   className="h-6 w-6"
                   onClick={() => {
                     navigator.clipboard.writeText(pendingPaymentDetails.orderId || '');
-                    toast({ title: "Copied!", description: "Order ID copied to clipboard" });
+                    toast({ title: t("common.copied"), description: t("dashboard.billing.orderIdCopied") });
                   }}
                   data-testid="button-copy-order-id"
                 >
@@ -605,7 +605,7 @@ export default function BillingDetailsPage() {
                     className="h-8 w-8"
                     onClick={() => {
                       navigator.clipboard.writeText(pendingPaymentDetails.vaNumber || '');
-                      toast({ title: "Copied!", description: "VA number copied to clipboard" });
+                      toast({ title: t("common.copied"), description: t("dashboard.billing.vaNumberCopied") });
                     }}
                     data-testid="button-copy-va-number"
                   >
@@ -630,7 +630,7 @@ export default function BillingDetailsPage() {
                       className="h-6 w-6"
                       onClick={() => {
                         navigator.clipboard.writeText(pendingPaymentDetails.accountNumber || '');
-                        toast({ title: "Copied!", description: "Account number copied to clipboard" });
+                        toast({ title: t("common.copied"), description: t("dashboard.billing.accountCopied") });
                       }}
                     >
                       <Copy className="w-3 h-3" />
@@ -1265,7 +1265,7 @@ export default function BillingDetailsPage() {
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(pendingPaymentDetails?.orderId || '');
-                        toast({ title: "Copied!", description: "Order ID copied" });
+                        toast({ title: t("common.copied"), description: t("dashboard.billing.orderIdCopied") });
                       }}
                       className="text-gray-400 hover:text-gray-600"
                       data-testid="button-copy-order-id-dialog"
@@ -1483,7 +1483,7 @@ export default function BillingDetailsPage() {
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(BANK_TRANSFER_INFO.accountNumber);
-                            toast({ title: "Copied!", description: "Account number copied" });
+                            toast({ title: t("common.copied"), description: t("dashboard.billing.accountCopied") });
                           }}
                           className="text-purple-600 hover:text-purple-800"
                           data-testid="button-copy-bank-account"
@@ -1518,7 +1518,7 @@ export default function BillingDetailsPage() {
                           <button
                             onClick={() => {
                               navigator.clipboard.writeText(info.address);
-                              toast({ title: "Copied!", description: `${coin.toUpperCase()} address copied` });
+                              toast({ title: t("common.copied"), description: `${coin.toUpperCase()} address copied` });
                             }}
                             className="text-purple-600 hover:text-purple-800 flex-shrink-0"
                             data-testid={`button-copy-${coin}-address`}

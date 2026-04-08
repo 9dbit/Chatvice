@@ -35,14 +35,14 @@ export default function TriggersPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/triggers", merchantId] });
       setNewTrigger("");
       toast({
-        title: "Trigger added",
-        description: "This keyword will now escalate chats to supervisors.",
+        title: t("dashboard.triggers.added"),
+        description: t("dashboard.triggers.addedDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to add trigger",
-        description: "Something went wrong. Please try again.",
+        title: t("dashboard.triggers.addFailed"),
+        description: t("common.tryAgainDesc"),
         variant: "destructive",
       });
     },
@@ -55,14 +55,14 @@ export default function TriggersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/triggers", merchantId] });
       toast({
-        title: "Trigger removed",
-        description: "This keyword will no longer escalate chats.",
+        title: t("dashboard.triggers.removed"),
+        description: t("dashboard.triggers.removedDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to remove trigger",
-        description: "Something went wrong. Please try again.",
+        title: t("dashboard.triggers.removeFailed"),
+        description: t("common.tryAgainDesc"),
         variant: "destructive",
       });
     },

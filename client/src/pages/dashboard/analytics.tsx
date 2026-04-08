@@ -152,7 +152,7 @@ export default function AnalyticsPage() {
     queryKey: ["/api/analytics/performance", performancePeriod],
     queryFn: async () => {
       const res = await fetch(`/api/analytics/performance?period=${performancePeriod}`);
-      if (!res.ok) throw new Error("Failed to fetch performance analytics");
+      if (!res.ok) throw new Error(t("dashboard.analytics.fetchFailed"));
       return res.json();
     },
     refetchInterval: 30000,
@@ -192,7 +192,7 @@ export default function AnalyticsPage() {
       trend: "up",
     },
     {
-      title: "Avg Response Time (AI)",
+      title: t("dashboard.analytics.toast.avgResponseTimeAi"),
       value: analytics?.avgResponseTimeAI || "1.2s",
       icon: Clock,
       change: "-0.3s",

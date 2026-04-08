@@ -26,26 +26,26 @@ const PHONE_VALIDATION_RULES: Record<string, {
   example: string;
   description: string;
 }> = {
-  "+62": { pattern: /^8[0-9]{8,12}$/, minLength: 9, maxLength: 13, example: "812345678901", description: "Nomor Indonesia harus dimulai dengan 8 (9-13 digit)" },
-  "+1": { pattern: /^[2-9][0-9]{9}$/, minLength: 10, maxLength: 10, example: "2025551234", description: "US/Canada harus 10 digit, dimulai dengan 2-9" },
-  "+60": { pattern: /^[1-9][0-9]{7,9}$/, minLength: 8, maxLength: 10, example: "123456789", description: "Malaysia harus 8-10 digit" },
-  "+65": { pattern: /^[689][0-9]{7}$/, minLength: 8, maxLength: 8, example: "91234567", description: "Singapore harus 8 digit, dimulai dengan 6, 8, atau 9" },
-  "+66": { pattern: /^[0-9]{9}$/, minLength: 9, maxLength: 9, example: "812345678", description: "Thailand harus 9 digit" },
-  "+84": { pattern: /^[0-9]{9,10}$/, minLength: 9, maxLength: 10, example: "912345678", description: "Vietnam harus 9-10 digit" },
-  "+63": { pattern: /^9[0-9]{9}$/, minLength: 10, maxLength: 10, example: "9123456789", description: "Filipina harus 10 digit, dimulai dengan 9" },
-  "+91": { pattern: /^[6-9][0-9]{9}$/, minLength: 10, maxLength: 10, example: "9123456789", description: "India harus 10 digit, dimulai dengan 6-9" },
-  "+86": { pattern: /^1[3-9][0-9]{9}$/, minLength: 11, maxLength: 11, example: "13912345678", description: "China harus 11 digit, dimulai dengan 1" },
-  "+81": { pattern: /^[0-9]{10,11}$/, minLength: 10, maxLength: 11, example: "9012345678", description: "Jepang harus 10-11 digit" },
-  "+82": { pattern: /^1[0-9]{8,9}$/, minLength: 9, maxLength: 10, example: "1012345678", description: "Korea Selatan harus 9-10 digit, dimulai dengan 1" },
-  "+61": { pattern: /^4[0-9]{8}$/, minLength: 9, maxLength: 9, example: "412345678", description: "Australia harus 9 digit, dimulai dengan 4" },
-  "+44": { pattern: /^7[0-9]{9}$/, minLength: 10, maxLength: 10, example: "7123456789", description: "UK harus 10 digit, dimulai dengan 7" },
-  "+49": { pattern: /^1[5-7][0-9]{8,9}$/, minLength: 10, maxLength: 11, example: "15123456789", description: "Jerman harus 10-11 digit, dimulai dengan 15, 16, atau 17" },
-  "+33": { pattern: /^[67][0-9]{8}$/, minLength: 9, maxLength: 9, example: "612345678", description: "Prancis harus 9 digit, dimulai dengan 6 atau 7" },
-  "+31": { pattern: /^6[0-9]{8}$/, minLength: 9, maxLength: 9, example: "612345678", description: "Belanda harus 9 digit, dimulai dengan 6" },
-  "+971": { pattern: /^5[0-9]{8}$/, minLength: 9, maxLength: 9, example: "501234567", description: "UAE harus 9 digit, dimulai dengan 5" },
-  "+966": { pattern: /^5[0-9]{8}$/, minLength: 9, maxLength: 9, example: "512345678", description: "Saudi Arabia harus 9 digit, dimulai dengan 5" },
-  "+55": { pattern: /^[1-9][0-9]{9,10}$/, minLength: 10, maxLength: 11, example: "11912345678", description: "Brasil harus 10-11 digit" },
-  "+52": { pattern: /^[1-9][0-9]{9}$/, minLength: 10, maxLength: 10, example: "5512345678", description: "Meksiko harus 10 digit" },
+  "+62": { pattern: /^8[0-9]{8,12}$/, minLength: 9, maxLength: 13, example: "812345678901", description: t("dashboard.profile.toast.nomorIndonesiaHarusDimulaiDesc") },
+  "+1": { pattern: /^[2-9][0-9]{9}$/, minLength: 10, maxLength: 10, example: "2025551234", description: t("dashboard.profile.toast.uscanadaHarus10DigitDesc") },
+  "+60": { pattern: /^[1-9][0-9]{7,9}$/, minLength: 8, maxLength: 10, example: "123456789", description: t("dashboard.profile.toast.malaysiaHarus810DigitDesc") },
+  "+65": { pattern: /^[689][0-9]{7}$/, minLength: 8, maxLength: 8, example: "91234567", description: t("dashboard.profile.toast.singaporeHarus8DigitDesc") },
+  "+66": { pattern: /^[0-9]{9}$/, minLength: 9, maxLength: 9, example: "812345678", description: t("dashboard.profile.toast.thailandHarus9DigitDesc") },
+  "+84": { pattern: /^[0-9]{9,10}$/, minLength: 9, maxLength: 10, example: "912345678", description: t("dashboard.profile.toast.vietnamHarus910DigitDesc") },
+  "+63": { pattern: /^9[0-9]{9}$/, minLength: 10, maxLength: 10, example: "9123456789", description: t("dashboard.profile.toast.filipinaHarus10DigitDesc") },
+  "+91": { pattern: /^[6-9][0-9]{9}$/, minLength: 10, maxLength: 10, example: "9123456789", description: t("dashboard.profile.toast.indiaHarus10DigitDesc") },
+  "+86": { pattern: /^1[3-9][0-9]{9}$/, minLength: 11, maxLength: 11, example: "13912345678", description: t("dashboard.profile.toast.chinaHarus11DigitDesc") },
+  "+81": { pattern: /^[0-9]{10,11}$/, minLength: 10, maxLength: 11, example: "9012345678", description: t("dashboard.profile.toast.jepangHarus1011DigitDesc") },
+  "+82": { pattern: /^1[0-9]{8,9}$/, minLength: 9, maxLength: 10, example: "1012345678", description: t("dashboard.profile.toast.koreaSelatanHarus910Desc") },
+  "+61": { pattern: /^4[0-9]{8}$/, minLength: 9, maxLength: 9, example: "412345678", description: t("dashboard.profile.toast.australiaHarus9DigitDesc") },
+  "+44": { pattern: /^7[0-9]{9}$/, minLength: 10, maxLength: 10, example: "7123456789", description: t("dashboard.profile.toast.ukHarus10DigitDesc") },
+  "+49": { pattern: /^1[5-7][0-9]{8,9}$/, minLength: 10, maxLength: 11, example: "15123456789", description: t("dashboard.profile.toast.jermanHarus1011DigitDesc") },
+  "+33": { pattern: /^[67][0-9]{8}$/, minLength: 9, maxLength: 9, example: "612345678", description: t("dashboard.profile.toast.prancisHarus9DigitDesc") },
+  "+31": { pattern: /^6[0-9]{8}$/, minLength: 9, maxLength: 9, example: "612345678", description: t("dashboard.profile.toast.belandaHarus9DigitDesc") },
+  "+971": { pattern: /^5[0-9]{8}$/, minLength: 9, maxLength: 9, example: "501234567", description: t("dashboard.profile.toast.uaeHarus9DigitDesc") },
+  "+966": { pattern: /^5[0-9]{8}$/, minLength: 9, maxLength: 9, example: "512345678", description: t("dashboard.profile.toast.saudiArabiaHarus9Desc") },
+  "+55": { pattern: /^[1-9][0-9]{9,10}$/, minLength: 10, maxLength: 11, example: "11912345678", description: t("dashboard.profile.toast.brasilHarus1011DigitDesc") },
+  "+52": { pattern: /^[1-9][0-9]{9}$/, minLength: 10, maxLength: 10, example: "5512345678", description: t("dashboard.profile.toast.meksikoHarus10DigitDesc") },
 };
 
 function validatePhoneByCountry(phone: string, countryCode: string): { valid: boolean; message: string } {
@@ -125,11 +125,11 @@ export default function ProfilePage() {
     onSuccess: (_data, provider) => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/auth-methods"] });
       queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
-      toast({ title: `${provider.charAt(0).toUpperCase() + provider.slice(1)} disconnected`, description: "Login method has been removed from your account." });
+      toast({ title: `${provider.charAt(0).toUpperCase() + provider.slice(1)} disconnected`, description: t("dashboard.profile.loginMethodRemoved") });
       setUnlinkConfirm(null);
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to unlink method", variant: "destructive" });
+      toast({ title: t("common.error"), description: error.message || "Failed to unlink method", variant: "destructive" });
       setUnlinkConfirm(null);
     },
   });
@@ -146,7 +146,7 @@ export default function ProfilePage() {
     const error = params.get("error");
     if (error) {
       const message = params.get("message") || "An error occurred";
-      toast({ title: "Linking Failed", description: message, variant: "destructive" });
+      toast({ title: t("dashboard.profile.linkingFailed"), description: message, variant: "destructive" });
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
@@ -178,14 +178,14 @@ export default function ProfilePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
       setIsEditing(false);
       toast({
-        title: "Profile updated",
-        description: "Your business profile has been saved.",
+        title: t("dashboard.profile.updated"),
+        description: t("dashboard.profile.savedDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to save",
-        description: "Something went wrong. Please try again.",
+        title: t("common.failedToSave"),
+        description: t("common.tryAgainDesc"),
         variant: "destructive",
       });
     },
@@ -202,7 +202,7 @@ export default function ProfilePage() {
     onSuccess: () => {
       setEmailChangeState("otp");
       toast({
-        title: "Verification code sent",
+        title: t("dashboard.profile.codeSent"),
         description: `A 6-digit code has been sent to ${newEmail}`,
       });
     },
@@ -212,7 +212,7 @@ export default function ProfilePage() {
         if (error?.message) msg = error.message;
       } catch {}
       toast({
-        title: "Failed to send code",
+        title: t("dashboard.profile.codeFailed"),
         description: msg,
         variant: "destructive",
       });
@@ -233,8 +233,8 @@ export default function ProfilePage() {
       setEmailPassword("");
       setEmailOtp("");
       toast({
-        title: "Email changed",
-        description: "Your account email has been updated successfully.",
+        title: t("dashboard.profile.emailChanged"),
+        description: t("dashboard.profile.emailChangedDesc"),
       });
     },
     onError: async (error: any) => {
@@ -243,7 +243,7 @@ export default function ProfilePage() {
         if (error?.message) msg = error.message;
       } catch {}
       toast({
-        title: "Verification failed",
+        title: t("dashboard.profile.verifyFailed"),
         description: msg,
         variant: "destructive",
       });
@@ -265,8 +265,8 @@ export default function ProfilePage() {
       setConfirmPassword("");
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/auth-methods"] });
       toast({
-        title: "Password changed",
-        description: "Your password has been updated successfully.",
+        title: t("dashboard.profile.passwordChanged"),
+        description: t("dashboard.profile.passwordChangedDesc"),
       });
     },
     onError: async (error: any) => {
@@ -275,7 +275,7 @@ export default function ProfilePage() {
         if (error?.message) msg = error.message;
       } catch {}
       toast({
-        title: "Failed to change password",
+        title: t("dashboard.profile.passwordFailed"),
         description: msg,
         variant: "destructive",
       });
@@ -287,7 +287,7 @@ export default function ProfilePage() {
       const phoneValidation = validatePhoneByCountry(formData.phone, formData.phoneCountryCode);
       if (!phoneValidation.valid) {
         toast({
-          title: "Format Nomor Telepon Tidak Valid",
+          title: t("dashboard.profile.invalidPhone"),
           description: phoneValidation.message,
           variant: "destructive",
         });
@@ -316,15 +316,15 @@ export default function ProfilePage() {
 
   const handlePasswordSubmit = () => {
     if (!isOAuthAccount && !currentPassword) {
-      toast({ title: "Required", description: "Enter your current password.", variant: "destructive" });
+      toast({ title: t("common.required"), description: t("dashboard.profile.enterCurrentPassword"), variant: "destructive" });
       return;
     }
     if (newPassword.length < 6) {
-      toast({ title: "Too short", description: "New password must be at least 6 characters.", variant: "destructive" });
+      toast({ title: t("dashboard.profile.tooShort"), description: t("dashboard.profile.passwordTooShort"), variant: "destructive" });
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast({ title: "Mismatch", description: "New password and confirmation don't match.", variant: "destructive" });
+      toast({ title: t("dashboard.profile.mismatch"), description: t("dashboard.profile.passwordMismatch"), variant: "destructive" });
       return;
     }
     changePasswordMutation.mutate();

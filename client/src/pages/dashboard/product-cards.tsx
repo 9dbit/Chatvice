@@ -119,10 +119,10 @@ export default function ProductCardsPage() {
       setIsAddSourceOpen(false);
       setCrawlerUrl("");
       setCrawlerName("");
-      toast({ title: "Product source added successfully" });
+      toast({ title: t("dashboard.productCards.sourceAdded") });
     },
     onError: () => {
-      toast({ title: "Failed to add source", variant: "destructive" });
+      toast({ title: t("dashboard.productCards.addFailed"), variant: "destructive" });
     },
   });
 
@@ -133,7 +133,7 @@ export default function ProductCardsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/product-crawl-sources"] });
       queryClient.invalidateQueries({ queryKey: ["/api/crawled-products"] });
-      toast({ title: "Source deleted successfully" });
+      toast({ title: t("dashboard.productCards.sourceDeleted") });
     },
   });
 
@@ -149,7 +149,7 @@ export default function ProductCardsPage() {
       toast({ title: `Found ${data.productsFound} products. Please review and approve.` });
     },
     onError: () => {
-      toast({ title: "Failed to crawl URL", variant: "destructive" });
+      toast({ title: t("dashboard.product-cards.toast.failedToCrawlUrl"), variant: "destructive" });
     },
   });
 
@@ -159,7 +159,7 @@ export default function ProductCardsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/crawled-products"] });
-      toast({ title: "Product approved" });
+      toast({ title: t("dashboard.product-cards.toast.productApproved") });
     },
   });
 
@@ -169,7 +169,7 @@ export default function ProductCardsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/crawled-products"] });
-      toast({ title: "Product rejected" });
+      toast({ title: t("dashboard.product-cards.toast.productRejected") });
     },
   });
 
@@ -193,7 +193,7 @@ export default function ProductCardsPage() {
       toast({ title: data.message });
     },
     onError: () => {
-      toast({ title: "Failed to sync products to AI", variant: "destructive" });
+      toast({ title: t("dashboard.product-cards.toast.failedToSyncProducts"), variant: "destructive" });
     },
   });
 
@@ -204,10 +204,10 @@ export default function ProductCardsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/crawled-products"] });
       setEditingCrawledProduct(null);
-      toast({ title: "Product updated successfully" });
+      toast({ title: t("dashboard.product-cards.toast.productUpdatedSuccessfully") });
     },
     onError: () => {
-      toast({ title: "Failed to update product", variant: "destructive" });
+      toast({ title: t("dashboard.product-cards.toast.failedToUpdateProduct"), variant: "destructive" });
     },
   });
 
@@ -240,10 +240,10 @@ export default function ProductCardsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/product-recommendation-settings"] });
-      toast({ title: "Settings saved successfully" });
+      toast({ title: t("dashboard.product-cards.toast.settingsSavedSuccessfully") });
     },
     onError: () => {
-      toast({ title: "Failed to save settings", variant: "destructive" });
+      toast({ title: t("dashboard.product-cards.toast.failedToSaveSettings"), variant: "destructive" });
     },
   });
 
@@ -255,10 +255,10 @@ export default function ProductCardsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/product-cards"] });
       setIsDialogOpen(false);
       resetForm();
-      toast({ title: "Product card created successfully" });
+      toast({ title: t("dashboard.product-cards.toast.productCardCreatedSuccessfully") });
     },
     onError: () => {
-      toast({ title: "Failed to create product card", variant: "destructive" });
+      toast({ title: t("dashboard.product-cards.toast.failedToCreateProduct"), variant: "destructive" });
     },
   });
 
@@ -271,7 +271,7 @@ export default function ProductCardsPage() {
       setIsDialogOpen(false);
       setEditingCard(null);
       resetForm();
-      toast({ title: "Product card updated successfully" });
+      toast({ title: t("dashboard.product-cards.toast.productCardUpdatedSuccessfully") });
     },
   });
 
@@ -281,13 +281,13 @@ export default function ProductCardsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/product-cards"] });
-      toast({ title: "Product card deleted successfully" });
+      toast({ title: t("dashboard.product-cards.toast.productCardDeletedSuccessfully") });
     },
   });
 
   async function handleCrawlUrl() {
     if (!form.sourceUrl) {
-      toast({ title: "Please enter URL first", variant: "destructive" });
+      toast({ title: t("dashboard.product-cards.toast.pleaseEnterUrlFirst"), variant: "destructive" });
       return;
     }
 
@@ -315,17 +315,17 @@ export default function ProductCardsPage() {
         toast({ title: `Data fetched successfully: ${foundItems.join(", ")}` });
       } else if (data.error === "spa_website") {
         toast({ 
-          title: "Website SPA Detected", 
+          title: t("dashboard.product-cards.toast.websiteSpaDetected"), 
           description: data.message || "Website uses JavaScript. Please fill in the data manually.",
           variant: "destructive" 
         });
       } else if (data.message) {
         toast({ title: data.message, variant: "destructive" });
       } else {
-        toast({ title: "URL fetched but no product data found. Please fill in manually.", variant: "destructive" });
+        toast({ title: t("dashboard.product-cards.toast.urlFetchedButNo"), variant: "destructive" });
       }
     } catch {
-      toast({ title: "Failed to fetch data from URL", variant: "destructive" });
+      toast({ title: t("dashboard.product-cards.toast.failedToFetchData"), variant: "destructive" });
     } finally {
       setIsCrawling(false);
     }
@@ -337,12 +337,12 @@ export default function ProductCardsPage() {
 
     const allowedTypes = ['image/png', 'image/gif', 'image/jpeg', 'image/jpg', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      toast({ title: "Please select a PNG, GIF, JPG, or WebP image", variant: "destructive" });
+      toast({ title: t("dashboard.product-cards.toast.pleaseSelectAPng"), variant: "destructive" });
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      toast({ title: "Image must be less than 5MB", variant: "destructive" });
+      toast({ title: t("dashboard.product-cards.toast.imageMustBeLess"), variant: "destructive" });
       return;
     }
 
@@ -374,7 +374,7 @@ export default function ProductCardsPage() {
 
       const data = await response.json();
       setForm({ ...form, imageUrl: data.url });
-      toast({ title: "Image uploaded successfully" });
+      toast({ title: t("dashboard.product-cards.toast.imageUploadedSuccessfully") });
     } catch (error: any) {
       clearInterval(progressInterval);
       toast({ title: error.message || "Failed to upload image", variant: "destructive" });

@@ -66,12 +66,12 @@ const agentSchema = z.object({
 const AGENT_TYPES = {
   support: {
     label: "Support Agent",
-    description: "Customer service and help desk",
+    description: t("dashboard.agents.supportDesc"),
     icon: MessageSquare,
   },
   sales: {
     label: "Sales Agent",
-    description: "Product sales and lead generation",
+    description: t("dashboard.agents.salesDesc"),
     icon: Zap,
   },
 };
@@ -768,7 +768,7 @@ export default function AgentsPage() {
                           return (
                             <FormItem>
                               <div className="flex items-center justify-between">
-                                <FormLabel className="text-xs">Quick Reply Suggestions (max 3)</FormLabel>
+                                <FormLabel className="text-xs">{t("dashboard.agents.quickReplySuggestions")}</FormLabel>
                                 {canAddMore && (
                                   <Button
                                     type="button"
@@ -903,7 +903,7 @@ export default function AgentsPage() {
                 <Crown className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
               </div>
               <div className="text-center sm:text-left">
-                <h3 className="font-semibold text-sm sm:text-base">Upgrade to add more agents</h3>
+                <h3 className="font-semibold text-sm sm:text-base">{t("dashboard.agents.upgradeToAddMore")}</h3>
                 <p className="text-xs sm:text-sm text-muted-foreground">
                   Plan limit reached ({agentLimit}). Upgrade for more.
                 </p>
@@ -1074,7 +1074,7 @@ export default function AgentsPage() {
         currentLimit={agentLimit}
         onContinueManual={() => {
           toast({
-            title: "Manual Mode",
+            title: t("dashboard.agents.manualMode"),
             description: t("dashboard.agents.noAgentDesc"),
           });
         }}

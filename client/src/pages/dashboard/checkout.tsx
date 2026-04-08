@@ -631,13 +631,13 @@ export default function CheckoutPage() {
           window.open(data.redirectUrl || data.paymentUrl, '_blank');
         }
       } else if (data.paymentMethod === 'credit_card') {
-        toast({ title: "PayPal integration", description: "Credit card payment via PayPal coming soon" });
+        toast({ title: t("dashboard.checkout.toast.paypalIntegration"), description: t("dashboard.checkout.toast.creditCardPaymentViaDesc") });
       }
     },
     onError: (error: Error) => {
       setPaymentStep('select_method');
       toast({
-        title: "Error",
+        title: t("dashboard.checkout.toast.error"),
         description: error.message || "Failed to create payment. Please try again.",
         variant: "destructive",
       });
@@ -706,7 +706,7 @@ export default function CheckoutPage() {
     if (!termsAccepted) return;
 
     if ((selectedPaymentMethod === 'virtual_account' || selectedPaymentMethod === 'bank_transfer') && !selectedBank) {
-      toast({ title: "Error", description: "Please select a bank", variant: "destructive" });
+      toast({ title: t("dashboard.checkout.toast.error"), description: t("dashboard.checkout.toast.pleaseSelectABankDesc"), variant: "destructive" });
       return;
     }
 
@@ -776,7 +776,7 @@ export default function CheckoutPage() {
         // Invalidate billing status to refresh pending payment info
         await queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
         setShowPendingPaymentWarning(false);
-        toast({ title: "Previous order cancelled", description: "Proceeding with new order" });
+        toast({ title: t("dashboard.checkout.toast.previousOrderCancelled"), description: t("dashboard.checkout.toast.proceedingWithNewOrderDesc") });
         
         // Now proceed with the actual payment
         if (selectedPaymentMethod === 'crypto') {
@@ -802,10 +802,10 @@ export default function CheckoutPage() {
           }
         }
       } else {
-        toast({ title: "Error", description: "Failed to cancel previous order", variant: "destructive" });
+        toast({ title: t("dashboard.checkout.toast.error"), description: t("dashboard.checkout.toast.failedToCancelPreviousDesc"), variant: "destructive" });
       }
     } catch (err) {
-      toast({ title: "Error", description: "Failed to cancel previous order", variant: "destructive" });
+      toast({ title: t("dashboard.checkout.toast.error"), description: t("dashboard.checkout.toast.failedToCancelPreviousDesc"), variant: "destructive" });
     } finally {
       setCancellingPending(false);
     }
@@ -829,7 +829,7 @@ export default function CheckoutPage() {
         credentials: 'include',
       });
       if (response.ok) {
-        toast({ title: "Transaction canceled", description: "You can now start a new checkout" });
+        toast({ title: t("dashboard.checkout.toast.transactionCanceled"), description: t("dashboard.checkout.toast.youCanNowStartDesc") });
         setPaymentStep('select_method');
         setQrisData(null);
         setVaData(null);
@@ -840,10 +840,10 @@ export default function CheckoutPage() {
         if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
         queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
       } else {
-        toast({ title: "Error", description: "Failed to cancel transaction", variant: "destructive" });
+        toast({ title: t("dashboard.checkout.toast.error"), description: t("dashboard.checkout.toast.failedToCancelTransactionDesc"), variant: "destructive" });
       }
     } catch (err) {
-      toast({ title: "Error", description: "Failed to cancel transaction", variant: "destructive" });
+      toast({ title: t("dashboard.checkout.toast.error"), description: t("dashboard.checkout.toast.failedToCancelTransactionDesc"), variant: "destructive" });
     }
   };
 
@@ -1100,23 +1100,23 @@ export default function CheckoutPage() {
             URL.revokeObjectURL(url);
             
             toast({
-              title: "Invoice Saved!",
-              description: "Invoice has been saved to your device",
+              title: t("dashboard.checkout.toast.invoiceSaved"),
+              description: t("dashboard.checkout.toast.invoiceHasBeenSavedDesc"),
             });
           }
         }, 'image/jpeg', 0.95);
       } else {
         toast({
-          title: "Error",
-          description: "No QRIS data available to save",
+          title: t("dashboard.checkout.toast.error"),
+          description: t("dashboard.checkout.toast.noQrisDataAvailableDesc"),
           variant: "destructive",
         });
       }
     } catch (err) {
       console.error("Failed to save QRIS:", err);
       toast({
-        title: "Error",
-        description: "Failed to save invoice",
+        title: t("dashboard.checkout.toast.error"),
+        description: t("dashboard.checkout.toast.failedToSaveInvoiceDesc"),
         variant: "destructive",
       });
     }
@@ -1124,7 +1124,7 @@ export default function CheckoutPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: "Copied!", description: "Copied to clipboard" });
+    toast({ title: t("dashboard.checkout.toast.copied"), description: t("dashboard.checkout.toast.copiedToClipboardDesc") });
   };
 
   const handleDemoPayment = async () => {
@@ -1140,8 +1140,8 @@ export default function CheckoutPage() {
       const data = await response.json();
       if (response.ok && data.success) {
         toast({ 
-          title: "Payment Successful!", 
-          description: "Your subscription has been activated." 
+          title: t("dashboard.checkout.toast.paymentSuccessful"), 
+          description: t("dashboard.checkout.toast.yourSubscriptionHasBeenDesc") 
         });
         // Clear cache and redirect to billing
         queryClient.invalidateQueries({ queryKey: ['/api/merchant/current'] });
@@ -1151,13 +1151,13 @@ export default function CheckoutPage() {
         }, 1500);
       } else {
         toast({ 
-          title: "Demo payment triggered", 
+          title: t("dashboard.checkout.toast.demoPaymentTriggered"), 
           description: data.message || "Processing..." 
         });
       }
     } catch (err) {
       console.error("Demo payment error:", err);
-      toast({ title: "Error", description: "Failed to process demo payment", variant: "destructive" });
+      toast({ title: t("dashboard.checkout.toast.error"), description: t("dashboard.checkout.toast.failedToProcessDemoDesc"), variant: "destructive" });
     }
   };
 
@@ -1605,7 +1605,7 @@ export default function CheckoutPage() {
                                   className="h-7 px-2"
                                   onClick={() => {
                                     navigator.clipboard.writeText(window.location.href);
-                                    toast({ title: "Link copied!", description: "Checkout link copied to clipboard" });
+                                    toast({ title: t("dashboard.checkout.toast.linkCopied"), description: t("dashboard.checkout.toast.checkoutLinkCopiedToDesc") });
                                   }}
                                   data-testid="button-copy-checkout-link"
                                 >
@@ -1689,19 +1689,19 @@ export default function CheckoutPage() {
                                     onSuccess={(data) => {
                                       console.log("PayPal payment success:", data);
                                       if (data.subscriptionActivated) {
-                                        toast({ title: "Payment successful!", description: `Your ${data.planName} subscription has been activated.` });
+                                        toast({ title: t("dashboard.checkout.toast.paymentSuccessful"), description: `Your ${data.planName} subscription has been activated.` });
                                       } else {
-                                        toast({ title: "Payment received!", description: "Your subscription is being processed." });
+                                        toast({ title: t("dashboard.checkout.toast.paymentReceived"), description: t("dashboard.checkout.toast.yourSubscriptionIsBeingDesc") });
                                       }
                                       queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
                                       navigate('/dashboard/billing');
                                     }}
                                     onError={(error) => {
                                       console.error("PayPal payment error:", error);
-                                      toast({ title: "Payment failed", description: "Please try again or use another payment method.", variant: "destructive" });
+                                      toast({ title: t("dashboard.checkout.toast.paymentFailed"), description: t("dashboard.checkout.toast.pleaseTryAgainOrDesc"), variant: "destructive" });
                                     }}
                                     onCancel={() => {
-                                      toast({ title: "Payment cancelled", description: "You can try again when ready." });
+                                      toast({ title: t("dashboard.checkout.toast.paymentCancelled"), description: t("dashboard.checkout.toast.youCanTryAgainDesc") });
                                     }}
                                   />
                                 </div>
@@ -2189,7 +2189,7 @@ export default function CheckoutPage() {
                   const file = e.target.files?.[0];
                   if (file) {
                     if (file.size > 5 * 1024 * 1024) {
-                      toast({ title: "Error", description: "File size must be less than 5MB", variant: "destructive" });
+                      toast({ title: t("dashboard.checkout.toast.error"), description: t("dashboard.checkout.toast.fileSizeMustBeDesc"), variant: "destructive" });
                       return;
                     }
                     setBankProofFile(file);
@@ -2236,8 +2236,8 @@ export default function CheckoutPage() {
                     
                     if (response.ok) {
                       toast({
-                        title: "Proof Submitted",
-                        description: "Your payment proof has been submitted for verification. We'll notify you once confirmed.",
+                        title: t("dashboard.checkout.toast.proofSubmitted"),
+                        description: t("dashboard.checkout.toast.yourPaymentProofHasDesc"),
                       });
                       // Keep polling for automatic verification, but show success message
                       setBankProofFile(null);
@@ -2247,7 +2247,7 @@ export default function CheckoutPage() {
                     }
                   } catch (error: any) {
                     toast({
-                      title: "Error",
+                      title: t("dashboard.checkout.toast.error"),
                       description: error.message || "Failed to submit payment proof",
                       variant: "destructive",
                     });
@@ -2323,7 +2323,7 @@ export default function CheckoutPage() {
                     className="h-7 px-2"
                     onClick={() => {
                       navigator.clipboard.writeText(paymentLinkData.paymentUrl);
-                      toast({ title: "Link copied!", description: "Payment link copied to clipboard" });
+                      toast({ title: t("dashboard.checkout.toast.linkCopied"), description: t("dashboard.checkout.toast.paymentLinkCopiedToDesc") });
                     }}
                     data-testid="button-copy-payment-link"
                   >
@@ -2624,7 +2624,7 @@ export default function CheckoutPage() {
                     className="h-8 px-3"
                     onClick={() => {
                       navigator.clipboard.writeText(selectedCrypto.address);
-                      toast({ title: "Address copied!", description: "Wallet address copied to clipboard" });
+                      toast({ title: t("dashboard.checkout.toast.addressCopied"), description: t("dashboard.checkout.toast.walletAddressCopiedToDesc") });
                     }}
                     data-testid="button-copy-crypto-address"
                   >
@@ -2759,7 +2759,7 @@ export default function CheckoutPage() {
                       const cryptoAmount = amountWithFee / price;
                       const decimals = cryptoPrices.decimals?.[selectedCrypto.id] || 6;
                       navigator.clipboard.writeText(cryptoAmount.toFixed(decimals));
-                      toast({ title: "Amount copied!", description: `${cryptoAmount.toFixed(decimals)} ${selectedCrypto.symbol} copied to clipboard` });
+                      toast({ title: t("dashboard.checkout.toast.amountCopied"), description: `${cryptoAmount.toFixed(decimals)} ${selectedCrypto.symbol} copied to clipboard` });
                     }}
                     data-testid="button-copy-crypto-amount"
                   >
@@ -2812,7 +2812,7 @@ export default function CheckoutPage() {
                       document.body.removeChild(qrTempContainer);
                       
                       if (!qrDataUrl) {
-                        toast({ title: "Error", description: "Failed to generate QR code", variant: "destructive" });
+                        toast({ title: t("dashboard.checkout.toast.error"), description: t("dashboard.checkout.toast.failedToGenerateQrDesc"), variant: "destructive" });
                         return;
                       }
                       
@@ -3014,7 +3014,7 @@ export default function CheckoutPage() {
                       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                         try {
                           await navigator.share({ files: [file], title: 'Chatvice Crypto Invoice' });
-                          toast({ title: "Saved!", description: "Invoice saved to your device" });
+                          toast({ title: t("dashboard.checkout.toast.saved"), description: t("dashboard.checkout.toast.invoiceSavedToYourDesc") });
                           return;
                         } catch (e) {
                           if ((e as Error).name !== 'AbortError') {
@@ -3029,10 +3029,10 @@ export default function CheckoutPage() {
                       link.href = URL.createObjectURL(blob);
                       link.click();
                       URL.revokeObjectURL(link.href);
-                      toast({ title: "Saved!", description: "Invoice downloaded to your device" });
+                      toast({ title: t("dashboard.checkout.toast.saved"), description: t("dashboard.checkout.toast.invoiceDownloadedToYourDesc") });
                     } catch (error) {
                       console.error('Save error:', error);
-                      toast({ title: "Error", description: "Failed to save image", variant: "destructive" });
+                      toast({ title: t("dashboard.checkout.toast.error"), description: t("dashboard.checkout.toast.failedToSaveImageDesc"), variant: "destructive" });
                     }
                   }}
                   data-testid="button-save-to-gallery"
@@ -3312,7 +3312,7 @@ export default function CheckoutPage() {
                     const file = e.target.files?.[0];
                     if (file) {
                       if (file.size > 5 * 1024 * 1024) {
-                        toast({ title: "File too large", description: "Please upload an image under 5MB", variant: "destructive" });
+                        toast({ title: t("dashboard.checkout.toast.fileTooLarge"), description: t("dashboard.checkout.toast.pleaseUploadAnImageDesc"), variant: "destructive" });
                         return;
                       }
                       setCryptoProofFile(file);
@@ -3392,8 +3392,8 @@ export default function CheckoutPage() {
                     }
                     
                     toast({ 
-                      title: "Payment Submitted!", 
-                      description: "We'll verify your payment and activate your subscription within 1-2 hours." 
+                      title: t("dashboard.checkout.toast.paymentSubmitted"), 
+                      description: t("dashboard.checkout.toast.wellVerifyYourPaymentDesc") 
                     });
                     setShowConfirmPaymentDialog(false);
                     setCryptoTxHash("");
@@ -3403,8 +3403,8 @@ export default function CheckoutPage() {
                   } catch (error) {
                     console.error('Submit error:', error);
                     toast({ 
-                      title: "Submission Failed", 
-                      description: "Please try again or contact support", 
+                      title: t("dashboard.checkout.toast.submissionFailed"), 
+                      description: t("dashboard.checkout.toast.pleaseTryAgainOrDesc"), 
                       variant: "destructive" 
                     });
                   } finally {

@@ -491,7 +491,7 @@ export default function KnowledgePage() {
         ? `/api/knowledge-entries?agentId=${selectedAgentId}` 
         : `/api/knowledge-entries`;
       const res = await fetch(url, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch entries");
+      if (!res.ok) throw new Error(t("dashboard.knowledge.fetchFailed"));
       return res.json();
     },
     enabled: !!merchantId && !!selectedAgentId,
@@ -559,7 +559,7 @@ export default function KnowledgePage() {
       const newOrder = arrayMove(prev, oldIndex, newIndex);
       const orders = newOrder.map((id, i) => ({ id, sortOrder: i }));
       apiRequest("POST", "/api/knowledge-entries/reorder", { orders }).catch(() => {
-        toast({ title: "Reorder failed", description: "Could not save card order. Please try again.", variant: "destructive" });
+        toast({ title: t("dashboard.knowledge.reorderFailed"), description: t("dashboard.knowledge.reorderFailedDesc"), variant: "destructive" });
       });
       return newOrder;
     });
@@ -593,10 +593,10 @@ export default function KnowledgePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
       setNewEntryName("");
       setIsAddingEntry(false);
-      toast({ title: "Entry created", description: "New knowledge entry has been added." });
+      toast({ title: t("dashboard.knowledge.entryCreated"), description: t("dashboard.knowledge.entryCreatedDesc") });
     },
     onError: () => {
-      toast({ title: "Failed to create entry", description: "Please try again.", variant: "destructive" });
+      toast({ title: t("dashboard.knowledge.createFailed"), description: t("common.tryAgain"), variant: "destructive" });
     },
   });
 
@@ -628,12 +628,12 @@ export default function KnowledgePage() {
       setSavingEntryId(null);
       setSavingStage(null);
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
-      toast({ title: "Entry saved", description: "Knowledge entry has been saved, formatted, and AI updated." });
+      toast({ title: t("dashboard.knowledge.entrySaved"), description: t("dashboard.knowledge.entrySavedDesc") });
     },
     onError: () => {
       setSavingEntryId(null);
       setSavingStage(null);
-      toast({ title: "Save failed", description: "Please try again.", variant: "destructive" });
+      toast({ title: t("dashboard.knowledge.saveFailed"), description: t("common.tryAgain"), variant: "destructive" });
     },
   });
 
@@ -646,7 +646,7 @@ export default function KnowledgePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
     },
     onError: () => {
-      toast({ title: "Update failed", variant: "destructive" });
+      toast({ title: t("dashboard.knowledge.updateFailed"), variant: "destructive" });
     },
   });
 
@@ -657,10 +657,10 @@ export default function KnowledgePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
-      toast({ title: "Link status updated", description: "Entry sharing scope has been changed." });
+      toast({ title: t("dashboard.knowledge.linkStatusUpdated"), description: t("dashboard.knowledge.linkStatusUpdatedDesc") });
     },
     onError: () => {
-      toast({ title: "Failed to update", variant: "destructive" });
+      toast({ title: t("common.updateFailed"), variant: "destructive" });
     },
   });
 
@@ -671,10 +671,10 @@ export default function KnowledgePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
       setDeleteConfirmId(null);
-      toast({ title: "Entry deleted", description: "Knowledge entry has been removed." });
+      toast({ title: t("dashboard.knowledge.entryDeleted"), description: "Knowledge entry has been removed." });
     },
     onError: () => {
-      toast({ title: "Delete failed", variant: "destructive" });
+      toast({ title: t("common.deleteFailed"), variant: "destructive" });
     },
   });
 
@@ -689,7 +689,7 @@ export default function KnowledgePage() {
       setReviewSuggestions(data.suggestions || []);
       setReviewAnalyzed(true);
     } catch {
-      toast({ title: "Review failed", description: "Could not analyze knowledge base. Please try again.", variant: "destructive" });
+      toast({ title: t("dashboard.knowledge.reviewFailed"), description: t("dashboard.knowledge.reviewFailedDesc"), variant: "destructive" });
     } finally {
       setIsReviewLoading(false);
     }
@@ -706,9 +706,9 @@ export default function KnowledgePage() {
       });
       setDismissedSuggestions(prev => new Set([...prev, index]));
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
-      toast({ title: "Content moved", description: `Moved to "${suggestion.targetEntryName}" successfully.` });
+      toast({ title: t("dashboard.knowledge.contentMoved"), description: `Moved to "${suggestion.targetEntryName}" successfully.` });
     } catch {
-      toast({ title: "Failed to apply", description: "Could not move the content. Please try again.", variant: "destructive" });
+      toast({ title: t("dashboard.knowledge.applyFailed"), description: t("dashboard.knowledge.moveFailedDesc"), variant: "destructive" });
     } finally {
       setApplyingIndex(null);
       setApproveDialog(null);
@@ -754,7 +754,7 @@ export default function KnowledgePage() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
       const totalMatches = searchResults.filter(r => entryIds.includes(r.entryId)).reduce((sum, r) => sum + r.matchCount, 0);
-      toast({ title: "Replacement complete", description: `Replaced ${totalMatches} occurrence${totalMatches !== 1 ? "s" : ""} across ${entryIds.length} entr${entryIds.length !== 1 ? "ies" : "y"}.` });
+      toast({ title: t("dashboard.knowledge.replacementComplete"), description: `Replaced ${totalMatches} occurrence${totalMatches !== 1 ? "s" : ""} across ${entryIds.length} entr${entryIds.length !== 1 ? "ies" : "y"}.` });
       setSearchText("");
       setReplaceText("");
       setSearchResults([]);
@@ -762,7 +762,7 @@ export default function KnowledgePage() {
       setReplaceConfirmOpen(false);
       setIsSearchReplaceOpen(false);
     } catch {
-      toast({ title: "Replace failed", description: "Could not complete the replacement. Please try again.", variant: "destructive" });
+      toast({ title: t("dashboard.knowledge.replaceFailed"), description: t("dashboard.knowledge.replaceFailedDesc"), variant: "destructive" });
     } finally {
       setIsReplacing(false);
     }
@@ -810,13 +810,13 @@ export default function KnowledgePage() {
       setSelectedTemplate(null);
       setIsTemplateDialogOpen(false);
       toast({
-        title: "Template applied",
+        title: t("dashboard.knowledge.templateApplied"),
         description: templateApplyMode === "append" ? "Template successfully added to knowledge base" : "Knowledge base successfully updated with template",
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Failed to apply template",
+        title: t("dashboard.knowledge.templateFailed"),
         description: error.message || "Something went wrong",
         variant: "destructive",
       });
@@ -833,8 +833,8 @@ export default function KnowledgePage() {
       setIsGenerateOpen(false);
       setGenerateForm({ businessType: "", category: "", topic: "", businessInfo: "" });
       toast({
-        title: "Article generated",
-        description: "Your AI-generated article has been created as a draft.",
+        title: t("dashboard.knowledge.articleGenerated"),
+        description: t("dashboard.knowledge.articleCreatedDesc"),
       });
       setSelectedArticle(response.article);
       setEditorForm({
@@ -851,7 +851,7 @@ export default function KnowledgePage() {
     retry: 2,
     onError: (error: any) => {
       toast({
-        title: "Generation failed",
+        title: t("common.generationFailed"),
         description: error?.message || "Failed to generate article. Please try again.",
         variant: "destructive",
       });
@@ -871,14 +871,14 @@ export default function KnowledgePage() {
       setIsEditorOpen(false);
       setSelectedArticle(null);
       toast({
-        title: "Article saved",
-        description: "Your article has been saved successfully.",
+        title: t("dashboard.knowledge.articleSaved"),
+        description: t("dashboard.knowledge.articleSavedDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Save failed",
-        description: "Failed to save article. Please try again.",
+        title: t("dashboard.knowledge.saveFailed"),
+        description: t("dashboard.knowledge.articleSaveFailedDesc"),
         variant: "destructive",
       });
     },
@@ -891,14 +891,14 @@ export default function KnowledgePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/knowledgebase/articles"] });
       toast({
-        title: "Article deleted",
-        description: "The article has been deleted.",
+        title: t("dashboard.knowledge.articleDeleted"),
+        description: t("dashboard.knowledge.articleDeletedDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Delete failed",
-        description: "Failed to delete article. Please try again.",
+        title: t("common.deleteFailed"),
+        description: t("dashboard.knowledge.articleDeleteFailedDesc"),
         variant: "destructive",
       });
     },
@@ -911,14 +911,14 @@ export default function KnowledgePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
-      toast({ title: "Source added", description: "The source has been added to your knowledge base." });
+      toast({ title: t("dashboard.knowledge.sourceAdded"), description: t("dashboard.knowledge.sourceAddedDesc") });
       setIsSourceDialogOpen(false);
       sourceForm.reset();
       setUploadedFileName("");
       setSelectedFile(null);
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to add source.", variant: "destructive" });
+      toast({ title: t("common.error"), description: error.message || "Failed to add source.", variant: "destructive" });
     },
   });
 
@@ -932,14 +932,14 @@ export default function KnowledgePage() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
-      toast({ title: "File uploaded", description: "The file has been uploaded and added to your knowledge base." });
+      toast({ title: t("dashboard.knowledge.fileUploaded"), description: t("dashboard.knowledge.fileUploadedDesc") });
       setIsSourceDialogOpen(false);
       sourceForm.reset();
       setUploadedFileName("");
       setSelectedFile(null);
     },
     onError: (error: any) => {
-      toast({ title: "Upload failed", description: error.message || "Failed to upload file.", variant: "destructive" });
+      toast({ title: t("common.uploadFailed"), description: error.message || "Failed to upload file.", variant: "destructive" });
     },
   });
 
@@ -950,12 +950,12 @@ export default function KnowledgePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
-      toast({ title: "Google Doc imported", description: "The document has been added to your knowledge base." });
+      toast({ title: t("dashboard.knowledge.docImported"), description: t("dashboard.knowledge.docImportedDesc") });
       setIsSourceDialogOpen(false);
       sourceForm.reset();
     },
     onError: (error: any) => {
-      toast({ title: "Import failed", description: error.message || "Failed to import Google Doc.", variant: "destructive" });
+      toast({ title: t("dashboard.knowledge.importFailed"), description: error.message || "Failed to import Google Doc.", variant: "destructive" });
     },
   });
 
@@ -966,12 +966,12 @@ export default function KnowledgePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
-      toast({ title: "Google Sheet imported", description: "The sheet has been added to your knowledge base." });
+      toast({ title: t("dashboard.knowledge.sheetImported"), description: t("dashboard.knowledge.sheetImportedDesc") });
       setIsSourceDialogOpen(false);
       sourceForm.reset();
     },
     onError: (error: any) => {
-      toast({ title: "Import failed", description: error.message || "Failed to import Google Sheet.", variant: "destructive" });
+      toast({ title: t("dashboard.knowledge.importFailed"), description: error.message || "Failed to import Google Sheet.", variant: "destructive" });
     },
   });
 
@@ -983,10 +983,10 @@ export default function KnowledgePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
       setIsTransactionTemplateOpen(false);
       setTransactionTemplateUrl("");
-      toast({ title: "Transaction Record added", description: "Google Sheet template imported. Auto-sync every 1 minute is active." });
+      toast({ title: t("dashboard.knowledge.transactionAdded"), description: "Google Sheet template imported. Auto-sync every 1 minute is active." });
     },
     onError: () => {
-      toast({ title: "Import failed", description: "Could not import Google Sheet. Make sure you've copied the template and set sharing to 'Anyone with the link can view'.", variant: "destructive" });
+      toast({ title: t("dashboard.knowledge.importFailed"), description: "Could not import Google Sheet. Make sure you've copied the template and set sharing to 'Anyone with the link can view'.", variant: "destructive" });
     },
   });
 
@@ -999,10 +999,10 @@ export default function KnowledgePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
-      toast({ title: "Source updated", description: "Source status has been updated." });
+      toast({ title: t("dashboard.knowledge.sourceUpdated"), description: t("dashboard.knowledge.sourceUpdatedDesc") });
     },
     onError: (error: any) => {
-      toast({ title: "Update failed", description: error.message || "Could not update source. Please try again.", variant: "destructive" });
+      toast({ title: t("dashboard.knowledge.updateFailed"), description: error.message || "Could not update source. Please try again.", variant: "destructive" });
     },
   });
 
@@ -1012,10 +1012,10 @@ export default function KnowledgePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
-      toast({ title: "Source deleted", description: "The source has been removed." });
+      toast({ title: t("dashboard.knowledge.sourceDeleted"), description: t("dashboard.knowledge.sourceDeletedDesc") });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to delete source.", variant: "destructive" });
+      toast({ title: t("common.error"), description: error.message || "Failed to delete source.", variant: "destructive" });
     },
   });
 
@@ -1025,10 +1025,10 @@ export default function KnowledgePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
-      toast({ title: "Update requested", description: "The source is being updated." });
+      toast({ title: t("dashboard.knowledge.updateRequested"), description: t("dashboard.knowledge.updateRequestedDesc") });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to request update.", variant: "destructive" });
+      toast({ title: t("common.error"), description: error.message || "Failed to request update.", variant: "destructive" });
     },
   });
 
@@ -1043,11 +1043,11 @@ export default function KnowledgePage() {
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
       setFetchingSourceIds(prev => { const next = new Set(prev); next.delete(id); return next; });
-      toast({ title: "Fetched successfully", description: "Source data has been updated." });
+      toast({ title: t("dashboard.knowledge.fetchedSuccessfully"), description: t("dashboard.knowledge.fetchedDesc") });
     },
     onError: (error: any, id) => {
       setFetchingSourceIds(prev => { const next = new Set(prev); next.delete(id); return next; });
-      toast({ title: "Fetch failed", description: error.message || "Could not fetch source data.", variant: "destructive" });
+      toast({ title: t("dashboard.knowledge.fetchFailed2"), description: error.message || "Could not fetch source data.", variant: "destructive" });
     },
   });
 
@@ -1060,7 +1060,7 @@ export default function KnowledgePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to update name.", variant: "destructive" });
+      toast({ title: t("common.error"), description: error.message || "Failed to update name.", variant: "destructive" });
     },
   });
 
@@ -1110,16 +1110,16 @@ export default function KnowledgePage() {
         : [`/api/knowledge/${merchantId}`] 
       });
       toast({
-        title: "Successfully saved!",
-        description: "Your AI will now use this information to answer customer questions.",
+        title: t("dashboard.knowledge.savedSuccessfully"),
+        description: t("dashboard.knowledge.savedToAIDesc"),
       });
     },
     onError: () => {
       setSaveStage("idle");
       setAnalysisProgress(0);
       toast({
-        title: "Failed to save",
-        description: "Something went wrong. Please try again.",
+        title: t("common.failedToSave"),
+        description: t("common.tryAgainDesc"),
         variant: "destructive",
       });
     },
@@ -1166,8 +1166,8 @@ export default function KnowledgePage() {
   const handleSaveWithAnalysis = () => {
     if (!content.trim()) {
       toast({
-        title: "Empty content",
-        description: "Please add some knowledge content before saving.",
+        title: t("dashboard.knowledge.emptyContent"),
+        description: t("dashboard.knowledge.emptyContentDesc"),
         variant: "destructive",
       });
       return;
@@ -1202,8 +1202,8 @@ export default function KnowledgePage() {
     const newContent = content.replace(original, simplified);
     setContent(newContent);
     toast({
-      title: "Simplification applied",
-      description: "The text has been simplified.",
+      title: t("dashboard.knowledge.simplificationApplied"),
+      description: t("dashboard.knowledge.simplificationDesc"),
     });
   };
 
@@ -1226,14 +1226,14 @@ export default function KnowledgePage() {
         : [`/api/knowledge/${merchantId}`] 
       });
       toast({
-        title: "Website synced",
-        description: "Content has been extracted and added to your AI knowledge base.",
+        title: t("dashboard.knowledge.websiteSynced"),
+        description: t("dashboard.knowledge.websiteSyncedDesc"),
       });
     },
     onError: (error: Error) => {
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links", merchantId] });
       toast({
-        title: "Sync failed",
+        title: t("dashboard.knowledge.syncFailed"),
         description: error.message || "Failed to extract content from the URL.",
         variant: "destructive",
       });
@@ -1252,14 +1252,14 @@ export default function KnowledgePage() {
         : [`/api/knowledge/${merchantId}`] 
       });
       toast({
-        title: "Website updated",
-        description: "Content has been refreshed and synced to your AI knowledge base.",
+        title: t("dashboard.knowledge.websiteUpdated"),
+        description: t("dashboard.knowledge.websiteUpdatedDesc"),
       });
     },
     onError: (error: Error) => {
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links", merchantId] });
       toast({
-        title: "Update failed",
+        title: t("dashboard.knowledge.updateFailed"),
         description: error.message || "Failed to refresh content from the URL.",
         variant: "destructive",
       });
@@ -1273,8 +1273,8 @@ export default function KnowledgePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links", merchantId] });
       toast({
-        title: "Link deleted",
-        description: "The crawled link has been removed.",
+        title: t("dashboard.knowledge.linkDeleted"),
+        description: t("dashboard.knowledge.linkDeletedDesc"),
       });
     },
   });
@@ -1289,13 +1289,13 @@ export default function KnowledgePage() {
         const separator = content.trim() ? "\n\n---\n\n" : "";
         setContent(content + separator + data.content);
         toast({
-          title: "Knowledge imported",
-          description: "The knowledge from the selected agent has been added. Don't forget to save!",
+          title: t("dashboard.knowledge.imported"),
+          description: t("dashboard.knowledge.toast.theKnowledgeFromTheDesc"),
         });
       } else {
         toast({
-          title: "No knowledge found",
-          description: "The selected agent has no knowledge base content.",
+          title: t("dashboard.knowledge.noKnowledge"),
+          description: t("dashboard.knowledge.noKnowledgeDesc"),
           variant: "destructive",
         });
       }
@@ -1304,8 +1304,8 @@ export default function KnowledgePage() {
     },
     onError: () => {
       toast({
-        title: "Import failed",
-        description: "Failed to import knowledge from the selected agent.",
+        title: t("dashboard.knowledge.importFailed"),
+        description: t("dashboard.knowledge.importFailedDesc"),
         variant: "destructive",
       });
     },
@@ -1327,13 +1327,13 @@ export default function KnowledgePage() {
       setNewQuestion("");
       setNewAnswer("");
       toast({
-        title: "Question added",
-        description: "The suggested question has been created.",
+        title: t("dashboard.knowledge.questionAdded"),
+        description: t("dashboard.knowledge.questionAddedDesc"),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Failed to add question",
+        title: t("dashboard.knowledge.questionAddFailed"),
         description: error.message || "Please try again.",
         variant: "destructive",
       });
@@ -1349,14 +1349,14 @@ export default function KnowledgePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/suggested-questions"] });
       setEditingQuestion(null);
       toast({
-        title: "Question updated",
-        description: "The suggested question has been saved.",
+        title: t("dashboard.knowledge.questionUpdated"),
+        description: t("dashboard.knowledge.questionSavedDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to update",
-        description: "Please try again.",
+        title: t("common.updateFailed"),
+        description: t("common.tryAgain"),
         variant: "destructive",
       });
     },
@@ -1369,14 +1369,14 @@ export default function KnowledgePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/suggested-questions"] });
       toast({
-        title: "Question deleted",
-        description: "The suggested question has been removed.",
+        title: t("dashboard.knowledge.questionDeleted"),
+        description: t("dashboard.knowledge.questionDeletedDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to delete",
-        description: "Please try again.",
+        title: t("common.deleteFailed"),
+        description: t("common.tryAgain"),
         variant: "destructive",
       });
     },
@@ -1385,8 +1385,8 @@ export default function KnowledgePage() {
   const handleCreateQuestion = () => {
     if (!newQuestion.trim() || !newAnswer.trim()) {
       toast({
-        title: "Missing fields",
-        description: "Please fill in both the question and answer.",
+        title: t("dashboard.knowledge.missingFields"),
+        description: t("dashboard.knowledge.missingFieldsDesc"),
         variant: "destructive",
       });
       return;
@@ -1435,7 +1435,7 @@ export default function KnowledgePage() {
       });
       setIsPreviewDialogOpen(true);
     } catch (error: any) {
-      toast({ title: "Preview failed", description: error.message || "Could not preview file", variant: "destructive" });
+      toast({ title: t("dashboard.knowledge.previewFailed"), description: error.message || "Could not preview file", variant: "destructive" });
     } finally {
       setIsPreviewing(false);
     }
@@ -1462,7 +1462,7 @@ export default function KnowledgePage() {
       });
       setIsPreviewDialogOpen(true);
     } catch (error: any) {
-      toast({ title: "Preview failed", description: error.message || "Could not preview Google Doc", variant: "destructive" });
+      toast({ title: t("dashboard.knowledge.previewFailed"), description: error.message || "Could not preview Google Doc", variant: "destructive" });
     } finally {
       setIsPreviewing(false);
     }
@@ -1489,7 +1489,7 @@ export default function KnowledgePage() {
       });
       setIsPreviewDialogOpen(true);
     } catch (error: any) {
-      toast({ title: "Preview failed", description: error.message || "Could not preview Google Sheet", variant: "destructive" });
+      toast({ title: t("dashboard.knowledge.previewFailed"), description: error.message || "Could not preview Google Sheet", variant: "destructive" });
     } finally {
       setIsPreviewing(false);
     }
@@ -1588,8 +1588,8 @@ export default function KnowledgePage() {
   const handleCrawl = () => {
     if (!crawlUrl.trim()) {
       toast({
-        title: "URL required",
-        description: "Please enter a website URL to extract content from.",
+        title: t("common.urlRequired"),
+        description: t("dashboard.knowledge.urlRequiredDesc"),
         variant: "destructive",
       });
       return;
@@ -2124,11 +2124,11 @@ export default function KnowledgePage() {
                                 agentId: selectedAgentId,
                               });
                               queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
-                              toast({ title: "Replaced", description: `Replaced ${result.matchCount} occurrence${result.matchCount !== 1 ? "s" : ""} in "${result.entryName}".` });
+                              toast({ title: t("dashboard.knowledge.replaced"), description: `Replaced ${result.matchCount} occurrence${result.matchCount !== 1 ? "s" : ""} in "${result.entryName}".` });
                               setSearchResults(prev => prev.filter(r => r.entryId !== result.entryId));
                               setSelectedReplaceEntries(prev => { const n = new Set(prev); n.delete(result.entryId); return n; });
                             } catch {
-                              toast({ title: "Replace failed", variant: "destructive" });
+                              toast({ title: t("dashboard.knowledge.replaceFailed"), variant: "destructive" });
                             } finally {
                               setIsReplacing(false);
                             }

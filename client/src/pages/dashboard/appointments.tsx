@@ -834,7 +834,7 @@ export default function AppointmentsPage() {
               <CardHeader className="flex flex-row items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-base flex items-center gap-2"><User className="w-4 h-4" /> {t("dashboard.appointments.staffTitle")}</CardTitle>
-                  <CardDescription>Daftarkan dokter, terapis, atau staf yang melayani booking.</CardDescription>
+                  <CardDescription>{t("dashboard.appointments.staffDescription")}</CardDescription>
                 </div>
                 <Dialog open={providerDialog.open && !providerDialog.editing} onOpenChange={open => setProviderDialog({ open })}>
                   <DialogTrigger asChild>
@@ -910,7 +910,7 @@ export default function AppointmentsPage() {
               <CardHeader className="flex flex-row items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-base flex items-center gap-2"><Layers className="w-4 h-4" /> {t("dashboard.appointments.servicesTitle")}</CardTitle>
-                  <CardDescription>Definisikan layanan yang tersedia untuk dipesan pelanggan.</CardDescription>
+                  <CardDescription>{t("dashboard.appointments.servicesDescription")}</CardDescription>
                 </div>
                 <Dialog open={serviceDialog.open && !serviceDialog.editing} onOpenChange={open => setServiceDialog({ open })}>
                   <DialogTrigger asChild>

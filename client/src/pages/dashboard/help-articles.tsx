@@ -146,8 +146,8 @@ export default function HelpArticlesPage() {
       setIsGenerateOpen(false);
       setGenerateForm({ businessType: "", category: "", topic: "", businessInfo: "" });
       toast({
-        title: "Article generated",
-        description: "Your AI-generated article has been created as a draft.",
+        title: t("dashboard.articles.generated"),
+        description: t("dashboard.articles.generatedDesc"),
       });
       setSelectedArticle(response.article);
       setEditorForm({
@@ -163,8 +163,8 @@ export default function HelpArticlesPage() {
     },
     onError: () => {
       toast({
-        title: "Generation failed",
-        description: "Failed to generate article. Please try again.",
+        title: t("dashboard.articles.generationFailed"),
+        description: t("dashboard.articles.generateFailedDesc"),
         variant: "destructive",
       });
     },
@@ -183,14 +183,14 @@ export default function HelpArticlesPage() {
       setIsEditorOpen(false);
       setSelectedArticle(null);
       toast({
-        title: "Article saved",
-        description: "Your article has been saved successfully.",
+        title: t("dashboard.articles.saved"),
+        description: t("dashboard.articles.savedDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Save failed",
-        description: "Failed to save article. Please try again.",
+        title: t("dashboard.articles.saveFailed"),
+        description: t("dashboard.articles.saveFailedDesc"),
         variant: "destructive",
       });
     },
@@ -203,14 +203,14 @@ export default function HelpArticlesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/knowledgebase/articles"] });
       toast({
-        title: "Article deleted",
-        description: "The article has been deleted.",
+        title: t("dashboard.help-articles.toast.articleDeleted"),
+        description: t("dashboard.help-articles.toast.theArticleHasBeenDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Delete failed",
-        description: "Failed to delete article. Please try again.",
+        title: t("dashboard.help-articles.toast.deleteFailed"),
+        description: t("dashboard.help-articles.toast.failedToDeleteArticleDesc"),
         variant: "destructive",
       });
     },

@@ -44,10 +44,10 @@ export default function QuickRepliesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/quick-replies"] });
       setIsDialogOpen(false);
       resetForm();
-      toast({ title: "Quick reply created successfully" });
+      toast({ title: t("dashboard.quick-replies.toast.quickReplyCreatedSuccessfully") });
     },
     onError: () => {
-      toast({ title: "Failed to create quick reply", variant: "destructive" });
+      toast({ title: t("dashboard.quick-replies.toast.failedToCreateQuick"), variant: "destructive" });
     },
   });
 
@@ -60,7 +60,7 @@ export default function QuickRepliesPage() {
       setIsDialogOpen(false);
       setEditingReply(null);
       resetForm();
-      toast({ title: "Quick reply updated successfully" });
+      toast({ title: t("dashboard.quick-replies.toast.quickReplyUpdatedSuccessfully") });
     },
   });
 
@@ -70,7 +70,7 @@ export default function QuickRepliesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quick-replies"] });
-      toast({ title: "Quick reply deleted successfully" });
+      toast({ title: t("dashboard.quick-replies.toast.quickReplyDeletedSuccessfully") });
     },
   });
 
@@ -103,7 +103,7 @@ export default function QuickRepliesPage() {
 
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text);
-    toast({ title: "Copied to clipboard" });
+    toast({ title: t("dashboard.quick-replies.toast.copiedToClipboard") });
   }
 
   if (isLoading) {

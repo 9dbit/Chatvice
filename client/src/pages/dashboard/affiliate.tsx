@@ -129,8 +129,8 @@ export default function AffiliateDashboardPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Application Submitted!",
-        description: "Your affiliate application has been submitted for review.",
+        title: t("dashboard.affiliate.applicationSubmitted"),
+        description: t("dashboard.affiliate.applicationSubmittedDesc"),
       });
       setApplyDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/api/affiliate/me"] });
@@ -155,8 +155,8 @@ export default function AffiliateDashboardPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Payment Method Added",
-        description: "Your payment method has been saved successfully.",
+        title: t("dashboard.affiliate.paymentMethodAdded"),
+        description: t("dashboard.affiliate.paymentMethodSaved"),
       });
       setPaymentMethodDialogOpen(false);
       resetPaymentMethodForm();
@@ -183,7 +183,7 @@ export default function AffiliateDashboardPage() {
     onSuccess: () => {
       toast({
         title: t("dashboard.affiliate.paymentMethodDeleted"),
-        description: "Your payment method has been removed.",
+        description: t("dashboard.affiliate.paymentMethodRemoved"),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/affiliate/payment-methods"] });
     },
@@ -290,18 +290,18 @@ export default function AffiliateDashboardPage() {
       if (typeof navigator !== "undefined" && navigator.clipboard) {
         await navigator.clipboard.writeText(referralLink);
         toast({
-          title: "Link Copied!",
-          description: "Your referral link has been copied to clipboard.",
+          title: t("dashboard.affiliate.linkCopied"),
+          description: t("dashboard.affiliate.linkCopiedDesc"),
         });
       } else {
         toast({
-          title: "Copy this link",
+          title: t("dashboard.affiliate.copyThisLink"),
           description: referralLink,
         });
       }
     } catch {
       toast({
-        title: "Copy this link",
+        title: t("dashboard.affiliate.copyThisLink"),
         description: referralLink,
       });
     }
@@ -346,7 +346,7 @@ export default function AffiliateDashboardPage() {
       case "rejected":
         return <Badge variant="destructive"><X className="w-3 h-3 mr-1" />{t("dashboard.affiliate.rejected")}</Badge>;
       case "failed":
-        return <Badge variant="destructive"><AlertCircle className="w-3 h-3 mr-1" />Failed</Badge>;
+        return <Badge variant="destructive"><AlertCircle className="w-3 h-3 mr-1" />{t("dashboard.affiliate.statusFailed")}</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -464,12 +464,11 @@ export default function AffiliateDashboardPage() {
           </div>
           <h2 className="text-2xl font-bold mb-3">{t("dashboard.affiliate.applicationPending")}</h2>
           <p className="text-muted-foreground mb-6">
-            Your affiliate application is currently under review. 
-            We'll notify you once it's approved.
+            {t("dashboard.affiliate.pendingDescription")}
           </p>
           <Badge variant="secondary" className="text-yellow-600">
             <Clock className="w-3 h-3 mr-1" />
-            Pending Review
+            {t("dashboard.affiliate.pendingReview")}
           </Badge>
         </Card>
       </div>
@@ -491,11 +490,11 @@ export default function AffiliateDashboardPage() {
   const getPlanBadge = (plan: string) => {
     switch (plan?.toLowerCase()) {
       case "starter":
-        return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">Starter</Badge>;
+        return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{t("dashboard.affiliate.planStarter")}</Badge>;
       case "pro":
-        return <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">Pro</Badge>;
+        return <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">{t("dashboard.affiliate.planPro")}</Badge>;
       case "enterprise":
-        return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">Enterprise</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">{t("dashboard.affiliate.planEnterprise")}</Badge>;
       default:
         return <Badge variant="secondary">{t("common.free")}</Badge>;
     }
@@ -503,9 +502,9 @@ export default function AffiliateDashboardPage() {
 
   const getStatusBadge = (status: string) => {
     if (status === "subscribed") {
-      return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"><CheckCircle className="w-3 h-3 mr-1" />Subscribed</Badge>;
+      return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"><CheckCircle className="w-3 h-3 mr-1" />{t("dashboard.affiliate.statusSubscribed")}</Badge>;
     }
-    return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Registered</Badge>;
+    return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />{t("dashboard.affiliate.statusRegistered")}</Badge>;
   };
 
   return (
@@ -517,7 +516,7 @@ export default function AffiliateDashboardPage() {
         </div>
         <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 w-fit">
           <CheckCircle className="w-3 h-3 mr-1" />
-          Active Affiliate
+          {t("dashboard.affiliate.activeAffiliate")}
         </Badge>
       </div>
 
@@ -563,7 +562,7 @@ export default function AffiliateDashboardPage() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{stats.totalClicks}</p>
-                  <p className="text-sm text-muted-foreground">Clicks</p>
+                  <p className="text-sm text-muted-foreground">{t("dashboard.affiliate.clicks")}</p>
                 </div>
               </div>
             </Card>
@@ -574,7 +573,7 @@ export default function AffiliateDashboardPage() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{stats.totalSignups}</p>
-                  <p className="text-sm text-muted-foreground">Sign Ups</p>
+                  <p className="text-sm text-muted-foreground">{t("dashboard.affiliate.signUps")}</p>
                 </div>
               </div>
             </Card>
@@ -585,7 +584,7 @@ export default function AffiliateDashboardPage() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{stats.totalConversions}</p>
-                  <p className="text-sm text-muted-foreground">Conversions</p>
+                  <p className="text-sm text-muted-foreground">{t("dashboard.affiliate.conversions")}</p>
                 </div>
               </div>
             </Card>
@@ -632,16 +631,16 @@ export default function AffiliateDashboardPage() {
                     data-testid="button-request-withdrawal"
                   >
                     <Wallet className="w-4 h-4 mr-2" />
-                    Request Withdrawal
+                    {t("dashboard.affiliate.requestWithdrawal")}
                   </Button>
                   {(paymentMethods as any[]).length === 0 && (
                     <p className="text-xs text-muted-foreground mt-2 text-center">
-                      Add a payment method first
+                      {t("dashboard.affiliate.addPaymentFirst")}
                     </p>
                   )}
                   {hasPendingWithdrawal && (
                     <p className="text-xs text-yellow-600 mt-2 text-center">
-                      You have a pending withdrawal request
+                      {t("dashboard.affiliate.hasPendingWithdrawal")}
                     </p>
                   )}
                 </div>
@@ -652,24 +651,24 @@ export default function AffiliateDashboardPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="w-5 h-5" />
-                  Program Details
+                  {t("dashboard.affiliate.programDetails")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center py-3 border-b">
-                  <span className="text-muted-foreground">Your Commission Rate</span>
+                  <span className="text-muted-foreground">{t("dashboard.affiliate.yourCommissionRate")}</span>
                   <span className="font-bold text-purple-600">{(affiliate as any)?.commissionRate || defaultCommission}%</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b">
                   <span className="text-muted-foreground">{t("dashboard.affiliate.cookieDuration")}</span>
-                  <span className="font-bold">{cookieDays} days</span>
+                  <span className="font-bold">{cookieDays} {t("common.daysUnit")}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b">
                   <span className="text-muted-foreground">{t("dashboard.affiliate.minimumPayout")}</span>
                   <span className="font-bold">${minimumPayout}</span>
                 </div>
                 <div className="flex justify-between items-center py-3">
-                  <span className="text-muted-foreground">Member Since</span>
+                  <span className="text-muted-foreground">{t("dashboard.affiliate.memberSince")}</span>
                   <span className="font-bold">
                     {(affiliate as any)?.approvedAt 
                       ? new Date((affiliate as any).approvedAt).toLocaleDateString()
@@ -687,18 +686,18 @@ export default function AffiliateDashboardPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
-                Your Downlines
+                {t("dashboard.affiliate.yourDownlines")}
               </CardTitle>
               <CardDescription>
-                Merchants who signed up using your referral link
+                {t("dashboard.affiliate.downlinesDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {downlines.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No downlines yet</p>
-                  <p className="text-sm">Share your referral link to start earning commissions</p>
+                  <p className="font-medium">{t("dashboard.affiliate.noDownlines")}</p>
+                  <p className="text-sm">{t("dashboard.affiliate.shareToEarn")}</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -709,7 +708,7 @@ export default function AffiliateDashboardPage() {
                         <TableHead>{t("dashboard.affiliate.plan")}</TableHead>
                         <TableHead>{t("dashboard.affiliate.status")}</TableHead>
                         <TableHead>{t("dashboard.affiliate.joined")}</TableHead>
-                        <TableHead className="text-right">Earnings</TableHead>
+                        <TableHead className="text-right">{t("dashboard.affiliate.earnings")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -763,7 +762,7 @@ export default function AffiliateDashboardPage() {
                 <CardTitle className="flex items-center gap-2">
                   <Wallet className="w-5 h-5" />{t("dashboard.affiliate.withdrawalHistory")}</CardTitle>
                 <CardDescription>
-                  Track your withdrawal requests
+                  {t("dashboard.affiliate.trackWithdrawals")}
                 </CardDescription>
               </div>
               <Button 
@@ -772,7 +771,7 @@ export default function AffiliateDashboardPage() {
                 data-testid="button-new-withdrawal"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Request Withdrawal
+                {t("dashboard.affiliate.requestWithdrawal")}
               </Button>
             </CardHeader>
             <CardContent>
@@ -783,8 +782,8 @@ export default function AffiliateDashboardPage() {
               ) : (withdrawals as any[]).length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Wallet className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No withdrawals yet</p>
-                  <p className="text-sm">Request your first withdrawal when you reach the minimum payout</p>
+                  <p className="font-medium">{t("dashboard.affiliate.noWithdrawals")}</p>
+                  <p className="text-sm">{t("dashboard.affiliate.withdrawMinimumHint")}</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -795,7 +794,7 @@ export default function AffiliateDashboardPage() {
                         <TableHead>{t("dashboard.affiliate.amount")}</TableHead>
                         <TableHead>{t("dashboard.affiliate.method")}</TableHead>
                         <TableHead>{t("dashboard.affiliate.status")}</TableHead>
-                        <TableHead>Notes</TableHead>
+                        <TableHead>{t("dashboard.affiliate.notes")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -833,15 +832,15 @@ export default function AffiliateDashboardPage() {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <CreditCard className="w-5 h-5" />
-                  Payment Methods
+                  {t("dashboard.affiliate.paymentMethodsTitle")}
                 </CardTitle>
                 <CardDescription>
-                  Manage your payout payment methods
+                  {t("dashboard.affiliate.managePaymentMethods")}
                 </CardDescription>
               </div>
               <Button onClick={() => setPaymentMethodDialogOpen(true)} data-testid="button-add-payment-method">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Method
+                {t("dashboard.affiliate.addMethod")}
               </Button>
             </CardHeader>
             <CardContent>
@@ -852,8 +851,8 @@ export default function AffiliateDashboardPage() {
               ) : (paymentMethods as any[]).length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No payment methods</p>
-                  <p className="text-sm">Add a payment method to receive your earnings</p>
+                  <p className="font-medium">{t("dashboard.affiliate.noPaymentMethods")}</p>
+                  <p className="text-sm">{t("dashboard.affiliate.addMethodHint")}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -873,7 +872,7 @@ export default function AffiliateDashboardPage() {
                             {method.isDefault && (
                               <Badge variant="secondary" className="text-xs">
                                 <Star className="w-3 h-3 mr-1" />
-                                Default
+                                {t("common.default")}
                               </Badge>
                             )}
                           </div>
@@ -908,10 +907,10 @@ export default function AffiliateDashboardPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Wallet className="w-5 h-5 text-purple-600" />
-              Request Withdrawal
+              {t("dashboard.affiliate.requestWithdrawal")}
             </DialogTitle>
             <DialogDescription>
-              Request a withdrawal from your pending earnings
+              {t("dashboard.affiliate.requestWithdrawalDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -934,7 +933,7 @@ export default function AffiliateDashboardPage() {
                 data-testid="input-withdraw-amount"
               />
               <p className="text-xs text-muted-foreground">
-                Minimum withdrawal: ${minimumPayout}
+                {t("dashboard.affiliate.minimumWithdrawal")}: ${minimumPayout}
               </p>
             </div>
 
@@ -942,7 +941,7 @@ export default function AffiliateDashboardPage() {
               <Label>{t("dashboard.affiliate.paymentMethod")}</Label>
               <Select value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod}>
                 <SelectTrigger data-testid="select-payment-method">
-                  <SelectValue placeholder="Select payment method" />
+                  <SelectValue placeholder={t("dashboard.affiliate.selectPaymentMethod")} />
                 </SelectTrigger>
                 <SelectContent>
                   {(paymentMethods as any[]).map((method: any) => (
@@ -959,7 +958,7 @@ export default function AffiliateDashboardPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setWithdrawDialogOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button 
               onClick={handleWithdraw}
@@ -976,10 +975,10 @@ export default function AffiliateDashboardPage() {
               {createWithdrawalMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Submitting...
+                  {t("dashboard.affiliate.submitting")}
                 </>
               ) : (
-                "Submit Request"
+                t("dashboard.affiliate.submitRequest")
               )}
             </Button>
           </DialogFooter>
@@ -991,10 +990,10 @@ export default function AffiliateDashboardPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-purple-600" />
-              Add Payment Method
+              {t("dashboard.affiliate.addPaymentMethod")}
             </DialogTitle>
             <DialogDescription>
-              Add a new payment method for receiving your earnings
+              {t("dashboard.affiliate.addPaymentMethodDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1008,13 +1007,13 @@ export default function AffiliateDashboardPage() {
                   <SelectItem value="bank_transfer">
                     <div className="flex items-center gap-2">
                       <Banknote className="w-4 h-4" />
-                      Bank Transfer
+                      {t("dashboard.affiliate.bankTransfer")}
                     </div>
                   </SelectItem>
                   <SelectItem value="cryptocurrency">
                     <div className="flex items-center gap-2">
                       <Bitcoin className="w-4 h-4" />
-                      Cryptocurrency
+                      {t("dashboard.affiliate.cryptocurrency")}
                     </div>
                   </SelectItem>
                   <SelectItem value="paypal">
@@ -1091,7 +1090,7 @@ export default function AffiliateDashboardPage() {
                       data-testid="input-swift-code"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Required for international bank transfers
+                      {t("dashboard.affiliate.swiftRequired")}
                     </p>
                   </div>
                 )}
@@ -1161,13 +1160,13 @@ export default function AffiliateDashboardPage() {
                 data-testid="checkbox-default-method"
               />
               <Label htmlFor="isDefault" className="font-normal cursor-pointer">
-                Set as default payment method
+                {t("dashboard.affiliate.setAsDefault")}
               </Label>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setPaymentMethodDialogOpen(false); resetPaymentMethodForm(); }}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button 
               onClick={handleCreatePaymentMethod}
@@ -1178,10 +1177,10 @@ export default function AffiliateDashboardPage() {
               {createPaymentMethodMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
+                  {t("dashboard.affiliate.saving")}
                 </>
               ) : (
-                "Save Payment Method"
+                t("dashboard.affiliate.savePaymentMethod")
               )}
             </Button>
           </DialogFooter>

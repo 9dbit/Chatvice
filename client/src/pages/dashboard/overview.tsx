@@ -63,14 +63,14 @@ export default function DashboardOverview() {
       await navigator.clipboard.writeText(embedCode);
       setCopied(true);
       toast({
-        title: "Copied successfully!",
-        description: "The embed code has been copied to your clipboard.",
+        title: t("dashboard.overview.toast.copiedSuccessfully"),
+        description: t("dashboard.overview.toast.theEmbedCodeHasDesc"),
       });
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       toast({
-        title: "Failed to copy",
-        description: "Please copy the code manually.",
+        title: t("dashboard.overview.toast.failedToCopy"),
+        description: t("dashboard.overview.toast.pleaseCopyTheCodeDesc"),
         variant: "destructive",
       });
     }
@@ -92,7 +92,7 @@ export default function DashboardOverview() {
       value: stats?.activeSessions ?? 0,
       total: stats?.totalSessions ?? 0,
       icon: Users,
-      description: "Active in last 24h",
+      description: t("dashboard.overview.toast.activeInLast24hDesc"),
     },
     {
       title: t("dashboard.overview.messagesDay"),

@@ -117,10 +117,10 @@ export default function SettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notification-settings"] });
       invalidateNotificationSoundCache();
-      toast({ title: "Notification settings saved" });
+      toast({ title: t("dashboard.settings.toast.notificationSettingsSaved") });
     },
     onError: () => {
-      toast({ title: "Failed to save notification settings", variant: "destructive" });
+      toast({ title: t("dashboard.settings.toast.failedToSaveNotification"), variant: "destructive" });
     },
   });
 
@@ -153,12 +153,12 @@ export default function SettingsPage() {
         audio.onerror = () => {
           setIsPlayingSound(null);
           audioRef.current = null;
-          toast({ title: "Could not play sound", variant: "destructive" });
+          toast({ title: t("dashboard.settings.toast.couldNotPlaySound"), variant: "destructive" });
         };
         await audio.play();
       } catch (error) {
         setIsPlayingSound(null);
-        toast({ title: "Could not play sound", variant: "destructive" });
+        toast({ title: t("dashboard.settings.toast.couldNotPlaySound"), variant: "destructive" });
       }
       return;
     }
@@ -177,16 +177,16 @@ export default function SettingsPage() {
         audio.onerror = () => {
           setIsPlayingSound(null);
           audioRef.current = null;
-          toast({ title: "Could not play sound", variant: "destructive" });
+          toast({ title: t("dashboard.settings.toast.couldNotPlaySound"), variant: "destructive" });
         };
         await audio.play();
       } catch (error) {
         setIsPlayingSound(null);
-        toast({ title: "Could not play sound", variant: "destructive" });
+        toast({ title: t("dashboard.settings.toast.couldNotPlaySound"), variant: "destructive" });
       }
     } else {
       setIsPlayingSound(null);
-      toast({ title: "Sound not found", variant: "destructive" });
+      toast({ title: t("dashboard.settings.toast.soundNotFound"), variant: "destructive" });
     }
   }
 
@@ -219,14 +219,14 @@ export default function SettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
       toast({
-        title: "Settings saved",
-        description: "Your settings have been updated.",
+        title: t("dashboard.settings.toast.settingsSaved"),
+        description: t("dashboard.settings.toast.yourSettingsHaveBeenDesc"),
       });
     },
     onError: () => {
       toast({
-        title: "Failed to save",
-        description: "Something went wrong. Please try again.",
+        title: t("dashboard.settings.toast.failedToSave"),
+        description: t("common.tryAgainDesc"),
         variant: "destructive",
       });
     },
@@ -242,13 +242,13 @@ export default function SettingsPage() {
       setNewPassword("");
       setConfirmPassword("");
       toast({
-        title: "Password changed",
-        description: "Your password has been updated successfully.",
+        title: t("dashboard.settings.toast.passwordChanged"),
+        description: t("dashboard.settings.toast.yourPasswordHasBeenDesc"),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Failed to change password",
+        title: t("dashboard.settings.toast.failedToChangePassword"),
         description: error.message || "Please check your current password and try again.",
         variant: "destructive",
       });
@@ -262,13 +262,13 @@ export default function SettingsPage() {
     onSuccess: () => {
       setEmailVerificationSent(true);
       toast({
-        title: "Verification email sent",
-        description: "Please check your current email for a verification link.",
+        title: t("dashboard.settings.toast.verificationEmailSent"),
+        description: t("dashboard.settings.toast.pleaseCheckYourCurrentDesc"),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Failed to send verification",
+        title: t("dashboard.settings.toast.failedToSendVerification"),
         description: error.message || "Please try again.",
         variant: "destructive",
       });
@@ -293,7 +293,7 @@ export default function SettingsPage() {
     },
     onError: (error: any) => {
       toast({
-        title: "Failed to update 2FA",
+        title: t("dashboard.settings.toast.failedToUpdate2fa"),
         description: error.message || "Please try again.",
         variant: "destructive",
       });
@@ -310,7 +310,7 @@ export default function SettingsPage() {
     },
     onError: (error: any) => {
       toast({
-        title: "Failed to delete account",
+        title: t("dashboard.settings.toast.failedToDeleteAccount"),
         description: error.message || "Please try again.",
         variant: "destructive",
       });
@@ -334,8 +334,8 @@ export default function SettingsPage() {
   const handleSaveDomain = () => {
     if (!isPro) {
       toast({
-        title: "Upgrade required",
-        description: "Custom domains are available on Pro plan and above.",
+        title: t("dashboard.settings.toast.upgradeRequired"),
+        description: t("dashboard.settings.toast.customDomainsAreAvailableDesc"),
         variant: "destructive",
       });
       return;
@@ -353,20 +353,20 @@ export default function SettingsPage() {
       setDomainAvailable((response as any).available);
       if ((response as any).available) {
         toast({
-          title: "Domain available",
-          description: "This domain can be configured for your widget.",
+          title: t("dashboard.settings.toast.domainAvailable"),
+          description: t("dashboard.settings.toast.thisDomainCanBeDesc"),
         });
       } else {
         toast({
-          title: "Domain unavailable",
-          description: "This domain is already in use or invalid.",
+          title: t("dashboard.settings.toast.domainUnavailable"),
+          description: t("dashboard.settings.toast.thisDomainIsAlreadyDesc"),
           variant: "destructive",
         });
       }
     } catch {
       toast({
-        title: "Check failed",
-        description: "Unable to verify domain availability.",
+        title: t("dashboard.settings.toast.checkFailed"),
+        description: t("dashboard.settings.toast.unableToVerifyDomainDesc"),
         variant: "destructive",
       });
     }
@@ -377,8 +377,8 @@ export default function SettingsPage() {
     navigator.clipboard.writeText(merchantId);
     setCopied(true);
     toast({
-      title: "Copied!",
-      description: "Merchant ID copied to clipboard.",
+      title: t("dashboard.settings.toast.copied"),
+      description: t("dashboard.settings.toast.merchantIdCopiedToDesc"),
     });
     setTimeout(() => setCopied(false), 2000);
   };
@@ -389,8 +389,8 @@ export default function SettingsPage() {
 
     if (!file.type.startsWith("image/")) {
       toast({
-        title: "Invalid file type",
-        description: "Please select an image file.",
+        title: t("dashboard.settings.toast.invalidFileType"),
+        description: t("dashboard.settings.toast.pleaseSelectAnImageDesc"),
         variant: "destructive",
       });
       return;
@@ -398,8 +398,8 @@ export default function SettingsPage() {
 
     if (file.size > 2 * 1024 * 1024) {
       toast({
-        title: "File too large",
-        description: "Please select an image under 2MB.",
+        title: t("dashboard.settings.toast.fileTooLarge"),
+        description: t("dashboard.settings.toast.pleaseSelectAnImageDesc"),
         variant: "destructive",
       });
       return;
@@ -413,16 +413,16 @@ export default function SettingsPage() {
         setProfilePhotoUrl(base64);
         setIsUploading(false);
         toast({
-          title: "Photo updated",
-          description: "Click 'Save Changes' to apply.",
+          title: t("dashboard.settings.toast.photoUpdated"),
+          description: t("dashboard.settings.toast.clickSaveChangesToDesc"),
         });
       };
       reader.readAsDataURL(file);
     } catch {
       setIsUploading(false);
       toast({
-        title: "Upload failed",
-        description: "Something went wrong. Please try again.",
+        title: t("dashboard.settings.toast.uploadFailed"),
+        description: t("common.tryAgainDesc"),
         variant: "destructive",
       });
     }
@@ -431,16 +431,16 @@ export default function SettingsPage() {
   const handleChangePassword = () => {
     if (newPassword !== confirmPassword) {
       toast({
-        title: "Passwords don't match",
-        description: "Please make sure your new passwords match.",
+        title: t("dashboard.settings.toast.passwordsDontMatch"),
+        description: t("dashboard.settings.toast.pleaseMakeSureYourDesc"),
         variant: "destructive",
       });
       return;
     }
     if (newPassword.length < 6) {
       toast({
-        title: "Password too short",
-        description: "Password must be at least 6 characters.",
+        title: t("dashboard.settings.toast.passwordTooShort"),
+        description: t("dashboard.settings.toast.passwordMustBeAtDesc"),
         variant: "destructive",
       });
       return;
@@ -451,8 +451,8 @@ export default function SettingsPage() {
   const handleSendEmailVerification = () => {
     if (!newEmail || !newEmail.includes("@")) {
       toast({
-        title: "Invalid email",
-        description: "Please enter a valid email address.",
+        title: t("dashboard.settings.toast.invalidEmail"),
+        description: t("dashboard.settings.toast.pleaseEnterAValidDesc"),
         variant: "destructive",
       });
       return;
@@ -474,13 +474,13 @@ export default function SettingsPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       toast({
-        title: "Export complete",
-        description: "Your data has been downloaded.",
+        title: t("dashboard.settings.toast.exportComplete"),
+        description: t("dashboard.settings.toast.yourDataHasBeenDesc"),
       });
     } catch {
       toast({
-        title: "Export failed",
-        description: "Unable to export your data. Please try again.",
+        title: t("dashboard.settings.toast.exportFailed"),
+        description: t("dashboard.settings.toast.unableToExportYourDesc"),
         variant: "destructive",
       });
     }
@@ -490,8 +490,8 @@ export default function SettingsPage() {
   const handleDeleteAccount = () => {
     if (deleteConfirmText !== "DELETE") {
       toast({
-        title: "Confirmation required",
-        description: "Please type DELETE to confirm.",
+        title: t("dashboard.settings.toast.confirmationRequired"),
+        description: t("dashboard.settings.toast.pleaseTypeDeleteToDesc"),
         variant: "destructive",
       });
       return;

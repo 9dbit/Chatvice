@@ -252,7 +252,7 @@ export default function BillingPage() {
       if (!res.ok) {
         if (res.status === 409) {
           if (body.error === "Trial already used for this addon") {
-            throw new Error("Trial sudah pernah digunakan untuk fitur ini.");
+            throw new Error(t("dashboard.billing.trialAlreadyUsed"));
           }
           throw new Error(t("dashboard.billing.featureAlreadyActive"));
         }
@@ -367,7 +367,7 @@ export default function BillingPage() {
         });
         setPromoError(null);
         toast({
-          title: "Promo code applied!",
+          title: t("dashboard.billing.promoApplied"),
           description: `${data.promotion.discountPercent}% discount will be applied to qualifying plans.`,
         });
       }
@@ -448,7 +448,7 @@ export default function BillingPage() {
             
             setShowSuccessMessage(true);
             toast({
-              title: "Subscription Updated!",
+              title: t("dashboard.billing.subscriptionUpdated"),
               description: syncResult.synced 
                 ? `Your plan has been upgraded to ${syncResult.planId}. Features are now unlocked.`
                 : "Your payment was successful. Please refresh if plan doesn't update immediately.",
@@ -529,8 +529,8 @@ export default function BillingPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Payment Cancelled",
-        description: "Your pending payment has been cancelled.",
+        title: t("dashboard.billing.paymentCancelled"),
+        description: t("dashboard.billing.paymentCancelledDesc"),
       });
       setShowAwaitingPayment(false);
       queryClient.invalidateQueries({ queryKey: ["/api/billing/pending-payment-details"] });
@@ -538,8 +538,8 @@ export default function BillingPage() {
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to cancel payment. Please try again.",
+        title: t("common.error"),
+        description: t("dashboard.billing.cancelFailed"),
         variant: "destructive",
       });
     },
@@ -552,8 +552,8 @@ export default function BillingPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Invoice Cancelled",
-        description: "Your custom plan invoice has been cancelled.",
+        title: t("dashboard.billing.invoiceCancelled"),
+        description: t("dashboard.billing.invoiceCancelledDesc"),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-invoices"] });
       setShowCancelInvoiceConfirm(false);
@@ -561,8 +561,8 @@ export default function BillingPage() {
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to cancel invoice. Please try again.",
+        title: t("common.error"),
+        description: t("dashboard.billing.invoiceCancelFailed"),
         variant: "destructive",
       });
     },
@@ -600,8 +600,8 @@ export default function BillingPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Payment Proof Submitted",
-        description: "Your payment proof is being reviewed by admin.",
+        title: t("dashboard.billing.proofSubmitted"),
+        description: t("dashboard.billing.proofSubmittedDesc"),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-invoices"] });
       setSelectedProofInvoice(null);
@@ -610,7 +610,7 @@ export default function BillingPage() {
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
+        title: t("common.error"),
         description: error.message || "Failed to submit payment proof.",
         variant: "destructive",
       });
@@ -654,15 +654,15 @@ export default function BillingPage() {
     onSuccess: () => {
       setShowCancelDialog(false);
       toast({
-        title: "Subscription Canceled",
-        description: "Your subscription has been canceled. You can resubscribe anytime.",
+        title: t("dashboard.billing.subscriptionCancelled"),
+        description: t("dashboard.billing.toast.yourSubscriptionHasBeenDesc"),
       });
       refetch();
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to cancel subscription. Please try again.",
+        title: t("common.error"),
+        description: t("dashboard.billing.toast.failedToCancelSubscriptionDesc"),
         variant: "destructive",
       });
     },
@@ -675,8 +675,8 @@ export default function BillingPage() {
     onSuccess: () => {
       setShowDeleteDialog(false);
       toast({
-        title: "Account Deleted",
-        description: "Your account has been permanently deleted. Redirecting...",
+        title: t("dashboard.billing.toast.accountDeleted"),
+        description: t("dashboard.billing.toast.yourAccountHasBeenDesc"),
       });
       setTimeout(() => {
         window.location.href = '/';
@@ -684,8 +684,8 @@ export default function BillingPage() {
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to delete account. Please try again.",
+        title: t("common.error"),
+        description: t("dashboard.billing.toast.failedToDeleteAccountDesc"),
         variant: "destructive",
       });
     },
@@ -741,7 +741,7 @@ export default function BillingPage() {
               setTimeout(() => {
                 setQrisPaymentOpen(false);
                 toast({
-                  title: "Payment successful!",
+                  title: t("dashboard.billing.toast.paymentSuccessful"),
                   description: `Your ${data.planName} plan is now active.`,
                 });
               }, 3000);
@@ -755,7 +755,7 @@ export default function BillingPage() {
     onError: (error: Error) => {
       setPaymentStep('error');
       toast({
-        title: "Checkout failed",
+        title: t("dashboard.billing.toast.checkoutFailed"),
         description: error.message || "Failed to create payment. Please try again.",
         variant: "destructive",
       });
@@ -773,15 +773,15 @@ export default function BillingPage() {
       setTimeout(() => {
         setQrisPaymentOpen(false);
         toast({
-          title: "Subscription activated!",
-          description: "Your demo subscription is now active.",
+          title: t("dashboard.billing.subscriptionActivated"),
+          description: t("dashboard.billing.toast.yourDemoSubscriptionIsDesc"),
         });
       }, 2000);
     },
     onError: (error: Error) => {
       setPaymentStep('error');
       toast({
-        title: "Checkout failed",
+        title: t("dashboard.billing.toast.checkoutFailed"),
         description: error.message || "Failed to process checkout.",
         variant: "destructive",
       });
@@ -833,8 +833,8 @@ export default function BillingPage() {
         }
       } catch (error) {
         toast({
-          title: "Failed to cancel invoice",
-          description: "Please try again or contact support.",
+          title: t("dashboard.billing.toast.failedToCancelInvoice"),
+          description: t("dashboard.billing.toast.pleaseTryAgainOrDesc"),
           variant: "destructive",
         });
         return;
@@ -849,8 +849,8 @@ export default function BillingPage() {
         refetchPendingPayment();
       } catch (error) {
         toast({
-          title: "Failed to cancel pending payment",
-          description: "Please try again or contact support.",
+          title: t("dashboard.billing.toast.failedToCancelPending"),
+          description: t("dashboard.billing.toast.pleaseTryAgainOrDesc"),
           variant: "destructive",
         });
         return;
@@ -889,15 +889,15 @@ export default function BillingPage() {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
         toast({
-          title: "Saved!",
-          description: "QRIS image saved successfully",
+          title: t("dashboard.billing.toast.saved"),
+          description: t("dashboard.billing.toast.qrisImageSavedSuccessfullyDesc"),
         });
       } catch {
         // Fallback: open image in new tab
         window.open(qrisData.qrisImageUrl, '_blank');
         toast({
-          title: "QRIS Image",
-          description: "QRIS image opened in new tab",
+          title: t("dashboard.billing.toast.qrisImage"),
+          description: t("dashboard.billing.toast.qrisImageOpenedInDesc"),
         });
       }
     }
@@ -1056,19 +1056,19 @@ export default function BillingPage() {
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-primary" />
-              <CardTitle className="text-sm font-medium">Billing Cycle</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("dashboard.billing.billingCycle")}</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             {billingStatus?.currentPeriodEnd ? (
               <>
-                <p className="text-sm text-muted-foreground">Next billing date</p>
+                <p className="text-sm text-muted-foreground">{t("dashboard.billing.nextBillingDate")}</p>
                 <p className="text-lg font-semibold">
                   {format(new Date(billingStatus.currentPeriodEnd), 'MMMM d, yyyy')}
                 </p>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">No active billing cycle</p>
+              <p className="text-sm text-muted-foreground">{t("dashboard.billing.noBillingCycle")}</p>
             )}
           </CardContent>
         </Card>
@@ -1239,7 +1239,7 @@ export default function BillingPage() {
                         className="h-8 w-8"
                         onClick={() => {
                           navigator.clipboard.writeText(pendingPaymentDetails.vaNumber || '');
-                          toast({ title: "Copied!", description: "VA number copied to clipboard" });
+                          toast({ title: t("dashboard.billing.toast.copied"), description: t("dashboard.billing.toast.vaNumberCopiedToDesc") });
                         }}
                         data-testid="button-copy-va-number"
                       >
@@ -1269,7 +1269,7 @@ export default function BillingPage() {
                           className="h-8 w-8"
                           onClick={() => {
                             navigator.clipboard.writeText(pendingPaymentDetails.accountNumber || '');
-                            toast({ title: "Copied!", description: "Account number copied to clipboard" });
+                            toast({ title: t("dashboard.billing.toast.copied"), description: t("dashboard.billing.toast.accountNumberCopiedToDesc") });
                           }}
                           data-testid="button-copy-account-number"
                         >
@@ -1309,7 +1309,7 @@ export default function BillingPage() {
                     className="flex-1"
                     onClick={() => {
                       refetchPendingPayment();
-                      toast({ title: "Refreshing...", description: "Checking payment status" });
+                      toast({ title: t("dashboard.billing.toast.refreshing"), description: t("dashboard.billing.toast.checkingPaymentStatusDesc") });
                     }}
                     data-testid="button-refresh-payment-status"
                   >
@@ -1635,7 +1635,7 @@ export default function BillingPage() {
                       className={`h-7 px-2 ${isDefaultStyle ? "" : "bg-white/10 border-white/30 hover:bg-white/20 text-inherit"}`}
                       onClick={() => {
                         navigator.clipboard.writeText(promo?.code || "");
-                        toast({ title: "Code copied!", description: `${promo?.code} copied to clipboard` });
+                        toast({ title: t("dashboard.billing.toast.codeCopied"), description: `${promo?.code} copied to clipboard` });
                       }}
                       data-testid="button-copy-promo-code"
                     >

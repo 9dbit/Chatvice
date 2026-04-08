@@ -45,10 +45,10 @@ export default function ChatButtonsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/chat-buttons"] });
       setIsDialogOpen(false);
       resetForm();
-      toast({ title: "Chat button created successfully" });
+      toast({ title: t("dashboard.chatButtons.created") });
     },
     onError: () => {
-      toast({ title: "Failed to create chat button", variant: "destructive" });
+      toast({ title: t("dashboard.chatButtons.createFailed"), variant: "destructive" });
     },
   });
 
@@ -61,7 +61,7 @@ export default function ChatButtonsPage() {
       setIsDialogOpen(false);
       setEditingButton(null);
       resetForm();
-      toast({ title: "Chat button updated successfully" });
+      toast({ title: t("dashboard.chatButtons.updated") });
     },
   });
 
@@ -71,7 +71,7 @@ export default function ChatButtonsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/chat-buttons"] });
-      toast({ title: "Chat button deleted successfully" });
+      toast({ title: t("dashboard.chatButtons.deleted") });
     },
   });
 

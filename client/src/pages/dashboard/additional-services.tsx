@@ -99,18 +99,18 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/hospitality-config"] });
-      toast({ title: "Saved", description: "Hospitality settings saved successfully." });
+      toast({ title: t("common.saved"), description: t("dashboard.additionalServices.hospitalitySaved") });
       onClose();
     },
     onError: (err: any) => {
-      toast({ title: "Failed to save", description: err.message || "An error occurred", variant: "destructive" });
+      toast({ title: t("common.failedToSave"), description: err.message || "An error occurred", variant: "destructive" });
     },
   });
 
   const handleTestSheet = async () => {
     const googleSheetUrl = form.getValues("googleSheetUrl");
     if (!googleSheetUrl) {
-      toast({ title: "URL required", description: "Please enter a Google Sheet URL first.", variant: "destructive" });
+      toast({ title: t("common.urlRequired"), description: t("dashboard.additionalServices.urlRequired"), variant: "destructive" });
       return;
     }
     setIsTesting(true);
@@ -367,9 +367,9 @@ export default function AdditionalServicesPage() {
         throw new Error(body.error || "Unable to start trial");
       }
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
-      toast({ title: "Trial started!", description: "Your 7-day free trial is now active." });
+      toast({ title: t("dashboard.additionalServices.trialStarted"), description: t("dashboard.additionalServices.trialActive") });
     } catch (err: any) {
-      toast({ title: "Failed", description: err.message || "Unable to start trial", variant: "destructive" });
+      toast({ title: t("common.failed"), description: err.message || "Unable to start trial", variant: "destructive" });
     } finally {
       setPendingTrials(prev => { const next = new Set(prev); next.delete(addonType); return next; });
     }
@@ -380,10 +380,10 @@ export default function AdditionalServicesPage() {
       apiRequest("DELETE", `/api/merchant/addons/${addonType}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
-      toast({ title: "Service deactivated", description: "The additional service has been deactivated." });
+      toast({ title: t("dashboard.additionalServices.serviceDeactivated"), description: t("dashboard.additionalServices.deactivated") });
     },
     onError: (err: any) => {
-      toast({ title: "Failed", description: err.message || "An error occurred", variant: "destructive" });
+      toast({ title: t("common.failed"), description: err.message || "An error occurred", variant: "destructive" });
     },
   });
 

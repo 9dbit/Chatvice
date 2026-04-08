@@ -664,7 +664,7 @@ export default function SessionsPage() {
       });
       
       if (!response.ok) {
-        throw new Error("Upload failed");
+        throw new Error(t("dashboard.sessions.throw.uploadFailed"));
       }
       
       queryClient.invalidateQueries({ queryKey: ["/api/messages", selectedSession] });
@@ -908,7 +908,7 @@ export default function SessionsPage() {
           message: text,
           sessionId: selectedSession,
         });
-        if (!res.ok) throw new Error("Refinement failed");
+        if (!res.ok) throw new Error(t("dashboard.sessions.throw.refinementFailed"));
         const data = await res.json();
         const refined: string = data.refined?.trim() || text;
         setRefineOriginalText(text);

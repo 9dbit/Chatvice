@@ -43,10 +43,10 @@ export default function NotificationSettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notification-settings"] });
       invalidateNotificationSoundCache();
-      toast({ title: "Notification settings saved successfully" });
+      toast({ title: t("dashboard.notification-settings.toast.notificationSettingsSavedSuccessfully") });
     },
     onError: () => {
-      toast({ title: "Failed to save settings", variant: "destructive" });
+      toast({ title: t("dashboard.notification-settings.toast.failedToSaveSettings"), variant: "destructive" });
     },
   });
 
@@ -62,15 +62,15 @@ export default function NotificationSettingsPage() {
         credentials: "include",
       });
       
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) throw new Error(t("dashboard.notification-settings.throw.uploadFailed"));
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notification-settings"] });
-      toast({ title: "Sound uploaded successfully" });
+      toast({ title: t("dashboard.notification-settings.toast.soundUploadedSuccessfully") });
     },
     onError: () => {
-      toast({ title: "Failed to upload sound", variant: "destructive" });
+      toast({ title: t("dashboard.notification-settings.toast.failedToUploadSound"), variant: "destructive" });
     },
   });
 
@@ -82,7 +82,7 @@ export default function NotificationSettingsPage() {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith("audio/")) {
-        toast({ title: "File must be an audio file", variant: "destructive" });
+        toast({ title: t("dashboard.notification-settings.toast.fileMustBeAn"), variant: "destructive" });
         return;
       }
       uploadMutation.mutate(file);
@@ -115,12 +115,12 @@ export default function NotificationSettingsPage() {
         audio.onerror = () => {
           setIsPlaying(null);
           audioRef.current = null;
-          toast({ title: "Could not play sound", variant: "destructive" });
+          toast({ title: t("dashboard.notification-settings.toast.couldNotPlaySound"), variant: "destructive" });
         };
         await audio.play();
       } catch (error) {
         setIsPlaying(null);
-        toast({ title: "Could not play sound", variant: "destructive" });
+        toast({ title: t("dashboard.notification-settings.toast.couldNotPlaySound"), variant: "destructive" });
       }
       return;
     }
@@ -139,16 +139,16 @@ export default function NotificationSettingsPage() {
         audio.onerror = () => {
           setIsPlaying(null);
           audioRef.current = null;
-          toast({ title: "Could not play sound", variant: "destructive" });
+          toast({ title: t("dashboard.notification-settings.toast.couldNotPlaySound"), variant: "destructive" });
         };
         await audio.play();
       } catch (error) {
         setIsPlaying(null);
-        toast({ title: "Could not play sound. Please interact with the page first.", variant: "destructive" });
+        toast({ title: t("dashboard.notification-settings.toast.couldNotPlaySound"), variant: "destructive" });
       }
     } else {
       setIsPlaying(null);
-      toast({ title: "Sound not found", variant: "destructive" });
+      toast({ title: t("dashboard.notification-settings.toast.soundNotFound"), variant: "destructive" });
     }
   }
 
