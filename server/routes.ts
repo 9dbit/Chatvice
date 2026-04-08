@@ -23972,7 +23972,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  // Confirm payment — only activates after admin or webhook verification
+  // Confirm payment — records payment reference as pending; actual activation via webhook or admin
   app.post("/api/merchant/addons/confirm-payment", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
@@ -23987,18 +23987,10 @@ Please create a comprehensive help center article that would be useful for custo
       const existing = await storage.getMerchantAddon(merchantId, addonType);
       if (existing && existing.isActive) return res.status(409).json({ error: "Already subscribed" });
 
-      // Activate addon immediately after payment confirmation
-      const calendarToken = addonType === "appointment_scheduling"
-        ? crypto.randomBytes(16).toString("hex")
-        : null;
-
+      // Save payment reference as pending (do NOT activate — webhook/admin activates)
       if (existing) {
         await storage.updateMerchantAddon(existing.id, {
-          isActive: true,
-          subscribedAt: new Date(),
-          ...(addonType === "appointment_scheduling" && !existing.calendarToken
-            ? { calendarToken }
-            : {}),
+          paymentReference,
         });
       } else {
         const addonId = "mao_" + crypto.randomBytes(6).toString("hex");
@@ -24006,13 +23998,15 @@ Please create a comprehensive help center article that would be useful for custo
           id: addonId,
           merchantId,
           addonType,
-          isActive: true,
-          calendarToken,
+          isActive: false,
+          calendarToken: null,
+          paymentReference,
         });
       }
+
       res.status(200).json({
-        status: "active",
-        message: "Addon activated successfully.",
+        status: "pending",
+        message: "Payment reference recorded. Your addon will be activated after payment is verified.",
         paymentReference,
         addonType,
         merchantId,

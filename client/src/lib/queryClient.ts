@@ -8,13 +8,24 @@ function getLoginRedirectUrl(): string {
   return "/login";
 }
 
+let sessionExpiredRedirectTimeout: ReturnType<typeof setTimeout> | null = null;
+
+function handleSessionExpired() {
+  localStorage.removeItem("merchantId");
+  localStorage.removeItem("userType");
+  if (sessionExpiredRedirectTimeout) return;
+  sessionExpiredRedirectTimeout = setTimeout(() => {
+    window.location.href = getLoginRedirectUrl();
+  }, 2000);
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     if (res.status === 401) {
-      localStorage.removeItem("merchantId");
-      localStorage.removeItem("userType");
-      window.location.href = getLoginRedirectUrl();
-      throw new Error("Session expired. Please login again.");
+      handleSessionExpired();
+      const err = new Error("Session expired. Please login again.");
+      (err as any).status = 401;
+      throw err;
     }
     const text = (await res.text()) || res.statusText;
     throw new Error(`${res.status}: ${text}`);
@@ -52,9 +63,7 @@ export const getQueryFn: <T>(options: {
       if (unauthorizedBehavior === "returnNull") {
         return null;
       }
-      localStorage.removeItem("merchantId");
-      localStorage.removeItem("userType");
-      window.location.href = getLoginRedirectUrl();
+      handleSessionExpired();
       throw new Error("Session expired");
     }
 

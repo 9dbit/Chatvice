@@ -390,13 +390,17 @@ export default function AdditionalServicesPage() {
       const res = await apiRequest("POST", "/api/merchant/addons/confirm-payment", { addonType, paymentReference, pendingId });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
       closeDialog();
-      toast({ title: "Payment submitted", description: "Your addon will be activated after payment is verified." });
+      if (data?.status === "pending") {
+        toast({ title: "Pembayaran tercatat", description: "Referensi pembayaran berhasil disimpan. Addon akan diaktifkan setelah pembayaran terverifikasi." });
+      } else {
+        toast({ title: "Pembayaran diproses", description: "Addon akan segera diaktifkan." });
+      }
     },
     onError: (err: any) => {
-      toast({ title: "Failed", description: err.message || "Could not confirm payment", variant: "destructive" });
+      toast({ title: "Gagal", description: err.message || "Tidak dapat memproses konfirmasi pembayaran", variant: "destructive" });
     },
   });
 
@@ -407,10 +411,10 @@ export default function AdditionalServicesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
-      toast({ title: "Trial started!", description: "Your 7-day free trial is now active." });
+      toast({ title: "Trial dimulai!", description: "Masa percobaan gratis 7 hari Anda sekarang aktif." });
     },
     onError: (err: any) => {
-      toast({ title: "Failed", description: err.message || "Could not start trial", variant: "destructive" });
+      toast({ title: "Gagal", description: err.message || "Tidak dapat memulai trial", variant: "destructive" });
     },
   });
 

@@ -782,6 +782,25 @@ function scheduleDailyBlogGeneration(): void {
   }, msUntilNext);
 }
 
+async function deactivateExpiredTrials(): Promise<void> {
+  try {
+    const now = new Date();
+    const allAddons = await storage.getAllMerchantAddons();
+    const expiredTrials = allAddons.filter(a =>
+      a.isActive && a.trialEndsAt && new Date(a.trialEndsAt) < now
+    );
+    if (expiredTrials.length > 0) {
+      console.log(`[trial-expiry] Deactivating ${expiredTrials.length} expired trial(s)`);
+      for (const addon of expiredTrials) {
+        await storage.updateMerchantAddon(addon.id, { isActive: false });
+        console.log(`[trial-expiry] Deactivated trial for merchant ${addon.merchantId} addon ${addon.addonType}`);
+      }
+    }
+  } catch (err) {
+    console.error("[trial-expiry] Error deactivating expired trials:", err);
+  }
+}
+
 function startBackgroundSync(): void {
   setTimeout(() => migrateLegacyCrawledLinks(), 3000);
   setTimeout(() => runAllBackgroundJobs(), 5 * 60 * 1000);
@@ -795,6 +814,11 @@ function startBackgroundSync(): void {
 
   setInterval(() => runGoogleSheetFastSyncJob(), 10 * 1000);
   console.log("[fast-sync] Google Sheet fast sync scheduler started (10s interval)");
+
+  // Deactivate expired addon trials every hour
+  setTimeout(() => deactivateExpiredTrials(), 30 * 1000);
+  setInterval(() => deactivateExpiredTrials(), 60 * 60 * 1000);
+  console.log("[trial-expiry] Trial expiry cleanup started (60 min interval)");
 
   setTimeout(() => seedBlogPostsFromStaticData().catch(err => console.error("[blog-gen] Seed error:", err)), 8000);
   scheduleDailyBlogGeneration();
