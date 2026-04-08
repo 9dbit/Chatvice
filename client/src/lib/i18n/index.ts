@@ -48,7 +48,7 @@ export const languages: LanguageOption[] = [
   { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', flag: 'HI' },
 ];
 
-export const translations: Record<Language, typeof en> = {
+export const translations: Record<Language, any> = {
   en,
   id,
   zh,
@@ -84,7 +84,7 @@ export function setStoredLanguage(lang: Language): void {
   }
 }
 
-export function getTranslation(lang: Language): typeof en {
+export function getTranslation(lang: Language): any {
   return translations[lang] || translations.en;
 }
 
@@ -96,7 +96,7 @@ type NestedKeyOf<ObjectType extends object> = {
 
 export type TranslationKey = NestedKeyOf<typeof en>;
 
-export function t(translations: typeof en, key: string): string {
+export function t(translations: any, key: string): string {
   const keys = key.split('.');
   let result: any = translations;
   for (const k of keys) {

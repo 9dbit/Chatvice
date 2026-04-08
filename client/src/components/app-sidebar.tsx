@@ -17,6 +17,16 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   LayoutDashboard,
   MessageSquare,
   Database,
@@ -51,6 +61,8 @@ import {
   Sparkles,
   Calendar,
   Hotel,
+  Languages,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -60,6 +72,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useTheme } from "@/components/theme-provider";
 import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
+import { useLanguage } from "@/hooks/use-language";
+import type { Language } from "@/lib/i18n";
 
 import { rolePermissions } from "@shared/schema";
 
@@ -159,7 +173,38 @@ const menuItemsMap: Record<string, MenuItem> = {
   "affiliate": { id: "affiliate", title: "Affiliate", url: "/dashboard/affiliate", icon: DollarSign, permission: "overview" },
   "data-usage": { id: "data-usage", title: "Data Usage", url: "/dashboard/data-usage", icon: HardDrive, permission: "billing" },
   "additional-services": { id: "additional-services", title: "Additional Services", url: "/dashboard/additional-services", icon: Sparkles, permission: "billing" },
-  "appointments": { id: "appointments", title: "Janji Temu", url: "/dashboard/appointments", icon: Calendar, permission: "analytics" },
+  "appointments": { id: "appointments", title: "Appointments", url: "/dashboard/appointments", icon: Calendar, permission: "analytics" },
+};
+
+const menuItemTranslationKeys: Record<string, string> = {
+  "overview": "dashboard.items.overview",
+  "profile": "dashboard.items.profile",
+  "agents": "dashboard.items.agents",
+  "leads": "dashboard.items.leads",
+  "quick-replies": "dashboard.items.quickReplies",
+  "chat-buttons": "dashboard.items.chatButtons",
+  "knowledge-base": "dashboard.items.knowledgeBase",
+  "triggers": "dashboard.items.triggers",
+  "analytics": "dashboard.items.analytics",
+  "chat-logs": "dashboard.items.chatLogs",
+  "user-data": "dashboard.items.userData",
+  "live-preview": "dashboard.items.livePreview",
+  "settings": "dashboard.items.settings",
+  "widget": "dashboard.items.widget",
+  "welcome-bubble": "dashboard.items.welcomeBubble",
+  "proactive-chat": "dashboard.items.proactiveChat",
+  "product-cards": "dashboard.items.productCards",
+  "supervisors": "dashboard.items.supervisors",
+  "team-activity": "dashboard.items.teamActivity",
+  "work-scheduler": "dashboard.items.workScheduler",
+  "integrations": "dashboard.items.integrations",
+  "plans": "dashboard.items.plans",
+  "billing": "dashboard.items.billing",
+  "chat-monitoring": "dashboard.items.chatMonitoring",
+  "affiliate": "dashboard.items.affiliate",
+  "data-usage": "dashboard.items.dataUsage",
+  "additional-services": "dashboard.items.additionalServices",
+  "appointments": "dashboard.items.appointments",
 };
 
 const defaultMainMenuItems: MenuItem[] = [
@@ -260,6 +305,9 @@ export function AppSidebar() {
   const hasPlayedInitialRef = useRef(false);
   const { resolvedTheme } = useTheme();
   const chatviceLogo = resolvedTheme === "dark" ? chatviceLogoDark : chatviceLogoLight;
+  const { language, setLanguage, t } = useLanguage();
+  const [pendingLang, setPendingLang] = useState<Language | null>(null);
+  const [langSwitching, setLangSwitching] = useState(false);
 
   const isAdmin = userType === "merchant";
   const permissions = isAdmin ? rolePermissions.administrator : rolePermissions.supervisor;
@@ -446,13 +494,64 @@ export function AppSidebar() {
     setLocation("/");
   };
 
+  const handleLangSwitch = (lang: Language) => {
+    if (lang === language) return;
+    setPendingLang(lang);
+  };
+
+  const handleLangConfirm = () => {
+    if (!pendingLang) return;
+    setLangSwitching(true);
+    setTimeout(() => {
+      setLanguage(pendingLang);
+      setPendingLang(null);
+      setLangSwitching(false);
+    }, 350);
+  };
+
+  const handleLangCancel = () => {
+    setPendingLang(null);
+  };
+
+  const getMenuItemTitle = (item: MenuItem): string => {
+    if (item.id && menuItemTranslationKeys[item.id]) {
+      const translated = t(menuItemTranslationKeys[item.id]);
+      if (translated !== menuItemTranslationKeys[item.id]) return translated;
+    }
+    return item.title;
+  };
+
   const isItemActive = (url: string) => {
     return location === url || (url !== "/dashboard" && location.startsWith(url));
   };
 
   const isChatSessionsActive = location === "/dashboard/sessions" || location.startsWith("/dashboard/sessions/");
 
+  const pendingLangName = pendingLang === "en" ? "English" : pendingLang === "id" ? "Bahasa Indonesia" : pendingLang || "";
+
   return (
+    <>
+      <AlertDialog open={!!pendingLang} onOpenChange={(open) => { if (!open) handleLangCancel(); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("dashboard.languageSwitcher.confirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("dashboard.languageSwitcher.confirmDesc").replace("{{lang}}", pendingLangName)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleLangCancel}>{t("dashboard.languageSwitcher.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleLangConfirm}>{t("dashboard.languageSwitcher.confirm")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {langSwitching && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/60 backdrop-blur-sm pointer-events-none">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      )}
+
     <Sidebar>
       <SidebarHeader className="p-3">
         <Link href="/" className="flex flex-col items-start gap-1.5 hover:opacity-80 transition-opacity cursor-pointer" data-testid="link-sidebar-logo">
@@ -464,12 +563,13 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup className="p-1 pt-0">
-          <SidebarGroupLabel className="h-6 px-2 text-xs">Menu</SidebarGroupLabel>
+          <SidebarGroupLabel className="h-6 px-2 text-xs">{t("dashboard.menu")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {/* Render items before Widget/Message Settings (Overview, Agents) */}
               {filteredMainItems.filter(item => item.id === "overview" || item.id === "agents").map((item) => {
                 const isActive = isItemActive(item.url);
+                const label = getMenuItemTitle(item);
                 return (
                   <SidebarMenuItem key={item.id || item.title}>
                     <SidebarMenuButton
@@ -478,7 +578,7 @@ export function AppSidebar() {
                     >
                       <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
                         <item.icon className="w-4 h-4" />
-                        <span className="flex-1">{item.title}</span>
+                        <span className="flex-1">{label}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -493,7 +593,7 @@ export function AppSidebar() {
                       <SidebarMenuButton className="w-full justify-between" data-testid="button-sidebar-widget-setting">
                         <div className="flex items-center gap-2">
                           <Palette className="w-4 h-4" />
-                          <span>Widget Setting</span>
+                          <span>{t("dashboard.widgetSetting")}</span>
                         </div>
                         <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${widgetSettingOpen ? "rotate-180" : ""}`} />
                       </SidebarMenuButton>
@@ -502,6 +602,7 @@ export function AppSidebar() {
                   <CollapsibleContent className="overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-top-1 data-[state=open]:slide-in-from-top-1 duration-200">
                     {filteredWidgetItems.map((item) => {
                       const isActive = isItemActive(item.url);
+                      const label = getMenuItemTitle(item);
                       return (
                         <SidebarMenuItem key={item.id || item.title} className="pl-4">
                           <SidebarMenuButton
@@ -510,7 +611,7 @@ export function AppSidebar() {
                           >
                             <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
                               <item.icon className="w-4 h-4" />
-                              <span className="flex-1">{item.title}</span>
+                              <span className="flex-1">{label}</span>
                             </Link>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
@@ -527,7 +628,7 @@ export function AppSidebar() {
                       <SidebarMenuButton className="w-full justify-between" data-testid="button-sidebar-message-setting">
                         <div className="flex items-center gap-2">
                           <MessageSquare className="w-4 h-4" />
-                          <span>Message Setting</span>
+                          <span>{t("dashboard.messageSetting")}</span>
                         </div>
                         <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${messageSettingOpen ? "rotate-180" : ""}`} />
                       </SidebarMenuButton>
@@ -536,6 +637,7 @@ export function AppSidebar() {
                   <CollapsibleContent className="overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-top-1 data-[state=open]:slide-in-from-top-1 duration-200">
                     {filteredMessageItems.map((item) => {
                       const isActive = isItemActive(item.url);
+                      const label = getMenuItemTitle(item);
                       return (
                         <SidebarMenuItem key={item.id || item.title} className="pl-4">
                           <SidebarMenuButton
@@ -544,7 +646,7 @@ export function AppSidebar() {
                           >
                             <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
                               <item.icon className="w-4 h-4" />
-                              <span className="flex-1">{item.title}</span>
+                              <span className="flex-1">{label}</span>
                             </Link>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
@@ -557,6 +659,7 @@ export function AppSidebar() {
               {/* Remaining main items after Widget/Message Settings */}
               {filteredMainItems.filter(item => item.id !== "overview" && item.id !== "agents").map((item) => {
                 const isActive = isItemActive(item.url);
+                const label = getMenuItemTitle(item);
                 return (
                   <SidebarMenuItem key={item.id || item.title}>
                     <SidebarMenuButton
@@ -565,7 +668,7 @@ export function AppSidebar() {
                     >
                       <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
                         <item.icon className="w-4 h-4" />
-                        <span className="flex-1">{item.title}</span>
+                        <span className="flex-1">{label}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -580,7 +683,7 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild className={isActive ? "bg-sidebar-accent" : ""}>
                       <Link href="/dashboard/appointments" data-testid="link-sidebar-janji-temu">
                         <Calendar className="w-4 h-4" />
-                        <span className="flex-1">Janji Temu</span>
+                        <span className="flex-1">{t("dashboard.items.appointments")}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -593,7 +696,7 @@ export function AppSidebar() {
                     <SidebarMenuButton asChild className={isActive ? "bg-sidebar-accent" : ""}>
                       <Link href="/dashboard/additional-services" data-testid="link-sidebar-hospitality">
                         <Hotel className="w-4 h-4" />
-                        <span className="flex-1">Hospitality AI</span>
+                        <span className="flex-1">{t("dashboard.items.hospitalityAI")}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -607,7 +710,7 @@ export function AppSidebar() {
                       <SidebarMenuButton className="w-full justify-between" data-testid="button-sidebar-management">
                         <div className="flex items-center gap-2">
                           <Users className="w-4 h-4" />
-                          <span>Management</span>
+                          <span>{t("dashboard.management")}</span>
                         </div>
                         <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${managementOpen ? "rotate-180" : ""}`} />
                       </SidebarMenuButton>
@@ -616,6 +719,7 @@ export function AppSidebar() {
                   <CollapsibleContent className="overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-top-1 data-[state=open]:slide-in-from-top-1 duration-200">
                     {filteredManagementItems.map((item) => {
                       const isActive = isItemActive(item.url);
+                      const label = getMenuItemTitle(item);
                       return (
                         <SidebarMenuItem key={item.id || item.title} className="pl-4">
                           <SidebarMenuButton
@@ -624,7 +728,7 @@ export function AppSidebar() {
                           >
                             <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
                               <item.icon className="w-4 h-4" />
-                              <span className="flex-1">{item.title}</span>
+                              <span className="flex-1">{label}</span>
                             </Link>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
@@ -658,7 +762,7 @@ export function AppSidebar() {
               }}
             >
               <MessageSquare className="w-5 h-5" />
-              <span className="font-medium flex-1 text-left">Chat Sessions</span>
+              <span className="font-medium flex-1 text-left">{t("dashboard.chatSessions")}</span>
               {escalatedCount > 0 && <BlinkingDot />}
             </button>
           </Link>
@@ -679,10 +783,10 @@ export function AppSidebar() {
               }`}
             >
               <Sparkles className="w-4 h-4 shrink-0" />
-              <span className="flex-1 text-left">Additional Services</span>
+              <span className="flex-1 text-left">{t("dashboard.additionalServices")}</span>
               {activeAddonTypes.length > 0 && (
                 <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium shrink-0">
-                  {activeAddonTypes.length} aktif
+                  {activeAddonTypes.length}
                 </span>
               )}
             </button>
@@ -711,7 +815,7 @@ export function AppSidebar() {
                 {/* Conversations - Always visible */}
                 <div className="space-y-1">
                   <div className="flex justify-between gap-2">
-                    <span className="text-muted-foreground">Conversations</span>
+                    <span className="text-muted-foreground">{t("dashboard.conversations")}</span>
                     <span className="font-medium">{billingStatus.conversationsUsed} / {billingStatus.conversationsLimit === -1 ? "∞" : billingStatus.conversationsLimit}</span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-1.5">
@@ -730,7 +834,7 @@ export function AppSidebar() {
                   {/* AI Agents */}
                   <div className="space-y-1">
                     <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">AI Agents</span>
+                      <span className="text-muted-foreground">{t("dashboard.aiAgents")}</span>
                       <span className="font-medium">{billingStatus.agentsUsed} / {billingStatus.agentsLimit === -1 ? "∞" : billingStatus.agentsLimit}</span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-1.5">
@@ -748,7 +852,7 @@ export function AppSidebar() {
                   {/* Supervisors */}
                   <div className="space-y-1">
                     <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">Supervisors</span>
+                      <span className="text-muted-foreground">{t("dashboard.supervisors")}</span>
                       <span className="font-medium">{billingStatus.supervisorsUsed} / {billingStatus.supervisorsLimit === -1 ? "∞" : billingStatus.supervisorsLimit}</span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-1.5">
@@ -766,7 +870,7 @@ export function AppSidebar() {
                   {/* Knowledge Sources */}
                   <div className="space-y-1">
                     <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">Knowledge Sources</span>
+                      <span className="text-muted-foreground">{t("dashboard.knowledgeSources")}</span>
                       <span className="font-medium">{billingStatus.sourcesUsed} / {billingStatus.sourcesLimit === -1 ? "∞" : billingStatus.sourcesLimit}</span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-1.5">
@@ -784,7 +888,7 @@ export function AppSidebar() {
                   {/* Domains */}
                   <div className="space-y-1">
                     <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">Domains</span>
+                      <span className="text-muted-foreground">{t("dashboard.domains")}</span>
                       <span className="font-medium">{billingStatus.domainsUsed} / {billingStatus.domainsLimit === -1 ? "∞" : billingStatus.domainsLimit}</span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-1.5">
@@ -801,13 +905,13 @@ export function AppSidebar() {
                   
                   {billingStatus.status === "trial" && billingStatus.trialEndsAt && (
                     <div className="flex justify-between gap-2 pt-1 border-t border-muted">
-                      <span className="text-muted-foreground">Trial Ends</span>
+                      <span className="text-muted-foreground">{t("dashboard.trialEnds")}</span>
                       <span className="font-medium">{new Date(billingStatus.trialEndsAt).toLocaleDateString()}</span>
                     </div>
                   )}
                   {billingStatus.status === "active" && billingStatus.currentPeriodEnd && (
                     <div className="flex justify-between gap-2 pt-1 border-t border-muted">
-                      <span className="text-muted-foreground">Renews</span>
+                      <span className="text-muted-foreground">{t("dashboard.renews")}</span>
                       <span className="font-medium">{new Date(billingStatus.currentPeriodEnd).toLocaleDateString()}</span>
                     </div>
                   )}
@@ -824,7 +928,7 @@ export function AppSidebar() {
                     data-testid="button-upgrade-plan"
                   >
                     <CreditCard className="w-3.5 h-3.5 mr-1.5" />
-                    Upgrade Plan
+                    {t("dashboard.upgradePlan")}
                   </Button>
                 </Link>
               )}
@@ -835,7 +939,7 @@ export function AppSidebar() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${online ? "bg-status-online" : "bg-status-offline"}`} />
-              <span className="text-sm">{online ? "Online" : "Offline"}</span>
+              <span className="text-sm">{online ? t("dashboard.online") : t("dashboard.offline")}</span>
             </div>
             <Switch
               checked={online}
@@ -844,6 +948,35 @@ export function AppSidebar() {
             />
           </div>
         )}
+
+        {/* Language Switcher - EN / ID only */}
+        <div className="flex items-center justify-between gap-2 px-0.5">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Languages className="w-3.5 h-3.5" />
+            <span>{t("dashboard.languageSwitcher.label")}</span>
+          </div>
+          <div className="flex items-center gap-1" data-testid="dashboard-lang-switcher">
+            <Button
+              variant={language === "en" ? "default" : "ghost"}
+              size="sm"
+              className="text-xs font-semibold"
+              onClick={() => handleLangSwitch("en")}
+              data-testid="button-lang-en"
+            >
+              EN
+            </Button>
+            <Button
+              variant={language === "id" ? "default" : "ghost"}
+              size="sm"
+              className="text-xs font-semibold"
+              onClick={() => handleLangSwitch("id")}
+              data-testid="button-lang-id"
+            >
+              ID
+            </Button>
+          </div>
+        </div>
+
         <Button
           variant="ghost"
           className="w-full justify-start"
@@ -851,9 +984,10 @@ export function AppSidebar() {
           data-testid="button-logout"
         >
           <LogOut className="w-4 h-4 mr-2" />
-          Logout
+          {t("dashboard.logout")}
         </Button>
       </SidebarFooter>
     </Sidebar>
+    </>
   );
 }
