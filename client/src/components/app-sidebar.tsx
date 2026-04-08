@@ -454,17 +454,17 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-4">
-        <Link href="/" className="flex flex-col items-start gap-2 hover:opacity-80 transition-opacity cursor-pointer" data-testid="link-sidebar-logo">
-          <img src={chatviceLogo} alt="Chatvice" className="h-8 w-auto object-contain object-left" />
+      <SidebarHeader className="p-3">
+        <Link href="/" className="flex flex-col items-start gap-1.5 hover:opacity-80 transition-opacity cursor-pointer" data-testid="link-sidebar-logo">
+          <img src={chatviceLogo} alt="Chatvice" className="h-7 w-auto object-contain object-left" />
           <p className="text-sm font-semibold truncate max-w-full">
             {merchant?.companyName || "Dashboard"}
           </p>
         </Link>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+        <SidebarGroup className="p-1 pt-0">
+          <SidebarGroupLabel className="h-6 px-2 text-xs">Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {/* Render items before Widget/Message Settings (Overview, Agents) */}
@@ -637,7 +637,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-4 space-y-3">
+      <SidebarFooter className="p-3 space-y-2">
         {permissions.sessions && (
           <Link 
             href="/dashboard/sessions"
@@ -646,7 +646,7 @@ export function AppSidebar() {
           >
             <button 
               type="button"
-              className={`flex items-center gap-3 p-3 w-full rounded-lg transition-all duration-200 ${
+              className={`flex items-center gap-2.5 p-2.5 w-full rounded-lg transition-all duration-200 ${
                 isChatSessionsActive 
                   ? "bg-primary text-white" 
                   : "bg-primary/90 text-white hover:bg-primary hover:scale-[1.02] active:scale-[0.98]"
@@ -672,7 +672,7 @@ export function AppSidebar() {
           >
             <button
               type="button"
-              className={`flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm transition-all duration-200 ${
+              className={`flex items-center gap-2.5 px-2.5 py-1.5 w-full rounded-lg text-sm transition-all duration-200 ${
                 isItemActive("/dashboard/additional-services")
                   ? "bg-accent text-accent-foreground font-medium"
                   : "text-primary hover-elevate"
@@ -691,7 +691,7 @@ export function AppSidebar() {
 
         {billingStatus && (
           <Collapsible defaultOpen={false}>
-            <div className="p-3 rounded-lg bg-muted/50 space-y-2">
+            <div className="p-2.5 rounded-lg bg-muted/50 space-y-2">
               <CollapsibleTrigger className="w-full" data-testid="trigger-usage-plan">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-xs font-medium">

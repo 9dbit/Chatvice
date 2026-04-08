@@ -8823,7 +8823,8 @@ Rules:
           return res.status(400).json({ error: "Addon tidak tersedia" });
         }
         const existingAddon = await storage.getMerchantAddon(merchant.id, addonType);
-        if (existingAddon?.isActive) {
+        const isOnTrial = existingAddon?.trialEndsAt && new Date(existingAddon.trialEndsAt) > new Date();
+        if (existingAddon?.isActive && !isOnTrial) {
           return res.status(400).json({ error: "Addon sudah aktif" });
         }
         const savedRate = await storage.getPlatformSetting("exchange_rate");

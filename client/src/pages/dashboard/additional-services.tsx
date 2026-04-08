@@ -69,6 +69,63 @@ const hospitalityFormSchema = z.object({
 
 type HospitalityForm = z.infer<typeof hospitalityFormSchema>;
 
+const glassDialogClass = "sm:max-w-[560px] w-[calc(100vw-2rem)] max-h-[88vh] flex flex-col p-0 gap-0 rounded-2xl overflow-hidden bg-card/95 backdrop-blur-xl border-border/50 shadow-2xl";
+
+function SmartAppointmentDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [, navigate] = useLocation();
+
+  const features = [
+    "Manajemen divisi & staf per jadwal",
+    "Kalender internal dengan link yang bisa dibagikan",
+    "Cek ketersediaan via AI chatbot",
+    "Notifikasi & konfirmasi janji temu otomatis",
+  ];
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className={glassDialogClass}>
+        <DialogHeader className="px-6 pt-6 pb-4 border-b flex-none">
+          <DialogTitle className="flex items-center gap-2 text-lg">
+            <Calendar className="w-5 h-5 text-primary shrink-0" />
+            Smart Appointment
+          </DialogTitle>
+          <DialogDescription className="mt-1">
+            Sistem booking & manajemen jadwal cerdas yang terintegrasi langsung dengan AI chatbot Anda.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          <ul className="space-y-2">
+            {features.map((f) => (
+              <li key={f} className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                <CheckCircle className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                {f}
+              </li>
+            ))}
+          </ul>
+
+          <div className="rounded-xl bg-primary/5 border border-primary/10 p-4 space-y-1">
+            <p className="text-sm font-medium text-primary">Cara kerja</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Customer menanyakan ketersediaan jadwal melalui chatbot, AI mengecek secara real-time dan memandu proses booking hingga konfirmasi.
+            </p>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t flex-none flex gap-2">
+          <Button variant="outline" size="sm" className="flex-1" onClick={onClose}>
+            Tutup
+          </Button>
+          <Button size="sm" className="flex-1" onClick={() => { onClose(); navigate("/dashboard/appointments"); }} data-testid="button-goto-appointments">
+            <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+            Buka Pengaturan
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useToast();
   const [sheetTestResult, setSheetTestResult] = useState<SheetTestResult | null>(null);
@@ -126,205 +183,205 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Hotel className="w-5 h-5 text-primary" />
+      <DialogContent className={glassDialogClass}>
+        <DialogHeader className="px-6 pt-6 pb-4 border-b flex-none">
+          <DialogTitle className="flex items-center gap-2 text-lg">
+            <Hotel className="w-5 h-5 text-primary shrink-0" />
             Pengaturan Hospitality AI
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="mt-1">
             Hubungkan data kamar hotel dari Google Sheet untuk ditampilkan secara real-time di chatbot.
           </DialogDescription>
         </DialogHeader>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-10">
-            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit((data) => saveMutation.mutate(data))} className="space-y-4 mt-2">
-              <FormField
-                control={form.control}
-                name="isEnabled"
-                render={({ field }) => (
-                  <div className="flex items-center justify-between gap-4 p-3 rounded-md border">
-                    <div>
-                      <p className="text-sm font-medium">Aktifkan Fitur</p>
-                      <p className="text-xs text-muted-foreground">Chatbot akan menampilkan ketersediaan kamar ketika customer bertanya</p>
-                    </div>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      data-testid="switch-hospitality-enabled"
-                    />
-                  </div>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="hotelName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nama Hotel</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Grand Chatvice Hotel" {...field} data-testid="input-hotel-name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="bookingUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>URL Pemesanan</FormLabel>
-                    <FormControl>
-                      <Input type="url" placeholder="https://book.yourhotel.com" {...field} data-testid="input-booking-url" />
-                    </FormControl>
-                    <p className="text-xs text-muted-foreground">Link yang akan dibuka saat customer menekan tombol "Pesan Sekarang di Website"</p>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="googleSheetUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>URL Google Sheet</FormLabel>
-                    <FormControl>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="https://docs.google.com/spreadsheets/d/..."
-                          {...field}
-                          data-testid="input-google-sheet-url"
-                          className="flex-1"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="default"
-                          onClick={handleTestSheet}
-                          disabled={isTesting}
-                          data-testid="button-test-sheet"
-                        >
-                          {isTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <TestTube2 className="w-4 h-4" />}
-                          <span className="ml-1 hidden sm:inline">Test</span>
-                        </Button>
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <Form {...form}>
+              <form id="hospitality-form" onSubmit={form.handleSubmit((data) => saveMutation.mutate(data))} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="isEnabled"
+                  render={({ field }) => (
+                    <div className="flex items-center justify-between gap-4 p-3 rounded-xl border">
+                      <div>
+                        <p className="text-sm font-medium">Aktifkan Fitur</p>
+                        <p className="text-xs text-muted-foreground">Chatbot akan menampilkan ketersediaan kamar ketika customer bertanya</p>
                       </div>
-                    </FormControl>
-                    <p className="text-xs text-muted-foreground">
-                      Sheet harus bisa diakses publik. Kolom yang didukung: <code>room_name</code>, <code>room_description</code>, <code>price_per_night</code>, <code>availability</code>, <code>check_in</code>, <code>check_out</code>, <code>image_url</code>.
-                    </p>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="switch-hospitality-enabled"
+                      />
+                    </div>
+                  )}
+                />
 
-              {sheetTestResult && (
-                <div className={`rounded-md p-3 text-sm ${sheetTestResult.success ? "bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800" : "bg-destructive/10 border border-destructive/30"}`}>
-                  <p className={`font-medium ${sheetTestResult.success ? "text-green-700 dark:text-green-400" : "text-destructive"}`}>
-                    {sheetTestResult.message}
-                  </p>
-                  {sheetTestResult.success && sheetTestResult.sampleRows.length > 1 && (() => {
-                    const [headerRow, ...dataRows] = sheetTestResult.sampleRows;
-                    const headers = headerRow.split(",").map(h => h.replace(/"/g, "").trim());
-                    const rows = dataRows.slice(0, 3).map(r => r.split(",").map(c => c.replace(/"/g, "").trim()));
-                    return (
-                      <div className="mt-2 overflow-x-auto">
-                        <p className="text-xs text-muted-foreground mb-1.5">Preview data (3 baris pertama):</p>
-                        <table className="w-full text-[10px] border-collapse">
-                          <thead>
-                            <tr>
-                              {headers.map((h, i) => (
-                                <th key={i} className="border border-border px-1.5 py-1 text-left font-semibold bg-muted/50 whitespace-nowrap">{h}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {rows.map((row, ri) => (
-                              <tr key={ri} className="even:bg-muted/20">
-                                {headers.map((_, ci) => (
-                                  <td key={ci} className="border border-border px-1.5 py-1 text-muted-foreground truncate max-w-[80px]">{row[ci] ?? ""}</td>
+                <FormField
+                  control={form.control}
+                  name="hotelName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nama Hotel</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Grand Chatvice Hotel" {...field} data-testid="input-hotel-name" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="bookingUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>URL Pemesanan</FormLabel>
+                      <FormControl>
+                        <Input type="url" placeholder="https://book.yourhotel.com" {...field} data-testid="input-booking-url" />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">Link yang akan dibuka saat customer menekan tombol "Pesan Sekarang di Website"</p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="googleSheetUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>URL Google Sheet</FormLabel>
+                      <FormControl>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="https://docs.google.com/spreadsheets/d/..."
+                            {...field}
+                            data-testid="input-google-sheet-url"
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="default"
+                            onClick={handleTestSheet}
+                            disabled={isTesting}
+                            data-testid="button-test-sheet"
+                          >
+                            {isTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <TestTube2 className="w-4 h-4" />}
+                            <span className="ml-1 hidden sm:inline">Test</span>
+                          </Button>
+                        </div>
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        Sheet harus bisa diakses publik. Kolom: <code>room_name</code>, <code>price_per_night</code>, <code>availability</code>, <code>image_url</code>.
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {sheetTestResult && (
+                  <div className={`rounded-xl p-3 text-sm ${sheetTestResult.success ? "bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800" : "bg-destructive/10 border border-destructive/30"}`}>
+                    <p className={`font-medium ${sheetTestResult.success ? "text-green-700 dark:text-green-400" : "text-destructive"}`}>
+                      {sheetTestResult.message}
+                    </p>
+                    {sheetTestResult.success && sheetTestResult.sampleRows.length > 1 && (() => {
+                      const [headerRow, ...dataRows] = sheetTestResult.sampleRows;
+                      const headers = headerRow.split(",").map(h => h.replace(/"/g, "").trim());
+                      const rows = dataRows.slice(0, 3).map(r => r.split(",").map(c => c.replace(/"/g, "").trim()));
+                      return (
+                        <div className="mt-2 overflow-x-auto">
+                          <p className="text-xs text-muted-foreground mb-1.5">Preview (3 baris pertama):</p>
+                          <table className="w-full text-[10px] border-collapse">
+                            <thead>
+                              <tr>
+                                {headers.map((h, i) => (
+                                  <th key={i} className="border border-border px-1.5 py-1 text-left font-semibold bg-muted/50 whitespace-nowrap">{h}</th>
                                 ))}
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-
-              <FormField
-                control={form.control}
-                name="aiInstructions"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Instruksi Tambahan untuk AI (opsional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Contoh: Selalu sebutkan bahwa check-in pukul 14.00 dan check-out pukul 12.00..."
-                        rows={3}
-                        {...field}
-                        data-testid="textarea-ai-instructions"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                            </thead>
+                            <tbody>
+                              {rows.map((row, ri) => (
+                                <tr key={ri} className="even:bg-muted/20">
+                                  {headers.map((_, ci) => (
+                                    <td key={ci} className="border border-border px-1.5 py-1 text-muted-foreground truncate max-w-[80px]">{row[ci] ?? ""}</td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 )}
-              />
 
-              <div className="rounded-md border p-3 bg-muted/30 space-y-2">
-                <p className="text-xs font-medium">Format Kolom Google Sheet (header baris pertama):</p>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[10px] border-collapse">
-                    <thead>
-                      <tr className="bg-muted/60">
-                        <th className="border border-border px-1.5 py-1 text-left font-semibold whitespace-nowrap">Kolom</th>
-                        <th className="border border-border px-1.5 py-1 text-left font-semibold whitespace-nowrap">Alias yang diterima</th>
-                        <th className="border border-border px-1.5 py-1 text-left font-semibold">Keterangan</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-muted-foreground">
-                      {[
-                        ["room_name *", "Room Type, Tipe Kamar, Nama Kamar", "Wajib. Nama/tipe kamar"],
-                        ["price_per_night", "Price, Harga, Harga Per Malam", "Harga per malam (angka)"],
-                        ["availability", "Available, Tersedia, Stok, Jumlah", "Jumlah kamar tersedia"],
-                        ["room_description", "Description, Deskripsi, Detail", "Deskripsi singkat kamar"],
-                        ["check_in", "Check-in, Checkin, Tanggal Masuk", "Tanggal check-in (opsional)"],
-                        ["check_out", "Check-out, Checkout, Tanggal Keluar", "Tanggal check-out (opsional)"],
-                        ["image_url", "Image, Foto, Gambar, Photo", "URL foto kamar (opsional)"],
-                      ].map(([col, alias, desc]) => (
-                        <tr key={col} className="even:bg-muted/20">
-                          <td className="border border-border px-1.5 py-1 font-mono whitespace-nowrap">{col}</td>
-                          <td className="border border-border px-1.5 py-1">{alias}</td>
-                          <td className="border border-border px-1.5 py-1">{desc}</td>
+                <FormField
+                  control={form.control}
+                  name="aiInstructions"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Instruksi Tambahan untuk AI (opsional)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Contoh: Selalu sebutkan bahwa check-in pukul 14.00 dan check-out pukul 12.00..."
+                          rows={3}
+                          {...field}
+                          data-testid="textarea-ai-instructions"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="rounded-xl border p-3 bg-muted/30 space-y-2">
+                  <p className="text-xs font-medium">Format Kolom Google Sheet:</p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[10px] border-collapse">
+                      <thead>
+                        <tr className="bg-muted/60">
+                          <th className="border border-border px-1.5 py-1 text-left font-semibold whitespace-nowrap">Kolom</th>
+                          <th className="border border-border px-1.5 py-1 text-left font-semibold whitespace-nowrap">Alias</th>
+                          <th className="border border-border px-1.5 py-1 text-left font-semibold">Keterangan</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="text-muted-foreground">
+                        {[
+                          ["room_name *", "Room Type, Tipe Kamar", "Wajib. Nama/tipe kamar"],
+                          ["price_per_night", "Price, Harga", "Harga per malam (angka)"],
+                          ["availability", "Available, Stok", "Jumlah kamar tersedia"],
+                          ["room_description", "Description, Deskripsi", "Deskripsi singkat kamar"],
+                          ["image_url", "Image, Foto", "URL foto kamar (opsional)"],
+                        ].map(([col, alias, desc]) => (
+                          <tr key={col} className="even:bg-muted/20">
+                            <td className="border border-border px-1.5 py-1 font-mono whitespace-nowrap">{col}</td>
+                            <td className="border border-border px-1.5 py-1">{alias}</td>
+                            <td className="border border-border px-1.5 py-1">{desc}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              </form>
+            </Form>
+          )}
+        </div>
 
-              <div className="flex gap-2 pt-1">
-                <Button type="button" variant="outline" size="sm" className="flex-1" onClick={onClose} disabled={saveMutation.isPending}>
-                  Batal
-                </Button>
-                <Button type="submit" size="sm" className="flex-1" disabled={saveMutation.isPending} data-testid="button-save-hospitality">
-                  {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Simpan Pengaturan
-                </Button>
-              </div>
-            </form>
-          </Form>
-        )}
+        <div className="px-6 py-4 border-t flex-none flex gap-2">
+          <Button type="button" variant="outline" size="sm" className="flex-1" onClick={onClose} disabled={saveMutation.isPending}>
+            Batal
+          </Button>
+          <Button type="submit" form="hospitality-form" size="sm" className="flex-1" disabled={saveMutation.isPending} data-testid="button-save-hospitality">
+            {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            Simpan Pengaturan
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -334,6 +391,7 @@ export default function AdditionalServicesPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [hospitalitySettingsOpen, setHospitalitySettingsOpen] = useState(false);
+  const [appointmentSettingsOpen, setAppointmentSettingsOpen] = useState(false);
   const [pendingTrials, setPendingTrials] = useState<Set<string>>(new Set());
 
   const { data: addonConfigs = [], isLoading: configsLoading } = useQuery<AddonConfig[]>({
@@ -389,7 +447,7 @@ export default function AdditionalServicesPage() {
 
   const handleManageClick = (addonType: string) => {
     if (addonType === "appointment_scheduling") {
-      window.location.href = "/dashboard/appointments";
+      setAppointmentSettingsOpen(true);
     } else if (addonType === "hospitality") {
       setHospitalitySettingsOpen(true);
     }
@@ -502,15 +560,10 @@ export default function AdditionalServicesPage() {
                           Manage
                         </Button>
                         {trialActive && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => navigate(`/dashboard/checkout?addon=${config.addonType}`)}
-                            data-testid={`button-upgrade-${config.addonType}`}
-                          >
-                            <CreditCard className="w-3.5 h-3.5 mr-1" />
-                            Berlangganan
-                          </Button>
+                          <span className="inline-flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400 font-medium" data-testid={`text-trial-countdown-${config.addonType}`}>
+                            <Clock className="w-3.5 h-3.5 shrink-0" />
+                            Trial: {trialDaysLeft} hari tersisa
+                          </span>
                         )}
                         <Button
                           variant="ghost"
@@ -569,6 +622,10 @@ export default function AdditionalServicesPage() {
       <HospitalitySettingsDialog
         open={hospitalitySettingsOpen}
         onClose={() => setHospitalitySettingsOpen(false)}
+      />
+      <SmartAppointmentDialog
+        open={appointmentSettingsOpen}
+        onClose={() => setAppointmentSettingsOpen(false)}
       />
     </div>
   );
