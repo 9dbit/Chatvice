@@ -2561,3 +2561,24 @@ export const insertAppointmentSchema = createInsertSchema(appointments).omit({ c
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type Appointment = typeof appointments.$inferSelect;
 
+// ── Hospitality Config ─────────────────────────────────────────────────────
+export const hospitalityConfigs = pgTable("hospitality_configs", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull().unique(),
+  hotelName: text("hotel_name").notNull().default(""),
+  bookingUrl: text("booking_url").notNull().default(""),
+  googleSheetUrl: text("google_sheet_url").notNull().default(""),
+  sheetLastFetched: timestamp("sheet_last_fetched"),
+  cachedSheetData: text("cached_sheet_data"),
+  aiInstructions: text("ai_instructions").default(""),
+  isEnabled: boolean("is_enabled").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  merchantIdx: index("hosp_merchant_idx").on(table.merchantId),
+}));
+
+export const insertHospitalityConfigSchema = createInsertSchema(hospitalityConfigs).omit({ createdAt: true, updatedAt: true, sheetLastFetched: true, cachedSheetData: true });
+export type InsertHospitalityConfig = z.infer<typeof insertHospitalityConfigSchema>;
+export type HospitalityConfig = typeof hospitalityConfigs.$inferSelect;
+

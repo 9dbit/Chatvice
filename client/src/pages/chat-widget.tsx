@@ -65,6 +65,34 @@ function isAppointmentList(msg: Message): msg is AppointmentMessage & { payload:
   return (msg as AppointmentMessage).messageType === "appointment_list" && !!(msg as AppointmentMessage).payload && "appointments" in (msg as AppointmentMessage).payload;
 }
 
+// ── Hotel Option Types ─────────────────────────────────────────────────────
+interface HotelOptionItem {
+  roomName: string;
+  pricePerNight: number;
+  availability: number;
+  imageUrl: string;
+  isCheapest: boolean;
+  isAlmostFull: boolean;
+}
+
+interface HotelOptionsPayload {
+  type: "hotelOptions";
+  hotelName: string;
+  bookingUrl: string;
+  options: HotelOptionItem[];
+}
+
+type HotelOptionsMessage = Message & {
+  messageType: "hotelOptions";
+  payload: HotelOptionsPayload;
+};
+
+function isHotelOptions(msg: Message): msg is HotelOptionsMessage {
+  return (msg as HotelOptionsMessage).messageType === "hotelOptions"
+    && !!(msg as HotelOptionsMessage).payload
+    && "options" in (msg as HotelOptionsMessage).payload;
+}
+
 interface MerchantConfig {
   merchantId?: string;
   online: boolean;
@@ -3180,6 +3208,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                    !isAppointmentAvailability(msg) &&
                    !isAppointmentBooked(msg) &&
                    !isAppointmentList(msg) &&
+                   !isHotelOptions(msg) &&
                    !msg.mediaUrl && (() => {
                     const parsed = parseMessageContent(msg.content);
                     const hasButtons = parsed.some(p => p.type === "button");
@@ -3403,6 +3432,86 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                             <p className="text-muted-foreground capitalize">{appt.status}</p>
                           </div>
                         ))}
+                      </div>
+                    );
+                  })()}
+                  {isHotelOptions(msg) && (() => {
+                    const { hotelName, bookingUrl, options } = msg.payload;
+                    return (
+                      <div className="w-full" data-testid="section-hotel-options">
+                        <p className="text-xs font-semibold mb-2" style={{ color: primaryColor }}>
+                          {hotelName} — Ketersediaan Kamar
+                        </p>
+                        <div
+                          className="flex gap-2 overflow-x-auto pb-2"
+                          style={{ scrollSnapType: "x mandatory" }}
+                        >
+                          {options.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">Tidak ada kamar yang tersedia saat ini.</p>
+                          ) : options.map((room, ri) => (
+                            <div
+                              key={ri}
+                              className="flex-shrink-0 rounded-lg border bg-background/80 overflow-hidden"
+                              style={{ width: "160px", scrollSnapAlign: "start" }}
+                              data-testid={`card-hotel-room-${ri}`}
+                            >
+                              {room.imageUrl ? (
+                                <img
+                                  src={room.imageUrl}
+                                  alt={room.roomName}
+                                  className="w-full h-20 object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-20 bg-muted flex items-center justify-center">
+                                  <svg className="w-8 h-8 text-muted-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                                  </svg>
+                                </div>
+                              )}
+                              <div className="p-2 space-y-1">
+                                <p className="text-xs font-semibold leading-tight line-clamp-2">{room.roomName}</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {room.isCheapest && (
+                                    <span className="text-[9px] font-bold px-1 py-0.5 rounded-sm" style={{ backgroundColor: primaryColor, color: "white" }}>
+                                      Harga Terbaik
+                                    </span>
+                                  )}
+                                  {room.isAlmostFull && (
+                                    <span className="text-[9px] font-bold px-1 py-0.5 rounded-sm bg-amber-500 text-white">
+                                      Hampir Penuh
+                                    </span>
+                                  )}
+                                </div>
+                                {room.pricePerNight > 0 && (
+                                  <p
+                                    className="text-xs font-bold"
+                                    style={{ color: room.isCheapest ? "#ef4444" : undefined }}
+                                  >
+                                    Rp {room.pricePerNight.toLocaleString("id-ID")}
+                                    <span className="text-[9px] font-normal text-muted-foreground">/malam</span>
+                                  </p>
+                                )}
+                                {room.availability > 0 && (
+                                  <p className={`text-[9px] ${room.availability < 3 ? "text-amber-500 font-medium" : "text-green-600 dark:text-green-400"}`}>
+                                    {room.availability < 3 ? `Sisa ${room.availability} kamar` : `${room.availability} kamar tersedia`}
+                                  </p>
+                                )}
+                                {bookingUrl && (
+                                  <a
+                                    href={bookingUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center w-full text-[10px] font-semibold py-1 rounded-md text-white mt-1"
+                                    style={{ backgroundColor: primaryColor }}
+                                    data-testid={`button-book-room-${ri}`}
+                                  >
+                                    Pesan Sekarang
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     );
                   })()}

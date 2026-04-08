@@ -1,13 +1,14 @@
 import {
   type AddonConfig, type InsertAddonConfig,
   type MerchantAddon, type InsertMerchantAddon,
+  type HospitalityConfig, type InsertHospitalityConfig,
   type AppointmentDivision, type InsertAppointmentDivision,
   type AppointmentProvider, type InsertAppointmentProvider,
   type AppointmentService, type InsertAppointmentService,
   type ProviderSchedule, type InsertProviderSchedule,
   type ProviderBlockedDate, type InsertProviderBlockedDate,
   type Appointment, type InsertAppointment,
-  addonConfigs, merchantAddons, appointmentDivisions, appointmentProviders, appointmentServices, providerSchedules, providerBlockedDates, appointments,
+  addonConfigs, merchantAddons, hospitalityConfigs, appointmentDivisions, appointmentProviders, appointmentServices, providerSchedules, providerBlockedDates, appointments,
   type Merchant, type InsertMerchant,
   type Supervisor, type InsertSupervisor,
   type Session, type InsertSession,
@@ -576,6 +577,11 @@ export interface IStorage {
   createMerchantAddon(data: InsertMerchantAddon): Promise<MerchantAddon>;
   updateMerchantAddon(id: string, data: Partial<MerchantAddon>): Promise<MerchantAddon | undefined>;
   deleteMerchantAddon(id: string): Promise<boolean>;
+
+  // Hospitality Config
+  getHospitalityConfig(merchantId: string): Promise<HospitalityConfig | undefined>;
+  upsertHospitalityConfig(merchantId: string, data: Partial<InsertHospitalityConfig>): Promise<HospitalityConfig>;
+  updateHospitalityCache(merchantId: string, cachedData: string): Promise<void>;
 
   // Appointment Divisions
   getAppointmentDivisions(merchantId: string): Promise<AppointmentDivision[]>;
@@ -4167,6 +4173,32 @@ export class DatabaseStorage implements IStorage {
   async deleteMerchantAddon(id: string): Promise<boolean> {
     const result = await db.delete(merchantAddons).where(eq(merchantAddons.id, id)).returning();
     return result.length > 0;
+  }
+
+  // ── Hospitality Config ─────────────────────────────────────────────────────
+  async getHospitalityConfig(merchantId: string): Promise<HospitalityConfig | undefined> {
+    const [row] = await db.select().from(hospitalityConfigs).where(eq(hospitalityConfigs.merchantId, merchantId));
+    return row;
+  }
+
+  async upsertHospitalityConfig(merchantId: string, data: Partial<InsertHospitalityConfig>): Promise<HospitalityConfig> {
+    const existing = await this.getHospitalityConfig(merchantId);
+    if (existing) {
+      const [row] = await db.update(hospitalityConfigs)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(hospitalityConfigs.merchantId, merchantId))
+        .returning();
+      return row;
+    }
+    const id = "hc_" + randomBytes(8).toString("hex");
+    const [row] = await db.insert(hospitalityConfigs).values({ id, merchantId, ...data }).returning();
+    return row;
+  }
+
+  async updateHospitalityCache(merchantId: string, cachedData: string): Promise<void> {
+    await db.update(hospitalityConfigs)
+      .set({ cachedSheetData: cachedData, sheetLastFetched: new Date(), updatedAt: new Date() })
+      .where(eq(hospitalityConfigs.merchantId, merchantId));
   }
 
   // ── Appointment Divisions ──────────────────────────────────────────────────

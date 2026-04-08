@@ -5,8 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Sparkles, Calendar, CheckCircle, Loader2, AlertCircle, CreditCard, Wallet } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Sparkles, Calendar, CheckCircle, Loader2, AlertCircle, CreditCard, Wallet, Hotel, ExternalLink, TestTube2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useForm } from "react-hook-form";
 
 interface AddonConfig {
   id: number;
@@ -26,8 +31,26 @@ interface MerchantAddon {
   subscribedAt: string | null;
 }
 
-const addonIcons: Record<string, React.ComponentType<any>> = {
+interface HospitalityConfig {
+  id: string;
+  merchantId: string;
+  hotelName: string;
+  bookingUrl: string;
+  googleSheetUrl: string;
+  aiInstructions: string | null;
+  isEnabled: boolean;
+}
+
+interface SheetTestResult {
+  success: boolean;
+  rowCount: number;
+  sampleRows: string[];
+  message: string;
+}
+
+const addonIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   appointment_scheduling: Calendar,
+  hospitality: Hotel,
 };
 
 const PAYMENT_METHODS = [
@@ -36,10 +59,201 @@ const PAYMENT_METHODS = [
   { value: "crypto", label: "Cryptocurrency", description: "BTC, ETH, USDT, dll." },
 ];
 
+interface HospitalityForm {
+  hotelName: string;
+  bookingUrl: string;
+  googleSheetUrl: string;
+  aiInstructions: string;
+  isEnabled: boolean;
+}
+
+function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { toast } = useToast();
+  const [sheetTestResult, setSheetTestResult] = useState<SheetTestResult | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
+
+  const { data: config, isLoading } = useQuery<HospitalityConfig | null>({
+    queryKey: ["/api/merchant/hospitality-config"],
+    enabled: open,
+  });
+
+  const form = useForm<HospitalityForm>({
+    values: {
+      hotelName: config?.hotelName ?? "",
+      bookingUrl: config?.bookingUrl ?? "",
+      googleSheetUrl: config?.googleSheetUrl ?? "",
+      aiInstructions: config?.aiInstructions ?? "",
+      isEnabled: config?.isEnabled ?? false,
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: (data: HospitalityForm) => apiRequest("PUT", "/api/merchant/hospitality-config", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/hospitality-config"] });
+      toast({ title: "Tersimpan", description: "Pengaturan hospitality berhasil disimpan." });
+      onClose();
+    },
+    onError: (err: any) => {
+      toast({ title: "Gagal menyimpan", description: err.message || "Terjadi kesalahan", variant: "destructive" });
+    },
+  });
+
+  const handleTestSheet = async () => {
+    const googleSheetUrl = form.getValues("googleSheetUrl");
+    if (!googleSheetUrl) {
+      toast({ title: "URL diperlukan", description: "Masukkan URL Google Sheet terlebih dahulu.", variant: "destructive" });
+      return;
+    }
+    setIsTesting(true);
+    setSheetTestResult(null);
+    try {
+      const result: SheetTestResult = await apiRequest("POST", "/api/merchant/hospitality-config/test-sheet", { googleSheetUrl });
+      setSheetTestResult(result);
+    } catch (err: any) {
+      setSheetTestResult({ success: false, rowCount: 0, sampleRows: [], message: err.message || "Gagal mengakses sheet." });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Hotel className="w-5 h-5 text-primary" />
+            Pengaturan Hospitality AI
+          </DialogTitle>
+          <DialogDescription>
+            Hubungkan data kamar hotel dari Google Sheet untuk ditampilkan secara real-time di chatbot.
+          </DialogDescription>
+        </DialogHeader>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <form onSubmit={form.handleSubmit((data) => saveMutation.mutate(data))} className="space-y-4 mt-2">
+            <div className="flex items-center justify-between gap-4 p-3 rounded-md border">
+              <div>
+                <p className="text-sm font-medium">Aktifkan Fitur</p>
+                <p className="text-xs text-muted-foreground">Chatbot akan menampilkan ketersediaan kamar ketika customer bertanya</p>
+              </div>
+              <Switch
+                checked={form.watch("isEnabled")}
+                onCheckedChange={(v) => form.setValue("isEnabled", v)}
+                data-testid="switch-hospitality-enabled"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="hotelName">Nama Hotel</Label>
+              <Input
+                id="hotelName"
+                placeholder="Grand Chatvice Hotel"
+                {...form.register("hotelName")}
+                data-testid="input-hotel-name"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="bookingUrl">URL Pemesanan</Label>
+              <Input
+                id="bookingUrl"
+                type="url"
+                placeholder="https://book.yourhotel.com"
+                {...form.register("bookingUrl")}
+                data-testid="input-booking-url"
+              />
+              <p className="text-xs text-muted-foreground">Link yang akan dibuka saat customer menekan tombol "Pesan Sekarang"</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="googleSheetUrl">URL Google Sheet</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="googleSheetUrl"
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                  {...form.register("googleSheetUrl")}
+                  data-testid="input-google-sheet-url"
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="default"
+                  onClick={handleTestSheet}
+                  disabled={isTesting}
+                  data-testid="button-test-sheet"
+                >
+                  {isTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <TestTube2 className="w-4 h-4" />}
+                  <span className="ml-1 hidden sm:inline">Test</span>
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Sheet harus bisa diakses publik. Kolom wajib: <code>room_name</code>, <code>price_per_night</code>, <code>availability</code>. Opsional: <code>image_url</code>.
+              </p>
+            </div>
+
+            {sheetTestResult && (
+              <div className={`rounded-md p-3 text-sm ${sheetTestResult.success ? "bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800" : "bg-destructive/10 border border-destructive/30"}`}>
+                <p className={`font-medium ${sheetTestResult.success ? "text-green-700 dark:text-green-400" : "text-destructive"}`}>
+                  {sheetTestResult.message}
+                </p>
+                {sheetTestResult.success && sheetTestResult.sampleRows.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs text-muted-foreground mb-1">Preview (3 baris pertama):</p>
+                    <div className="space-y-1">
+                      {sheetTestResult.sampleRows.map((row, i) => (
+                        <code key={i} className="block text-xs truncate text-muted-foreground">{row}</code>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="aiInstructions">Instruksi Tambahan untuk AI (opsional)</Label>
+              <Textarea
+                id="aiInstructions"
+                placeholder="Contoh: Selalu sebutkan bahwa check-in pukul 14.00 dan check-out pukul 12.00..."
+                rows={3}
+                {...form.register("aiInstructions")}
+                data-testid="textarea-ai-instructions"
+              />
+            </div>
+
+            <div className="rounded-md border p-3 bg-muted/30 space-y-1">
+              <p className="text-xs font-medium">Format Kolom Google Sheet yang Didukung:</p>
+              <p className="text-xs text-muted-foreground">
+                <strong>room_name</strong> atau "nama kamar" · <strong>price_per_night</strong> atau "harga" · <strong>availability</strong> atau "tersedia" · <strong>image_url</strong> (opsional)
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button type="button" variant="outline" size="sm" className="flex-1" onClick={onClose} disabled={saveMutation.isPending}>
+                Batal
+              </Button>
+              <Button type="submit" size="sm" className="flex-1" disabled={saveMutation.isPending} data-testid="button-save-hospitality">
+                {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Simpan Pengaturan
+              </Button>
+            </div>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function AdditionalServicesPage() {
   const { toast } = useToast();
   const [selectedAddon, setSelectedAddon] = useState<AddonConfig | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+  const [hospitalitySettingsOpen, setHospitalitySettingsOpen] = useState(false);
 
   const { data: addonConfigs = [], isLoading: configsLoading } = useQuery<AddonConfig[]>({
     queryKey: ["/api/addon-configs"],
@@ -91,6 +305,14 @@ export default function AdditionalServicesPage() {
     subscribeMutation.mutate({ addonType: selectedAddon.addonType, paymentMethod: selectedPaymentMethod });
   };
 
+  const handleManageClick = (addonType: string) => {
+    if (addonType === "appointment_scheduling") {
+      window.location.href = "/dashboard/appointments";
+    } else if (addonType === "hospitality") {
+      setHospitalitySettingsOpen(true);
+    }
+  };
+
   const isLoading = configsLoading || addonsLoading;
 
   return (
@@ -122,14 +344,14 @@ export default function AdditionalServicesPage() {
             return (
               <Card key={config.addonType} data-testid={`card-addon-${config.addonType}`}>
                 <CardHeader>
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-md bg-primary/10">
                         <Icon className="w-5 h-5 text-primary" />
                       </div>
                       <div>
                         <CardTitle className="text-base">{config.name}</CardTitle>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="text-sm font-semibold text-primary">
                             ${config.monthlyPriceUsd}/bulan
                           </span>
@@ -160,15 +382,25 @@ export default function AdditionalServicesPage() {
                     </ul>
                   )}
 
-                  <div className="flex gap-2 pt-1">
+                  {config.addonType === "hospitality" && (
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Data kamar real-time dari Google Sheet</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Kartu kamar interaktif di widget chat</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Badge "Harga Terbaik" &amp; "Hampir Penuh"</li>
+                      <li className="flex items-center gap-2"><CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" /> Tombol "Pesan Sekarang" langsung ke booking</li>
+                    </ul>
+                  )}
+
+                  <div className="flex gap-2 pt-1 flex-wrap">
                     {active ? (
                       <>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => window.location.href = "/dashboard/appointments"}
+                          onClick={() => handleManageClick(config.addonType)}
                           data-testid={`button-manage-${config.addonType}`}
                         >
+                          {config.addonType === "hospitality" && <ExternalLink className="w-3.5 h-3.5 mr-1" />}
                           Kelola
                         </Button>
                         <Button
@@ -272,6 +504,11 @@ export default function AdditionalServicesPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <HospitalitySettingsDialog
+        open={hospitalitySettingsOpen}
+        onClose={() => setHospitalitySettingsOpen(false)}
+      />
     </div>
   );
 }

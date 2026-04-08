@@ -1291,7 +1291,44 @@ Contoh penggunaan tag:
 
 PENTING: Nama produk di tag HARUS SAMA PERSIS dengan nama di katalog (case-insensitive).
 PENTING: JANGAN PERNAH merekomendasikan produk yang SUDAH ditampilkan sebelumnya.
-` : ""}${appointmentSignals ? `\n${appointmentSignals}` : ""}
+` : ""}${appointmentSignals ? `\n${appointmentSignals}` : ""}`;
+
+  // Inject hospitality sheet data if addon active
+  let hospitalitySignals = "";
+  try {
+    const hospAddon = await storage.getMerchantAddon(merchantId, "hospitality");
+    if (hospAddon && hospAddon.isActive) {
+      const hospConfig = await storage.getHospitalityConfig(merchantId);
+      if (hospConfig && hospConfig.isEnabled) {
+        const sheetData = await fetchHospitalitySheetData(merchantId);
+        const hotelName = hospConfig.hotelName || "Hotel";
+        const bookingUrl = hospConfig.bookingUrl || "";
+        const extraInstructions = hospConfig.aiInstructions ? `\nInstruksi Tambahan: ${hospConfig.aiInstructions}` : "";
+        hospitalitySignals = `
+HOSPITALITY ADD-ON — HOTEL AVAILABILITY:
+Merchant ini menggunakan fitur pengecekan kamar hotel real-time dari Google Sheet. Ketika customer bertanya tentang ketersediaan kamar, harga, atau ingin memesan kamar, gunakan sinyal berikut:
+
+[HOTEL_QUERY_DETECTED]
+System akan otomatis menampilkan kartu kamar hotel yang tersedia kepada customer.
+
+KAPAN GUNAKAN:
+- "ada kamar?", "kamar tersedia?", "mau pesan kamar", "cek ketersediaan", "kamar kosong?", "berapa harga kamar?", "ada yang available?" → gunakan [HOTEL_QUERY_DETECTED]
+- Customer menyebut tanggal check-in/check-out → gunakan [HOTEL_QUERY_DETECTED]
+- Customer tanya tipe kamar spesifik (deluxe, suite, dll) → gunakan [HOTEL_QUERY_DETECTED]
+
+NAMA HOTEL: ${hotelName}
+URL PEMESANAN: ${bookingUrl}${extraInstructions}
+${sheetData ? `\nDATA KAMAR TERSEDIA (CSV dari Google Sheet - gunakan untuk menjawab pertanyaan spesifik):
+${sheetData.split("\n").slice(0, 20).join("\n")}` : ""}
+
+PENTING: Sertakan tag [HOTEL_QUERY_DETECTED] di akhir respons saat customer menanyakan ketersediaan atau harga kamar. JANGAN mengarang data kamar — selalu tampilkan kartu hotel interaktif.`;
+      }
+    }
+  } catch (_err) {
+    // Hospitality signals are optional
+  }
+
+  const finalSystemMessage = `${systemMessage}${hospitalitySignals ? `\n${hospitalitySignals}` : ""}
 Relevant Company Information:
 ${knowledgeContext || "No specific knowledge base configured yet."}
 
@@ -1331,7 +1368,7 @@ If you don't have specific information to answer, be honest about it and offer t
       }
     }
     
-    let enhancedSystemMessage = systemMessage;
+    let enhancedSystemMessage = finalSystemMessage;
     if (previouslyRecommendedProducts.length > 0 && productCatalogContext) {
       const uniqueRecommended = [...new Set(previouslyRecommendedProducts)];
       enhancedSystemMessage += `\n\n═══════════════════════════════════════════════════════════════════
@@ -5712,13 +5749,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const cancelAppointmentMatch = result.answer.match(/\[CANCEL_APPOINTMENT:([^\]]+)\]/i);
       const hasGetMyAppointments = /\[GET_MY_APPOINTMENTS\]/i.test(result.answer);
       
-      // Remove appointment tags from displayed answer
+      // Remove appointment and hospitality tags from displayed answer
       let cleanAnswer = result.answer
         .replace(/\[RECOMMEND_PRODUCT(?::[^\]]+)?\]/gi, "")
         .replace(/\[CHECK_AVAILABILITY\]/gi, "")
         .replace(/\[BOOK_APPOINTMENT:[^\]]*\]/gi, "")
         .replace(/\[CANCEL_APPOINTMENT:[^\]]*\]/gi, "")
         .replace(/\[GET_MY_APPOINTMENTS\]/gi, "")
+        .replace(/\[HOTEL_QUERY_DETECTED\]/gi, "")
         .trim();
 
       const responseClientId = clientMessageId ? `response_${clientMessageId}` : undefined;
@@ -5963,6 +6001,68 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           }
         } catch (apptSignalErr) {
           console.error("[Appointment Signal] Error processing appointment signals:", apptSignalErr);
+        }
+
+        // ── Hospitality Signal Dispatch ──────────────────────────────────────
+        try {
+          const hasHotelQuery = /\[HOTEL_QUERY_DETECTED\]/i.test(result.answer);
+          if (hasHotelQuery) {
+            const hospAddon = await storage.getMerchantAddon(resolvedMerchantId, "hospitality");
+            if (hospAddon && hospAddon.isActive) {
+              const hospConfig = await storage.getHospitalityConfig(resolvedMerchantId);
+              if (hospConfig && hospConfig.isEnabled) {
+                const csvText = await fetchHospitalitySheetData(resolvedMerchantId);
+                if (csvText) {
+                  const lines = csvText.split("\n").filter(l => l.trim());
+                  const headers = lines[0]?.split(",").map(h => h.replace(/"/g, "").trim()) ?? [];
+                  const dataRows = lines.slice(1);
+
+                  interface HotelOption {
+                    roomName: string;
+                    pricePerNight: number;
+                    availability: number;
+                    imageUrl: string;
+                    isCheapest: boolean;
+                    isAlmostFull: boolean;
+                  }
+
+                  const hotelOptions: HotelOption[] = dataRows.map(row => {
+                    const cols = row.split(",").map(c => c.replace(/"/g, "").trim());
+                    const get = (key: string): string => {
+                      const idx = headers.findIndex(h => h.toLowerCase() === key.toLowerCase());
+                      return idx >= 0 ? (cols[idx] ?? "") : "";
+                    };
+                    const roomName = get("room_name") || get("nama kamar") || get("tipe kamar") || cols[0] || "";
+                    const priceRaw = get("price_per_night") || get("harga") || get("harga per malam") || cols[1] || "0";
+                    const pricePerNight = parseInt(priceRaw.replace(/[^\d]/g, ""), 10) || 0;
+                    const availRaw = get("availability") || get("tersedia") || get("ketersediaan") || cols[2] || "0";
+                    const availability = parseInt(availRaw.replace(/[^\d]/g, ""), 10) || 0;
+                    const imageUrl = get("image_url") || get("foto") || get("gambar") || "";
+                    return { roomName, pricePerNight, availability, imageUrl, isCheapest: false, isAlmostFull: availability > 0 && availability < 3 };
+                  }).filter(r => r.roomName);
+
+                  // Mark cheapest room
+                  if (hotelOptions.length > 0) {
+                    const minPrice = Math.min(...hotelOptions.filter(r => r.pricePerNight > 0).map(r => r.pricePerNight));
+                    hotelOptions.forEach(r => { r.isCheapest = r.pricePerNight === minPrice && r.pricePerNight > 0; });
+                  }
+
+                  const hotelPayload = {
+                    type: "hotelOptions",
+                    hotelName: hospConfig.hotelName || "Hotel",
+                    bookingUrl: hospConfig.bookingUrl || "",
+                    options: hotelOptions,
+                  };
+
+                  await storage.createMessage({ sessionId, from: "chatvice", content: "", messageType: "hotelOptions", payload: hotelPayload });
+                  broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "", messageType: "hotelOptions", payload: hotelPayload } });
+                  console.log(`[Hospitality] Broadcast hotel options: ${hotelOptions.length} rooms`);
+                }
+              }
+            }
+          }
+        } catch (hospSignalErr) {
+          console.error("[Hospitality Signal] Error processing hotel signals:", hospSignalErr);
         }
       }
 
@@ -23850,7 +23950,103 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  // Helper to enforce active appointment_scheduling addon
+  // ════════════════════════════════════════════════════════════════════════════
+  // HOSPITALITY CONFIG
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // Helper: fetch Google Sheet data as CSV text and parse rows
+  async function fetchHospitalitySheetData(merchantId: string): Promise<string | null> {
+    const config = await storage.getHospitalityConfig(merchantId);
+    if (!config || !config.googleSheetUrl) return null;
+
+    // Check 10-minute cache
+    if (config.cachedSheetData && config.sheetLastFetched) {
+      const cacheAgeMs = Date.now() - new Date(config.sheetLastFetched).getTime();
+      if (cacheAgeMs < 10 * 60 * 1000) return config.cachedSheetData;
+    }
+
+    try {
+      // Convert Google Sheets URL to CSV export URL
+      let csvUrl = config.googleSheetUrl;
+      const sheetIdMatch = csvUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (!sheetIdMatch) return null;
+      const sheetId = sheetIdMatch[1];
+      const gidMatch = csvUrl.match(/gid=(\d+)/);
+      const gid = gidMatch ? gidMatch[1] : "0";
+      csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+
+      const resp = await fetch(csvUrl, { signal: AbortSignal.timeout(10000) });
+      if (!resp.ok) return null;
+      const text = await resp.text();
+
+      await storage.updateHospitalityCache(merchantId, text);
+      return text;
+    } catch (_err) {
+      // Return cached data even if stale on failure
+      return config.cachedSheetData ?? null;
+    }
+  }
+
+  app.get("/api/merchant/hospitality-config", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const config = await storage.getHospitalityConfig(merchantId);
+      res.json(config || null);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch hospitality config" });
+    }
+  });
+
+  app.put("/api/merchant/hospitality-config", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { hotelName, bookingUrl, googleSheetUrl, aiInstructions, isEnabled } = req.body;
+      const config = await storage.upsertHospitalityConfig(merchantId, {
+        hotelName: hotelName ?? "",
+        bookingUrl: bookingUrl ?? "",
+        googleSheetUrl: googleSheetUrl ?? "",
+        aiInstructions: aiInstructions ?? "",
+        isEnabled: isEnabled ?? false,
+      });
+      res.json(config);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to save hospitality config" });
+    }
+  });
+
+  app.post("/api/merchant/hospitality-config/test-sheet", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { googleSheetUrl } = req.body;
+      if (!googleSheetUrl) return res.status(400).json({ error: "googleSheetUrl required" });
+
+      const sheetIdMatch = googleSheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (!sheetIdMatch) return res.status(400).json({ error: "URL Google Sheet tidak valid. Pastikan berbentuk https://docs.google.com/spreadsheets/d/..." });
+
+      const sheetId = sheetIdMatch[1];
+      const gidMatch = googleSheetUrl.match(/gid=(\d+)/);
+      const gid = gidMatch ? gidMatch[1] : "0";
+      const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+
+      const resp = await fetch(csvUrl, { signal: AbortSignal.timeout(10000) });
+      if (!resp.ok) return res.status(400).json({ error: "Sheet tidak dapat diakses. Pastikan sheet sudah di-set ke Public." });
+
+      const text = await resp.text();
+      const lines = text.split("\n").filter(l => l.trim());
+      const sampleRows = lines.slice(0, 4); // header + 3 rows
+
+      res.json({
+        success: true,
+        rowCount: lines.length - 1,
+        sampleRows,
+        message: `Sheet berhasil diakses. Ditemukan ${lines.length - 1} baris data.`,
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Gagal mengakses sheet. Periksa URL dan pastikan sheet bisa diakses publik." });
+    }
+  });
+
+  // Helper to enforce active hospitality addon
   const requireAppointmentAddon = async (req: any, res: any, next: any) => {
     const merchantId = req.session?.merchantId;
     if (!merchantId) return res.status(401).json({ error: "Unauthorized" });
