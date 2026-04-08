@@ -132,7 +132,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-none">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Hotel className="w-5 h-5 text-primary shrink-0" />
-            Hospitality AI Settings
+            {t("dashboard.additionalServices.hospitalityAISettings")}
           </DialogTitle>
           <DialogDescription className="mt-1">
             {t("dashboard.additionalServices.hospitalityDesc2")}
@@ -222,7 +222,7 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                         </div>
                       </FormControl>
                       <p className="text-xs text-muted-foreground">
-                        Sheet must be publicly accessible. Columns: <code>room_name</code>, <code>price_per_night</code>, <code>availability</code>, <code>image_url</code>.
+                        {t("dashboard.additionalServices.sheetMustBePublic")}
                       </p>
                       <FormMessage />
                     </FormItem>
@@ -285,14 +285,14 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                 />
 
                 <div className="rounded-xl border p-3 bg-muted/30 space-y-2">
-                  <p className="text-xs font-medium">Google Sheet Column Format:</p>
+                  <p className="text-xs font-medium">{t("dashboard.additionalServices.googleSheetColumnFormat")}</p>
                   <div className="overflow-x-auto">
                     <table className="w-full text-[10px] border-collapse">
                       <thead>
                         <tr className="bg-muted/60">
-                          <th className="border border-border px-1.5 py-1 text-left font-semibold whitespace-nowrap">Column</th>
-                          <th className="border border-border px-1.5 py-1 text-left font-semibold whitespace-nowrap">Aliases</th>
-                          <th className="border border-border px-1.5 py-1 text-left font-semibold">Description</th>
+                          <th className="border border-border px-1.5 py-1 text-left font-semibold whitespace-nowrap">{t("dashboard.additionalServices.column")}</th>
+                          <th className="border border-border px-1.5 py-1 text-left font-semibold whitespace-nowrap">{t("dashboard.additionalServices.aliases")}</th>
+                          <th className="border border-border px-1.5 py-1 text-left font-semibold">{t("dashboard.additionalServices.description")}</th>
                         </tr>
                       </thead>
                       <tbody className="text-muted-foreground">
@@ -403,7 +403,7 @@ export default function AdditionalServicesPage() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Additional Services</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard.additionalServices.additionalServices")}</h1>
         <p className="text-muted-foreground mt-1">
           Activate premium features to enhance your chatbot capabilities.
         </p>

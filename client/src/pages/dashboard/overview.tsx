@@ -139,11 +139,11 @@ export default function DashboardOverview() {
           <CardTitle className="flex items-center gap-2 text-lg">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary via-purple-500 to-primary bg-[length:200%_100%] animate-gradient-x text-primary-foreground font-semibold text-sm" data-testid="button-install-widget-title">
               <Code className="w-4 h-4" />
-              Install Chatvice Widget
+              {t("dashboard.overview.installWidget")}
             </div>
           </CardTitle>
           <CardDescription>
-            Add the AI chatbot to your website in 3 easy steps
+            {t("dashboard.overview.installWidgetDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -165,7 +165,7 @@ export default function DashboardOverview() {
                 )}
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                Click the "Copy Script" button below to copy the widget embed code.
+                {t("dashboard.overview.clickCopyScript")}
               </p>
               
               {/* Embed Code Display */}
@@ -183,12 +183,12 @@ export default function DashboardOverview() {
                     {copied ? (
                       <>
                         <Check className="w-4 h-4 mr-1" />
-                        Copied!
+                        {t("dashboard.overview.copied")}
                       </>
                     ) : (
                       <>
                         <Copy className="w-4 h-4 mr-1" />
-                        Copy Script
+                        {t("dashboard.overview.copyScript")}
                       </>
                     )}
                   </Button>
@@ -202,7 +202,7 @@ export default function DashboardOverview() {
                     className="text-primary hover:underline inline-flex items-center gap-1 mt-1"
                     data-testid="link-create-agent"
                   >
-                    Create Your First Agent <ChevronRight className="w-3 h-3" />
+                    {t("dashboard.overview.createFirstAgent")} <ChevronRight className="w-3 h-3" />
                   </a>
                 </div>
               )}
@@ -217,7 +217,7 @@ export default function DashboardOverview() {
                 <h4 className="font-medium text-sm">{t("dashboard.overview.openHtmlFile")}</h4>
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                Open your website's main HTML file (usually index.html or main layout).
+                {t("dashboard.overview.openHtmlFileDesc")}
               </p>
               {/* Visual illustration - File editor simulation */}
               <div className="bg-muted/30 rounded-lg overflow-hidden border border-dashed border-primary/30" data-testid="img-step-2">
@@ -242,16 +242,16 @@ export default function DashboardOverview() {
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
                   3
                 </div>
-                <h4 className="font-medium text-sm">Paste Before &lt;/body&gt;</h4>
+                <h4 className="font-medium text-sm">{t("dashboard.overview.pasteBeforeBody")}</h4>
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                Paste the script code just before the closing &lt;/body&gt; tag and save.
+                {t("dashboard.overview.pasteScriptDesc")}
               </p>
               {/* Visual illustration - Code placement */}
               <div className="bg-muted/30 rounded-lg overflow-hidden border border-dashed border-primary/30" data-testid="img-step-3">
                 <div className="bg-muted/50 px-3 py-1.5 border-b border-white/10 flex items-center gap-2">
                   <Check className="w-4 h-4 text-green-500" />
-                  <span className="text-xs text-green-600 dark:text-green-400">Correct placement</span>
+                  <span className="text-xs text-green-600 dark:text-green-400">{t("dashboard.overview.correctPlacement")}</span>
                 </div>
                 <div className="p-2 font-mono text-[10px] leading-relaxed">
                   <div className="text-muted-foreground/50 pl-2">...</div>
@@ -264,13 +264,13 @@ export default function DashboardOverview() {
 
           {/* Additional Info */}
           <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-white/10 text-xs text-muted-foreground">
-            <p data-testid="text-widget-info">The widget will appear at the bottom-right corner of your website.</p>
+            <p data-testid="text-widget-info">{t("dashboard.overview.widgetCornerInfo")}</p>
             <a 
               href="/dashboard/widget" 
               className="text-primary hover:underline inline-flex items-center gap-1"
               data-testid="link-widget-settings"
             >
-              Customize Widget <ExternalLink className="w-3 h-3" />
+              {t("dashboard.overview.customizeWidget")} <ExternalLink className="w-3 h-3" />
             </a>
           </div>
         </CardContent>

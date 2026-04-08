@@ -256,7 +256,15 @@
       "trialStarted": "Uji coba dimulai",
       "trialActive": "Uji coba aktif",
       "serviceDeactivated": "Layanan dinonaktifkan",
-      "deactivated": "Nonaktif"
+      "deactivated": "Nonaktif",
+      "hospitalityAISettings": "Pengaturan AI Hospitaliti",
+      "sheetMustBePublic": "Sheet harus dapat diakses publik. Kolom: room_name, price_per_night, availability, image_url.",
+      "googleSheetColumnFormat": "Format Kolom Google Sheet:",
+      "column": "Kolom",
+      "aliases": "Alias",
+      "description": "Deskripsi",
+      "additionalServices": "Layanan Tambahan",
+      "additionalServicesTitle": "Layanan Tambahan"
     },
     "notificationSettings": {
       "title": "Pengaturan Notifikasi",
@@ -503,7 +511,22 @@
         "failedToCopy": "Gagal menyalin",
         "pleaseCopyTheCodeDesc": "Harap salin kode secara manual.",
         "activeInLast24hDesc": "Aktif dalam 24 jam terakhir."
-      }
+      },
+      "installWidget": "Pasang Widget Chatvice",
+      "installWidgetDesc": "Tambahkan chatbot AI ke website Anda dalam 3 langkah mudah",
+      "clickCopyScript": "Klik tombol \"Copy Script\" di bawah untuk menyalin kode embed widget.",
+      "copied": "Tersalin!",
+      "createFirstAgent": "Buat Agen Pertama Anda",
+      "pasteBeforeBody": "Tempel Sebelum </body>",
+      "correctPlacement": "Penempatan yang benar",
+      "widgetCornerInfo": "Widget akan muncul di sudut kanan bawah website Anda.",
+      "customizeWidget": "Kustomisasi Widget",
+      "pasteScriptDesc": "Tempel kode skrip tepat sebelum tag penutup </body> dan simpan.",
+      "openHtmlFileDesc": "Buka file HTML utama website Anda (biasanya index.html atau tata letak utama).",
+      "dashboardOverview": "Ikhtisar Dasbor",
+      "realTime": "Real time",
+      "visitors": "Pengunjung",
+      "chats": "Obrolan"
     },
     "agents": {
       "title": "Agen AI",

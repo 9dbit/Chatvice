@@ -256,7 +256,15 @@
       "trialStarted": "Trial started",
       "trialActive": "Trial active",
       "serviceDeactivated": "Service deactivated",
-      "deactivated": "Deactivated"
+      "deactivated": "Deactivated",
+      "hospitalityAISettings": "Hospitality AI Settings",
+      "sheetMustBePublic": "Sheet must be publicly accessible. Columns: room_name, price_per_night, availability, image_url.",
+      "googleSheetColumnFormat": "Google Sheet Column Format:",
+      "column": "Column",
+      "aliases": "Aliases",
+      "description": "Description",
+      "additionalServices": "Additional Services",
+      "additionalServicesTitle": "Additional Services"
     },
     "notificationSettings": {
       "title": "Notification Settings",
@@ -503,7 +511,22 @@
         "failedToCopy": "Failed to copy",
         "pleaseCopyTheCodeDesc": "Please copy the code manually.",
         "activeInLast24hDesc": "Active in last 24 hours."
-      }
+      },
+      "installWidget": "Install Chatvice Widget",
+      "installWidgetDesc": "Add the AI chatbot to your website in 3 easy steps",
+      "clickCopyScript": "Click the \"Copy Script\" button below to copy the widget embed code.",
+      "copied": "Copied!",
+      "createFirstAgent": "Create Your First Agent",
+      "pasteBeforeBody": "Paste Before </body>",
+      "correctPlacement": "Correct placement",
+      "widgetCornerInfo": "The widget will appear at the bottom-right corner of your website.",
+      "customizeWidget": "Customize Widget",
+      "pasteScriptDesc": "Paste the script code just before the closing </body> tag and save.",
+      "openHtmlFileDesc": "Open your website's main HTML file (usually index.html or main layout).",
+      "dashboardOverview": "Dashboard Overview",
+      "realTime": "Real time",
+      "visitors": "Visitors",
+      "chats": "Chats"
     },
     "agents": {
       "title": "AI Agents",
