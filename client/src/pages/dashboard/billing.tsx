@@ -256,17 +256,17 @@ export default function BillingPage() {
           }
           throw new Error("Fitur ini sudah aktif di akun Anda.");
         }
-        throw new Error(body.error || "Tidak dapat memulai trial");
+        throw new Error(body.error || t("dashboard.billing.trialStartFailed"));
       }
       return body;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
       queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
-      toast({ title: "Trial dimulai!", description: "Masa percobaan gratis 7 hari Anda sekarang aktif." });
+      toast({ title: t("dashboard.billing.trialStarted"), description: t("dashboard.billing.trialStartedDesc") });
     },
     onError: (err: any) => {
-      toast({ title: "Gagal", description: err.message || "Tidak dapat memulai trial", variant: "destructive" });
+      toast({ title: t("common.failed"), description: err.message || t("dashboard.billing.trialStartFailed"), variant: "destructive" });
     },
   });
   

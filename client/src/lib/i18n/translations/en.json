@@ -495,7 +495,15 @@
       "mins15": "15 minutes",
       "mins30": "30 minutes",
       "hour1": "1 hour",
-      "hours2": "2 hours"
+      "hours2": "2 hours",
+      "followUpDefault": "Is there anything else I can help you with?",
+      "hours12": "12 hours",
+      "toneFormal": "Formal",
+      "toneFormalDesc": "Polite and professional",
+      "toneCasual": "Casual",
+      "toneCasualDesc": "Friendly and relaxed",
+      "tonePoetic": "Poetic",
+      "tonePoeticDesc": "Creative and expressive"
     },
     "sessions": {
       "title": "Chat Sessions",
@@ -890,7 +898,10 @@
       "of": "of",
       "conversationsUsed": "Conversations Used",
       "checkoutCanceled": "Checkout canceled",
-      "upgradePlan": "Upgrade Plan"
+      "upgradePlan": "Upgrade Plan",
+      "trialStarted": "Trial started!",
+      "trialStartedDesc": "Your 7-day free trial is now active.",
+      "trialStartFailed": "Unable to start trial"
     },
     "plans": {
       "title": "Plans",
@@ -1011,7 +1022,14 @@
       "closedDates": "Closed Dates",
       "schedule": "Schedule",
       "clickDateForDetails": "Click a date to view appointment details.",
-      "divisionDesc": "Group staff by department or specialization."
+      "divisionDesc": "Group staff by department or specialization.",
+      "scheduleSaved": "Schedule saved",
+      "scheduleSaveFailed": "Failed to save schedule",
+      "closedDateAdded": "Closed date added",
+      "closedDateRemoved": "Closed date removed",
+      "removeFailed": "Failed to remove",
+      "linkCopied": "Link copied!",
+      "publicLinkCopied": "Public link copied!"
     },
     "sources": {
       "title": "Active Sources",
@@ -1061,6 +1079,8 @@
     "sec": "sec",
     "orEnterUrl": "or enter URL",
     "email": "Email",
-    "password": "Password"
+    "password": "Password",
+    "loading": "Loading",
+    "failed": "Failed"
   }
 }

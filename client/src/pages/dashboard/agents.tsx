@@ -26,23 +26,17 @@ import { PlanLimitPopup } from "@/components/plan-limit-popup";
 import type { Agent, Merchant } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
-const TONE_PRESETS = {
+const TONE_PRESETS_BASE = {
   formal: {
-    label: "Formal",
     icon: UserCircle,
-    description: "Polite and professional",
     prompt: "Use formal and polite language. Address customers as 'Sir/Ma'am'. Avoid slang or casual expressions."
   },
   casual: {
-    label: "Casual",
     icon: MessageSquare,
-    description: "Friendly and relaxed",
     prompt: "Use casual and friendly language like a friend. Feel free to use words like 'you', 'okay', 'let's go'."
   },
   poetic: {
-    label: "Poetic",
     icon: Sparkles,
-    description: "Creative and expressive",
     prompt: "Respond with beautiful and expressive language. Use interesting metaphors and analogies."
   }
 };
@@ -88,6 +82,12 @@ export default function AgentsPage() {
   const { t } = useLanguage();
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
+
+  const TONE_PRESETS = {
+    formal: { ...TONE_PRESETS_BASE.formal, label: t("dashboard.agents.toneFormal"), description: t("dashboard.agents.toneFormalDesc") },
+    casual: { ...TONE_PRESETS_BASE.casual, label: t("dashboard.agents.toneCasual"), description: t("dashboard.agents.toneCasualDesc") },
+    poetic: { ...TONE_PRESETS_BASE.poetic, label: t("dashboard.agents.tonePoetic"), description: t("dashboard.agents.tonePoeticDesc") },
+  };
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [photoUrl, setPhotoUrl] = useState("");
@@ -130,7 +130,7 @@ export default function AgentsPage() {
       inactivityTimeoutSeconds: 120,
       temperature: "0.7",
       followUpEnabled: false,
-      followUpMessage: "Apakah ada yang bisa saya bantu lagi?",
+      followUpMessage: t("dashboard.agents.followUpDefault"),
       followUpSuggestions: [],
       followUpIntervalMinutes: 5,
     },
@@ -254,7 +254,7 @@ export default function AgentsPage() {
     form.setValue("inactivityTimeoutSeconds", agent.inactivityTimeoutSeconds || 120);
     form.setValue("temperature", agent.temperature || "0.7");
     form.setValue("followUpEnabled", agent.followUpEnabled || false);
-    form.setValue("followUpMessage", agent.followUpMessage || "Apakah ada yang bisa saya bantu lagi?");
+    form.setValue("followUpMessage", agent.followUpMessage || t("dashboard.agents.followUpDefault"));
     form.setValue("followUpSuggestions", (agent.followUpSuggestions as string[]) || []);
     form.setValue("followUpIntervalMinutes", agent.followUpIntervalMinutes || 5);
     setPhotoUrl(agent.photoUrl || "");
@@ -699,7 +699,7 @@ export default function AgentsPage() {
                             <FormLabel className="text-xs">{t("dashboard.agents.followUpMessage")}</FormLabel>
                             <FormControl>
                               <Textarea
-                                placeholder="Apakah ada yang bisa saya bantu lagi?"
+                                placeholder={t("dashboard.agents.followUpDefault")}
                                 className="min-h-[60px]"
                                 data-testid="input-follow-up-message"
                                 {...field}
@@ -732,7 +732,7 @@ export default function AgentsPage() {
                                 <SelectItem value="60">{t("dashboard.agents.hour1")}</SelectItem>
                                 <SelectItem value="120">{t("dashboard.agents.hours2")}</SelectItem>
                                 <SelectItem value="360">6 hours</SelectItem>
-                                <SelectItem value="720">12 hours</SelectItem>
+                                <SelectItem value="720">{t("dashboard.agents.hours12")}</SelectItem>
                                 <SelectItem value="1440">24 hours</SelectItem>
                               </SelectContent>
                             </Select>

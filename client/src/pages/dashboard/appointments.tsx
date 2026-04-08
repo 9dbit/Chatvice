@@ -279,9 +279,9 @@ function SchedulePanel({ provider }: { provider: AppointmentProvider }) {
       apiRequest("PUT", `/api/merchant/appointment-providers/${provider.id}/schedules`, { schedules: rows }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-providers", provider.id, "schedules"] });
-      toast({ title: "Jadwal disimpan" });
+      toast({ title: t("dashboard.appointments.scheduleSaved") });
     },
-    onError: () => toast({ title: "Gagal menyimpan jadwal", variant: "destructive" }),
+    onError: () => toast({ title: t("dashboard.appointments.scheduleSaveFailed"), variant: "destructive" }),
   });
 
   const addBlockedDate = useMutation({
@@ -291,7 +291,7 @@ function SchedulePanel({ provider }: { provider: AppointmentProvider }) {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-providers", provider.id, "blocked-dates"] });
       setNewBlockedDate("");
       setNewBlockedReason("");
-      toast({ title: "Tanggal tutup ditambahkan" });
+      toast({ title: t("dashboard.appointments.closedDateAdded") });
     },
     onError: () => toast({ title: t("dashboard.appointments.addClosedDateFailed"), variant: "destructive" }),
   });
@@ -300,9 +300,9 @@ function SchedulePanel({ provider }: { provider: AppointmentProvider }) {
     mutationFn: (id: number) => apiRequest("DELETE", `/api/merchant/appointment-providers/blocked-dates/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-providers", provider.id, "blocked-dates"] });
-      toast({ title: "Tanggal tutup dihapus" });
+      toast({ title: t("dashboard.appointments.closedDateRemoved") });
     },
-    onError: () => toast({ title: "Gagal", variant: "destructive" }),
+    onError: () => toast({ title: t("dashboard.appointments.removeFailed"), variant: "destructive" }),
   });
 
   const [editSchedules, setEditSchedules] = useState<typeof localSchedules | null>(null);
@@ -399,7 +399,7 @@ function SchedulePanel({ provider }: { provider: AppointmentProvider }) {
           </Button>
         </div>
         {blockedLoading ? (
-          <div className="text-sm text-muted-foreground">Memuat...</div>
+          <div className="text-sm text-muted-foreground">{t("common.loading")}...</div>
         ) : blockedDates.length === 0 ? (
           <p className="text-xs text-muted-foreground">{t("dashboard.appointments.noClosedDates")}</p>
         ) : (
@@ -455,7 +455,7 @@ function CalendarView({ appointments, providers, divisions, services, currentMon
     onMonthChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   };
 
-  const monthLabel = new Date(year, monthNum - 1, 1).toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+  const monthLabel = new Date(year, monthNum - 1, 1).toLocaleDateString(language === "id" ? "id-ID" : "en-US", { month: "long", year: "numeric" });
   const selectedAppts = selectedDate ? (apptsByDate[selectedDate] || []) : [];
   const getProvider = (id: string | null) => providers.find(p => p.id === id);
   const getDivision = (id: string | null) => divisions.find(d => d.id === id);
@@ -519,7 +519,7 @@ function CalendarView({ appointments, providers, divisions, services, currentMon
         <Card className="mt-4" data-testid="card-day-detail">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm">
-              {new Date(selectedDate + "T00:00:00").toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+              {new Date(selectedDate + "T00:00:00").toLocaleDateString(language === "id" ? "id-ID" : "en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
             </CardTitle>
             <Button variant="ghost" size="icon" onClick={() => setSelectedDate(null)}><X className="w-4 h-4" /></Button>
           </CardHeader>
@@ -602,61 +602,61 @@ export default function AppointmentsPage() {
   const createDivision = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/merchant/appointment-divisions", data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-divisions"] }); setDivisionDialog({ open: false }); toast({ title: "Divisi ditambahkan" }); },
-    onError: () => toast({ title: "Gagal", variant: "destructive" }),
+    onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
   const updateDivision = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest("PATCH", `/api/merchant/appointment-divisions/${id}`, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-divisions"] }); setDivisionDialog({ open: false }); toast({ title: "Divisi diperbarui" }); },
-    onError: () => toast({ title: "Gagal", variant: "destructive" }),
+    onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
   const deleteDivision = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/merchant/appointment-divisions/${id}`),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-divisions"] }); toast({ title: "Divisi dihapus" }); },
-    onError: () => toast({ title: "Gagal", variant: "destructive" }),
+    onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
   const createProvider = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/merchant/appointment-providers", data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-providers"] }); setProviderDialog({ open: false }); toast({ title: "Staf ditambahkan" }); },
-    onError: () => toast({ title: "Gagal", variant: "destructive" }),
+    onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
   const updateProvider = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest("PATCH", `/api/merchant/appointment-providers/${id}`, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-providers"] }); setProviderDialog({ open: false }); toast({ title: "Staf diperbarui" }); },
-    onError: () => toast({ title: "Gagal", variant: "destructive" }),
+    onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
   const deleteProvider = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/merchant/appointment-providers/${id}`),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-providers"] }); toast({ title: "Staf dihapus" }); },
-    onError: () => toast({ title: "Gagal", variant: "destructive" }),
+    onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
   const createService = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/merchant/appointment-services", data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-services"] }); setServiceDialog({ open: false }); toast({ title: "Layanan ditambahkan" }); },
-    onError: () => toast({ title: "Gagal", variant: "destructive" }),
+    onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
   const updateService = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest("PATCH", `/api/merchant/appointment-services/${id}`, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-services"] }); setServiceDialog({ open: false }); toast({ title: "Layanan diperbarui" }); },
-    onError: () => toast({ title: "Gagal", variant: "destructive" }),
+    onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
   const deleteService = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/merchant/appointment-services/${id}`),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointment-services"] }); toast({ title: "Layanan dihapus" }); },
-    onError: () => toast({ title: "Gagal", variant: "destructive" }),
+    onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
   const updateAppointment = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest("PATCH", `/api/merchant/appointments/${id}`, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/merchant/appointments", currentMonth] }); toast({ title: "Status diperbarui" }); },
-    onError: () => toast({ title: "Gagal", variant: "destructive" }),
+    onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
   if (!appointmentAddon) {
@@ -676,7 +676,7 @@ export default function AppointmentsPage() {
     navigator.clipboard.writeText(calendarLink);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
-    toast({ title: "Link disalin!" });
+    toast({ title: t("dashboard.appointments.linkCopied") });
   };
 
   const copyPublicLink = () => {
@@ -684,7 +684,7 @@ export default function AppointmentsPage() {
     navigator.clipboard.writeText(publicCalendarLink);
     setCopiedPublicLink(true);
     setTimeout(() => setCopiedPublicLink(false), 2000);
-    toast({ title: "Link publik disalin!" });
+    toast({ title: t("dashboard.appointments.publicLinkCopied") });
   };
 
   return (
@@ -938,7 +938,7 @@ export default function AppointmentsPage() {
                             </div>
                             <div className="text-xs text-muted-foreground">
                               {svc.durationMinutes} menit
-                              {svc.priceIdr ? ` · Rp ${svc.priceIdr.toLocaleString("id-ID")}` : ""}
+                              {svc.priceIdr ? ` · Rp ${svc.priceIdr.toLocaleString(language === "id" ? "id-ID" : "en-US")}` : ""}
                               {div ? ` · ${div.name}` : ""}
                             </div>
                           </div>

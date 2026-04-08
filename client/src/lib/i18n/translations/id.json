@@ -495,7 +495,15 @@
       "mins15": "15 menit",
       "mins30": "30 menit",
       "hour1": "1 jam",
-      "hours2": "2 jam"
+      "hours2": "2 jam",
+      "followUpDefault": "Apakah ada yang bisa saya bantu lagi?",
+      "hours12": "12 jam",
+      "toneFormal": "Formal",
+      "toneFormalDesc": "Sopan dan profesional",
+      "toneCasual": "Santai",
+      "toneCasualDesc": "Ramah dan santai",
+      "tonePoetic": "Puitis",
+      "tonePoeticDesc": "Kreatif dan ekspresif"
     },
     "sessions": {
       "title": "Sesi Chat",
@@ -890,7 +898,10 @@
       "of": "dari",
       "conversationsUsed": "Percakapan Terpakai",
       "checkoutCanceled": "Checkout dibatalkan",
-      "upgradePlan": "Upgrade Paket"
+      "upgradePlan": "Upgrade Paket",
+      "trialStarted": "Trial dimulai!",
+      "trialStartedDesc": "Masa percobaan gratis 7 hari Anda sekarang aktif.",
+      "trialStartFailed": "Tidak dapat memulai trial"
     },
     "plans": {
       "title": "Paket",
@@ -1011,7 +1022,14 @@
       "closedDates": "Tanggal Tutup",
       "schedule": "Jadwal Masuk",
       "clickDateForDetails": "Klik tanggal untuk melihat detail janji temu.",
-      "divisionDesc": "Kelompokkan staf berdasarkan departemen atau spesialisasi."
+      "divisionDesc": "Kelompokkan staf berdasarkan departemen atau spesialisasi.",
+      "scheduleSaved": "Jadwal disimpan",
+      "scheduleSaveFailed": "Gagal menyimpan jadwal",
+      "closedDateAdded": "Tanggal tutup ditambahkan",
+      "closedDateRemoved": "Tanggal tutup dihapus",
+      "removeFailed": "Gagal menghapus",
+      "linkCopied": "Link disalin!",
+      "publicLinkCopied": "Link publik disalin!"
     },
     "sources": {
       "title": "Sumber Aktif",
@@ -1061,6 +1079,8 @@
     "sec": "dtk",
     "orEnterUrl": "atau masukkan URL",
     "email": "Email",
-    "password": "Password"
+    "password": "Password",
+    "loading": "Memuat",
+    "failed": "Gagal"
   }
 }
