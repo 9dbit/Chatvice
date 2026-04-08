@@ -234,16 +234,34 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                   <p className={`font-medium ${sheetTestResult.success ? "text-green-700 dark:text-green-400" : "text-destructive"}`}>
                     {sheetTestResult.message}
                   </p>
-                  {sheetTestResult.success && sheetTestResult.sampleRows.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-xs text-muted-foreground mb-1">Preview (3 baris pertama):</p>
-                      <div className="space-y-1">
-                        {sheetTestResult.sampleRows.map((row, i) => (
-                          <code key={i} className="block text-xs truncate text-muted-foreground">{row}</code>
-                        ))}
+                  {sheetTestResult.success && sheetTestResult.sampleRows.length > 1 && (() => {
+                    const [headerRow, ...dataRows] = sheetTestResult.sampleRows;
+                    const headers = headerRow.split(",").map(h => h.replace(/"/g, "").trim());
+                    const rows = dataRows.slice(0, 3).map(r => r.split(",").map(c => c.replace(/"/g, "").trim()));
+                    return (
+                      <div className="mt-2 overflow-x-auto">
+                        <p className="text-xs text-muted-foreground mb-1.5">Preview data (3 baris pertama):</p>
+                        <table className="w-full text-[10px] border-collapse">
+                          <thead>
+                            <tr>
+                              {headers.map((h, i) => (
+                                <th key={i} className="border border-border px-1.5 py-1 text-left font-semibold bg-muted/50 whitespace-nowrap">{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map((row, ri) => (
+                              <tr key={ri} className="even:bg-muted/20">
+                                {headers.map((_, ci) => (
+                                  <td key={ci} className="border border-border px-1.5 py-1 text-muted-foreground truncate max-w-[80px]">{row[ci] ?? ""}</td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               )}
 
@@ -266,11 +284,36 @@ function HospitalitySettingsDialog({ open, onClose }: { open: boolean; onClose: 
                 )}
               />
 
-              <div className="rounded-md border p-3 bg-muted/30 space-y-1">
-                <p className="text-xs font-medium">Format Kolom Google Sheet yang Didukung:</p>
-                <p className="text-xs text-muted-foreground">
-                  <strong>room_name</strong> · <strong>room_description</strong> · <strong>price_per_night</strong> · <strong>availability</strong> · <strong>check_in</strong> · <strong>check_out</strong> · <strong>image_url</strong> (semua opsional kecuali room_name)
-                </p>
+              <div className="rounded-md border p-3 bg-muted/30 space-y-2">
+                <p className="text-xs font-medium">Format Kolom Google Sheet (header baris pertama):</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[10px] border-collapse">
+                    <thead>
+                      <tr className="bg-muted/60">
+                        <th className="border border-border px-1.5 py-1 text-left font-semibold whitespace-nowrap">Kolom</th>
+                        <th className="border border-border px-1.5 py-1 text-left font-semibold whitespace-nowrap">Alias yang diterima</th>
+                        <th className="border border-border px-1.5 py-1 text-left font-semibold">Keterangan</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-muted-foreground">
+                      {[
+                        ["room_name *", "Room Type, Tipe Kamar, Nama Kamar", "Wajib. Nama/tipe kamar"],
+                        ["price_per_night", "Price, Harga, Harga Per Malam", "Harga per malam (angka)"],
+                        ["availability", "Available, Tersedia, Stok, Jumlah", "Jumlah kamar tersedia"],
+                        ["room_description", "Description, Deskripsi, Detail", "Deskripsi singkat kamar"],
+                        ["check_in", "Check-in, Checkin, Tanggal Masuk", "Tanggal check-in (opsional)"],
+                        ["check_out", "Check-out, Checkout, Tanggal Keluar", "Tanggal check-out (opsional)"],
+                        ["image_url", "Image, Foto, Gambar, Photo", "URL foto kamar (opsional)"],
+                      ].map(([col, alias, desc]) => (
+                        <tr key={col} className="even:bg-muted/20">
+                          <td className="border border-border px-1.5 py-1 font-mono whitespace-nowrap">{col}</td>
+                          <td className="border border-border px-1.5 py-1">{alias}</td>
+                          <td className="border border-border px-1.5 py-1">{desc}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               <div className="flex gap-2 pt-1">
