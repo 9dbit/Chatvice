@@ -24,31 +24,31 @@ const PHONE_VALIDATION_RULES: Record<string, {
   minLength: number; 
   maxLength: number; 
   example: string;
-  description: string;
+  descriptionKey: string;
 }> = {
-  "+62": { pattern: /^8[0-9]{8,12}$/, minLength: 9, maxLength: 13, example: "812345678901", description: t("dashboard.profile.toast.nomorIndonesiaHarusDimulaiDesc") },
-  "+1": { pattern: /^[2-9][0-9]{9}$/, minLength: 10, maxLength: 10, example: "2025551234", description: t("dashboard.profile.toast.uscanadaHarus10DigitDesc") },
-  "+60": { pattern: /^[1-9][0-9]{7,9}$/, minLength: 8, maxLength: 10, example: "123456789", description: t("dashboard.profile.toast.malaysiaHarus810DigitDesc") },
-  "+65": { pattern: /^[689][0-9]{7}$/, minLength: 8, maxLength: 8, example: "91234567", description: t("dashboard.profile.toast.singaporeHarus8DigitDesc") },
-  "+66": { pattern: /^[0-9]{9}$/, minLength: 9, maxLength: 9, example: "812345678", description: t("dashboard.profile.toast.thailandHarus9DigitDesc") },
-  "+84": { pattern: /^[0-9]{9,10}$/, minLength: 9, maxLength: 10, example: "912345678", description: t("dashboard.profile.toast.vietnamHarus910DigitDesc") },
-  "+63": { pattern: /^9[0-9]{9}$/, minLength: 10, maxLength: 10, example: "9123456789", description: t("dashboard.profile.toast.filipinaHarus10DigitDesc") },
-  "+91": { pattern: /^[6-9][0-9]{9}$/, minLength: 10, maxLength: 10, example: "9123456789", description: t("dashboard.profile.toast.indiaHarus10DigitDesc") },
-  "+86": { pattern: /^1[3-9][0-9]{9}$/, minLength: 11, maxLength: 11, example: "13912345678", description: t("dashboard.profile.toast.chinaHarus11DigitDesc") },
-  "+81": { pattern: /^[0-9]{10,11}$/, minLength: 10, maxLength: 11, example: "9012345678", description: t("dashboard.profile.toast.jepangHarus1011DigitDesc") },
-  "+82": { pattern: /^1[0-9]{8,9}$/, minLength: 9, maxLength: 10, example: "1012345678", description: t("dashboard.profile.toast.koreaSelatanHarus910Desc") },
-  "+61": { pattern: /^4[0-9]{8}$/, minLength: 9, maxLength: 9, example: "412345678", description: t("dashboard.profile.toast.australiaHarus9DigitDesc") },
-  "+44": { pattern: /^7[0-9]{9}$/, minLength: 10, maxLength: 10, example: "7123456789", description: t("dashboard.profile.toast.ukHarus10DigitDesc") },
-  "+49": { pattern: /^1[5-7][0-9]{8,9}$/, minLength: 10, maxLength: 11, example: "15123456789", description: t("dashboard.profile.toast.jermanHarus1011DigitDesc") },
-  "+33": { pattern: /^[67][0-9]{8}$/, minLength: 9, maxLength: 9, example: "612345678", description: t("dashboard.profile.toast.prancisHarus9DigitDesc") },
-  "+31": { pattern: /^6[0-9]{8}$/, minLength: 9, maxLength: 9, example: "612345678", description: t("dashboard.profile.toast.belandaHarus9DigitDesc") },
-  "+971": { pattern: /^5[0-9]{8}$/, minLength: 9, maxLength: 9, example: "501234567", description: t("dashboard.profile.toast.uaeHarus9DigitDesc") },
-  "+966": { pattern: /^5[0-9]{8}$/, minLength: 9, maxLength: 9, example: "512345678", description: t("dashboard.profile.toast.saudiArabiaHarus9Desc") },
-  "+55": { pattern: /^[1-9][0-9]{9,10}$/, minLength: 10, maxLength: 11, example: "11912345678", description: t("dashboard.profile.toast.brasilHarus1011DigitDesc") },
-  "+52": { pattern: /^[1-9][0-9]{9}$/, minLength: 10, maxLength: 10, example: "5512345678", description: t("dashboard.profile.toast.meksikoHarus10DigitDesc") },
+  "+62": { pattern: /^8[0-9]{8,12}$/, minLength: 9, maxLength: 13, example: "812345678901", descriptionKey: "dashboard.profile.toast.nomorIndonesiaHarusDimulaiDesc" },
+  "+1": { pattern: /^[2-9][0-9]{9}$/, minLength: 10, maxLength: 10, example: "2025551234", descriptionKey: "dashboard.profile.toast.uscanadaHarus10DigitDesc" },
+  "+60": { pattern: /^[1-9][0-9]{7,9}$/, minLength: 8, maxLength: 10, example: "123456789", descriptionKey: "dashboard.profile.toast.malaysiaHarus810DigitDesc" },
+  "+65": { pattern: /^[689][0-9]{7}$/, minLength: 8, maxLength: 8, example: "91234567", descriptionKey: "dashboard.profile.toast.singaporeHarus8DigitDesc" },
+  "+66": { pattern: /^[0-9]{9}$/, minLength: 9, maxLength: 9, example: "812345678", descriptionKey: "dashboard.profile.toast.thailandHarus9DigitDesc" },
+  "+84": { pattern: /^[0-9]{9,10}$/, minLength: 9, maxLength: 10, example: "912345678", descriptionKey: "dashboard.profile.toast.vietnamHarus910DigitDesc" },
+  "+63": { pattern: /^9[0-9]{9}$/, minLength: 10, maxLength: 10, example: "9123456789", descriptionKey: "dashboard.profile.toast.filipinaHarus10DigitDesc" },
+  "+91": { pattern: /^[6-9][0-9]{9}$/, minLength: 10, maxLength: 10, example: "9123456789", descriptionKey: "dashboard.profile.toast.indiaHarus10DigitDesc" },
+  "+86": { pattern: /^1[3-9][0-9]{9}$/, minLength: 11, maxLength: 11, example: "13912345678", descriptionKey: "dashboard.profile.toast.chinaHarus11DigitDesc" },
+  "+81": { pattern: /^[0-9]{10,11}$/, minLength: 10, maxLength: 11, example: "9012345678", descriptionKey: "dashboard.profile.toast.jepangHarus1011DigitDesc" },
+  "+82": { pattern: /^1[0-9]{8,9}$/, minLength: 9, maxLength: 10, example: "1012345678", descriptionKey: "dashboard.profile.toast.koreaSelatanHarus910Desc" },
+  "+61": { pattern: /^4[0-9]{8}$/, minLength: 9, maxLength: 9, example: "412345678", descriptionKey: "dashboard.profile.toast.australiaHarus9DigitDesc" },
+  "+44": { pattern: /^7[0-9]{9}$/, minLength: 10, maxLength: 10, example: "7123456789", descriptionKey: "dashboard.profile.toast.ukHarus10DigitDesc" },
+  "+49": { pattern: /^1[5-7][0-9]{8,9}$/, minLength: 10, maxLength: 11, example: "15123456789", descriptionKey: "dashboard.profile.toast.jermanHarus1011DigitDesc" },
+  "+33": { pattern: /^[67][0-9]{8}$/, minLength: 9, maxLength: 9, example: "612345678", descriptionKey: "dashboard.profile.toast.prancisHarus9DigitDesc" },
+  "+31": { pattern: /^6[0-9]{8}$/, minLength: 9, maxLength: 9, example: "612345678", descriptionKey: "dashboard.profile.toast.belandaHarus9DigitDesc" },
+  "+971": { pattern: /^5[0-9]{8}$/, minLength: 9, maxLength: 9, example: "501234567", descriptionKey: "dashboard.profile.toast.uaeHarus9DigitDesc" },
+  "+966": { pattern: /^5[0-9]{8}$/, minLength: 9, maxLength: 9, example: "512345678", descriptionKey: "dashboard.profile.toast.saudiArabiaHarus9Desc" },
+  "+55": { pattern: /^[1-9][0-9]{9,10}$/, minLength: 10, maxLength: 11, example: "11912345678", descriptionKey: "dashboard.profile.toast.brasilHarus1011DigitDesc" },
+  "+52": { pattern: /^[1-9][0-9]{9}$/, minLength: 10, maxLength: 10, example: "5512345678", descriptionKey: "dashboard.profile.toast.meksikoHarus10DigitDesc" },
 };
 
-function validatePhoneByCountry(phone: string, countryCode: string): { valid: boolean; message: string } {
+function validatePhoneByCountry(phone: string, countryCode: string, tFn: (key: string) => string): { valid: boolean; message: string } {
   const cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
   if (!cleanPhone) return { valid: true, message: "" };
   if (!/^[0-9]+$/.test(cleanPhone)) return { valid: false, message: "Phone number can only contain numbers" };
@@ -59,11 +59,12 @@ function validatePhoneByCountry(phone: string, countryCode: string): { valid: bo
     return { valid: true, message: "" };
   }
   
+  const description = tFn(rule.descriptionKey);
   if (cleanPhone.length < rule.minLength || cleanPhone.length > rule.maxLength) {
-    return { valid: false, message: `${rule.description}. Example: ${rule.example}` };
+    return { valid: false, message: `${description}. Example: ${rule.example}` };
   }
   if (!rule.pattern.test(cleanPhone)) {
-    return { valid: false, message: `Invalid format. ${rule.description}. Example: ${rule.example}` };
+    return { valid: false, message: `Invalid format. ${description}. Example: ${rule.example}` };
   }
   return { valid: true, message: "" };
 }
@@ -284,7 +285,7 @@ export default function ProfilePage() {
 
   const handleSave = () => {
     if (formData.phone) {
-      const phoneValidation = validatePhoneByCountry(formData.phone, formData.phoneCountryCode);
+      const phoneValidation = validatePhoneByCountry(formData.phone, formData.phoneCountryCode, t);
       if (!phoneValidation.valid) {
         toast({
           title: t("dashboard.profile.invalidPhone"),

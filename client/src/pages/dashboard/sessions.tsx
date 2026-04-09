@@ -161,8 +161,8 @@ function DeviceIcon({ userAgent, size = "sm" }: { userAgent?: string | null; siz
   if (!userAgent) return <Monitor className={`${cls} text-muted-foreground`} />;
   const ua = userAgent.toLowerCase();
   if (/android|iphone|ipad|ipod|mobile|tablet/i.test(ua))
-    return <Smartphone className={`${cls} text-muted-foreground`} title="Mobile" />;
-  return <Monitor className={`${cls} text-muted-foreground`} title="Desktop" />;
+    return <Smartphone className={`${cls} text-muted-foreground`} aria-label="Mobile" />;
+  return <Monitor className={`${cls} text-muted-foreground`} aria-label="Desktop" />;
 }
 
 function OsIcon({ userAgent, size = "sm" }: { userAgent?: string | null; size?: "sm" | "md" }) {

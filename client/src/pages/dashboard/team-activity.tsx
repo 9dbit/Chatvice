@@ -61,16 +61,16 @@ interface PerformanceData {
   };
 }
 
-function getStatusBadge(status: string) {
+function getStatusBadge(status: string, tFn: (key: string) => string) {
   switch (status) {
     case "online":
-      return <Badge variant="default" className="bg-green-500">{t("dashboard.teamActivity.online")}</Badge>;
+      return <Badge variant="default" className="bg-green-500">{tFn("dashboard.teamActivity.online")}</Badge>;
     case "busy":
       return <Badge variant="default" className="bg-amber-500">Busy</Badge>;
     case "away":
       return <Badge variant="secondary">Away</Badge>;
     default:
-      return <Badge variant="outline">{t("dashboard.teamActivity.offline")}</Badge>;
+      return <Badge variant="outline">{tFn("dashboard.teamActivity.offline")}</Badge>;
   }
 }
 
@@ -233,7 +233,7 @@ export default function TeamActivityPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <h3 className="font-medium truncate">{supervisor.name}</h3>
-                          {getStatusBadge(supervisor.status)}
+                          {getStatusBadge(supervisor.status, t)}
                         </div>
                         <p className="text-sm text-muted-foreground truncate">{supervisor.email}</p>
                         <div className="flex flex-wrap gap-1.5 mt-2">
