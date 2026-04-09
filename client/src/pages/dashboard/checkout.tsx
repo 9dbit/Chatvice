@@ -1290,11 +1290,13 @@ export default function CheckoutPage() {
   const isCustomPlanWithInvoice = (planId === "custom" && pendingCustomInvoice) || isInvoiceMode;
   
   // For invoice mode or custom plans, use invoice amount (in USD). For standard plans, use plan prices
-  const priceUSD = isInvoiceMode && invoiceData
-    ? invoiceData.amount  // Invoice amount is in USD
-    : (planId === "custom" && pendingCustomInvoice)
-      ? pendingCustomInvoice.amount  // Invoice amount is in USD
-      : selectedPlan ? (isAnnual ? (selectedPlan.annualPrice || 0) : (selectedPlan.monthlyPrice || 0)) : 0;
+  const priceUSD = isAddonMode && selectedAddonConfig
+    ? (selectedAddonConfig.monthlyPriceUsd || 0)  // Addon price in USD
+    : isInvoiceMode && invoiceData
+      ? invoiceData.amount  // Invoice amount is in USD
+      : (planId === "custom" && pendingCustomInvoice)
+        ? pendingCustomInvoice.amount  // Invoice amount is in USD
+        : selectedPlan ? (isAnnual ? (selectedPlan.annualPrice || 0) : (selectedPlan.monthlyPrice || 0)) : 0;
   
   const promo = selectedPlan ? getPromoForPlan(selectedPlan.id) : null;
   // Don't apply promo discount for custom plan invoices (price is already finalized by sales)

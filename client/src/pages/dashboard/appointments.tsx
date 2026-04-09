@@ -25,6 +25,7 @@ interface MerchantAddon {
   addonType: string;
   isActive: boolean;
   calendarToken: string | null;
+  trialEndsAt: string | null;
 }
 
 interface AppointmentDivision {
@@ -574,7 +575,10 @@ export default function AppointmentsPage() {
   const [expandedSchedule, setExpandedSchedule] = useState<string | null>(null);
 
   const { data: addons = [] } = useQuery<MerchantAddon[]>({ queryKey: ["/api/merchant/addons"] });
-  const appointmentAddon = addons.find(a => a.addonType === "appointment_scheduling" && a.isActive);
+  const appointmentAddon = addons.find(a =>
+    a.addonType === "appointment_scheduling" &&
+    (a.isActive || (a.trialEndsAt && new Date(a.trialEndsAt) > new Date()))
+  );
 
   const { data: merchantSlugData } = useQuery<{ merchantId: string; slug: string }>({ queryKey: ["/api/merchant/slug"] });
 

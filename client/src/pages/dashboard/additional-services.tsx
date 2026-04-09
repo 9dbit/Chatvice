@@ -437,36 +437,43 @@ export default function AdditionalServicesPage() {
             return (
               <Card key={config.addonType} data-testid={`card-addon-${config.addonType}`}>
                 <CardHeader>
-                  <div className="flex items-start justify-between gap-2 flex-wrap">
-                    <button
-                      type="button"
-                      className="flex items-center gap-3 text-left cursor-pointer rounded-md hover-elevate -m-1 p-1 transition-all"
-                      onClick={() => handleManageClick(config.addonType)}
-                      data-testid={`button-open-${config.addonType}`}
-                    >
-                      <div className="p-2 rounded-md bg-primary/10 shrink-0">
-                        <Icon className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-md bg-primary/10 shrink-0">
+                      <Icon className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <CardTitle className="text-base">{config.name}</CardTitle>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className="text-sm font-semibold text-primary">
-                            ${config.monthlyPriceUsd}/month
-                          </span>
-                          {trialActive ? (
-                            <Badge variant="outline" className="text-xs gap-1 border-amber-300 text-amber-600 dark:border-amber-700 dark:text-amber-400">
-                              <Clock className="w-3 h-3" />
-                              Trial — {trialDaysLeft}d left
-                            </Badge>
-                          ) : active ? (
-                            <Badge variant="secondary" className="text-xs">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              Active
-                            </Badge>
-                          ) : null}
-                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleManageClick(config.addonType)}
+                          data-testid={`button-manage-${config.addonType}`}
+                        >
+                          {config.addonType === "appointment_scheduling"
+                            ? <ListTodo className="w-3.5 h-3.5 mr-1.5" />
+                            : <CalendarDays className="w-3.5 h-3.5 mr-1.5" />
+                          }
+                          Manage
+                        </Button>
                       </div>
-                    </button>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="text-sm font-semibold text-primary">
+                          ${config.monthlyPriceUsd}/month
+                        </span>
+                        {trialActive ? (
+                          <Badge variant="outline" className="text-xs gap-1 border-amber-300 text-amber-600 dark:border-amber-700 dark:text-amber-400">
+                            <Clock className="w-3 h-3" />
+                            Trial — {trialDaysLeft}d left
+                          </Badge>
+                        ) : active ? (
+                          <Badge variant="secondary" className="text-xs">
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Active
+                          </Badge>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -495,19 +502,6 @@ export default function AdditionalServicesPage() {
                   )}
 
                   <div className="flex gap-2 pt-1 flex-wrap">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleManageClick(config.addonType)}
-                      data-testid={`button-manage-${config.addonType}`}
-                    >
-                      {config.addonType === "appointment_scheduling"
-                        ? <ListTodo className="w-3.5 h-3.5 mr-1.5" />
-                        : <CalendarDays className="w-3.5 h-3.5 mr-1.5" />
-                      }
-                      Manage
-                    </Button>
-
                     {!canManage && (
                       <>
                         <Button
