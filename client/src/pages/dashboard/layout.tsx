@@ -8,6 +8,7 @@ import { AIHelpBubble } from "@/components/ai-help-bubble";
 import { MerchantNotificationCenter } from "@/components/merchant-notification-center";
 import { ChevronRight, Home, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { HeaderLanguageSwitcher } from "@/components/dashboard-language-switcher";
 
 class PageErrorBoundary extends Component<
   { children: ReactNode },
@@ -178,7 +179,8 @@ export default function DashboardLayout() {
               <SidebarTrigger data-testid="button-sidebar-toggle" />
               <Breadcrumb location={location} />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <HeaderLanguageSwitcher />
               <MerchantNotificationCenter />
               <ThemeToggle />
             </div>

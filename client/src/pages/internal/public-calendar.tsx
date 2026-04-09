@@ -1,10 +1,15 @@
 import { useState } from "react";
 import { useParams } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { Loader2, ChevronLeft, ChevronRight, Calendar, Clock, User, Users, X } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Loader2, ChevronLeft, ChevronRight, Calendar, Clock, User, Users, X, CheckCircle, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface PublicCalendarData {
   merchant: { id: string; companyName: string | null };
@@ -49,11 +54,262 @@ const formatPrice = (price: number | null) => {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(price);
 };
 
+function BookingDialog({
+  open,
+  onClose,
+  date,
+  merchantSlug,
+  services,
+  providers,
+}: {
+  open: boolean;
+  onClose: () => void;
+  date: string;
+  merchantSlug: string;
+  services: ServiceInfo[];
+  providers: ProviderInfo[];
+}) {
+  const [step, setStep] = useState<"form" | "success">("form");
+  const [serviceId, setServiceId] = useState("");
+  const [providerId, setProviderId] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [notes, setNotes] = useState("");
+  const [bookingCode, setBookingCode] = useState("");
+
+  const activeProviders = providers.filter(p => p.isActive);
+
+  const { data: slotsData, isLoading: slotsLoading } = useQuery<{ slots: string[] }>({
+    queryKey: ["/api/public/calendar", merchantSlug, "slots", date, serviceId, providerId],
+    queryFn: () => {
+      const params = new URLSearchParams({ date });
+      if (serviceId) params.set("serviceId", serviceId);
+      if (providerId) params.set("providerId", providerId);
+      return fetch(`/api/public/calendar/${merchantSlug}/slots?${params}`).then(r => r.json());
+    },
+    enabled: !!providerId,
+  });
+
+  const slots = slotsData?.slots || [];
+
+  const bookMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/public/calendar/${merchantSlug}/book`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: serviceId || undefined,
+          providerId: providerId || undefined,
+          date,
+          time: selectedTime,
+          customerName,
+          customerPhone: customerPhone || undefined,
+          notes: notes || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Gagal melakukan booking");
+      return json;
+    },
+    onSuccess: (data) => {
+      setBookingCode(data.bookingCode || "");
+      setStep("success");
+    },
+  });
+
+  const dateLabel = new Date(date + "T00:00:00").toLocaleDateString("id-ID", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
+
+  function handleClose() {
+    setStep("form");
+    setServiceId("");
+    setProviderId("");
+    setSelectedTime("");
+    setCustomerName("");
+    setCustomerPhone("");
+    setNotes("");
+    setBookingCode("");
+    onClose();
+  }
+
+  const canSubmit = !!selectedTime && !!customerName.trim();
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Calendar className="w-4 h-4 text-primary" />
+            {step === "success" ? "Booking Berhasil!" : "Buat Janji Temu"}
+          </DialogTitle>
+          <p className="text-xs text-muted-foreground">{dateLabel}</p>
+        </DialogHeader>
+
+        {step === "success" ? (
+          <div className="flex flex-col items-center gap-4 py-6 text-center">
+            <CheckCircle className="w-14 h-14 text-green-500" />
+            <div>
+              <p className="font-semibold text-lg">Booking Terkonfirmasi</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Janji temu Anda telah berhasil dibuat untuk {dateLabel} pukul {selectedTime}.
+              </p>
+            </div>
+            {bookingCode && (
+              <div className="rounded-lg border bg-muted/40 px-6 py-4 w-full">
+                <p className="text-xs text-muted-foreground mb-1">Kode Booking</p>
+                <p className="font-mono font-bold text-2xl tracking-widest text-primary">{bookingCode}</p>
+                <p className="text-xs text-muted-foreground mt-1">Simpan kode ini untuk keperluan konfirmasi</p>
+              </div>
+            )}
+            <Button onClick={handleClose} className="w-full" data-testid="button-booking-done">
+              Selesai
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {services.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Pilih Layanan</Label>
+                <Select value={serviceId} onValueChange={(v) => { setServiceId(v); setSelectedTime(""); }} data-testid="select-service">
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="— Pilih layanan (opsional) —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {services.map(s => (
+                      <SelectItem key={s.id} value={s.id} data-testid={`option-service-${s.id}`}>
+                        <span>{s.name}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">· {s.durationMinutes} mnt · {formatPrice(s.priceIdr)}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {activeProviders.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Pilih Staff / Dokter</Label>
+                <Select value={providerId} onValueChange={(v) => { setProviderId(v); setSelectedTime(""); }} data-testid="select-provider">
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="— Pilih staff —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeProviders.map(p => (
+                      <SelectItem key={p.id} value={p.id} data-testid={`option-provider-${p.id}`}>
+                        <User className="w-3 h-3 mr-1 inline" />{p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {providerId && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Pilih Jam</Label>
+                {slotsLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Memuat slot waktu...</span>
+                  </div>
+                ) : slots.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2">Tidak ada slot tersedia untuk tanggal ini dengan staff yang dipilih.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5" data-testid="time-slots">
+                    {slots.map(slot => (
+                      <button
+                        key={slot}
+                        onClick={() => setSelectedTime(selectedTime === slot ? "" : slot)}
+                        data-testid={`button-slot-${slot}`}
+                        className={[
+                          "text-xs px-3 py-1.5 rounded-md border font-mono transition-colors",
+                          selectedTime === slot
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "border-border hover:border-primary hover:bg-primary/5",
+                        ].join(" ")}
+                      >
+                        {slot}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!providerId && activeProviders.length === 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Pilih Jam</Label>
+                <Input
+                  placeholder="Contoh: 10:00"
+                  value={selectedTime}
+                  onChange={e => setSelectedTime(e.target.value)}
+                  data-testid="input-time-manual"
+                />
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Nama Lengkap <span className="text-destructive">*</span></Label>
+              <Input
+                placeholder="Masukkan nama Anda"
+                value={customerName}
+                onChange={e => setCustomerName(e.target.value)}
+                data-testid="input-customer-name"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium flex items-center gap-1"><Phone className="w-3 h-3" />Nomor HP</Label>
+              <Input
+                placeholder="Contoh: 08123456789"
+                value={customerPhone}
+                onChange={e => setCustomerPhone(e.target.value)}
+                data-testid="input-customer-phone"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Catatan (opsional)</Label>
+              <Textarea
+                placeholder="Keluhan atau catatan khusus..."
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                className="text-sm min-h-[64px]"
+                data-testid="input-notes"
+              />
+            </div>
+
+            {bookMutation.isError && (
+              <p className="text-xs text-destructive">{(bookMutation.error as Error)?.message || "Terjadi kesalahan. Coba lagi."}</p>
+            )}
+
+            <Button
+              className="w-full"
+              disabled={!canSubmit || bookMutation.isPending}
+              onClick={() => bookMutation.mutate()}
+              data-testid="button-submit-booking"
+            >
+              {bookMutation.isPending ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Memproses...</>
+              ) : (
+                "Konfirmasi Booking"
+              )}
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function PublicCalendarPage() {
   const params = useParams<{ merchantSlug: string }>();
   const merchantSlug = params.merchantSlug;
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().substring(0, 7));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [bookingDate, setBookingDate] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuery<PublicCalendarData>({
     queryKey: ["/api/public/calendar", merchantSlug, currentMonth],
@@ -115,7 +371,7 @@ export default function PublicCalendarPage() {
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
             <h1 className="font-semibold text-lg">{data.merchant.companyName || "Kalender Booking"}</h1>
-            <p className="text-xs text-muted-foreground">Lihat ketersediaan jadwal</p>
+            <p className="text-xs text-muted-foreground">Klik tanggal untuk membuat janji temu</p>
           </div>
           <Badge variant="outline" className="text-xs">Publik</Badge>
         </div>
@@ -191,22 +447,28 @@ export default function PublicCalendarPage() {
         {/* Selected date detail */}
         {selectedDate && (
           <Card data-testid="card-selected-day">
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2 flex-wrap">
               <CardTitle className="text-sm">
                 {new Date(selectedDate + "T00:00:00").toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
               </CardTitle>
-              <Button variant="ghost" size="icon" onClick={() => setSelectedDate(null)}><X className="w-4 h-4" /></Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  onClick={() => setBookingDate(selectedDate)}
+                  data-testid="button-open-booking"
+                >
+                  Buat Janji
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => setSelectedDate(null)}><X className="w-4 h-4" /></Button>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3">
               {selectedBusy.length === 0 ? (
-                <div className="text-center py-6">
-                  <p className="text-sm font-medium text-green-600 dark:text-green-400">Tersedia untuk booking</p>
-                  <p className="text-xs text-muted-foreground mt-1">Hubungi kami untuk membuat janji temu.</p>
-                </div>
+                <p className="text-sm text-green-600 dark:text-green-400 font-medium">Tersedia untuk booking</p>
               ) : (
                 <div>
-                  <p className="text-xs text-muted-foreground mb-3">Slot yang sudah terisi di hari ini:</p>
-                  <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground mb-2">Slot yang sudah terisi:</p>
+                  <div className="space-y-1.5">
                     {selectedBusy
                       .sort((a, b) => a.startTime.localeCompare(b.startTime))
                       .map((block, idx) => (
@@ -223,7 +485,7 @@ export default function PublicCalendarPage() {
                         </div>
                       ))}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-3">Slot di luar waktu yang terisi masih tersedia. Hubungi kami untuk booking.</p>
+                  <p className="text-xs text-muted-foreground mt-2">Slot di luar waktu tersebut masih tersedia.</p>
                 </div>
               )}
             </CardContent>
@@ -272,6 +534,18 @@ export default function PublicCalendarPage() {
           );
         })}
       </div>
+
+      {/* Booking Dialog */}
+      {bookingDate && (
+        <BookingDialog
+          open={!!bookingDate}
+          onClose={() => setBookingDate(null)}
+          date={bookingDate}
+          merchantSlug={merchantSlug}
+          services={data.services}
+          providers={data.providers}
+        />
+      )}
     </div>
   );
 }

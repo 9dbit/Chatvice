@@ -16,7 +16,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { DashboardLanguageSwitcher } from "@/components/dashboard-language-switcher";
 import {
   LayoutDashboard,
   MessageSquare,
@@ -892,9 +891,6 @@ export function AppSidebar() {
             />
           </div>
         )}
-
-        {/* Language Switcher - EN / ID only */}
-        <DashboardLanguageSwitcher />
 
         <Button
           variant="ghost"

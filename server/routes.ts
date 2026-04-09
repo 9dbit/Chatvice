@@ -24845,6 +24845,83 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  // PUBLIC CALENDAR: Get available slots for booking
+  app.get("/api/public/calendar/:merchantSlug/slots", async (req, res) => {
+    try {
+      const { merchantSlug } = req.params;
+      const { date, serviceId, providerId } = req.query as { date?: string; serviceId?: string; providerId?: string };
+
+      if (!date) return res.status(400).json({ error: "date is required" });
+
+      const merchant = await storage.getMerchantByWidgetSlug(merchantSlug);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+      const addon = await storage.getMerchantAddon(merchant.id, "appointment_scheduling");
+      if (!addon || !addon.isActive) return res.status(404).json({ error: "Appointment scheduling not available" });
+
+      let durationMinutes = 60;
+      if (serviceId) {
+        const services = await storage.getAppointmentServices(merchant.id);
+        const svc = services.find(s => s.id === serviceId);
+        if (svc) durationMinutes = svc.durationMinutes;
+      }
+
+      if (!providerId) {
+        return res.json({ slots: [] });
+      }
+
+      const slots = await getAvailableSlots(merchant.id, providerId, date, durationMinutes, 30);
+      res.json({ slots });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load slots" });
+    }
+  });
+
+  // PUBLIC CALENDAR: Submit a booking
+  app.post("/api/public/calendar/:merchantSlug/book", async (req, res) => {
+    try {
+      const { merchantSlug } = req.params;
+      const { serviceId, providerId, divisionId, date, time, customerName, customerPhone, notes } = req.body;
+
+      if (!date || !time || !customerName) {
+        return res.status(400).json({ error: "date, time and customerName are required" });
+      }
+
+      const merchant = await storage.getMerchantByWidgetSlug(merchantSlug);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+      const addon = await storage.getMerchantAddon(merchant.id, "appointment_scheduling");
+      if (!addon || !addon.isActive) return res.status(404).json({ error: "Appointment scheduling not available" });
+
+      let durationMinutes = 60;
+      if (serviceId) {
+        const services = await storage.getAppointmentServices(merchant.id);
+        const svc = services.find(s => s.id === serviceId);
+        if (svc) durationMinutes = svc.durationMinutes;
+      }
+
+      const booked = await bookSlot({
+        merchantId: merchant.id,
+        serviceId: serviceId || null,
+        providerId: providerId || null,
+        divisionId: divisionId || null,
+        sessionId: null,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone?.trim() || null,
+        customerEmail: null,
+        appointmentDate: date,
+        appointmentTime: time,
+        durationMinutes,
+        notes: notes?.trim() || null,
+      });
+
+      res.json({ success: true, bookingCode: booked.bookingCode, appointmentId: booked.id });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to book";
+      res.status(400).json({ error: msg });
+    }
+  });
+
   // ─── Auto-register Telegram webhooks on startup for configured merchants ───
   (async () => {
     try {

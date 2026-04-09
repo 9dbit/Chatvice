@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Globe, Loader2 } from "lucide-react";
+import { Globe, Loader2, Check, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -11,8 +11,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useSidebar } from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useLanguage } from "@/hooks/use-language";
 import type { Language } from "@/lib/i18n";
 
@@ -21,11 +25,8 @@ const DASHBOARD_LANGS: { code: Language; label: string; name: string }[] = [
   { code: "id", label: "ID", name: "Bahasa Indonesia" },
 ];
 
-export function DashboardLanguageSwitcher() {
+function useLanguageSwitcher() {
   const { language, setLanguage, t } = useLanguage();
-  const { state } = useSidebar();
-  const isCollapsed = state === "collapsed";
-
   const [pendingLang, setPendingLang] = useState<Language | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -52,48 +53,11 @@ export function DashboardLanguageSwitcher() {
   const pendingName = DASHBOARD_LANGS.find((l) => l.code === pendingLang)?.name ?? "";
   const confirmDesc = t("dashboard.languageSwitcher.confirmDesc").replace("{{lang}}", pendingName);
 
-  if (isCollapsed) {
-    return (
-      <>
-        {isLoading && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/60 backdrop-blur-sm">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        )}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="w-full"
-              onClick={() => {
-                const next = language === "en" ? "id" : "en";
-                handleLangSwitch(next);
-              }}
-              data-testid="button-lang-switcher-collapsed"
-            >
-              <Globe className="w-4 h-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            {t("dashboard.languageSwitcher.label")} ({language.toUpperCase()})
-          </TooltipContent>
-        </Tooltip>
-        <AlertDialog open={pendingLang !== null} onOpenChange={(open) => { if (!open) handleCancel(); }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t("dashboard.languageSwitcher.confirmTitle")}</AlertDialogTitle>
-              <AlertDialogDescription>{confirmDesc}</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={handleCancel}>{t("dashboard.languageSwitcher.cancel")}</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirm}>{t("dashboard.languageSwitcher.confirm")}</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </>
-    );
-  }
+  return { language, t, pendingLang, isLoading, handleLangSwitch, handleConfirm, handleCancel, confirmDesc };
+}
+
+export function HeaderLanguageSwitcher() {
+  const { language, t, pendingLang, isLoading, handleLangSwitch, handleConfirm, handleCancel, confirmDesc } = useLanguageSwitcher();
 
   return (
     <>
@@ -103,26 +67,33 @@ export function DashboardLanguageSwitcher() {
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-2 px-0.5" data-testid="dashboard-lang-switcher">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Globe className="w-3.5 h-3.5" />
-          <span>{t("dashboard.languageSwitcher.label")}</span>
-        </div>
-        <div className="flex items-center gap-1">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex items-center gap-1.5 text-xs font-semibold px-2"
+            data-testid="button-header-lang-switcher"
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>{language.toUpperCase()}</span>
+            <ChevronDown className="w-3 h-3 text-muted-foreground" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-40">
           {DASHBOARD_LANGS.map((lang) => (
-            <Button
+            <DropdownMenuItem
               key={lang.code}
-              variant={language === lang.code ? "default" : "ghost"}
-              size="sm"
-              className="text-xs font-semibold"
               onClick={() => handleLangSwitch(lang.code)}
-              data-testid={`button-lang-${lang.code}`}
+              className="flex items-center justify-between"
+              data-testid={`menu-lang-${lang.code}`}
             >
-              {lang.label}
-            </Button>
+              <span>{lang.name}</span>
+              {language === lang.code && <Check className="w-4 h-4 text-primary" />}
+            </DropdownMenuItem>
           ))}
-        </div>
-      </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <AlertDialog open={pendingLang !== null} onOpenChange={(open) => { if (!open) handleCancel(); }}>
         <AlertDialogContent>
