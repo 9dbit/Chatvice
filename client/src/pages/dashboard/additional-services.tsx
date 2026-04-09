@@ -425,11 +425,13 @@ export default function AdditionalServicesPage() {
           {addonConfigs.map((config) => {
             const addon = getAddon(config.addonType);
             const active = addon?.isActive;
-            const trialActive = active && addon?.trialEndsAt && new Date(addon.trialEndsAt) > new Date();
+            const trialRunning = !!addon?.trialEndsAt && new Date(addon.trialEndsAt) > new Date();
+            const trialActive = (active || trialRunning) && trialRunning;
             const trialDaysLeft = addon?.trialEndsAt
               ? Math.max(0, Math.ceil((new Date(addon.trialEndsAt).getTime() - Date.now()) / 86400000))
               : null;
             const usedTrial = !!addon?.trialEndsAt;
+            const canManage = active || trialRunning;
             const Icon = addonIcons[config.addonType] || Sparkles;
 
             return (
@@ -451,10 +453,10 @@ export default function AdditionalServicesPage() {
                           <span className="text-sm font-semibold text-primary">
                             ${config.monthlyPriceUsd}/month
                           </span>
-                          {active && trialActive ? (
-                            <Badge variant="outline" className="text-xs gap-1">
+                          {trialActive ? (
+                            <Badge variant="outline" className="text-xs gap-1 border-amber-300 text-amber-600 dark:border-amber-700 dark:text-amber-400">
                               <Clock className="w-3 h-3" />
-                              {t("dashboard.additionalServices.trial")} — {trialDaysLeft} {t("dashboard.additionalServices.daysRemaining")}
+                              Trial — {trialDaysLeft}d left
                             </Badge>
                           ) : active ? (
                             <Badge variant="secondary" className="text-xs">
@@ -493,39 +495,21 @@ export default function AdditionalServicesPage() {
                   )}
 
                   <div className="flex gap-2 pt-1 flex-wrap">
-                    {active ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleManageClick(config.addonType)}
+                      data-testid={`button-manage-${config.addonType}`}
+                    >
+                      {config.addonType === "appointment_scheduling"
+                        ? <ListTodo className="w-3.5 h-3.5 mr-1.5" />
+                        : <CalendarDays className="w-3.5 h-3.5 mr-1.5" />
+                      }
+                      Manage
+                    </Button>
+
+                    {!canManage && (
                       <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleManageClick(config.addonType)}
-                          data-testid={`button-manage-${config.addonType}`}
-                        >
-                          {config.addonType === "appointment_scheduling"
-                            ? <ListTodo className="w-3.5 h-3.5 mr-1.5" />
-                            : <CalendarDays className="w-3.5 h-3.5 mr-1.5" />
-                          }
-                          Manage
-                        </Button>
-                        {trialActive && (
-                          <span className="inline-flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400 font-medium" data-testid={`text-trial-countdown-${config.addonType}`}>
-                            <Clock className="w-3.5 h-3.5 shrink-0" />
-                            {t("dashboard.additionalServices.trial")}: {trialDaysLeft} {t("dashboard.additionalServices.daysRemaining")}
-                          </span>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive"
-                          onClick={() => cancelMutation.mutate(config.addonType)}
-                          disabled={cancelMutation.isPending}
-                          data-testid={`button-cancel-${config.addonType}`}
-                        >
-                          {cancelMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Deactivate"}
-                        </Button>
-                      </>
-                    ) : (
-                      <div className="flex gap-2 flex-wrap">
                         <Button
                           size="sm"
                           onClick={() => navigate(`/dashboard/checkout?addon=${config.addonType}`)}
@@ -550,11 +534,31 @@ export default function AdditionalServicesPage() {
                             Start Free Trial
                           </Button>
                         )}
-                      </div>
+                      </>
+                    )}
+
+                    {canManage && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => cancelMutation.mutate(config.addonType)}
+                        disabled={cancelMutation.isPending}
+                        data-testid={`button-cancel-${config.addonType}`}
+                      >
+                        {cancelMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Deactivate"}
+                      </Button>
                     )}
                   </div>
 
-                  {!active && (
+                  {trialActive && (
+                    <div className="flex items-center gap-1.5 mt-1 text-sm text-amber-600 dark:text-amber-400 font-medium" data-testid={`text-trial-countdown-${config.addonType}`}>
+                      <Clock className="w-3.5 h-3.5 shrink-0" />
+                      <span>{t("dashboard.additionalServices.trial")}: {trialDaysLeft} {t("dashboard.additionalServices.daysRemaining")}</span>
+                    </div>
+                  )}
+
+                  {!canManage && (
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                       <span>{t("dashboard.additionalServices.paymentNote")}{usedTrial ? ` ${t("dashboard.additionalServices.trialUsed")}` : ""}</span>

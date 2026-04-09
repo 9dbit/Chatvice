@@ -878,29 +878,27 @@ export function AppSidebar() {
             </div>
           </Collapsible>
         )}
-        {isAdmin && (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${online ? "bg-status-online" : "bg-status-offline"}`} />
-              <span className="text-sm">{online ? t("dashboard.online") : t("dashboard.offline")}</span>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            className="flex-1 justify-start"
+            onClick={handleLogout}
+            data-testid="button-logout"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            {t("dashboard.logout")}
+          </Button>
+          {isAdmin && (
+            <div className="flex items-center gap-1.5 shrink-0 pr-1">
+              <div className={`w-2 h-2 rounded-full shrink-0 ${online ? "bg-status-online" : "bg-status-offline"}`} />
+              <Switch
+                checked={online}
+                onCheckedChange={handleOnlineToggle}
+                data-testid="switch-online-status"
+              />
             </div>
-            <Switch
-              checked={online}
-              onCheckedChange={handleOnlineToggle}
-              data-testid="switch-online-status"
-            />
-          </div>
-        )}
-
-        <Button
-          variant="ghost"
-          className="w-full justify-start"
-          onClick={handleLogout}
-          data-testid="button-logout"
-        >
-          <LogOut className="w-4 h-4 mr-2" />
-          {t("dashboard.logout")}
-        </Button>
+          )}
+        </div>
       </SidebarFooter>
     </Sidebar>
     </>
