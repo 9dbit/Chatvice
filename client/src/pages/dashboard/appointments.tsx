@@ -18,7 +18,7 @@ import {
   Calendar, Plus, Pencil, Trash2, Loader2, Users, Settings, Link as LinkIcon,
   Copy, CheckCircle, Clock, ChevronLeft, ChevronRight, X, User, Layers, CalendarOff, Share2
 } from "lucide-react";
-import { Redirect } from "wouter";
+import { Redirect, useLocation } from "wouter";
 
 interface MerchantAddon {
   id: string;
@@ -565,6 +565,7 @@ function CalendarView({ appointments, providers, divisions, services, currentMon
 export default function AppointmentsPage() {
   const { t, language } = useLanguage();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const STATUS_LABELS = language === "id" ? STATUS_LABELS_ID : STATUS_LABELS_EN;
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().substring(0, 7));
   const [divisionDialog, setDivisionDialog] = useState<{ open: boolean; editing?: AppointmentDivision }>({ open: false });
@@ -574,7 +575,7 @@ export default function AppointmentsPage() {
   const [copiedPublicLink, setCopiedPublicLink] = useState(false);
   const [expandedSchedule, setExpandedSchedule] = useState<string | null>(null);
 
-  const { data: addons = [] } = useQuery<MerchantAddon[]>({ queryKey: ["/api/merchant/addons"] });
+  const { data: addons = [], isLoading: addonsLoading } = useQuery<MerchantAddon[]>({ queryKey: ["/api/merchant/addons"] });
   const appointmentAddon = addons.find(a =>
     a.addonType === "appointment_scheduling" &&
     (a.isActive || (a.trialEndsAt && new Date(a.trialEndsAt) > new Date()))
@@ -663,8 +664,27 @@ export default function AppointmentsPage() {
     onError: () => toast({ title: t("common.failed"), variant: "destructive" }),
   });
 
+  if (addonsLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   if (!appointmentAddon) {
-    return <Redirect to="/dashboard/additional-services" />;
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4 text-center px-4">
+        <Calendar className="w-12 h-12 text-muted-foreground" />
+        <h2 className="text-xl font-semibold">Smart Appointment belum aktif</h2>
+        <p className="text-muted-foreground max-w-sm">
+          Aktifkan layanan Smart Appointment untuk mengakses fitur penjadwalan.
+        </p>
+        <Button onClick={() => navigate("/dashboard/additional-services")}>
+          Lihat Layanan Tambahan
+        </Button>
+      </div>
+    );
   }
 
   const calendarLink = appointmentAddon.calendarToken
