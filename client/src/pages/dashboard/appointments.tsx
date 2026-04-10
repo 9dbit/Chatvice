@@ -18,7 +18,7 @@ import {
   Calendar, Plus, Pencil, Trash2, Loader2, Users, Settings, Link as LinkIcon,
   Copy, CheckCircle, Clock, ChevronLeft, ChevronRight, X, User, Layers, CalendarOff, Share2
 } from "lucide-react";
-import { Redirect, useLocation } from "wouter";
+import { useLocation } from "wouter";
 
 interface MerchantAddon {
   id: string;
