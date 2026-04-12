@@ -345,6 +345,7 @@ export default function AdditionalServicesPage() {
 
   const { data: merchantAddons = [], isLoading: addonsLoading } = useQuery<MerchantAddon[]>({
     queryKey: ["/api/merchant/addons"],
+    staleTime: 0,
   });
 
   const handleStartTrial = async (addonType: string) => {
@@ -359,6 +360,7 @@ export default function AdditionalServicesPage() {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (res.status === 409) {
+          queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
           const msg = body.error === "Trial already used for this addon"
             ? "Free trial has already been used for this service."
             : "This service is already active on your account.";

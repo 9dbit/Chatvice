@@ -575,7 +575,7 @@ export default function AppointmentsPage() {
   const [copiedPublicLink, setCopiedPublicLink] = useState(false);
   const [expandedSchedule, setExpandedSchedule] = useState<string | null>(null);
 
-  const { data: addons = [], isLoading: addonsLoading } = useQuery<MerchantAddon[]>({ queryKey: ["/api/merchant/addons"] });
+  const { data: addons = [], isLoading: addonsLoading } = useQuery<MerchantAddon[]>({ queryKey: ["/api/merchant/addons"], staleTime: 0 });
   const appointmentAddon = addons.find(a =>
     a.addonType === "appointment_scheduling" &&
     (a.isActive || (a.trialEndsAt && new Date(a.trialEndsAt) > new Date()))
