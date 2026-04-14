@@ -18186,6 +18186,91 @@ ${log.extractedKnowledge}` : ''}
     }
   });
 
+  // Session-based geolocation analytics — country & city breakdown from IP geo
+  app.get("/api/analytics/session-locations", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+
+      const rows = await db
+        .select({
+          countryCode: sessions.countryCode,
+          countryName: sessions.countryName,
+          cityName: sessions.cityName,
+        })
+        .from(sessions)
+        .where(
+          and(
+            eq(sessions.merchantId, merchantId),
+            isNotNull(sessions.countryCode),
+            not(eq(sessions.countryCode, "xx")),
+            not(eq(sessions.countryCode, "XX")),
+          )
+        );
+
+      const totalSessions = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(sessions)
+        .where(eq(sessions.merchantId, merchantId));
+
+      const total = totalSessions[0]?.count || 0;
+      const withGeo = rows.length;
+
+      // Aggregate by country
+      const countryMap = new Map<string, { countryCode: string; countryName: string; count: number }>();
+      for (const r of rows) {
+        const key = (r.countryCode || "").toLowerCase();
+        if (!key) continue;
+        const existing = countryMap.get(key);
+        if (existing) {
+          existing.count++;
+        } else {
+          countryMap.set(key, {
+            countryCode: key,
+            countryName: r.countryName || key.toUpperCase(),
+            count: 1,
+          });
+        }
+      }
+
+      // Aggregate by city (grouped with country)
+      const cityMap = new Map<string, { cityName: string; countryCode: string; countryName: string; count: number }>();
+      for (const r of rows) {
+        if (!r.cityName) continue;
+        const key = `${r.cityName}__${r.countryCode}`;
+        const existing = cityMap.get(key);
+        if (existing) {
+          existing.count++;
+        } else {
+          cityMap.set(key, {
+            cityName: r.cityName,
+            countryCode: (r.countryCode || "").toLowerCase(),
+            countryName: r.countryName || "",
+            count: 1,
+          });
+        }
+      }
+
+      const byCountry = Array.from(countryMap.values())
+        .sort((a, b) => b.count - a.count)
+        .map(c => ({ ...c, percentage: total > 0 ? Math.round((c.count / total) * 1000) / 10 : 0 }));
+
+      const byCity = Array.from(cityMap.values())
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 50)
+        .map(c => ({ ...c, percentage: total > 0 ? Math.round((c.count / total) * 1000) / 10 : 0 }));
+
+      res.json({
+        totalSessions: total,
+        sessionsWithGeo: withGeo,
+        byCountry,
+        byCity,
+      });
+    } catch (error) {
+      console.error("Error fetching session location analytics:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // Agent-Supervisor mapping endpoints
   app.get("/api/agents/:agentId/supervisors", requireMerchant, async (req, res) => {
     try {

@@ -76,6 +76,28 @@ interface LocationAnalytics {
   recentLocations: LocationPoint[];
 }
 
+interface SessionLocationEntry {
+  countryCode: string;
+  countryName: string;
+  count: number;
+  percentage: number;
+}
+
+interface CityLocationEntry {
+  cityName: string;
+  countryCode: string;
+  countryName: string;
+  count: number;
+  percentage: number;
+}
+
+interface SessionLocationAnalytics {
+  totalSessions: number;
+  sessionsWithGeo: number;
+  byCountry: SessionLocationEntry[];
+  byCity: CityLocationEntry[];
+}
+
 interface PerformanceData {
   id: string;
   name: string;
@@ -145,6 +167,11 @@ export default function AnalyticsPage() {
 
   const { data: locationAnalytics } = useQuery<LocationAnalytics>({
     queryKey: ["/api/analytics/locations"],
+    refetchInterval: 60000,
+  });
+
+  const { data: sessionLocations } = useQuery<SessionLocationAnalytics>({
+    queryKey: ["/api/analytics/session-locations"],
     refetchInterval: 60000,
   });
 
@@ -460,151 +487,137 @@ export default function AnalyticsPage() {
         </TabsContent>
 
         <TabsContent value="locations" className="mt-4">
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5" />
-                  Customer Locations
-                </CardTitle>
-                <CardDescription>
-                  Geographic data from uploaded images ({locationAnalytics?.totalLocations || 0} locations tracked)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {locationAnalytics && locationAnalytics.totalLocations > 0 ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
-                            <MapPin className="w-4 h-4 text-blue-500" />
-                          </div>
-                          <span className="text-sm text-muted-foreground">EXIF Data</span>
-                        </div>
-                        <p className="text-2xl font-bold">{locationAnalytics.sourceDistribution.exif}</p>
-                      </div>
-                      <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
-                            <Target className="w-4 h-4 text-green-500" />
-                          </div>
-                          <span className="text-sm text-muted-foreground">GPS Browser</span>
-                        </div>
-                        <p className="text-2xl font-bold">{locationAnalytics.sourceDistribution.browser}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium">Recent Locations</h4>
-                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                        {locationAnalytics.recentLocations.map((loc, idx) => (
-                          <a
-                            key={idx}
-                            href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-between p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-sm"
-                            data-testid={`location-point-${idx}`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <MapPin className="w-4 h-4 text-red-500" />
-                              <span>{loc.customerName || "Customer"}</span>
+          <div className="space-y-6">
+            {/* Summary stats */}
+            <div className="grid grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-2xl font-bold">{sessionLocations?.totalSessions ?? "—"}</div>
+                  <p className="text-sm text-muted-foreground mt-1">Total Sessions</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-2xl font-bold">{sessionLocations?.sessionsWithGeo ?? "—"}</div>
+                  <p className="text-sm text-muted-foreground mt-1">Sessions with Location</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-2xl font-bold">
+                    {sessionLocations && sessionLocations.totalSessions > 0
+                      ? `${Math.round((sessionLocations.sessionsWithGeo / sessionLocations.totalSessions) * 100)}%`
+                      : "—"}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">Location Coverage</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* By Country */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <MapPin className="w-4 h-4" />
+                    By Country
+                  </CardTitle>
+                  <CardDescription>
+                    {sessionLocations?.byCountry?.length ?? 0} countries detected
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {sessionLocations && sessionLocations.byCountry.length > 0 ? (
+                    <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                      {sessionLocations.byCountry.map((entry, idx) => (
+                        <div key={entry.countryCode} className="space-y-1" data-testid={`country-row-${idx}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <img
+                                src={`https://flagcdn.com/16x12/${entry.countryCode}.png`}
+                                alt={entry.countryName}
+                                width={16}
+                                height={12}
+                                className="rounded-sm flex-shrink-0"
+                                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                              />
+                              <span className="text-sm font-medium truncate">{entry.countryName}</span>
                             </div>
-                            <Badge variant="outline" className="text-xs">
-                              {loc.source === 'exif' ? 'EXIF' : 'GPS'}
-                            </Badge>
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                      <MapPin className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                    <h3 className="font-semibold mb-2">No location data yet</h3>
-                    <p className="text-sm text-muted-foreground text-center max-w-sm">
-                      Location data will appear when customers upload images with GPS metadata.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-primary" />
-                  AI Location Insights
-                </CardTitle>
-                <CardDescription>
-                  Smart analysis and action recommendations
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {locationAnalytics && locationAnalytics.totalLocations > 0 ? (
-                  <>
-                    <div className="p-4 rounded-lg bg-background/50 border">
-                      <div className="flex items-start gap-3">
-                        <Lightbulb className="w-5 h-5 text-yellow-500 mt-0.5" />
-                        <div>
-                          <h4 className="font-medium mb-1">Insight</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {locationAnalytics.sourceDistribution.exif > locationAnalytics.sourceDistribution.browser 
-                              ? "Most customers share photos with embedded location data (EXIF). This indicates they're using mobile devices with GPS enabled."
-                              : "Customers prefer sharing browser-based location. Consider prompting for image uploads to get more precise location data."}
-                          </p>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className="text-sm text-muted-foreground">{entry.count}</span>
+                              <Badge variant="secondary" className="text-xs">
+                                {entry.percentage}%
+                              </Badge>
+                            </div>
+                          </div>
+                          <Progress value={entry.percentage} className="h-1.5" />
                         </div>
-                      </div>
+                      ))}
                     </div>
-                    
-                    <div className="p-4 rounded-lg bg-background/50 border">
-                      <div className="flex items-start gap-3">
-                        <Target className="w-5 h-5 text-green-500 mt-0.5" />
-                        <div>
-                          <h4 className="font-medium mb-1">Action Suggestion</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {locationAnalytics.totalLocations < 10 
-                              ? "Encourage customers to share product photos to better understand your customer geography and optimize delivery/service areas."
-                              : locationAnalytics.totalLocations < 50
-                                ? "You're building a good location profile. Consider creating targeted promotions for your most active regions."
-                                : "Excellent geographic coverage! Use this data to optimize inventory distribution and create location-based marketing campaigns."}
-                          </p>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-10">
+                      <MapPin className="w-8 h-8 text-muted-foreground mb-3" />
+                      <p className="text-sm text-muted-foreground text-center">
+                        No location data yet. Location is tracked automatically from new chat sessions.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* By City */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Target className="w-4 h-4" />
+                    By City
+                  </CardTitle>
+                  <CardDescription>
+                    Top {Math.min(sessionLocations?.byCity?.length ?? 0, 50)} cities
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {sessionLocations && sessionLocations.byCity.length > 0 ? (
+                    <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                      {sessionLocations.byCity.map((entry, idx) => (
+                        <div key={`${entry.cityName}-${entry.countryCode}`} className="space-y-1" data-testid={`city-row-${idx}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <img
+                                src={`https://flagcdn.com/16x12/${entry.countryCode}.png`}
+                                alt={entry.countryName}
+                                width={16}
+                                height={12}
+                                className="rounded-sm flex-shrink-0"
+                                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                              />
+                              <div className="min-w-0">
+                                <span className="text-sm font-medium">{entry.cityName}</span>
+                                <span className="text-xs text-muted-foreground ml-1">{entry.countryName}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className="text-sm text-muted-foreground">{entry.count}</span>
+                              <Badge variant="secondary" className="text-xs">
+                                {entry.percentage}%
+                              </Badge>
+                            </div>
+                          </div>
+                          <Progress value={entry.percentage} className="h-1.5" />
                         </div>
-                      </div>
+                      ))}
                     </div>
-                    
-                    <div className="p-4 rounded-lg bg-background/50 border">
-                      <div className="flex items-start gap-3">
-                        <BarChart3 className="w-5 h-5 text-blue-500 mt-0.5" />
-                        <div>
-                          <h4 className="font-medium mb-1">Analytics Summary</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Tracked {locationAnalytics.totalLocations} customer locations. 
-                            {locationAnalytics.sourceDistribution.exif > 0 && ` ${Math.round((locationAnalytics.sourceDistribution.exif / locationAnalytics.totalLocations) * 100)}% from photo metadata.`}
-                            {locationAnalytics.sourceDistribution.browser > 0 && ` ${Math.round((locationAnalytics.sourceDistribution.browser / locationAnalytics.totalLocations) * 100)}% from browser GPS.`}
-                          </p>
-                        </div>
-                      </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-10">
+                      <Target className="w-8 h-8 text-muted-foreground mb-3" />
+                      <p className="text-sm text-muted-foreground text-center">
+                        City data will appear as new sessions come in.
+                      </p>
                     </div>
-                  </>
-                ) : (
-                  <div className="p-4 rounded-lg bg-background/50 border">
-                    <div className="flex items-start gap-3">
-                      <Lightbulb className="w-5 h-5 text-yellow-500 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium mb-1">Getting Started</h4>
-                        <p className="text-sm text-muted-foreground">
-                          When customers upload images in chat, location data will be extracted automatically from photo metadata (EXIF) or browser GPS. This helps you understand your customer geography.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </TabsContent>
 
