@@ -164,8 +164,13 @@ export function LoginPage() {
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginFormData) => {
-      const res = await apiRequest("POST", "/api/auth/login", data);
-      const responseData = await res.json();
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      const responseData = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw { ...responseData, status: res.status };
       }
@@ -194,9 +199,12 @@ export function LoginPage() {
         setRequiresVerification(true);
         setUnverifiedEmail(form.getValues("email"));
       } else {
+        const msg = error.status === 401
+          ? "Email atau password tidak valid. Silakan coba lagi."
+          : (error.error || error.message || "Invalid credentials. Please try again.");
         toast({
           title: "Login failed",
-          description: error.error || error.message || "Invalid credentials. Please try again.",
+          description: msg,
           variant: "destructive",
         });
       }
