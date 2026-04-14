@@ -1203,11 +1203,19 @@ export default function SessionsPage() {
                                     : ""}
                                 </span>
                               </div>
-                              {/* Row 2: IP address when customer has a real name; hidden when customerName is IP */}
+                              {/* Row 2: City + IP address when customer has a real name; hidden when customerName is IP */}
                               {session.customerName && !isIpAddress(session.customerName) ? (
-                                session.clientIp && (
-                                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
-                                    <span className="truncate">{session.clientIp}</span>
+                                (session.cityName || session.clientIp) && (
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    {session.cityName && (
+                                      <span className="truncate">{session.cityName}</span>
+                                    )}
+                                    {session.cityName && session.clientIp && (
+                                      <span className="flex-shrink-0">·</span>
+                                    )}
+                                    {session.clientIp && (
+                                      <span className="truncate font-mono">{session.clientIp}</span>
+                                    )}
                                   </div>
                                 )
                               ) : null}
@@ -1290,22 +1298,22 @@ export default function SessionsPage() {
                             </span>
                           )}
                         </div>
-                        {/* Client info row: flag + IP + device + OS + browser */}
+                        {/* Client info row: flag + city + country + IP + device + OS + browser */}
                         <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                           <CountryFlag code={selectedSessionData?.countryCode} name={selectedSessionData?.countryName} />
+                          {(selectedSessionData?.cityName || selectedSessionData?.countryName) && selectedSessionData?.countryCode !== "xx" && selectedSessionData?.countryCode !== "XX" && (
+                            <span className="text-[11px] sm:text-xs text-muted-foreground">
+                              {[selectedSessionData.cityName, selectedSessionData.countryName].filter(Boolean).join(", ")}
+                            </span>
+                          )}
                           {selectedSessionData?.clientIp && (
                             <span className="font-mono text-[11px] sm:text-xs text-muted-foreground">
-                              {selectedSessionData.clientIp}
+                              · {selectedSessionData.clientIp}
                             </span>
                           )}
                           <DeviceIcon userAgent={selectedSessionData?.userAgent} size="md" />
                           <OsIcon userAgent={selectedSessionData?.userAgent} size="md" />
                           <BrowserIcon userAgent={selectedSessionData?.userAgent} size="md" />
-                          {selectedSessionData?.countryName && selectedSessionData.countryCode !== "xx" && selectedSessionData.countryCode !== "XX" && (
-                            <span className="hidden sm:inline text-[11px] sm:text-xs text-muted-foreground">
-                              {selectedSessionData.countryName}
-                            </span>
-                          )}
                         </div>
                       </div>
                     </div>

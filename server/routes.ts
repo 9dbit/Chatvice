@@ -16775,7 +16775,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
   }
 
   // --- Live Visitor Tracking / Proactive Chat ---
-  const geoCache = new Map<string, { countryCode: string; countryName: string; expiresAt: number }>();
+  const geoCache = new Map<string, { countryCode: string; countryName: string; city: string; expiresAt: number }>();
 
   /**
    * Generate and send an AI greeting message to a new visitor session.
@@ -16896,27 +16896,31 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
     }, delayMs);
   }
 
-  async function getGeoFromIp(ip: string): Promise<{ countryCode: string; countryName: string }> {
+  async function getGeoFromIp(ip: string): Promise<{ countryCode: string; countryName: string; city: string }> {
     const cached = geoCache.get(ip);
     if (cached && cached.expiresAt > Date.now()) {
-      return { countryCode: cached.countryCode, countryName: cached.countryName };
+      return { countryCode: cached.countryCode, countryName: cached.countryName, city: cached.city };
     }
     try {
       const cleanIp = ip.replace(/^::ffff:/, "");
       if (cleanIp === "127.0.0.1" || cleanIp === "::1" || cleanIp === "unknown") {
-        return { countryCode: "XX", countryName: "Local" };
+        return { countryCode: "XX", countryName: "Local", city: "" };
       }
-      const res = await fetch(`http://ip-api.com/json/${cleanIp}?fields=status,country,countryCode`);
+      const res = await fetch(`http://ip-api.com/json/${cleanIp}?fields=status,country,countryCode,city,regionName`);
       const data = await res.json() as any;
       if (data.status === "success") {
-        const result = { countryCode: (data.countryCode || "XX").toLowerCase(), countryName: data.country || "Unknown" };
+        const result = {
+          countryCode: (data.countryCode || "XX").toLowerCase(),
+          countryName: data.country || "Unknown",
+          city: data.city || "",
+        };
         geoCache.set(ip, { ...result, expiresAt: Date.now() + 10 * 60 * 1000 });
         return result;
       }
     } catch (e) {
       console.error("[geo] IP lookup failed:", e);
     }
-    return { countryCode: "xx", countryName: "Unknown" };
+    return { countryCode: "xx", countryName: "Unknown", city: "" };
   }
 
   app.post("/api/widget/visitor-ping", async (req, res) => {
@@ -17002,6 +17006,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         visitorSession: true,
         countryCode: geo.countryCode,
         countryName: geo.countryName,
+        cityName: geo.city || null,
         pageUrl: pageUrl || "",
         userAgent: visitorUserAgent,
       });
@@ -17288,6 +17293,9 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
 
       const sanitizedName = nameResult.sanitizedName;
 
+      // Resolve geo from IP upfront — used when creating a new session
+      const geo = await getGeoFromIp(clientIp);
+
       // Create or update session with customer name
       let session = await storage.getSession(sessionId);
       // Pass customerName and deviceFingerprint for session continuity (returning users get same agent)
@@ -17323,6 +17331,9 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
           deviceFingerprint: deviceFingerprint || null,
           clientIp: clientIp || null,
           userAgent: (req.headers["user-agent"] as string) || null,
+          countryCode: geo.countryCode,
+          countryName: geo.countryName,
+          cityName: geo.city || null,
         });
         
         // Increment conversation usage for new sessions

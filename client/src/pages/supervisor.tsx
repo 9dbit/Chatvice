@@ -1068,8 +1068,10 @@ export default function SupervisorPanel() {
                               <div className="min-w-0">
                                 <p className="text-sm font-medium flex items-center gap-2 flex-wrap">
                                   <span data-testid={`text-visitor-name-${visitor.id}`}>{displayName}</span>
-                                  {visitor.countryName && (
-                                    <Badge variant="outline" className="text-xs">{visitor.countryName}</Badge>
+                                  {(visitor.cityName || visitor.countryName) && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {[visitor.cityName, visitor.countryName].filter(Boolean).join(", ")}
+                                    </Badge>
                                   )}
                                 </p>
                                 <p className="text-xs text-muted-foreground truncate" data-testid={`text-visitor-page-${visitor.id}`}>
