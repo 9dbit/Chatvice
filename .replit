@@ -55,3 +55,7 @@ integrations = ["javascript_openai_ai_integrations:1.0.0", "javascript_websocket
 [userenv.shared]
 OBJECT_STORAGE_BUCKET = "chatvice-uploads"
 PAYMENT_BASE_URL = "https://pay.chatvice.app"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
