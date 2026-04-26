@@ -73,6 +73,8 @@ import {
   FileText,
   Palette,
   Globe,
+  MapPin,
+  Wifi,
   Upload,
   Save,
   Sparkles,
@@ -2553,22 +2555,26 @@ function MerchantsTab({
               <Separator />
 
               <div className="space-y-4">
-                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Network & Location</h3>
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5" />
+                  Network & Location
+                </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-xs text-muted-foreground">Registered from (IP)</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1"><Wifi className="w-3 h-3" /> Registered from (IP)</p>
                     <p className="font-medium font-mono text-xs">{selectedDetailMerchant.registrationIp || '—'}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Registered from (Country)</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" /> Registered from (Country)</p>
                     <p className="font-medium">{selectedDetailMerchant.registrationCountry || '—'}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Last active from (IP)</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1"><Wifi className="w-3 h-3" /> Last active from (IP)</p>
                     <p className="font-medium font-mono text-xs">{selectedDetailMerchant.lastLoginIp || '—'}</p>
+                    <p className="text-xs text-muted-foreground italic">Updates on each login</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Last active from (Country)</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" /> Last active from (Country)</p>
                     <p className="font-medium">{selectedDetailMerchant.lastLoginCountry || '—'}</p>
                   </div>
                 </div>
@@ -3171,22 +3177,26 @@ function ActiveSubscribersTab({
               <Separator />
 
               <div className="space-y-4">
-                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Network & Location</h3>
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5" />
+                  Network & Location
+                </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-xs text-muted-foreground">Registered from (IP)</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1"><Wifi className="w-3 h-3" /> Registered from (IP)</p>
                     <p className="font-medium font-mono text-xs">{selectedViewMerchant.registrationIp || '—'}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Registered from (Country)</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" /> Registered from (Country)</p>
                     <p className="font-medium">{selectedViewMerchant.registrationCountry || '—'}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Last active from (IP)</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1"><Wifi className="w-3 h-3" /> Last active from (IP)</p>
                     <p className="font-medium font-mono text-xs">{selectedViewMerchant.lastLoginIp || '—'}</p>
+                    <p className="text-xs text-muted-foreground italic">Updates on each login</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Last active from (Country)</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" /> Last active from (Country)</p>
                     <p className="font-medium">{selectedViewMerchant.lastLoginCountry || '—'}</p>
                   </div>
                 </div>
