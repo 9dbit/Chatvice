@@ -2703,7 +2703,7 @@ function ActiveSubscribersTab({
 }: { 
   merchants?: MerchantWithPlan[];
   merchantsLoading: boolean;
-  getStatusBadge: (status: string) => JSX.Element;
+  getStatusBadge: (status: string, merchant?: MerchantWithPlan) => JSX.Element;
   getPlanBadge: (planId: string) => JSX.Element;
   toast: any;
   refetchMerchants: () => void;
@@ -3146,8 +3146,16 @@ function ActiveSubscribersTab({
                 <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Business Information</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
+                    <p className="text-xs text-muted-foreground">Username</p>
+                    <p className="font-medium">{selectedViewMerchant.username || '-'}</p>
+                  </div>
+                  <div>
                     <p className="text-xs text-muted-foreground">Email</p>
                     <p className="font-medium">{selectedViewMerchant.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Website Name</p>
+                    <p className="font-medium">{selectedViewMerchant.officialWebsiteName || '-'}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Website URL</p>
@@ -3160,6 +3168,26 @@ function ActiveSubscribersTab({
                     )}
                   </div>
                   <div>
+                    <p className="text-xs text-muted-foreground">Official Domain</p>
+                    <p className="font-medium">{selectedViewMerchant.officialDomain || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Business Category</p>
+                    <p className="font-medium">{selectedViewMerchant.businessCategory || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Staff Count</p>
+                    <p className="font-medium">{selectedViewMerchant.staffCount || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Contact Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
                     <p className="text-xs text-muted-foreground">Contact Person (PIC)</p>
                     <p className="font-medium">{selectedViewMerchant.picName || '-'}</p>
                   </div>
@@ -3169,6 +3197,16 @@ function ActiveSubscribersTab({
                       {selectedViewMerchant.phone
                         ? `${selectedViewMerchant.phoneCountryCode || ''} ${selectedViewMerchant.phone}`
                         : '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Country</p>
+                    <p className="font-medium">{selectedViewMerchant.country || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">City/Region</p>
+                    <p className="font-medium">
+                      {[selectedViewMerchant.city, selectedViewMerchant.region].filter(Boolean).join(', ') || '-'}
                     </p>
                   </div>
                 </div>
@@ -3205,11 +3243,15 @@ function ActiveSubscribersTab({
               <Separator />
 
               <div className="space-y-4">
-                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Subscription</h3>
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Subscription & Payment</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-muted-foreground">Plan</p>
                     <div className="mt-1">{getPlanBadge(selectedViewMerchant.subscriptionPlanId)}</div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <div className="mt-1">{getStatusBadge(selectedViewMerchant.subscriptionStatus, selectedViewMerchant)}</div>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Billing Interval</p>
@@ -3222,6 +3264,18 @@ function ActiveSubscribersTab({
                     </p>
                   </div>
                   <div>
+                    <p className="text-xs text-muted-foreground">Payment Provider</p>
+                    <p className="font-medium capitalize">{selectedViewMerchant.paymentProvider || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Customer ID</p>
+                    <p className="font-medium font-mono text-xs truncate">{selectedViewMerchant.paymentCustomerId || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Subscription ID</p>
+                    <p className="font-medium font-mono text-xs truncate">{selectedViewMerchant.paymentSubscriptionId || '-'}</p>
+                  </div>
+                  <div>
                     <p className="text-xs text-muted-foreground">Current Period End</p>
                     <p className="font-medium">
                       {selectedViewMerchant.currentPeriodEnd
@@ -3229,11 +3283,43 @@ function ActiveSubscribersTab({
                         : '-'}
                     </p>
                   </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Account Status</h3>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant={selectedViewMerchant.isEmailVerified ? "default" : "secondary"}>
+                    {selectedViewMerchant.isEmailVerified ? (
+                      <><CheckCircle className="w-3 h-3 mr-1" /> Email Verified</>
+                    ) : (
+                      "Email Not Verified"
+                    )}
+                  </Badge>
+                  <Badge variant={selectedViewMerchant.profileCompleted ? "default" : "secondary"}>
+                    {selectedViewMerchant.profileCompleted ? (
+                      <><CheckCircle className="w-3 h-3 mr-1" /> Profile Complete</>
+                    ) : (
+                      "Profile Incomplete"
+                    )}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-muted-foreground">Joined</p>
                     <p className="font-medium">
                       {selectedViewMerchant.createdAt
                         ? safeFormat(selectedViewMerchant.createdAt, 'MMM d, yyyy')
+                        : '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Email Verified At</p>
+                    <p className="font-medium">
+                      {selectedViewMerchant.emailVerifiedAt
+                        ? safeFormat(selectedViewMerchant.emailVerifiedAt, 'MMM d, yyyy')
                         : '-'}
                     </p>
                   </div>

@@ -2554,7 +2554,17 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       
       const trialEndsAt = new Date();
       trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
-      
+
+      // Extract registration IP before creating merchant for atomic capture
+      const regIpRaw = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ||
+                       req.socket?.remoteAddress || 'unknown';
+      const regIp = regIpRaw !== 'unknown' ? regIpRaw : null;
+      let regCountry: string | null = null;
+      try {
+        const geo = await getGeoFromIp(regIpRaw);
+        regCountry = geo.countryName || null;
+      } catch {}
+
       const merchant = await storage.createMerchant({
         email: data.email,
         username: data.username,
@@ -2568,6 +2578,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         profileStep: 0,
         businessCategory: data.businessCategory,
         staffCount: data.staffCount,
+        registrationIp: regIp,
+        registrationCountry: regCountry,
+        lastLoginIp: regIp,
+        lastLoginCountry: regCountry,
       });
       
       // Create email verification token (expires in 24 hours)
@@ -2586,9 +2600,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         console.error("Failed to send verification email:", err);
       });
       
-      // Get IP address for activity log
-      const ipAddress = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || 
-                       req.socket?.remoteAddress || 'unknown';
+      // IP already captured atomically in createMerchant above; reuse for activity log
+      const ipAddress = regIpRaw;
       
       // Log merchant sign-up activity (non-blocking)
       storage.createMerchantActivityLog({
@@ -2606,23 +2619,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       // Send admin notification email (non-blocking)
       sendMerchantAuthNotification("sign_up", data.email, data.username, "email", ipAddress).catch((err) => {
         console.error("Failed to send sign-up notification:", err);
-      });
-
-      // Capture registration IP and country (non-blocking)
-      getGeoFromIp(ipAddress).then((geo) => {
-        storage.updateMerchant(merchant.id, {
-          registrationIp: ipAddress !== 'unknown' ? ipAddress : null,
-          registrationCountry: geo.countryName || null,
-          lastLoginIp: ipAddress !== 'unknown' ? ipAddress : null,
-          lastLoginCountry: geo.countryName || null,
-        }).catch((err) => console.error("Failed to update merchant registration IP:", err));
-      }).catch(() => {
-        if (ipAddress !== 'unknown') {
-          storage.updateMerchant(merchant.id, {
-            registrationIp: ipAddress,
-            lastLoginIp: ipAddress,
-          }).catch((err) => console.error("Failed to update merchant registration IP:", err));
-        }
       });
 
       res.json({ 
