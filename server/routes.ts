@@ -12533,6 +12533,124 @@ Rules:
     }
   });
 
+  // Daily metrics endpoint — per-day aggregates for admin charts
+  app.get("/api/admin/daily-metrics", requireAdmin, async (req, res) => {
+    try {
+      const days = Math.min(90, Math.max(1, parseInt((req.query.days as string) || "7") || 7));
+      const months = Math.min(24, Math.max(1, parseInt((req.query.months as string) || "6") || 6));
+
+      const now = new Date();
+
+      // Anchor the start of the day window to UTC midnight of (days-1) days ago so the
+      // SQL filter and the pre-seeded map cover exactly the same set of calendar days.
+      const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      const windowStart = new Date(todayUtc.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
+      const monthsAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - months + 1, 1));
+
+      // Day-of-week labels for last N days
+      const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const monthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+      // Build a map for each of the last N days (UTC date string → count).
+      // Keys are seeded from windowStart so the map and SQL window are identical.
+      const buildDayMap = (): Map<string, number> => {
+        const map = new Map<string, number>();
+        for (let i = 0; i < days; i++) {
+          const d = new Date(windowStart.getTime() + i * 24 * 60 * 60 * 1000);
+          const key = d.toISOString().slice(0, 10);
+          map.set(key, 0);
+        }
+        return map;
+      };
+
+      // Build a map for each of the last N months (YYYY-MM → count)
+      const buildMonthMap = (): Map<string, number> => {
+        const map = new Map<string, number>();
+        for (let i = 0; i < months; i++) {
+          const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1 - i), 1));
+          const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+          map.set(key, 0);
+        }
+        return map;
+      };
+
+      const [msgRows, sessRows, merchantDayRows, merchantMonthRows, sessMonthRows] = await Promise.all([
+        // Messages per day
+        db.select({
+          day: sql<string>`date_trunc('day', ${messages.timestamp})::date::text`,
+          count: sql<number>`count(*)::int`,
+        }).from(messages).where(gte(messages.timestamp, windowStart)).groupBy(sql`date_trunc('day', ${messages.timestamp})`).orderBy(sql`date_trunc('day', ${messages.timestamp})`),
+
+        // Sessions per day (non-visitor)
+        db.select({
+          day: sql<string>`date_trunc('day', ${sessions.createdAt})::date::text`,
+          count: sql<number>`count(*)::int`,
+        }).from(sessions).where(and(gte(sessions.createdAt, windowStart), not(eq(sessions.visitorSession, true)))).groupBy(sql`date_trunc('day', ${sessions.createdAt})`).orderBy(sql`date_trunc('day', ${sessions.createdAt})`),
+
+        // New merchants per day
+        db.select({
+          day: sql<string>`date_trunc('day', ${merchants.createdAt})::date::text`,
+          count: sql<number>`count(*)::int`,
+        }).from(merchants).where(gte(merchants.createdAt, windowStart)).groupBy(sql`date_trunc('day', ${merchants.createdAt})`).orderBy(sql`date_trunc('day', ${merchants.createdAt})`),
+
+        // New merchants per month
+        db.select({
+          month: sql<string>`to_char(date_trunc('month', ${merchants.createdAt}), 'YYYY-MM')`,
+          count: sql<number>`count(*)::int`,
+        }).from(merchants).where(gte(merchants.createdAt, monthsAgo)).groupBy(sql`date_trunc('month', ${merchants.createdAt})`).orderBy(sql`date_trunc('month', ${merchants.createdAt})`),
+
+        // Sessions per month
+        db.select({
+          month: sql<string>`to_char(date_trunc('month', ${sessions.createdAt}), 'YYYY-MM')`,
+          count: sql<number>`count(*)::int`,
+        }).from(sessions).where(and(gte(sessions.createdAt, monthsAgo), not(eq(sessions.visitorSession, true)))).groupBy(sql`date_trunc('month', ${sessions.createdAt})`).orderBy(sql`date_trunc('month', ${sessions.createdAt})`),
+      ]);
+
+      // Fill day maps — only update keys that were pre-seeded to prevent out-of-range rows
+      // from adding extra data points.
+      const msgDayMap = buildDayMap();
+      for (const row of msgRows) { if (msgDayMap.has(row.day)) msgDayMap.set(row.day, row.count); }
+
+      const sessDayMap = buildDayMap();
+      for (const row of sessRows) { if (sessDayMap.has(row.day)) sessDayMap.set(row.day, row.count); }
+
+      const merchantDayMap = buildDayMap();
+      for (const row of merchantDayRows) { if (merchantDayMap.has(row.day)) merchantDayMap.set(row.day, row.count); }
+
+      // Fill month maps — same guard
+      const merchantMonthMap = buildMonthMap();
+      for (const row of merchantMonthRows) { if (merchantMonthMap.has(row.month)) merchantMonthMap.set(row.month, row.count); }
+
+      const sessMonthMap = buildMonthMap();
+      for (const row of sessMonthRows) { if (sessMonthMap.has(row.month)) sessMonthMap.set(row.month, row.count); }
+
+      // Convert day map → labeled array
+      const dayMapToArray = (map: Map<string, number>) =>
+        Array.from(map.entries()).map(([dateStr, value]) => {
+          const d = new Date(dateStr + "T00:00:00");
+          return { label: dayLabels[d.getDay()], value };
+        });
+
+      // Convert month map → labeled array
+      const monthMapToArray = (map: Map<string, number>) =>
+        Array.from(map.entries()).map(([monthStr, value]) => {
+          const m = parseInt(monthStr.split("-")[1]) - 1;
+          return { label: monthLabels[m], value };
+        });
+
+      res.json({
+        messagesPerDay: dayMapToArray(msgDayMap),
+        sessionsPerDay: dayMapToArray(sessDayMap),
+        merchantsPerDay: dayMapToArray(merchantDayMap),
+        sessionsPerMonth: monthMapToArray(sessMonthMap),
+        merchantsPerMonth: monthMapToArray(merchantMonthMap),
+      });
+    } catch (error) {
+      console.error("Error fetching daily metrics:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/admin/settings", requireAdmin, async (req, res) => {
     try {
       const settings = await storage.getAllPlatformSettings();

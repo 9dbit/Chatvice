@@ -172,6 +172,19 @@ interface AdminStats {
   };
 }
 
+interface DailyMetric {
+  label: string;
+  value: number;
+}
+
+interface DailyMetrics {
+  messagesPerDay: DailyMetric[];
+  sessionsPerDay: DailyMetric[];
+  merchantsPerDay: DailyMetric[];
+  sessionsPerMonth: DailyMetric[];
+  merchantsPerMonth: DailyMetric[];
+}
+
 interface MerchantWithPlan {
   id: string;
   email: string;
@@ -6873,6 +6886,10 @@ function UsageTab({ stats }: { stats?: AdminStats }) {
     queryKey: ["/api/admin/merchants"],
   });
 
+  const { data: dailyMetrics } = useQuery<DailyMetrics>({
+    queryKey: ["/api/admin/daily-metrics"],
+  });
+
   const seededSparkline = (seed: number, scale: number) => {
     let s = seed;
     return Array.from({ length: 10 }, (_, i) => {
@@ -6948,30 +6965,16 @@ function UsageTab({ stats }: { stats?: AdminStats }) {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <GrowthAreaChart
-              title="Platform API Usage Trend"
+              title="Platform Message Volume Trend"
               metricKey="apiCalls"
-              data={[
-                { label: "Mon", value: 8500 },
-                { label: "Tue", value: 9200 },
-                { label: "Wed", value: 10100 },
-                { label: "Thu", value: 11400 },
-                { label: "Fri", value: 12453 },
-                { label: "Sat", value: 8900 },
-              ]}
+              data={dailyMetrics?.messagesPerDay ?? []}
               color="hsl(var(--primary))"
               height={160}
             />
             <GrowthAreaChart
-              title="Platform Storage Growth"
-              metricKey="storageUsed"
-              data={[
-                { label: "Jan", value: 1.2 },
-                { label: "Feb", value: 1.5 },
-                { label: "Mar", value: 1.8 },
-                { label: "Apr", value: 2.0 },
-                { label: "May", value: 2.2 },
-                { label: "Jun", value: 2.4 },
-              ]}
+              title="New Merchants (Monthly)"
+              metricKey="merchantGrowth"
+              data={dailyMetrics?.merchantsPerMonth ?? []}
               color="hsl(280, 70%, 50%)"
               height={160}
             />
@@ -7097,6 +7100,10 @@ function UsageTab({ stats }: { stats?: AdminStats }) {
 function BillingTab({ stats }: { stats?: AdminStats }) {
   const { data: allMerchants } = useQuery<MerchantWithPlan[]>({
     queryKey: ["/api/admin/merchants"],
+  });
+
+  const { data: dailyMetrics } = useQuery<DailyMetrics>({
+    queryKey: ["/api/admin/daily-metrics"],
   });
 
   const handleExportUsage = () => {
@@ -7313,43 +7320,21 @@ function BillingTab({ stats }: { stats?: AdminStats }) {
         <GrowthAreaChart
           title="Messages Trend (Last 7 Days)"
           metricKey="totalMessages"
-          data={[
-            { label: "Mon", value: 180000 },
-            { label: "Tue", value: 195000 },
-            { label: "Wed", value: 210000 },
-            { label: "Thu", value: 225000 },
-            { label: "Fri", value: 238252 },
-            { label: "Sat", value: 190000 },
-            { label: "Sun", value: 175000 },
-          ]}
+          data={dailyMetrics?.messagesPerDay ?? []}
           color="hsl(var(--primary))"
           height={150}
         />
         <GrowthAreaChart
-          title="Active Chats (Last 24 Hours)"
+          title="New Sessions (Last 7 Days)"
           metricKey="activeChats"
-          data={[
-            { label: "12AM", value: 15 },
-            { label: "4AM", value: 8 },
-            { label: "8AM", value: 25 },
-            { label: "12PM", value: 42 },
-            { label: "4PM", value: 55 },
-            { label: "8PM", value: 47 },
-          ]}
+          data={dailyMetrics?.sessionsPerDay ?? []}
           color="hsl(142, 76%, 36%)"
           height={150}
         />
         <GrowthAreaChart
           title="Total Chats Trend (Monthly)"
           metricKey="totalChats"
-          data={[
-            { label: "Jan", value: 4500 },
-            { label: "Feb", value: 5200 },
-            { label: "Mar", value: 5800 },
-            { label: "Apr", value: 6500 },
-            { label: "May", value: 7200 },
-            { label: "Jun", value: 8119 },
-          ]}
+          data={dailyMetrics?.sessionsPerMonth ?? []}
           color="hsl(280, 70%, 50%)"
           height={150}
         />
