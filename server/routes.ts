@@ -12451,12 +12451,45 @@ Rules:
         custom: merchants.filter(m => m.subscriptionPlanId === 'custom').length,
       };
       
-      const paidMerchants = merchants.filter(m => m.subscriptionStatus === 'active' && m.subscriptionPlanId !== 'free');
-      const revenueEstimate = paidMerchants.reduce((sum, m) => {
-        const prices: Record<string, number> = { starter: 29, pro: 99, enterprise: 299, custom: 499 };
-        return sum + (prices[m.subscriptionPlanId || 'starter'] || 0);
-      }, 0);
-      
+      // Fetch effective plan prices (respects DB overrides via subscriptionPlanUtils)
+      const [freePlan, starterPlan, proPlan, enterprisePlan] = await Promise.all([
+        getEffectiveSubscriptionPlan('free'),
+        getEffectiveSubscriptionPlan('starter'),
+        getEffectiveSubscriptionPlan('pro'),
+        getEffectiveSubscriptionPlan('enterprise'),
+      ]);
+      const effectivePlanPrices: Record<string, number> = {
+        free: freePlan?.monthlyPrice ?? 0,
+        starter: starterPlan?.monthlyPrice ?? 0,
+        pro: proPlan?.monthlyPrice ?? 0,
+        enterprise: enterprisePlan?.monthlyPrice ?? 0,
+      };
+
+      const revenueByPlan: Record<string, { merchants: number; revenue: number }> = {
+        free: { merchants: 0, revenue: 0 },
+        starter: { merchants: 0, revenue: 0 },
+        pro: { merchants: 0, revenue: 0 },
+        enterprise: { merchants: 0, revenue: 0 },
+        custom: { merchants: 0, revenue: 0 },
+      };
+
+      for (const m of merchants) {
+        if (m.subscriptionStatus !== 'active') continue;
+        const planId = m.subscriptionPlanId || 'free';
+        if (planId === 'custom') {
+          // Per-merchant custom pricing; fallback to 0 if not yet configured
+          const customPrice = m.customMonthlyPrice ?? 0;
+          revenueByPlan.custom.merchants += 1;
+          revenueByPlan.custom.revenue += customPrice;
+        } else {
+          const key = effectivePlanPrices[planId] !== undefined ? planId : 'free';
+          revenueByPlan[key].merchants += 1;
+          revenueByPlan[key].revenue += effectivePlanPrices[key] ?? 0;
+        }
+      }
+
+      const revenueEstimate = Object.values(revenueByPlan).reduce((s, v) => s + v.revenue, 0);
+
       res.json({
         totalMerchants,
         activeMerchants,
@@ -12465,6 +12498,7 @@ Rules:
         totalMessages: totalConversations * 8,
         totalRevenue: revenueEstimate,
         planDistribution,
+        revenueByPlan,
       });
     } catch (error) {
       res.status(500).json({ error: "Server error" });

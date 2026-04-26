@@ -170,6 +170,13 @@ interface AdminStats {
     enterprise: number;
     custom: number;
   };
+  revenueByPlan?: {
+    free: { merchants: number; revenue: number };
+    starter: { merchants: number; revenue: number };
+    pro: { merchants: number; revenue: number };
+    enterprise: { merchants: number; revenue: number };
+    custom: { merchants: number; revenue: number };
+  };
 }
 
 interface DailyMetric {
@@ -6722,9 +6729,9 @@ function ReportsTab({ stats, toast }: { stats?: AdminStats; toast: any }) {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold" data-testid="text-report-revenue">
-              ${(stats?.totalRevenue ?? 0).toLocaleString()}
+              Rp {(stats?.totalRevenue ?? 0).toLocaleString('id-ID')}
             </p>
-            <p className="text-xs text-muted-foreground">Monthly estimate</p>
+            <p className="text-xs text-muted-foreground">Monthly estimate (IDR)</p>
           </CardContent>
         </Card>
       </div>
@@ -6753,6 +6760,61 @@ function ReportsTab({ stats, toast }: { stats?: AdminStats; toast: any }) {
           </CardContent>
         </Card>
       )}
+
+      {(() => {
+        const rbp = stats?.revenueByPlan;
+        if (!rbp) return null;
+        const planRevEntries: { name: string; planId: string; merchants: number; revenue: number }[] = [
+          { name: "Free", planId: "free", ...rbp.free },
+          { name: "Starter", planId: "starter", ...rbp.starter },
+          { name: "Pro", planId: "pro", ...rbp.pro },
+          { name: "Enterprise", planId: "enterprise", ...rbp.enterprise },
+          { name: "Custom", planId: "custom", ...rbp.custom },
+        ].filter(p => p.merchants > 0 || p.revenue > 0);
+        if (planRevEntries.length === 0) return null;
+        const totalRev = planRevEntries.reduce((s, p) => s + p.revenue, 0);
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5" />
+                Revenue by Plan
+              </CardTitle>
+              <CardDescription>
+                Monthly revenue contribution per subscription plan — sourced from active merchant counts &times; plan price
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {planRevEntries.map((p) => {
+                const share = totalRev > 0 ? Math.round((p.revenue / totalRev) * 100) : 0;
+                return (
+                  <div key={p.planId} className="space-y-1" data-testid={`revenue-plan-${p.planId}`}>
+                    <div className="flex justify-between items-center flex-wrap gap-2">
+                      <span className="font-medium text-sm">{p.name}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground">
+                          {p.merchants} merchant{p.merchants !== 1 ? 's' : ''}
+                        </span>
+                        <span className="text-sm font-semibold" data-testid={`text-revenue-${p.planId}`}>
+                          Rp {p.revenue.toLocaleString('id-ID')}
+                        </span>
+                        <span className="text-xs text-muted-foreground w-9 text-right">{share}%</span>
+                      </div>
+                    </div>
+                    <Progress value={share} className="h-2" />
+                  </div>
+                );
+              })}
+              <div className="pt-2 border-t flex justify-between items-center">
+                <span className="text-sm font-medium text-muted-foreground">Total Monthly Revenue</span>
+                <span className="text-base font-bold" data-testid="text-revenue-total">
+                  Rp {totalRev.toLocaleString('id-ID')}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       <Card>
         <CardHeader>
