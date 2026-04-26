@@ -2556,20 +2556,20 @@ function MerchantsTab({
                 <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Network & Location</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-xs text-muted-foreground">Registration IP</p>
-                    <p className="font-medium font-mono text-xs">{selectedDetailMerchant.registrationIp || '-'}</p>
+                    <p className="text-xs text-muted-foreground">Registered from (IP)</p>
+                    <p className="font-medium font-mono text-xs">{selectedDetailMerchant.registrationIp || '—'}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Registration Country</p>
-                    <p className="font-medium">{selectedDetailMerchant.registrationCountry || '-'}</p>
+                    <p className="text-xs text-muted-foreground">Registered from (Country)</p>
+                    <p className="font-medium">{selectedDetailMerchant.registrationCountry || '—'}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Last Login IP</p>
-                    <p className="font-medium font-mono text-xs">{selectedDetailMerchant.lastLoginIp || '-'}</p>
+                    <p className="text-xs text-muted-foreground">Last active from (IP)</p>
+                    <p className="font-medium font-mono text-xs">{selectedDetailMerchant.lastLoginIp || '—'}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Last Login Country</p>
-                    <p className="font-medium">{selectedDetailMerchant.lastLoginCountry || '-'}</p>
+                    <p className="text-xs text-muted-foreground">Last active from (Country)</p>
+                    <p className="font-medium">{selectedDetailMerchant.lastLoginCountry || '—'}</p>
                   </div>
                 </div>
               </div>
@@ -2923,9 +2923,10 @@ function ActiveSubscribersTab({
                           ${displayPrice}/mo
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
-                            <Button size="icon" variant="ghost" onClick={() => { setSelectedViewMerchant(merchant); setViewDrawerOpen(true); }} data-testid={`button-view-subscriber-${merchant.id}`}>
-                              <Eye className="w-4 h-4" />
+                          <div className="flex gap-1 flex-wrap">
+                            <Button size="sm" variant="outline" onClick={() => { setSelectedViewMerchant(merchant); setViewDrawerOpen(true); }} data-testid={`button-view-subscriber-${merchant.id}`}>
+                              <Eye className="w-4 h-4 mr-1" />
+                              View Detail
                             </Button>
                             <Button size="icon" variant="ghost" onClick={() => handleEdit(merchant)} data-testid={`button-edit-subscriber-${merchant.id}`}>
                               <Edit className="w-4 h-4" />
@@ -3173,20 +3174,20 @@ function ActiveSubscribersTab({
                 <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Network & Location</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-xs text-muted-foreground">Registration IP</p>
-                    <p className="font-medium font-mono text-xs">{selectedViewMerchant.registrationIp || '-'}</p>
+                    <p className="text-xs text-muted-foreground">Registered from (IP)</p>
+                    <p className="font-medium font-mono text-xs">{selectedViewMerchant.registrationIp || '—'}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Registration Country</p>
-                    <p className="font-medium">{selectedViewMerchant.registrationCountry || '-'}</p>
+                    <p className="text-xs text-muted-foreground">Registered from (Country)</p>
+                    <p className="font-medium">{selectedViewMerchant.registrationCountry || '—'}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Last Login IP</p>
-                    <p className="font-medium font-mono text-xs">{selectedViewMerchant.lastLoginIp || '-'}</p>
+                    <p className="text-xs text-muted-foreground">Last active from (IP)</p>
+                    <p className="font-medium font-mono text-xs">{selectedViewMerchant.lastLoginIp || '—'}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Last Login Country</p>
-                    <p className="font-medium">{selectedViewMerchant.lastLoginCountry || '-'}</p>
+                    <p className="text-xs text-muted-foreground">Last active from (Country)</p>
+                    <p className="font-medium">{selectedViewMerchant.lastLoginCountry || '—'}</p>
                   </div>
                 </div>
               </div>
