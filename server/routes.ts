@@ -2560,9 +2560,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                        req.socket?.remoteAddress || 'unknown';
       const regIp = regIpRaw !== 'unknown' ? regIpRaw : null;
       let regCountry: string | null = null;
+      let regCountryCode: string | null = null;
+      let regCity: string | null = null;
       try {
         const geo = await getGeoFromIp(regIpRaw);
         regCountry = geo.countryName || null;
+        regCountryCode = geo.countryCode ? geo.countryCode.toUpperCase() : null;
+        regCity = geo.city || null;
       } catch (err) {
         console.warn("Email registration: geo lookup failed:", err instanceof Error ? err.message : err);
       }
@@ -2611,6 +2615,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         description: `New merchant registered with email`,
         authMethod: "email",
         ipAddress,
+        country: regCountry,
+        countryCode: regCountryCode,
+        city: regCity,
         userAgent: req.headers['user-agent'] || null,
       }).catch((err) => {
         console.error("Failed to log sign-up activity:", err);
@@ -3170,34 +3177,45 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         const ipAddress = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || 
                          req.socket?.remoteAddress || 'unknown';
         
-        // Log merchant sign-in activity (non-blocking)
-        storage.createMerchantActivityLog({
-          merchantId: merchant.id,
-          activityType: "sign_in",
-          activityCategory: "auth",
-          description: `Merchant signed in with email`,
-          authMethod: "email",
-          ipAddress,
-          userAgent: req.headers['user-agent'] || null,
-        }).catch((err) => {
-          console.error("Failed to log sign-in activity:", err);
-        });
-        
         // Send admin notification email (non-blocking)
         sendMerchantAuthNotification("sign_in", merchant.email, merchant.companyName || merchant.username || "", "email", ipAddress).catch((err) => {
           console.error("Failed to send sign-in notification:", err);
         });
 
-        // Capture last login IP and country (non-blocking)
+        // Capture last login IP, country, and log sign-in activity (non-blocking, geo-enriched)
         getGeoFromIp(ipAddress).then((geo) => {
+          const geoCountry = geo.countryName || null;
+          const geoCountryCode = geo.countryCode ? geo.countryCode.toUpperCase() : null;
+          const geoCity = geo.city || null;
           storage.updateMerchant(merchant.id, {
             lastLoginIp: ipAddress !== 'unknown' ? ipAddress : null,
-            lastLoginCountry: geo.countryName || null,
+            lastLoginCountry: geoCountry,
           }).catch((err) => console.error("Failed to update last login IP:", err));
+          storage.createMerchantActivityLog({
+            merchantId: merchant.id,
+            activityType: "sign_in",
+            activityCategory: "auth",
+            description: `Merchant signed in with email`,
+            authMethod: "email",
+            ipAddress,
+            country: geoCountry,
+            countryCode: geoCountryCode,
+            city: geoCity,
+            userAgent: req.headers['user-agent'] || null,
+          }).catch((err) => console.error("Failed to log sign-in activity:", err));
         }).catch(() => {
           if (ipAddress !== 'unknown') {
             storage.updateMerchant(merchant.id, { lastLoginIp: ipAddress }).catch(() => {});
           }
+          storage.createMerchantActivityLog({
+            merchantId: merchant.id,
+            activityType: "sign_in",
+            activityCategory: "auth",
+            description: `Merchant signed in with email`,
+            authMethod: "email",
+            ipAddress,
+            userAgent: req.headers['user-agent'] || null,
+          }).catch((err) => console.error("Failed to log sign-in activity:", err));
         });
 
         const profileCompleted = merchant.profileStep === 4 || merchant.profileCompleted === true;
@@ -3733,19 +3751,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       // Reuse pre-computed IP for activity log
       const ipAddress = googleIpRaw;
       
-      // Log merchant activity (non-blocking)
-      storage.createMerchantActivityLog({
-        merchantId: merchant.id,
-        activityType,
-        activityCategory: "auth",
-        description: `Merchant ${activityType === 'sign_up' ? 'registered' : 'signed in'} with Google`,
-        authMethod: "google",
-        ipAddress,
-        userAgent: req.headers['user-agent'] || null,
-      }).catch((err) => {
-        console.error(`Failed to log ${activityType} activity:`, err);
-      });
-      
       // Send admin notification email (non-blocking)
       sendMerchantAuthNotification(
         activityType as 'sign_up' | 'sign_in',
@@ -3757,17 +3762,41 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         console.error(`Failed to send ${activityType} notification:`, err);
       });
 
-      // Capture last login IP and country (non-blocking); registration already set atomically in createMerchant
+      // Capture last login IP, country, and log activity (non-blocking, geo-enriched)
       getGeoFromIp(ipAddress).then((geo) => {
         const safeIp = ipAddress !== 'unknown' ? ipAddress : null;
+        const geoCountry = geo.countryName || null;
+        const geoCountryCode = geo.countryCode ? geo.countryCode.toUpperCase() : null;
+        const geoCity = geo.city || null;
         storage.updateMerchant(merchant.id, {
           lastLoginIp: safeIp,
-          lastLoginCountry: geo.countryName || null,
+          lastLoginCountry: geoCountry,
         }).catch((err) => console.error("Failed to update merchant IP:", err));
+        storage.createMerchantActivityLog({
+          merchantId: merchant.id,
+          activityType,
+          activityCategory: "auth",
+          description: `Merchant ${activityType === 'sign_up' ? 'registered' : 'signed in'} with Google`,
+          authMethod: "google",
+          ipAddress,
+          country: geoCountry,
+          countryCode: geoCountryCode,
+          city: geoCity,
+          userAgent: req.headers['user-agent'] || null,
+        }).catch((err) => console.error(`Failed to log ${activityType} activity:`, err));
       }).catch(() => {
         if (ipAddress !== 'unknown') {
           storage.updateMerchant(merchant.id, { lastLoginIp: ipAddress }).catch(() => {});
         }
+        storage.createMerchantActivityLog({
+          merchantId: merchant.id,
+          activityType,
+          activityCategory: "auth",
+          description: `Merchant ${activityType === 'sign_up' ? 'registered' : 'signed in'} with Google`,
+          authMethod: "google",
+          ipAddress,
+          userAgent: req.headers['user-agent'] || null,
+        }).catch((err) => console.error(`Failed to log ${activityType} activity:`, err));
       });
 
       console.log("=== Google OAuth Login Success ===");
@@ -4022,19 +4051,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       // Reuse pre-computed IP for activity log
       const ipAddress = githubIpRaw;
       
-      // Log merchant activity (non-blocking)
-      storage.createMerchantActivityLog({
-        merchantId: merchant.id,
-        activityType,
-        activityCategory: "auth",
-        description: `Merchant ${activityType === 'sign_up' ? 'registered' : 'signed in'} with GitHub`,
-        authMethod: "github",
-        ipAddress,
-        userAgent: req.headers['user-agent'] || null,
-      }).catch((err) => {
-        console.error(`Failed to log ${activityType} activity:`, err);
-      });
-      
       // Send admin notification email (non-blocking)
       sendMerchantAuthNotification(
         activityType as 'sign_up' | 'sign_in',
@@ -4046,17 +4062,41 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         console.error(`Failed to send ${activityType} notification:`, err);
       });
 
-      // Capture last login IP and country (non-blocking); registration already set atomically in createMerchant
+      // Capture last login IP, country, and log activity (non-blocking, geo-enriched)
       getGeoFromIp(ipAddress).then((geo) => {
         const safeIp = ipAddress !== 'unknown' ? ipAddress : null;
+        const geoCountry = geo.countryName || null;
+        const geoCountryCode = geo.countryCode ? geo.countryCode.toUpperCase() : null;
+        const geoCity = geo.city || null;
         storage.updateMerchant(merchant.id, {
           lastLoginIp: safeIp,
-          lastLoginCountry: geo.countryName || null,
+          lastLoginCountry: geoCountry,
         }).catch((err) => console.error("Failed to update merchant IP:", err));
+        storage.createMerchantActivityLog({
+          merchantId: merchant.id,
+          activityType,
+          activityCategory: "auth",
+          description: `Merchant ${activityType === 'sign_up' ? 'registered' : 'signed in'} with GitHub`,
+          authMethod: "github",
+          ipAddress,
+          country: geoCountry,
+          countryCode: geoCountryCode,
+          city: geoCity,
+          userAgent: req.headers['user-agent'] || null,
+        }).catch((err) => console.error(`Failed to log ${activityType} activity:`, err));
       }).catch(() => {
         if (ipAddress !== 'unknown') {
           storage.updateMerchant(merchant.id, { lastLoginIp: ipAddress }).catch(() => {});
         }
+        storage.createMerchantActivityLog({
+          merchantId: merchant.id,
+          activityType,
+          activityCategory: "auth",
+          description: `Merchant ${activityType === 'sign_up' ? 'registered' : 'signed in'} with GitHub`,
+          authMethod: "github",
+          ipAddress,
+          userAgent: req.headers['user-agent'] || null,
+        }).catch((err) => console.error(`Failed to log ${activityType} activity:`, err));
       });
 
       // Explicitly save session before redirect to ensure it persists
@@ -13004,9 +13044,18 @@ Rules:
         return res.status(400).json({ error: "activityType and description are required" });
       }
       
-      // Get IP address
+      // Get IP address and geo data
       const ipAddress = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || 
                        req.socket?.remoteAddress || 'unknown';
+      let geoCountry: string | null = null;
+      let geoCountryCode: string | null = null;
+      let geoCity: string | null = null;
+      try {
+        const geo = await getGeoFromIp(ipAddress);
+        geoCountry = geo.countryName || null;
+        geoCountryCode = geo.countryCode ? geo.countryCode.toUpperCase() : null;
+        geoCity = geo.city || null;
+      } catch (_) {}
       
       const log = await storage.createMerchantActivityLog({
         merchantId,
@@ -13019,6 +13068,9 @@ Rules:
         formData: formData || null,
         authMethod: null,
         ipAddress,
+        country: geoCountry,
+        countryCode: geoCountryCode,
+        city: geoCity,
         userAgent: req.headers['user-agent'] || null,
       });
       

@@ -2150,6 +2150,9 @@ export const merchantActivityLogs = pgTable("merchant_activity_logs", {
   authMethod: text("auth_method"), // email, google, github
   // Device/browser info
   ipAddress: text("ip_address"),
+  country: text("country"), // Full country name, e.g. "United States"
+  countryCode: text("country_code"), // ISO 2-letter code, e.g. "US"
+  city: text("city"), // City from geo lookup
   userAgent: text("user_agent"),
   // Timestamps
   createdAt: timestamp("created_at").defaultNow(),

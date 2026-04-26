@@ -13098,6 +13098,7 @@ function BlogManagementTab({ toast }: { toast: any }) {
 function ActivityLogsTab({ toast }: { toast: any }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
+  const [selectedLog, setSelectedLog] = useState<ActivityLog | null>(null);
   
   interface ActivityLog {
     id: string;
@@ -13111,6 +13112,9 @@ function ActivityLogsTab({ toast }: { toast: any }) {
     formData: any | null;
     authMethod: string | null;
     ipAddress: string | null;
+    country: string | null;
+    countryCode: string | null;
+    city: string | null;
     userAgent: string | null;
     createdAt: string;
   }
@@ -13146,7 +13150,10 @@ function ActivityLogsTab({ toast }: { toast: any }) {
       merchantName.includes(query) ||
       log.activityType.toLowerCase().includes(query) ||
       (log.authMethod && log.authMethod.toLowerCase().includes(query)) ||
-      (log.ipAddress && log.ipAddress.includes(query))
+      (log.ipAddress && log.ipAddress.includes(query)) ||
+      (log.country && log.country.toLowerCase().includes(query)) ||
+      (log.countryCode && log.countryCode.toLowerCase().includes(query)) ||
+      (log.city && log.city.toLowerCase().includes(query))
     );
   });
   
@@ -13205,7 +13212,7 @@ function ActivityLogsTab({ toast }: { toast: any }) {
       return;
     }
     
-    const headers = ["Time", "Merchant", "Activity Type", "Description", "Auth Method", "IP Address", "User Agent"];
+    const headers = ["Time", "Merchant", "Activity Type", "Description", "Auth Method", "IP Address", "Country", "Country Code", "City", "User Agent"];
     const rows = filteredLogs.map(log => [
       formatDate(log.createdAt),
       getMerchantName(log.merchantId),
@@ -13213,6 +13220,9 @@ function ActivityLogsTab({ toast }: { toast: any }) {
       log.description,
       log.authMethod || "-",
       log.ipAddress || "-",
+      log.country || "-",
+      log.countryCode || "-",
+      log.city || "-",
       log.userAgent || "-",
     ]);
     
@@ -13357,12 +13367,17 @@ function ActivityLogsTab({ toast }: { toast: any }) {
                     <TableHead>Tipe</TableHead>
                     <TableHead>Deskripsi</TableHead>
                     <TableHead>Auth Method</TableHead>
-                    <TableHead>IP Address</TableHead>
+                    <TableHead>IP & Location</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredLogs.slice(0, 100).map((log) => (
-                    <TableRow key={log.id} data-testid={`row-activity-log-${log.id}`}>
+                    <TableRow
+                      key={log.id}
+                      data-testid={`row-activity-log-${log.id}`}
+                      className="cursor-pointer"
+                      onClick={() => setSelectedLog(log)}
+                    >
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                         {formatDate(log.createdAt)}
                       </TableCell>
@@ -13374,8 +13389,21 @@ function ActivityLogsTab({ toast }: { toast: any }) {
                         {log.description}
                       </TableCell>
                       <TableCell>{getAuthMethodBadge(log.authMethod)}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground font-mono">
-                        {log.ipAddress || "-"}
+                      <TableCell className="text-xs">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-mono text-muted-foreground">{log.ipAddress || "-"}</span>
+                          {(log.country || log.countryCode) && (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <MapPin className="w-3 h-3 shrink-0" />
+                              <span className="truncate max-w-[140px]">
+                                {[log.city, log.country].filter(Boolean).join(", ")}
+                                {log.countryCode && (
+                                  <span className="ml-1 text-xs opacity-70">({log.countryCode})</span>
+                                )}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -13390,6 +13418,88 @@ function ActivityLogsTab({ toast }: { toast: any }) {
           )}
         </CardContent>
       </Card>
+
+      {/* Activity Log Detail Dialog */}
+      <Dialog open={!!selectedLog} onOpenChange={(open) => { if (!open) setSelectedLog(null); }}>
+        <DialogContent className="max-w-lg" data-testid="dialog-activity-log-detail">
+          <DialogHeader>
+            <DialogTitle>Activity Log Detail</DialogTitle>
+            <DialogDescription>Full details for this activity event</DialogDescription>
+          </DialogHeader>
+          {selectedLog && (
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Time</p>
+                  <p className="font-medium">{formatDate(selectedLog.createdAt)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Activity Type</p>
+                  <div>{getActivityTypeBadge(selectedLog.activityType)}</div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Merchant</p>
+                  <p className="font-medium">{getMerchantName(selectedLog.merchantId)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Auth Method</p>
+                  <div>{getAuthMethodBadge(selectedLog.authMethod) ?? <span className="text-muted-foreground">-</span>}</div>
+                </div>
+              </div>
+              <Separator />
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Description</p>
+                <p>{selectedLog.description}</p>
+              </div>
+              {selectedLog.pageUrl && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Page URL</p>
+                  <p className="font-mono text-xs break-all">{selectedLog.pageUrl}</p>
+                </div>
+              )}
+              <Separator />
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  IP &amp; Geolocation
+                </p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">IP Address</p>
+                    <p className="font-mono text-xs" data-testid="text-detail-ip">{selectedLog.ipAddress || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Country Code</p>
+                    <p data-testid="text-detail-country-code">{selectedLog.countryCode || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Country</p>
+                    <p data-testid="text-detail-country">{selectedLog.country || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">City</p>
+                    <p data-testid="text-detail-city">{selectedLog.city || "-"}</p>
+                  </div>
+                </div>
+              </div>
+              {selectedLog.userAgent && (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">User Agent</p>
+                    <p className="font-mono text-xs break-all text-muted-foreground">{selectedLog.userAgent}</p>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" data-testid="button-close-log-detail">Close</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
