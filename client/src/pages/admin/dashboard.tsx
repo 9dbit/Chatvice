@@ -221,6 +221,10 @@ interface MerchantWithPlan {
   emailVerifiedAt?: string;
   profileCompleted?: boolean;
   username?: string;
+  registrationIp?: string | null;
+  registrationCountry?: string | null;
+  lastLoginIp?: string | null;
+  lastLoginCountry?: string | null;
   plan: {
     name: string;
     conversationsLimit: number;
@@ -2549,6 +2553,30 @@ function MerchantsTab({
               <Separator />
 
               <div className="space-y-4">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Network & Location</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Registration IP</p>
+                    <p className="font-medium font-mono text-xs">{selectedDetailMerchant.registrationIp || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Registration Country</p>
+                    <p className="font-medium">{selectedDetailMerchant.registrationCountry || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Last Login IP</p>
+                    <p className="font-medium font-mono text-xs">{selectedDetailMerchant.lastLoginIp || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Last Login Country</p>
+                    <p className="font-medium">{selectedDetailMerchant.lastLoginCountry || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
                 <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Subscription & Payment</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -2679,6 +2707,8 @@ function ActiveSubscribersTab({
   const [selectedMerchant, setSelectedMerchant] = useState<MerchantWithPlan | null>(null);
   const [editPlan, setEditPlan] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewDrawerOpen, setViewDrawerOpen] = useState(false);
+  const [selectedViewMerchant, setSelectedViewMerchant] = useState<MerchantWithPlan | null>(null);
   const [editCustomConfig, setEditCustomConfig] = useState({
     customConversationsLimit: 1000,
     customAgentsLimit: 3,
@@ -2894,6 +2924,9 @@ function ActiveSubscribersTab({
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
+                            <Button size="icon" variant="ghost" onClick={() => { setSelectedViewMerchant(merchant); setViewDrawerOpen(true); }} data-testid={`button-view-subscriber-${merchant.id}`}>
+                              <Eye className="w-4 h-4" />
+                            </Button>
                             <Button size="icon" variant="ghost" onClick={() => handleEdit(merchant)} data-testid={`button-edit-subscriber-${merchant.id}`}>
                               <Edit className="w-4 h-4" />
                             </Button>
@@ -3090,6 +3123,127 @@ function ActiveSubscribersTab({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Sheet open={viewDrawerOpen} onOpenChange={setViewDrawerOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto" data-testid="drawer-subscriber-detail">
+          {selectedViewMerchant && (
+            <div className="space-y-6 pt-6">
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold">{selectedViewMerchant.companyName || 'Unnamed Merchant'}</h2>
+                <p className="text-sm text-muted-foreground font-mono">{selectedViewMerchant.id}</p>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Business Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Email</p>
+                    <p className="font-medium">{selectedViewMerchant.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Website URL</p>
+                    {selectedViewMerchant.websiteUrl ? (
+                      <a href={selectedViewMerchant.websiteUrl.startsWith('http') ? selectedViewMerchant.websiteUrl : `https://${selectedViewMerchant.websiteUrl}`} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">
+                        {selectedViewMerchant.websiteUrl}
+                      </a>
+                    ) : (
+                      <p className="font-medium">-</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Contact Person (PIC)</p>
+                    <p className="font-medium">{selectedViewMerchant.picName || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Phone</p>
+                    <p className="font-medium">
+                      {selectedViewMerchant.phone
+                        ? `${selectedViewMerchant.phoneCountryCode || ''} ${selectedViewMerchant.phone}`
+                        : '-'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Network & Location</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Registration IP</p>
+                    <p className="font-medium font-mono text-xs">{selectedViewMerchant.registrationIp || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Registration Country</p>
+                    <p className="font-medium">{selectedViewMerchant.registrationCountry || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Last Login IP</p>
+                    <p className="font-medium font-mono text-xs">{selectedViewMerchant.lastLoginIp || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Last Login Country</p>
+                    <p className="font-medium">{selectedViewMerchant.lastLoginCountry || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Subscription</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Plan</p>
+                    <div className="mt-1">{getPlanBadge(selectedViewMerchant.subscriptionPlanId)}</div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Billing Interval</p>
+                    <p className="font-medium capitalize">{selectedViewMerchant.billingInterval || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Conversations Used</p>
+                    <p className="font-medium">
+                      {selectedViewMerchant.conversationsUsed || 0} / {selectedViewMerchant.plan.conversationsLimit === -1 ? '∞' : selectedViewMerchant.plan.conversationsLimit}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Current Period End</p>
+                    <p className="font-medium">
+                      {selectedViewMerchant.currentPeriodEnd
+                        ? safeFormat(selectedViewMerchant.currentPeriodEnd, 'MMM d, yyyy')
+                        : '-'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Joined</p>
+                    <p className="font-medium">
+                      {selectedViewMerchant.createdAt
+                        ? safeFormat(selectedViewMerchant.createdAt, 'MMM d, yyyy')
+                        : '-'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => { handleEdit(selectedViewMerchant); setViewDrawerOpen(false); }} className="flex-1" data-testid="button-subscriber-drawer-edit">
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Plan
+                </Button>
+                <Button variant="destructive" onClick={() => { handleDelete(selectedViewMerchant); setViewDrawerOpen(false); }} data-testid="button-subscriber-drawer-delete">
+                  <Trash className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </>
   );
 }

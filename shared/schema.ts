@@ -126,6 +126,11 @@ export const merchants = pgTable("merchants", {
   storageLimit: integer("storage_limit").default(104857600), // 100MB default
   createdAt: timestamp("created_at").defaultNow(),
   firstSubscribedAt: timestamp("first_subscribed_at"), // First time merchant paid for any subscription
+  // IP & country tracking
+  registrationIp: text("registration_ip"),
+  registrationCountry: text("registration_country"),
+  lastLoginIp: text("last_login_ip"),
+  lastLoginCountry: text("last_login_country"),
 });
 
 // Email verification tokens for merchant registration

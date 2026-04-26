@@ -2607,7 +2607,24 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       sendMerchantAuthNotification("sign_up", data.email, data.username, "email", ipAddress).catch((err) => {
         console.error("Failed to send sign-up notification:", err);
       });
-      
+
+      // Capture registration IP and country (non-blocking)
+      getGeoFromIp(ipAddress).then((geo) => {
+        storage.updateMerchant(merchant.id, {
+          registrationIp: ipAddress !== 'unknown' ? ipAddress : null,
+          registrationCountry: geo.countryName || null,
+          lastLoginIp: ipAddress !== 'unknown' ? ipAddress : null,
+          lastLoginCountry: geo.countryName || null,
+        }).catch((err) => console.error("Failed to update merchant registration IP:", err));
+      }).catch(() => {
+        if (ipAddress !== 'unknown') {
+          storage.updateMerchant(merchant.id, {
+            registrationIp: ipAddress,
+            lastLoginIp: ipAddress,
+          }).catch((err) => console.error("Failed to update merchant registration IP:", err));
+        }
+      });
+
       res.json({ 
         success: true, 
         merchantId: merchant.id,
@@ -3174,7 +3191,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         sendMerchantAuthNotification("sign_in", merchant.email, merchant.companyName || merchant.username || "", "email", ipAddress).catch((err) => {
           console.error("Failed to send sign-in notification:", err);
         });
-        
+
+        // Capture last login IP and country (non-blocking)
+        getGeoFromIp(ipAddress).then((geo) => {
+          storage.updateMerchant(merchant.id, {
+            lastLoginIp: ipAddress !== 'unknown' ? ipAddress : null,
+            lastLoginCountry: geo.countryName || null,
+          }).catch((err) => console.error("Failed to update last login IP:", err));
+        }).catch(() => {
+          if (ipAddress !== 'unknown') {
+            storage.updateMerchant(merchant.id, { lastLoginIp: ipAddress }).catch(() => {});
+          }
+        });
+
         const profileCompleted = merchant.profileStep === 4 || merchant.profileCompleted === true;
         return res.json({ success: true, merchantId: merchant.id, type: "merchant", profileCompleted });
       }
@@ -3715,7 +3744,26 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       ).catch((err) => {
         console.error(`Failed to send ${activityType} notification:`, err);
       });
-      
+
+      // Capture last login IP and country (non-blocking)
+      getGeoFromIp(ipAddress).then((geo) => {
+        const updates: any = {
+          lastLoginIp: ipAddress !== 'unknown' ? ipAddress : null,
+          lastLoginCountry: geo.countryName || null,
+        };
+        if (activityType === 'sign_up') {
+          updates.registrationIp = updates.lastLoginIp;
+          updates.registrationCountry = updates.lastLoginCountry;
+        }
+        storage.updateMerchant(merchant.id, updates).catch((err) => console.error("Failed to update merchant IP:", err));
+      }).catch(() => {
+        if (ipAddress !== 'unknown') {
+          const updates: any = { lastLoginIp: ipAddress };
+          if (activityType === 'sign_up') updates.registrationIp = ipAddress;
+          storage.updateMerchant(merchant.id, updates).catch(() => {});
+        }
+      });
+
       console.log("=== Google OAuth Login Success ===");
       console.log("Merchant ID:", merchant.id);
       console.log("Email:", merchant.email);
@@ -3974,6 +4022,25 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         ipAddress
       ).catch((err) => {
         console.error(`Failed to send ${activityType} notification:`, err);
+      });
+
+      // Capture last login IP and country (non-blocking)
+      getGeoFromIp(ipAddress).then((geo) => {
+        const updates: any = {
+          lastLoginIp: ipAddress !== 'unknown' ? ipAddress : null,
+          lastLoginCountry: geo.countryName || null,
+        };
+        if (activityType === 'sign_up') {
+          updates.registrationIp = updates.lastLoginIp;
+          updates.registrationCountry = updates.lastLoginCountry;
+        }
+        storage.updateMerchant(merchant.id, updates).catch((err) => console.error("Failed to update merchant IP:", err));
+      }).catch(() => {
+        if (ipAddress !== 'unknown') {
+          const updates: any = { lastLoginIp: ipAddress };
+          if (activityType === 'sign_up') updates.registrationIp = ipAddress;
+          storage.updateMerchant(merchant.id, updates).catch(() => {});
+        }
       });
 
       // Explicitly save session before redirect to ensure it persists
