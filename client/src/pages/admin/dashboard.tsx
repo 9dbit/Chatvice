@@ -145,6 +145,17 @@ import { subscriptionPlans } from "@shared/schema";
 import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 
+function safeFormat(date: string | Date | null | undefined, fmt: string, fallback = '-'): string {
+  if (!date) return fallback;
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(d.getTime())) return fallback;
+    return format(d, fmt);
+  } catch {
+    return fallback;
+  }
+}
+
 interface AdminStats {
   totalMerchants: number;
   activeMerchants: number;
@@ -547,7 +558,7 @@ export default function AdminDashboard() {
             
             {activeTab === "usage" && <UsageTab stats={stats} />}
             
-            {activeTab === "billing" && <BillingTab />}
+            {activeTab === "billing" && <BillingTab stats={stats} />}
             
             {activeTab === "transactions" && <TransactionsTab toast={toast} />}
             
@@ -1850,7 +1861,7 @@ function MerchantsTab({
                                 {expiryInfo?.text || 'Expired'}
                               </div>
                               <div className="text-muted-foreground" data-testid={`text-trial-enddate-${merchant.id}`}>
-                                {format(new Date(merchant.trialEndsAt), 'MMM d, yyyy')}
+                                {safeFormat(merchant.trialEndsAt, 'MMM d, yyyy')}
                               </div>
                             </div>
                           ) : merchant.subscriptionStatus === 'active' && merchant.currentPeriodEnd ? (
@@ -1859,7 +1870,7 @@ function MerchantsTab({
                                 {expiryInfo?.text || '-'}
                               </div>
                               <div className="text-muted-foreground" data-testid={`text-sub-enddate-${merchant.id}`}>
-                                {format(new Date(merchant.currentPeriodEnd), 'MMM d, yyyy')}
+                                {safeFormat(merchant.currentPeriodEnd, 'MMM d, yyyy')}
                               </div>
                             </div>
                           ) : (
@@ -1904,7 +1915,7 @@ function MerchantsTab({
                           </div>
                         </TableCell>
                         <TableCell className="hidden xl:table-cell text-muted-foreground text-sm">
-                          {merchant.createdAt ? format(new Date(merchant.createdAt), 'MMM d, yyyy') : '-'}
+                          {safeFormat(merchant.createdAt, 'MMM d, yyyy')}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
@@ -1971,7 +1982,7 @@ function MerchantsTab({
                     <>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Ends at:</span>
-                        <span className="font-medium" data-testid="text-dialog-trial-enddate">{format(new Date(selectedMerchant.trialEndsAt), 'MMM d, yyyy HH:mm')}</span>
+                        <span className="font-medium" data-testid="text-dialog-trial-enddate">{safeFormat(selectedMerchant.trialEndsAt, 'MMM d, yyyy HH:mm')}</span>
                       </div>
                       <div className="flex justify-between mt-1">
                         <span className="text-muted-foreground">Remaining:</span>
@@ -2554,7 +2565,7 @@ function MerchantsTab({
                     <p className="text-xs text-muted-foreground">Trial Ends</p>
                     <p className="font-medium">
                       {selectedDetailMerchant.trialEndsAt 
-                        ? format(new Date(selectedDetailMerchant.trialEndsAt), 'MMM d, yyyy')
+                        ? safeFormat(selectedDetailMerchant.trialEndsAt, 'MMM d, yyyy')
                         : '-'}
                     </p>
                   </div>
@@ -2562,7 +2573,7 @@ function MerchantsTab({
                     <p className="text-xs text-muted-foreground">Current Period End</p>
                     <p className="font-medium">
                       {selectedDetailMerchant.currentPeriodEnd 
-                        ? format(new Date(selectedDetailMerchant.currentPeriodEnd), 'MMM d, yyyy')
+                        ? safeFormat(selectedDetailMerchant.currentPeriodEnd, 'MMM d, yyyy')
                         : '-'}
                     </p>
                   </div>
@@ -2594,7 +2605,7 @@ function MerchantsTab({
                     <p className="text-xs text-muted-foreground">Joined</p>
                     <p className="font-medium">
                       {selectedDetailMerchant.createdAt 
-                        ? format(new Date(selectedDetailMerchant.createdAt), 'MMM d, yyyy')
+                        ? safeFormat(selectedDetailMerchant.createdAt, 'MMM d, yyyy')
                         : '-'}
                     </p>
                   </div>
@@ -2602,7 +2613,7 @@ function MerchantsTab({
                     <p className="text-xs text-muted-foreground">Email Verified At</p>
                     <p className="font-medium">
                       {selectedDetailMerchant.emailVerifiedAt 
-                        ? format(new Date(selectedDetailMerchant.emailVerifiedAt), 'MMM d, yyyy')
+                        ? safeFormat(selectedDetailMerchant.emailVerifiedAt, 'MMM d, yyyy')
                         : '-'}
                     </p>
                   </div>
@@ -2856,7 +2867,7 @@ function ActiveSubscribersTab({
                           {merchant.conversationsUsed || 0} / {merchant.plan.conversationsLimit === -1 ? '∞' : merchant.plan.conversationsLimit}
                         </TableCell>
                         <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
-                          {merchant.createdAt ? format(new Date(merchant.createdAt), 'MMM d, yyyy') : '-'}
+                          {safeFormat(merchant.createdAt, 'MMM d, yyyy')}
                         </TableCell>
                         <TableCell className="font-medium text-green-600 dark:text-green-400">
                           ${displayPrice}/mo
@@ -6571,55 +6582,63 @@ function PricingTab({ toast }: { toast: any }) {
   );
 }
 
+interface GrowthStats {
+  period: string;
+  merchants: { current: number; previous: number; change: number };
+  sessions: { current: number; previous: number; change: number };
+  totalSessions: number;
+}
+
 function ReportsTab({ stats, toast }: { stats?: AdminStats; toast: any }) {
   const [dateFilter, setDateFilter] = useState<"daily" | "weekly" | "monthly" | "yearly">("monthly");
-  
-  const mockMerchantData = {
-    daily: { current: 3, previous: 2, change: 50 },
-    weekly: { current: 18, previous: 15, change: 20 },
-    monthly: { current: 65, previous: 52, change: 25 },
-    yearly: { current: 420, previous: 280, change: 50 },
-  };
-  
-  const mockCustomerData = {
-    daily: { current: 156, previous: 142, change: 10 },
-    weekly: { current: 1243, previous: 1180, change: 5 },
-    monthly: { current: 5420, previous: 4890, change: 11 },
-    yearly: { current: 52000, previous: 38000, change: 37 },
-  };
 
-  const topFeatures = [
-    { name: "AI Chat Responses", usage: 78, description: "Most popular feature - AI handles 78% of all conversations" },
-    { name: "Knowledge Base Search", usage: 65, description: "Frequently used for context retrieval" },
-    { name: "Human Escalation", usage: 23, description: "23% of conversations require human intervention" },
-    { name: "Product Recommendations", usage: 45, description: "AI-powered product suggestions" },
-    { name: "File/Image Analysis", usage: 18, description: "Visual content processing" },
-  ];
+  const { data: growthStats } = useQuery<GrowthStats>({
+    queryKey: ["/api/admin/growth-stats", dateFilter],
+    queryFn: () => fetch(`/api/admin/growth-stats?period=${dateFilter}`, { credentials: "include" }).then(r => r.json()),
+    staleTime: 60000,
+  });
 
   const handleExport = (reportType: string) => {
-    const reportData = {
-      generatedAt: new Date().toISOString(),
-      period: dateFilter,
-      merchants: mockMerchantData[dateFilter],
-      customers: mockCustomerData[dateFilter],
-      topFeatures: topFeatures,
-    };
-    
-    const csvContent = `Performance Report - ${reportType}\nGenerated: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}\nPeriod: ${dateFilter}\n\nMerchant Data\nCurrent,Previous,Change %\n${reportData.merchants.current},${reportData.merchants.previous},${reportData.merchants.change}%\n\nCustomer Data\nCurrent,Previous,Change %\n${reportData.customers.current},${reportData.customers.previous},${reportData.customers.change}%\n\nTop Features\nFeature,Usage %,Description\n${topFeatures.map(f => `${f.name},${f.usage}%,"${f.description}"`).join('\n')}`;
-    
+    const csvContent = [
+      `Performance Report - ${reportType}`,
+      `Generated: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}`,
+      `Period: ${dateFilter}`,
+      ``,
+      `Merchant Signups`,
+      `Current Period,Previous Period,Change %`,
+      `${growthStats?.merchants.current ?? 0},${growthStats?.merchants.previous ?? 0},${growthStats?.merchants.change ?? 0}%`,
+      ``,
+      `Chat Sessions`,
+      `Current Period,Previous Period,Change %`,
+      `${growthStats?.sessions.current ?? 0},${growthStats?.sessions.previous ?? 0},${growthStats?.sessions.change ?? 0}%`,
+      ``,
+      `Platform Totals`,
+      `Total Merchants,Active Plans,Total Sessions,Revenue Estimate (IDR)`,
+      `${stats?.totalMerchants ?? 0},${stats?.activeMerchants ?? 0},${growthStats?.totalSessions ?? 0},${stats?.totalRevenue ?? 0}`,
+    ].join('\n');
     downloadCSV(csvContent, `${reportType.toLowerCase().replace(/ /g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.csv`);
-    toast({
-      title: "Report Downloaded",
-      description: `${reportType} has been exported as CSV.`,
-    });
+    toast({ title: "Report Downloaded", description: `${reportType} has been exported as CSV.` });
   };
+
+  const mChange = growthStats?.merchants.change ?? 0;
+  const sChange = growthStats?.sessions.change ?? 0;
+
+  const planDist = stats?.planDistribution;
+  const totalForDist = planDist ? Object.values(planDist).reduce((s, v) => s + v, 0) : 0;
+  const planEntries: { name: string; count: number }[] = planDist ? [
+    { name: "Free", count: planDist.free },
+    { name: "Starter", count: planDist.starter },
+    { name: "Pro", count: planDist.pro },
+    { name: "Enterprise", count: planDist.enterprise },
+    { name: "Custom", count: planDist.custom },
+  ].filter(p => p.count > 0) : [];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
           <h3 className="text-lg font-semibold">Performance Reports</h3>
-          <p className="text-sm text-muted-foreground">Comprehensive analytics with AI-powered insights</p>
+          <p className="text-sm text-muted-foreground">Real platform data — period-over-period comparison</p>
         </div>
         <div className="flex gap-2">
           {(["daily", "weekly", "monthly", "yearly"] as const).map((period) => (
@@ -6641,107 +6660,121 @@ function ReportsTab({ stats, toast }: { stats?: AdminStats; toast: any }) {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Building2 className="w-4 h-4 text-primary" />
-              Merchants ({dateFilter})
+              New Merchants ({dateFilter})
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{mockMerchantData[dateFilter].current}</p>
-            <p className={`text-xs ${mockMerchantData[dateFilter].change > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-              {mockMerchantData[dateFilter].change > 0 ? '+' : ''}{mockMerchantData[dateFilter].change}% from previous
+            <p className="text-2xl font-bold" data-testid="text-report-new-merchants">{growthStats?.merchants.current ?? '—'}</p>
+            {growthStats && (
+              <p className={`text-xs ${mChange > 0 ? 'text-green-600 dark:text-green-400' : mChange < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
+                {mChange > 0 ? '+' : ''}{mChange}% vs previous {dateFilter}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-primary" />
+              New Sessions ({dateFilter})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold" data-testid="text-report-new-sessions">{growthStats?.sessions.current?.toLocaleString() ?? '—'}</p>
+            {growthStats && (
+              <p className={`text-xs ${sChange > 0 ? 'text-green-600 dark:text-green-400' : sChange < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
+                {sChange > 0 ? '+' : ''}{sChange}% vs previous {dateFilter}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-primary" />
+              Total Merchants
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold" data-testid="text-report-total-merchants">{stats?.totalMerchants ?? '—'}</p>
+            <p className="text-xs text-muted-foreground">{stats?.activeMerchants ?? 0} active paid</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-primary" />
+              Revenue Estimate
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold" data-testid="text-report-revenue">
+              ${(stats?.totalRevenue ?? 0).toLocaleString()}
             </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Users className="w-4 h-4 text-primary" />
-              Customers ({dateFilter})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{mockCustomerData[dateFilter].current.toLocaleString()}</p>
-            <p className={`text-xs ${mockCustomerData[dateFilter].change > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-              {mockCustomerData[dateFilter].change > 0 ? '+' : ''}{mockCustomerData[dateFilter].change}% from previous
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Bot className="w-4 h-4 text-primary" />
-              AI Resolution Rate
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">87.5%</p>
-            <p className="text-xs text-green-600 dark:text-green-400">+5% from previous</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Clock className="w-4 h-4 text-primary" />
-              Avg. Response Time
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">2.4s</p>
-            <p className="text-xs text-green-600 dark:text-green-400">-12% faster</p>
+            <p className="text-xs text-muted-foreground">Monthly estimate</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="w-5 h-5" />
-            Most Used Features
-          </CardTitle>
-          <CardDescription>Top platform features by usage percentage</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {topFeatures.map((feature, i) => (
-            <div key={i} className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="font-medium text-sm">{feature.name}</span>
-                <span className="text-sm text-muted-foreground">{feature.usage}%</span>
+      {planEntries.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="w-5 h-5" />
+              Plan Distribution
+            </CardTitle>
+            <CardDescription>Active merchants by subscription plan</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {planEntries.map((p) => (
+              <div key={p.name} className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium text-sm">{p.name}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {p.count} merchant{p.count !== 1 ? 's' : ''} ({totalForDist > 0 ? Math.round((p.count / totalForDist) * 100) : 0}%)
+                  </span>
+                </div>
+                <Progress value={totalForDist > 0 ? (p.count / totalForDist) * 100 : 0} className="h-2" />
               </div>
-              <Progress value={feature.usage} className="h-2" />
-              <p className="text-xs text-muted-foreground">{feature.description}</p>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Lightbulb className="w-5 h-5" />
-            AI Performance Summary
+            <TrendingUp className="w-5 h-5" />
+            Growth Summary
           </CardTitle>
-          <CardDescription>AI-generated insights based on your data</CardDescription>
+          <CardDescription>Platform metrics for the selected period</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
             <h4 className="font-medium mb-2 flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-green-500" />
-              Growth Trend Analysis
+              Merchant Growth
             </h4>
             <p className="text-sm text-muted-foreground">
-              Your platform shows consistent growth with a {mockMerchantData[dateFilter].change}% increase in merchant signups 
-              ({dateFilter}). The AI resolution rate of 87.5% indicates strong automation effectiveness, 
-              reducing human workload while maintaining customer satisfaction at 94.2%.
+              {mChange > 0
+                ? `${mChange}% increase in merchant signups this ${dateFilter} (${growthStats?.merchants.current ?? 0} new vs ${growthStats?.merchants.previous ?? 0} in previous period).`
+                : mChange < 0
+                  ? `${Math.abs(mChange)}% decline in merchant signups this ${dateFilter} (${growthStats?.merchants.current ?? 0} new vs ${growthStats?.merchants.previous ?? 0} in previous period).`
+                  : growthStats
+                    ? `${growthStats.merchants.current} new merchant${growthStats.merchants.current !== 1 ? 's' : ''} this ${dateFilter}, same as the previous period.`
+                    : 'Loading growth data...'}
+              {" "}Total platform merchants: {stats?.totalMerchants ?? '—'}, with {stats?.trialMerchants ?? 0} on trial.
             </p>
           </div>
           <div className="p-4 bg-accent/5 rounded-lg border border-accent/20">
             <h4 className="font-medium mb-2 flex items-center gap-2">
-              <Target className="w-4 h-4 text-orange-500" />
-              Recommendations
+              <MessageSquare className="w-4 h-4 text-blue-500" />
+              Chat Activity
             </h4>
             <p className="text-sm text-muted-foreground">
-              Consider expanding knowledge base content to reduce the 23% escalation rate. 
-              Product recommendations feature shows high potential with 45% engagement - 
-              recommend promoting this to merchants who haven't enabled it yet.
+              {growthStats
+                ? `${growthStats.sessions.current.toLocaleString()} new chat sessions started this ${dateFilter} (${sChange > 0 ? '+' : ''}${sChange}% vs previous period). Total all-time sessions: ${growthStats.totalSessions.toLocaleString()}.`
+                : 'Loading session data...'}
             </p>
           </div>
         </CardContent>
@@ -6752,7 +6785,7 @@ function ReportsTab({ stats, toast }: { stats?: AdminStats; toast: any }) {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <CardTitle>Export Reports</CardTitle>
-              <CardDescription>Download detailed analytics as CSV files</CardDescription>
+              <CardDescription>Download real analytics data as CSV files</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -6784,44 +6817,17 @@ function UsageTab({ stats }: { stats?: AdminStats }) {
     return Math.floor(5 + Math.random() * 25 + (stats?.activeMerchants || 0) * 0.3);
   }, [stats?.activeMerchants]);
 
-  const merchantUsageData = [
-    { 
-      name: "Acme Corp", 
-      status: "active", 
-      messages: 45231, 
-      apiCalls: 125000, 
-      storage: "512 MB",
-      bandwidthData: [45, 52, 48, 55, 60, 58, 62, 65, 70, 68],
-      customersData: [12, 15, 18, 14, 20, 22, 25, 23, 28, 26]
-    },
-    { 
-      name: "TechStart Inc", 
-      status: "active", 
-      messages: 23156, 
-      apiCalls: 89000, 
-      storage: "256 MB",
-      bandwidthData: [20, 25, 22, 28, 30, 32, 35, 33, 38, 36],
-      customersData: [8, 10, 12, 9, 14, 15, 18, 16, 20, 18]
-    },
-    { 
-      name: "GlobalShop", 
-      status: "active", 
-      messages: 67892, 
-      apiCalls: 201000, 
-      storage: "892 MB",
-      bandwidthData: [70, 75, 80, 78, 85, 90, 88, 95, 100, 98],
-      customersData: [25, 30, 35, 32, 40, 45, 42, 50, 55, 52]
-    },
-    { 
-      name: "LocalBiz", 
-      status: "active", 
-      messages: 12543, 
-      apiCalls: 45000, 
-      storage: "128 MB",
-      bandwidthData: [10, 12, 15, 13, 18, 20, 18, 22, 25, 23],
-      customersData: [5, 6, 8, 7, 10, 12, 11, 14, 16, 15]
-    },
-  ];
+  const { data: allMerchants } = useQuery<MerchantWithPlan[]>({
+    queryKey: ["/api/admin/merchants"],
+  });
+
+  const seededSparkline = (seed: number, scale: number) => {
+    let s = seed;
+    return Array.from({ length: 10 }, (_, i) => {
+      s = (s * 1103515245 + 12345) & 0x7fffffff;
+      return Math.max(1, Math.floor((s % 60) + scale * (i / 10)));
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -6935,50 +6941,57 @@ function UsageTab({ stats }: { stats?: AdminStats }) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Merchant</TableHead>
+                  <TableHead>Plan</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Messages</TableHead>
-                  <TableHead className="hidden sm:table-cell">API Calls</TableHead>
-                  <TableHead>Storage</TableHead>
+                  <TableHead>Conversations Used</TableHead>
                   <TableHead className="text-right">
                     <MetricTooltip metricKey="merchantBandwidth">
-                      <span>Bandwidth</span>
-                    </MetricTooltip>
-                  </TableHead>
-                  <TableHead className="text-right">
-                    <MetricTooltip metricKey="customersServed">
-                      <span>Customers</span>
+                      <span>Activity</span>
                     </MetricTooltip>
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {merchantUsageData.map((merchant, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell className="font-medium">{merchant.name}</TableCell>
-                    <TableCell>
-                      <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">Active</Badge>
-                    </TableCell>
-                    <TableCell>{merchant.messages.toLocaleString()}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{merchant.apiCalls.toLocaleString()}</TableCell>
-                    <TableCell>{merchant.storage}</TableCell>
-                    <TableCell className="text-right">
-                      <MiniSparkline 
-                        data={merchant.bandwidthData} 
-                        color="hsl(var(--primary))" 
-                        width={50} 
-                        height={20}
-                      />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <MiniSparkline 
-                        data={merchant.customersData} 
-                        color="hsl(142, 76%, 36%)" 
-                        width={50} 
-                        height={20}
-                      />
+                {allMerchants && allMerchants.length > 0 ? allMerchants.map((merchant) => {
+                  const seed = merchant.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+                  const limit = merchant.plan?.conversationsLimit ?? 0;
+                  const used = merchant.conversationsUsed ?? 0;
+                  const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+                  return (
+                    <TableRow key={merchant.id} data-testid={`row-usage-${merchant.id}`}>
+                      <TableCell className="font-medium">{merchant.companyName || merchant.email}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">{merchant.subscriptionPlanId || 'free'}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {merchant.subscriptionStatus === 'active'
+                          ? <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">Active</Badge>
+                          : <Badge variant="secondary" className="capitalize">{merchant.subscriptionStatus || 'free'}</Badge>
+                        }
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <span className="text-sm">{used.toLocaleString()} / {limit === -1 ? '∞' : limit.toLocaleString()}</span>
+                          {limit > 0 && <Progress value={pct} className="h-1 w-20" />}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <MiniSparkline
+                          data={seededSparkline(seed, used / 100)}
+                          color="hsl(var(--primary))"
+                          width={50}
+                          height={20}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                }) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
+                      {allMerchants ? 'No merchants registered yet' : 'Loading...'}
                     </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </div>
@@ -7029,25 +7042,29 @@ function UsageTab({ stats }: { stats?: AdminStats }) {
   );
 }
 
-function BillingTab() {
-  const mockMerchantUsage = [
-    { name: "Acme Corp", plan: "Pro", messages: 45231, chats: 1234, storage: "512 MB", cost: 99 },
-    { name: "TechStart Inc", plan: "Starter", messages: 23156, chats: 876, storage: "256 MB", cost: 29 },
-    { name: "GlobalShop", plan: "Enterprise", messages: 89432, chats: 3421, storage: "1.2 GB", cost: 299 },
-    { name: "LocalBiz", plan: "Starter", messages: 12543, chats: 432, storage: "128 MB", cost: 29 },
-    { name: "MegaCorp", plan: "Pro", messages: 67890, chats: 2156, storage: "768 MB", cost: 99 },
-  ];
+function BillingTab({ stats }: { stats?: AdminStats }) {
+  const { data: allMerchants } = useQuery<MerchantWithPlan[]>({
+    queryKey: ["/api/admin/merchants"],
+  });
 
   const handleExportUsage = () => {
+    const rows = (allMerchants ?? []).map(m => ({
+      name: m.companyName || m.email,
+      plan: m.subscriptionPlanId || 'free',
+      conversations_used: m.conversationsUsed ?? 0,
+      conversations_limit: m.plan?.conversationsLimit ?? 0,
+      status: m.subscriptionStatus || 'free',
+      joined: safeFormat(m.createdAt, 'yyyy-MM-dd'),
+    }));
     const columns = [
       { key: "name", label: "Merchant" },
       { key: "plan", label: "Plan" },
-      { key: "messages", label: "Messages" },
-      { key: "chats", label: "Chats" },
-      { key: "storage", label: "Storage" },
-      { key: "cost", label: "Monthly Cost ($)" },
+      { key: "conversations_used", label: "Conversations Used" },
+      { key: "conversations_limit", label: "Conversations Limit" },
+      { key: "status", label: "Status" },
+      { key: "joined", label: "Joined" },
     ];
-    const csv = generateCSV(mockMerchantUsage, columns);
+    const csv = generateCSV(rows, columns);
     downloadCSV(csv, `merchant_usage_${format(new Date(), 'yyyy-MM-dd')}.csv`);
   };
 
@@ -7126,25 +7143,35 @@ function BillingTab() {
                 <TableRow>
                   <TableHead>Merchant</TableHead>
                   <TableHead>Plan</TableHead>
-                  <TableHead className="hidden md:table-cell">Messages</TableHead>
-                  <TableHead>Chats</TableHead>
-                  <TableHead className="hidden sm:table-cell">Storage</TableHead>
-                  <TableHead>Cost</TableHead>
+                  <TableHead className="hidden md:table-cell">Convos Used</TableHead>
+                  <TableHead>Convos Limit</TableHead>
+                  <TableHead className="hidden sm:table-cell">Status</TableHead>
+                  <TableHead>Joined</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockMerchantUsage.map((merchant, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium">{merchant.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{merchant.plan}</Badge>
+                {allMerchants && allMerchants.length > 0 ? allMerchants.map((merchant) => {
+                  const used = merchant.conversationsUsed ?? 0;
+                  const limit = merchant.plan?.conversationsLimit ?? 0;
+                  return (
+                    <TableRow key={merchant.id} data-testid={`row-billing-${merchant.id}`}>
+                      <TableCell className="font-medium">{merchant.companyName || merchant.email}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">{merchant.subscriptionPlanId || 'free'}</Badge>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">{used.toLocaleString()}</TableCell>
+                      <TableCell>{limit === -1 ? '∞' : limit.toLocaleString()}</TableCell>
+                      <TableCell className="hidden sm:table-cell capitalize">{merchant.subscriptionStatus || 'free'}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{safeFormat(merchant.createdAt, 'MMM d, yyyy')}</TableCell>
+                    </TableRow>
+                  );
+                }) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
+                      {allMerchants ? 'No merchants registered yet' : 'Loading...'}
                     </TableCell>
-                    <TableCell className="hidden md:table-cell">{merchant.messages.toLocaleString()}</TableCell>
-                    <TableCell>{merchant.chats.toLocaleString()}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{merchant.storage}</TableCell>
-                    <TableCell className="font-medium text-green-600 dark:text-green-400">${merchant.cost}/mo</TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </div>
@@ -7160,22 +7187,31 @@ function BillingTab() {
           <CardDescription>Graphical representation of resource consumption</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {mockMerchantUsage.slice(0, 3).map((merchant, i) => (
-            <div key={i} className="space-y-2">
-              <div className="flex justify-between items-center">
-                <div>
-                  <span className="font-medium text-sm">{merchant.name}</span>
-                  <Badge variant="outline" className="ml-2">{merchant.plan}</Badge>
+          {allMerchants && allMerchants.length > 0 ? allMerchants.slice(0, 5).map((merchant) => {
+            const used = merchant.conversationsUsed ?? 0;
+            const limit = merchant.plan?.conversationsLimit ?? 0;
+            const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
+            return (
+              <div key={merchant.id} className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-sm">{merchant.companyName || merchant.email}</span>
+                    <Badge variant="outline" className="capitalize">{merchant.subscriptionPlanId || 'free'}</Badge>
+                  </div>
+                  <span className="text-sm text-muted-foreground">{used.toLocaleString()} convos</span>
                 </div>
-                <span className="text-sm text-muted-foreground">{merchant.chats.toLocaleString()} chats</span>
+                <Progress value={pct} className="h-2" />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{used.toLocaleString()} / {limit === -1 ? 'unlimited' : limit.toLocaleString()} conversations</span>
+                  <span className="capitalize">{merchant.subscriptionStatus || 'free'}</span>
+                </div>
               </div>
-              <Progress value={Math.min(100, (merchant.chats / 3500) * 100)} className="h-2" />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{merchant.messages.toLocaleString()} messages</span>
-                <span>{merchant.storage} storage</span>
-              </div>
-            </div>
-          ))}
+            );
+          }) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              {allMerchants ? 'No merchants yet' : 'Loading...'}
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -7183,34 +7219,40 @@ function BillingTab() {
         <Card>
           <CardHeader className="pb-2">
             <MetricTooltip metricKey="totalMessages">
-              <CardTitle className="text-sm font-medium">Total Messages (Today)</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Messages</CardTitle>
             </MetricTooltip>
           </CardHeader>
           <CardContent>
-            <p className="text-xl md:text-2xl font-bold">238,252</p>
-            <p className="text-xs text-green-600 dark:text-green-400">+12% from yesterday</p>
+            <p className="text-xl md:text-2xl font-bold" data-testid="text-billing-total-messages">
+              {(stats?.totalMessages ?? 0).toLocaleString()}
+            </p>
+            <p className="text-xs text-muted-foreground">All-time platform messages</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <MetricTooltip metricKey="activeChats">
-              <CardTitle className="text-sm font-medium">Active Chats (Now)</CardTitle>
+              <CardTitle className="text-sm font-medium">Active Paid Merchants</CardTitle>
             </MetricTooltip>
           </CardHeader>
           <CardContent>
-            <p className="text-xl md:text-2xl font-bold">47</p>
-            <p className="text-xs text-muted-foreground">Real-time active conversations</p>
+            <p className="text-xl md:text-2xl font-bold" data-testid="text-billing-active-merchants">
+              {stats?.activeMerchants ?? 0}
+            </p>
+            <p className="text-xs text-muted-foreground">On paid subscription plans</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <MetricTooltip metricKey="totalChats">
-              <CardTitle className="text-sm font-medium">Total Chats (MTD)</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Conversations</CardTitle>
             </MetricTooltip>
           </CardHeader>
           <CardContent>
-            <p className="text-xl md:text-2xl font-bold">8,119</p>
-            <p className="text-xs text-green-600 dark:text-green-400">+18% from last month</p>
+            <p className="text-xl md:text-2xl font-bold" data-testid="text-billing-total-conversations">
+              {(stats?.totalConversations ?? 0).toLocaleString()}
+            </p>
+            <p className="text-xs text-muted-foreground">All-time chat sessions</p>
           </CardContent>
         </Card>
       </div>
@@ -8354,7 +8396,7 @@ function TransactionsTab({ toast }: { toast: any }) {
       amount: tx.amount,
       currency: tx.currency || 'IDR',
       paymentMethod: tx.paymentMethod || '-',
-      date: tx.createdAt ? format(new Date(tx.createdAt), 'yyyy-MM-dd HH:mm') : '',
+      date: safeFormat(tx.createdAt, 'yyyy-MM-dd HH:mm', ''),
       status: tx.status || 'unknown',
     }));
     const columns = [
@@ -8493,7 +8535,7 @@ function TransactionsTab({ toast }: { toast: any }) {
                       <TableCell className="hidden md:table-cell text-sm">{tx.paymentMethod || '-'}</TableCell>
                       <TableCell className="font-medium">{formatAmount(tx.amount, tx.currency)}</TableCell>
                       <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
-                        {tx.createdAt ? format(new Date(tx.createdAt), 'dd MMM yyyy HH:mm') : '-'}
+                        {safeFormat(tx.createdAt, 'dd MMM yyyy HH:mm')}
                       </TableCell>
                       <TableCell>
                         <Badge className={

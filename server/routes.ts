@@ -31,7 +31,7 @@ import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClien
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like } from "drizzle-orm";
-import { messages, sessions, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts } from "@shared/schema";
+import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import sharp from "sharp";
@@ -12467,6 +12467,63 @@ Rules:
         planDistribution,
       });
     } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Growth stats for admin Reports tab — period-over-period merchant signups and session counts
+  app.get("/api/admin/growth-stats", requireAdmin, async (req, res) => {
+    try {
+      const period = (req.query.period as string) || "monthly";
+      const now = new Date();
+
+      let currentStart: Date;
+      let previousStart: Date;
+      let previousEnd: Date;
+
+      if (period === "daily") {
+        currentStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        previousStart = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+        previousEnd = currentStart;
+      } else if (period === "weekly") {
+        currentStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        previousStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+        previousEnd = currentStart;
+      } else if (period === "monthly") {
+        currentStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        previousEnd = currentStart;
+      } else {
+        currentStart = new Date(now.getFullYear(), 0, 1);
+        previousStart = new Date(now.getFullYear() - 1, 0, 1);
+        previousEnd = currentStart;
+      }
+
+      const [curMerchants, prevMerchants, curSessions, prevSessions, totalSessions] = await Promise.all([
+        db.select({ count: sql<number>`count(*)::int` }).from(merchants).where(gte(merchants.createdAt, currentStart)),
+        db.select({ count: sql<number>`count(*)::int` }).from(merchants).where(and(gte(merchants.createdAt, previousStart), lt(merchants.createdAt, previousEnd))),
+        db.select({ count: sql<number>`count(*)::int` }).from(sessions).where(and(gte(sessions.createdAt, currentStart), not(eq(sessions.visitorSession, true)))),
+        db.select({ count: sql<number>`count(*)::int` }).from(sessions).where(and(gte(sessions.createdAt, previousStart), lt(sessions.createdAt, previousEnd), not(eq(sessions.visitorSession, true)))),
+        db.select({ count: sql<number>`count(*)::int` }).from(sessions).where(not(eq(sessions.visitorSession, true))),
+      ]);
+
+      const cm = curMerchants[0]?.count || 0;
+      const pm = prevMerchants[0]?.count || 0;
+      const cs = curSessions[0]?.count || 0;
+      const ps = prevSessions[0]?.count || 0;
+      const ts = totalSessions[0]?.count || 0;
+
+      const merchantChange = pm === 0 ? (cm > 0 ? 100 : 0) : Math.round(((cm - pm) / pm) * 100);
+      const sessionChange = ps === 0 ? (cs > 0 ? 100 : 0) : Math.round(((cs - ps) / ps) * 100);
+
+      res.json({
+        period,
+        merchants: { current: cm, previous: pm, change: merchantChange },
+        sessions: { current: cs, previous: ps, change: sessionChange },
+        totalSessions: ts,
+      });
+    } catch (error) {
+      console.error("Error fetching growth stats:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
