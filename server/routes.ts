@@ -2580,8 +2580,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         staffCount: data.staffCount,
         registrationIp: regIp,
         registrationCountry: regCountry,
-        lastLoginIp: regIp,
-        lastLoginCountry: regCountry,
       });
       
       // Create email verification token (expires in 24 hours)
@@ -3660,6 +3658,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
 
       // Normal login/register flow
+      // Extract IP and resolve geo before any DB writes so new-merchant creation is atomic
+      const googleIpRaw = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ||
+                          req.socket?.remoteAddress || 'unknown';
+      const googleSafeIp = googleIpRaw !== 'unknown' ? googleIpRaw : null;
+      let googleRegCountry: string | null = null;
+      try {
+        const googleGeo = await getGeoFromIp(googleIpRaw);
+        googleRegCountry = googleGeo.countryName || null;
+      } catch {}
+
       // Check if merchant exists with this Google ID
       let merchant = await storage.getMerchantByGoogleId(googleUser.id);
       let isJustCreatedGoogle = false;
@@ -3684,7 +3692,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           });
           merchant = existingMerchant;
         } else {
-          // Create new merchant with Google account
+          // Create new merchant with Google account — registration IP captured atomically
           const trialDays = await storage.getPlatformSetting("trial_days");
           const trialPeriodDays = trialDays ? parseInt(trialDays) : 14;
           const trialEndsAt = new Date();
@@ -3701,6 +3709,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             subscriptionStatus: "trial",
             subscriptionPlanId: "free",
             trialEndsAt,
+            registrationIp: googleSafeIp,
+            registrationCountry: googleRegCountry,
           });
           isJustCreatedGoogle = true;
         }
@@ -3714,9 +3724,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       // Determine if this was a sign up or sign in
       const activityType = isJustCreatedGoogle ? "sign_up" : "sign_in";
       
-      // Get IP address for activity log
-      const ipAddress = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || 
-                       req.socket?.remoteAddress || 'unknown';
+      // Reuse pre-computed IP for activity log
+      const ipAddress = googleIpRaw;
       
       // Log merchant activity (non-blocking)
       storage.createMerchantActivityLog({
@@ -3742,22 +3751,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         console.error(`Failed to send ${activityType} notification:`, err);
       });
 
-      // Capture last login IP and country (non-blocking)
+      // Capture last login IP and country (non-blocking); registration already set atomically in createMerchant
       getGeoFromIp(ipAddress).then((geo) => {
         const safeIp = ipAddress !== 'unknown' ? ipAddress : null;
-        const updates: Partial<Merchant> = {
+        storage.updateMerchant(merchant.id, {
           lastLoginIp: safeIp,
           lastLoginCountry: geo.countryName || null,
-          ...(isJustCreatedGoogle ? { registrationIp: safeIp, registrationCountry: geo.countryName || null } : {}),
-        };
-        storage.updateMerchant(merchant.id, updates).catch((err) => console.error("Failed to update merchant IP:", err));
+        }).catch((err) => console.error("Failed to update merchant IP:", err));
       }).catch(() => {
         if (ipAddress !== 'unknown') {
-          const updates: Partial<Merchant> = {
-            lastLoginIp: ipAddress,
-            ...(isJustCreatedGoogle ? { registrationIp: ipAddress } : {}),
-          };
-          storage.updateMerchant(merchant.id, updates).catch(() => {});
+          storage.updateMerchant(merchant.id, { lastLoginIp: ipAddress }).catch(() => {});
         }
       });
 
@@ -3941,6 +3944,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
 
       // Normal login/register flow
+      // Extract IP and resolve geo before any DB writes so new-merchant creation is atomic
+      const githubIpRaw = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ||
+                          req.socket?.remoteAddress || 'unknown';
+      const githubSafeIp = githubIpRaw !== 'unknown' ? githubIpRaw : null;
+      let githubRegCountry: string | null = null;
+      try {
+        const githubGeo = await getGeoFromIp(githubIpRaw);
+        githubRegCountry = githubGeo.countryName || null;
+      } catch {}
+
       // Check if merchant exists with this GitHub ID
       let merchant = await storage.getMerchantByGithubId(githubId);
       let isJustCreatedGithub = false;
@@ -3964,7 +3977,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           });
           merchant = existingMerchant;
         } else {
-          // Create new merchant with GitHub account
+          // Create new merchant with GitHub account — registration IP captured atomically
           const trialDays = await storage.getPlatformSetting("trial_days");
           const trialPeriodDays = trialDays ? parseInt(trialDays) : 14;
           const trialEndsAt = new Date();
@@ -3981,6 +3994,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             subscriptionStatus: "trial",
             subscriptionPlanId: "free",
             trialEndsAt,
+            registrationIp: githubSafeIp,
+            registrationCountry: githubRegCountry,
           });
           isJustCreatedGithub = true;
         }
@@ -3994,9 +4009,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       // Determine if this was a sign up or sign in
       const activityType = isJustCreatedGithub ? "sign_up" : "sign_in";
       
-      // Get IP address for activity log
-      const ipAddress = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || 
-                       req.socket?.remoteAddress || 'unknown';
+      // Reuse pre-computed IP for activity log
+      const ipAddress = githubIpRaw;
       
       // Log merchant activity (non-blocking)
       storage.createMerchantActivityLog({
@@ -4022,22 +4036,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         console.error(`Failed to send ${activityType} notification:`, err);
       });
 
-      // Capture last login IP and country (non-blocking)
+      // Capture last login IP and country (non-blocking); registration already set atomically in createMerchant
       getGeoFromIp(ipAddress).then((geo) => {
         const safeIp = ipAddress !== 'unknown' ? ipAddress : null;
-        const updates: Partial<Merchant> = {
+        storage.updateMerchant(merchant.id, {
           lastLoginIp: safeIp,
           lastLoginCountry: geo.countryName || null,
-          ...(isJustCreatedGithub ? { registrationIp: safeIp, registrationCountry: geo.countryName || null } : {}),
-        };
-        storage.updateMerchant(merchant.id, updates).catch((err) => console.error("Failed to update merchant IP:", err));
+        }).catch((err) => console.error("Failed to update merchant IP:", err));
       }).catch(() => {
         if (ipAddress !== 'unknown') {
-          const updates: Partial<Merchant> = {
-            lastLoginIp: ipAddress,
-            ...(isJustCreatedGithub ? { registrationIp: ipAddress } : {}),
-          };
-          storage.updateMerchant(merchant.id, updates).catch(() => {});
+          storage.updateMerchant(merchant.id, { lastLoginIp: ipAddress }).catch(() => {});
         }
       });
 
