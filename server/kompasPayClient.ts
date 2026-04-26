@@ -89,7 +89,7 @@ function generateSignatureWithCredentials(payload: string, timestamp: string, cl
   const stringToSign = rawStringData.join('\n');
   const signature = crypto.createHmac('sha256', clientSecret).update(stringToSign).digest('hex');
   
-  console.log('Signature generation (Kompas Pay format):', {
+  console.log('Signature generation (12Pay format):', {
     clientKeyPrefix: clientKey.substring(0, 15) + '...',
     timestamp,
     requestTarget,
@@ -924,7 +924,7 @@ export async function isPaymentGatewayConfigured(): Promise<boolean> {
 export function isKompasPayConfigured(): boolean {
   const hasClientKey = !!process.env.KOMPASPAY_CLIENT_KEY;
   const hasClientSecret = !!process.env.KOMPASPAY_CLIENT_SECRET;
-  console.log('Kompas Pay configuration check:', { hasClientKey, hasClientSecret });
+  console.log('12Pay configuration check (env vars):', { hasClientKey, hasClientSecret });
   return hasClientKey && hasClientSecret;
 }
 

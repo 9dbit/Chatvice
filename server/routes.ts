@@ -9540,7 +9540,7 @@ Rules:
               paymentMethod: 'payment_link',
               amount: finalPriceIDR,
               status: 'pending',
-              gatewayName: paymentResult.gatewayName || 'Kompas Pay',
+              gatewayName: paymentResult.gatewayName || '12Pay',
               gatewayResponse: {
                 paymentUrl: paymentResult.data.paymentUrl,
               },
@@ -10633,18 +10633,18 @@ Rules:
     }
   });
 
-  // Test endpoint for Kompas Pay API (development only)
+  // Test endpoint for 12Pay API (development only)
   app.post("/api/billing/test-kompaspay", async (req, res) => {
     try {
       if (!isKompasPayConfigured()) {
-        return res.status(503).json({ error: "Kompas Pay not configured" });
+        return res.status(503).json({ error: "12Pay not configured" });
       }
       
-      // Use production URL for callback (Kompas Pay requires public URL)
+      // Use production URL for callback
       const callbackUrl = `https://chatvice.app/api/payment/webhook`;
       const orderId = `TEST_${Date.now()}`;
       
-      console.log("Testing Kompas Pay API...");
+      console.log("Testing 12Pay API...");
       
       const qrisResult = await createQRISPayment({
         merchantId: "test",
@@ -10657,11 +10657,11 @@ Rules:
         callbackUrl,
       });
       
-      console.log("Kompas Pay test result:", qrisResult);
+      console.log("12Pay test result:", qrisResult);
       
       res.json(qrisResult);
     } catch (error: any) {
-      console.error("Kompas Pay test error:", error);
+      console.error("12Pay test error:", error);
       res.status(500).json({ error: error.message || "Test failed" });
     }
   });
@@ -13086,26 +13086,34 @@ Rules:
   // Get payment gateway configuration status (never expose actual keys)
   app.get("/api/admin/payment/config", requireAdmin, async (req, res) => {
     try {
-      const hasClientKey = !!process.env.KOMPASPAY_CLIENT_KEY;
-      const hasClientSecret = !!process.env.KOMPASPAY_CLIENT_SECRET;
-      const isConfigured = hasClientKey && hasClientSecret;
-      
       // Get masked key preview (first 4 and last 4 chars only)
       const maskKey = (key: string | undefined) => {
         if (!key || key.length < 12) return null;
         return `${key.substring(0, 4)}${"*".repeat(Math.min(key.length - 8, 20))}${key.substring(key.length - 4)}`;
       };
+
+      // Check DB gateway config first, fall back to env vars
+      const defaultGateway = await storage.getDefaultPaymentGateway().catch(() => null);
+      const dbConfig = (defaultGateway?.config as Record<string, any>) || {};
+      const dbClientKey = dbConfig.clientKey || '';
+      const dbClientSecret = dbConfig.clientSecret || '';
+
+      const hasClientKey = !!dbClientKey || !!process.env.KOMPASPAY_CLIENT_KEY;
+      const hasClientSecret = !!dbClientSecret || !!process.env.KOMPASPAY_CLIENT_SECRET;
+      const isConfigured = hasClientKey && hasClientSecret;
+
+      const clientKeyPreview = maskKey(dbClientKey || process.env.KOMPASPAY_CLIENT_KEY);
       
       // Get payment settings from platform settings
-      const gatewayName = await storage.getPlatformSetting("payment_gateway_name") || "Kompas Pay";
+      const gatewayName = await storage.getPlatformSetting("payment_gateway_name") || "12Pay";
       const webhookUrl = `${process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://chatvice.app"}/api/payment/webhook`;
-      const apiBaseUrl = 'https://api.kompaspay.com';
+      const apiBaseUrl = dbConfig.apiBaseUrl || dbConfig.baseUrl || 'https://api.12pay.id';
       
       res.json({
         isConfigured,
         hasClientKey,
         hasClientSecret,
-        clientKeyPreview: maskKey(process.env.KOMPASPAY_CLIENT_KEY),
+        clientKeyPreview,
         gatewayName,
         webhookUrl,
         apiBaseUrl,
@@ -13121,12 +13129,12 @@ Rules:
   // Test payment gateway connection
   app.post("/api/admin/payment/test", requireAdmin, async (req, res) => {
     try {
-      const { isKompasPayConfigured, getBalance } = await import("./kompasPayClient");
+      const { isPaymentGatewayConfigured, getBalance } = await import("./kompasPayClient");
       
-      if (!isKompasPayConfigured()) {
+      if (!(await isPaymentGatewayConfigured())) {
         return res.status(400).json({ 
           success: false, 
-          error: "Payment gateway not configured. Please add KOMPASPAY_CLIENT_KEY and KOMPASPAY_CLIENT_SECRET in Secrets." 
+          error: "Payment gateway not configured. Please add your 12Pay Client Key and Client Secret in the Payment Gateways form." 
         });
       }
       
@@ -13324,6 +13332,9 @@ Rules:
         config: config || {},
         sortOrder: 0,
       });
+
+      const { clearGatewayCache } = await import("./kompasPayClient");
+      clearGatewayCache();
       
       res.json(gateway);
     } catch (error) {
@@ -13387,6 +13398,10 @@ Rules:
       }
       
       const updated = await storage.updatePaymentGateway(req.params.id, req.body);
+
+      const { clearGatewayCache } = await import("./kompasPayClient");
+      clearGatewayCache();
+
       res.json(updated);
     } catch (error) {
       console.error("Update payment gateway error:", error);
@@ -13427,6 +13442,8 @@ Rules:
       }
       
       const success = await storage.setDefaultPaymentGateway(req.params.id);
+      const { clearGatewayCache } = await import("./kompasPayClient");
+      clearGatewayCache();
       res.json({ success });
     } catch (error) {
       console.error("Set default gateway error:", error);

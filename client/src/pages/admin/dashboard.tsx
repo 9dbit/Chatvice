@@ -7472,20 +7472,20 @@ function BillingTab({ stats }: { stats?: AdminStats }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>1-Pay Integration</CardTitle>
+          <CardTitle>12Pay Integration</CardTitle>
           <CardDescription>Indonesian payment gateway for QRIS payments</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border rounded-lg">
             <div>
-              <p className="font-medium">1-Pay Account</p>
+              <p className="font-medium">12Pay Account</p>
               <p className="text-sm text-muted-foreground">QRIS Payment Gateway</p>
             </div>
             <Badge className="bg-green-500/20 text-green-700 dark:text-green-400 w-fit">Active</Badge>
           </div>
           <Button variant="outline" asChild>
-            <a href="https://1-pay.id/dashboard" target="_blank" rel="noopener noreferrer">
-              Open 1-Pay Dashboard
+            <a href="https://12pay.id/dashboard" target="_blank" rel="noopener noreferrer">
+              Open 12Pay Dashboard
               <ExternalLink className="w-4 h-4 ml-2" />
             </a>
           </Button>
@@ -7914,9 +7914,6 @@ function GatewayCredentialsCard({ toast }: { toast: any }) {
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Environment variable: <code className="px-1 py-0.5 bg-muted rounded">KOMPASPAY_CLIENT_KEY</code>
-            </p>
             {config?.clientKeyPreview && (
               <p className="text-xs text-muted-foreground mt-1">
                 Preview: <code className="px-1 py-0.5 bg-muted rounded">{config.clientKeyPreview}</code>
@@ -7936,9 +7933,6 @@ function GatewayCredentialsCard({ toast }: { toast: any }) {
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Environment variable: <code className="px-1 py-0.5 bg-muted rounded">KOMPASPAY_CLIENT_SECRET</code>
-            </p>
           </div>
         </div>
 
@@ -7953,13 +7947,9 @@ function GatewayCredentialsCard({ toast }: { toast: any }) {
 
         <div className="p-4 bg-muted/50 rounded-lg">
           <p className="text-sm font-medium mb-2">How to Update Credentials</p>
-          <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-            <li>Open the <strong>Secrets</strong> tab in Replit (lock icon in the left sidebar)</li>
-            <li>Add or update <code className="px-1 py-0.5 bg-background rounded">KOMPASPAY_CLIENT_KEY</code> with your Client Key</li>
-            <li>Add or update <code className="px-1 py-0.5 bg-background rounded">KOMPASPAY_CLIENT_SECRET</code> with your Client Secret</li>
-            <li>Restart the application to apply changes</li>
-            <li>Click "Test Connection" above to verify</li>
-          </ol>
+          <p className="text-sm text-muted-foreground">
+            Enter your 12Pay <strong>Client Key</strong> and <strong>Client Secret</strong> directly in the <strong>Payment Gateways</strong> form on this same tab. Changes take effect immediately — no app restart required.
+          </p>
         </div>
       </CardContent>
     </Card>
@@ -8336,14 +8326,23 @@ function GatewayForm({
   const [isActive, setIsActive] = useState(gateway?.isActive ?? false);
   const [clientKeyEnvVar, setClientKeyEnvVar] = useState(gateway?.clientKeyEnvVar || "");
   const [clientSecretEnvVar, setClientSecretEnvVar] = useState(gateway?.clientSecretEnvVar || "");
+  const [clientKey, setClientKey] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
   const [supportedMethods, setSupportedMethods] = useState<string[]>(gateway?.supportedMethods || []);
   const [feePercentage, setFeePercentage] = useState((gateway?.feePercentage || 0) / 100);
   const [feeFixed, setFeeFixed] = useState(gateway?.feeFixed || 0);
   const [currency, setCurrency] = useState(gateway?.currency || "IDR");
   const [description, setDescription] = useState(gateway?.description || "");
 
+  const existingConfig = (gateway?.config as Record<string, any>) || {};
+  const hasExistingClientKey = !!existingConfig.clientKey;
+  const hasExistingClientSecret = !!existingConfig.clientSecret;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const configUpdate: Record<string, any> = { ...existingConfig };
+    if (clientKey.trim()) configUpdate.clientKey = clientKey.trim();
+    if (clientSecret.trim()) configUpdate.clientSecret = clientSecret.trim();
     onSubmit({
       name,
       dashboardUrl: dashboardUrl || null,
@@ -8351,6 +8350,7 @@ function GatewayForm({
       isActive,
       clientKeyEnvVar: clientKeyEnvVar || null,
       clientSecretEnvVar: clientSecretEnvVar || null,
+      config: configUpdate,
       supportedMethods,
       feePercentage: Math.round(feePercentage * 100),
       feeFixed,
@@ -8424,29 +8424,38 @@ function GatewayForm({
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="clientKey">Client Key Environment Variable</Label>
-          <Input
-            id="clientKey"
-            value={clientKeyEnvVar}
-            onChange={(e) => setClientKeyEnvVar(e.target.value)}
-            placeholder="e.g., STRIPE_PUBLIC_KEY"
-            data-testid="input-client-key-env"
-          />
-          <p className="text-xs text-muted-foreground">Name of the secret in Replit Secrets</p>
+      <div className="space-y-3">
+        <Label>API Credentials</Label>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="clientKey" className="text-xs text-muted-foreground">Client Key</Label>
+            <Input
+              id="clientKey"
+              value={clientKey}
+              onChange={(e) => setClientKey(e.target.value)}
+              placeholder={hasExistingClientKey ? "Leave blank to keep existing" : "Paste your Client Key"}
+              data-testid="input-client-key"
+            />
+            {hasExistingClientKey && (
+              <p className="text-xs text-green-600 dark:text-green-400">A key is already saved — enter a new value to replace it</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="clientSecret" className="text-xs text-muted-foreground">Client Secret</Label>
+            <Input
+              id="clientSecret"
+              type="password"
+              value={clientSecret}
+              onChange={(e) => setClientSecret(e.target.value)}
+              placeholder={hasExistingClientSecret ? "Leave blank to keep existing" : "Paste your Client Secret"}
+              data-testid="input-client-secret"
+            />
+            {hasExistingClientSecret && (
+              <p className="text-xs text-green-600 dark:text-green-400">A secret is already saved — enter a new value to replace it</p>
+            )}
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="clientSecret">Client Secret Environment Variable</Label>
-          <Input
-            id="clientSecret"
-            value={clientSecretEnvVar}
-            onChange={(e) => setClientSecretEnvVar(e.target.value)}
-            placeholder="e.g., STRIPE_SECRET_KEY"
-            data-testid="input-client-secret-env"
-          />
-          <p className="text-xs text-muted-foreground">Name of the secret in Replit Secrets</p>
-        </div>
+        <p className="text-xs text-muted-foreground">Credentials are stored securely in the database and take effect immediately on save.</p>
       </div>
 
       <div className="space-y-2">
