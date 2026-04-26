@@ -7981,6 +7981,7 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
     onSuccess: () => {
       toast({ title: "Success", description: "Payment gateway created successfully." });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/payment/gateways"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/payment/config"] });
       setIsDialogOpen(false);
       setEditingGateway(null);
     },
@@ -8001,6 +8002,7 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
     onSuccess: () => {
       toast({ title: "Success", description: "Payment gateway updated successfully." });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/payment/gateways"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/payment/config"] });
       setIsDialogOpen(false);
       setEditingGateway(null);
     },
@@ -8040,6 +8042,7 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
     onSuccess: () => {
       toast({ title: "Success", description: "Default gateway updated." });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/payment/gateways"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/payment/config"] });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
