@@ -25,7 +25,7 @@ import { processKnowledgeBase, searchKnowledge } from "./embeddings";
 import { getAvailableSlots, bookSlot, getUpcomingAppointments } from "./appointment-engine";
 import { extractFAQContent, syncKnowledgeFromUrl, fetchWebContent } from "./crawler";
 import { parseFile, fetchGoogleDoc, fetchGoogleSheet } from "./fileParser";
-import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isKompasPayConfigured, convertToIDR, formatIDR } from "./kompasPayClient";
+import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isKompasPayConfigured, convertToIDR, formatIDR } from "./twelvePayClient";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification, sendEmailChangeOtp } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
@@ -13129,7 +13129,7 @@ Rules:
   // Test payment gateway connection
   app.post("/api/admin/payment/test", requireAdmin, async (req, res) => {
     try {
-      const { isPaymentGatewayConfigured, getBalance } = await import("./kompasPayClient");
+      const { isPaymentGatewayConfigured, getBalance } = await import("./twelvePayClient");
       
       if (!(await isPaymentGatewayConfigured())) {
         return res.status(400).json({ 
@@ -13333,7 +13333,7 @@ Rules:
         sortOrder: 0,
       });
 
-      const { clearGatewayCache } = await import("./kompasPayClient");
+      const { clearGatewayCache } = await import("./twelvePayClient");
       clearGatewayCache();
       
       res.json(gateway);
@@ -13399,7 +13399,7 @@ Rules:
       
       const updated = await storage.updatePaymentGateway(req.params.id, req.body);
 
-      const { clearGatewayCache } = await import("./kompasPayClient");
+      const { clearGatewayCache } = await import("./twelvePayClient");
       clearGatewayCache();
 
       res.json(updated);
@@ -13442,7 +13442,7 @@ Rules:
       }
       
       const success = await storage.setDefaultPaymentGateway(req.params.id);
-      const { clearGatewayCache } = await import("./kompasPayClient");
+      const { clearGatewayCache } = await import("./twelvePayClient");
       clearGatewayCache();
       res.json({ success });
     } catch (error) {

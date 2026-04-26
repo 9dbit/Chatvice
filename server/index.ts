@@ -7,8 +7,8 @@ import { registerRoutes, cleanupStaleVisitorSessions } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { execSync } from "child_process";
-import { PaymentWebhookHandler, type PaymentWebhookPayload } from './kompasPayWebhook';
-import { isPaymentGatewayConfigured, getActiveGatewayName } from './kompasPayClient';
+import { PaymentWebhookHandler, type PaymentWebhookPayload } from './twelvePayWebhook';
+import { isPaymentGatewayConfigured, getActiveGatewayName } from './twelvePayClient';
 import { storage } from './storage';
 import { extractFAQContent } from './crawler';
 import { processKnowledgeBase } from './embeddings';
@@ -141,7 +141,7 @@ app.post(
 );
 
 // Legacy webhook endpoint (redirect to new endpoint for backward compatibility)
-app.post('/api/kompaspay/webhook', express.json(), async (req, res) => {
+app.post('/api/12pay/webhook', express.json(), async (req, res) => {
   const signature = req.headers['x-signature'] as string || '';
   const timestamp = req.headers['x-timestamp'] as string || '';
   

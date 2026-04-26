@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import { verifyWebhookSignature, getActiveGatewayName } from './kompasPayClient';
+import { verifyWebhookSignature, getActiveGatewayName } from './twelvePayClient';
 import { storage } from './storage';
 import { subscriptionPlans, type SubscriptionPlanId } from '@shared/schema';
 import { getEffectiveSubscriptionPlan } from './subscriptionPlanUtils';
