@@ -2563,7 +2563,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       try {
         const geo = await getGeoFromIp(regIpRaw);
         regCountry = geo.countryName || null;
-      } catch {}
+      } catch (err) {
+        console.warn("Email registration: geo lookup failed:", err instanceof Error ? err.message : err);
+      }
 
       const merchant = await storage.createMerchant({
         email: data.email,
@@ -3658,15 +3660,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
 
       // Normal login/register flow
-      // Extract IP and resolve geo before any DB writes so new-merchant creation is atomic
+      // Extract IP once — used for activity log and atomically in new-merchant creation below
       const googleIpRaw = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ||
                           req.socket?.remoteAddress || 'unknown';
       const googleSafeIp = googleIpRaw !== 'unknown' ? googleIpRaw : null;
-      let googleRegCountry: string | null = null;
-      try {
-        const googleGeo = await getGeoFromIp(googleIpRaw);
-        googleRegCountry = googleGeo.countryName || null;
-      } catch {}
 
       // Check if merchant exists with this Google ID
       let merchant = await storage.getMerchantByGoogleId(googleUser.id);
@@ -3692,6 +3689,15 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           });
           merchant = existingMerchant;
         } else {
+          // New account: resolve geo now so registration IP/country lands in createMerchant atomically
+          let googleRegCountry: string | null = null;
+          try {
+            const googleGeo = await getGeoFromIp(googleIpRaw);
+            googleRegCountry = googleGeo.countryName || null;
+          } catch (err) {
+            console.warn("Google OAuth: geo lookup failed for registration IP:", err instanceof Error ? err.message : err);
+          }
+
           // Create new merchant with Google account — registration IP captured atomically
           const trialDays = await storage.getPlatformSetting("trial_days");
           const trialPeriodDays = trialDays ? parseInt(trialDays) : 14;
@@ -3944,15 +3950,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       }
 
       // Normal login/register flow
-      // Extract IP and resolve geo before any DB writes so new-merchant creation is atomic
+      // Extract IP once — used for activity log and atomically in new-merchant creation below
       const githubIpRaw = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ||
                           req.socket?.remoteAddress || 'unknown';
       const githubSafeIp = githubIpRaw !== 'unknown' ? githubIpRaw : null;
-      let githubRegCountry: string | null = null;
-      try {
-        const githubGeo = await getGeoFromIp(githubIpRaw);
-        githubRegCountry = githubGeo.countryName || null;
-      } catch {}
 
       // Check if merchant exists with this GitHub ID
       let merchant = await storage.getMerchantByGithubId(githubId);
@@ -3977,6 +3978,15 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           });
           merchant = existingMerchant;
         } else {
+          // New account: resolve geo now so registration IP/country lands in createMerchant atomically
+          let githubRegCountry: string | null = null;
+          try {
+            const githubGeo = await getGeoFromIp(githubIpRaw);
+            githubRegCountry = githubGeo.countryName || null;
+          } catch (err) {
+            console.warn("GitHub OAuth: geo lookup failed for registration IP:", err instanceof Error ? err.message : err);
+          }
+
           // Create new merchant with GitHub account — registration IP captured atomically
           const trialDays = await storage.getPlatformSetting("trial_days");
           const trialPeriodDays = trialDays ? parseInt(trialDays) : 14;
