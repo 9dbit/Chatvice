@@ -13107,7 +13107,7 @@ Rules:
       // Get payment settings from platform settings
       const gatewayName = await storage.getPlatformSetting("payment_gateway_name") || "12Pay";
       const webhookUrl = `${process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://chatvice.app"}/api/payment/webhook`;
-      const apiBaseUrl = dbConfig.apiBaseUrl || dbConfig.baseUrl || 'https://api.12pay.id';
+      const apiBaseUrl = dbConfig.apiBaseUrl || dbConfig.baseUrl || 'https://api.kompaspay.com';
       
       res.json({
         isConfigured,
