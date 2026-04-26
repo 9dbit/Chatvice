@@ -8341,6 +8341,11 @@ function GatewayForm({
   const hasExistingClientKey = !!existingConfig.clientKey;
   const hasExistingClientSecret = !!existingConfig.clientSecret;
 
+  const maskCredential = (value: string): string => {
+    if (!value || value.length < 8) return "****";
+    return `${value.substring(0, 4)}${"*".repeat(Math.min(value.length - 8, 12))}${value.substring(value.length - 4)}`;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const configUpdate: Record<string, any> = { ...existingConfig };
@@ -8432,29 +8437,41 @@ function GatewayForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="clientKey" className="text-xs text-muted-foreground">Client Key</Label>
+            {hasExistingClientKey && !clientKey && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-muted/60 border rounded-md text-xs text-muted-foreground font-mono">
+                <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />
+                {maskCredential(existingConfig.clientKey)}
+              </div>
+            )}
             <Input
               id="clientKey"
               value={clientKey}
               onChange={(e) => setClientKey(e.target.value)}
-              placeholder={hasExistingClientKey ? "Leave blank to keep existing" : "Paste your Client Key"}
+              placeholder={hasExistingClientKey ? "Enter new value to replace" : "Paste your Client Key"}
               data-testid="input-client-key"
             />
             {hasExistingClientKey && (
-              <p className="text-xs text-green-600 dark:text-green-400">A key is already saved — enter a new value to replace it</p>
+              <p className="text-xs text-muted-foreground">Leave blank to keep the existing key shown above</p>
             )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="clientSecret" className="text-xs text-muted-foreground">Client Secret</Label>
+            {hasExistingClientSecret && !clientSecret && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-muted/60 border rounded-md text-xs text-muted-foreground font-mono">
+                <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />
+                {maskCredential(existingConfig.clientSecret)}
+              </div>
+            )}
             <Input
               id="clientSecret"
               type="password"
               value={clientSecret}
               onChange={(e) => setClientSecret(e.target.value)}
-              placeholder={hasExistingClientSecret ? "Leave blank to keep existing" : "Paste your Client Secret"}
+              placeholder={hasExistingClientSecret ? "Enter new value to replace" : "Paste your Client Secret"}
               data-testid="input-client-secret"
             />
             {hasExistingClientSecret && (
-              <p className="text-xs text-green-600 dark:text-green-400">A secret is already saved — enter a new value to replace it</p>
+              <p className="text-xs text-muted-foreground">Leave blank to keep the existing secret shown above</p>
             )}
           </div>
         </div>

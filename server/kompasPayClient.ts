@@ -661,7 +661,7 @@ export async function createPaymentLinkPayment(request: CreatePaymentLinkRequest
       return {
         success: false,
         gatewayName,
-        error: 'Payment Link endpoint tidak tersedia. Silakan hubungi Kompas Pay untuk mengaktifkan fitur ini.',
+        error: 'Payment Link endpoint tidak tersedia. Silakan hubungi 12Pay untuk mengaktifkan fitur ini.',
       };
     }
     

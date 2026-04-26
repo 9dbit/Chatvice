@@ -15444,7 +15444,7 @@ Q: Apakah ada free trial?
 A: Ya! Semua paket termasuk ${trialDays} hari free trial dengan akses penuh ke semua fitur. Tidak perlu kartu kredit.
 
 Q: Metode pembayaran apa yang diterima?
-A: Untuk Indonesia, kami menerima 1-Pay dengan QRIS - kompatibel dengan GoPay, OVO, DANA, ShopeePay, LinkAja, dan semua e-wallet Indonesia.
+A: Untuk Indonesia, kami menerima 12Pay dengan QRIS - kompatibel dengan GoPay, OVO, DANA, ShopeePay, LinkAja, dan semua e-wallet Indonesia.
 
 Q: Bahasa apa saja yang didukung?
 A: LEXA1 support deteksi bahasa otomatis: English, Bahasa Indonesia, Chinese, Japanese, Korean, Spanish, French, German, dan 50+ bahasa lainnya.
@@ -21370,15 +21370,15 @@ Your Telegram integration is working correctly!`;
     }
   });
   
-  // Kompas Pay webhook (placeholder - will be implemented when API key is available)
+  // 12Pay webhook (placeholder - will be implemented when API key is available)
   app.post("/webhook/kompaspay", async (req, res) => {
     try {
       const { order_id, status, amount, payment_type, payment_ref, signature } = req.body;
       
-      console.log("Kompas Pay webhook received:", { order_id, status, amount, payment_type });
+      console.log("12Pay webhook received:", { order_id, status, amount, payment_type });
       
-      // TODO: Verify signature with Kompas Pay secret
-      // const isValid = verifyKompasPaySignature(req.body, KOMPAS_PAY_SECRET);
+      // TODO: Verify signature with 12Pay secret
+      // const isValid = verify12PaySignature(req.body, TWELVEPAY_SECRET);
       // if (!isValid) {
       //   return res.status(401).json({ error: "Invalid signature" });
       // }
@@ -24518,7 +24518,7 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  // Payment initiation — creates real QRIS payment via Kompas Pay
+  // Payment initiation — creates real QRIS payment via 12Pay
   app.post("/api/merchant/addons/initiate-payment", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
