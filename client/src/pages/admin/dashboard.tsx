@@ -6744,6 +6744,58 @@ function ReportsTab({ stats, toast }: { stats?: AdminStats; toast: any }) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
+            <Activity className="w-5 h-5" />
+            Most Used Features
+          </CardTitle>
+          <CardDescription>Platform feature utilization based on real usage data</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {(() => {
+            const total = stats?.totalMerchants ?? 0;
+            const convos = stats?.totalConversations ?? 0;
+            const msgs = stats?.totalMessages ?? 0;
+            const active = stats?.activeMerchants ?? 0;
+            const trial = stats?.trialMerchants ?? 0;
+            const avgMsgPerConvo = convos > 0 ? Math.round(msgs / convos) : 0;
+            const features = [
+              {
+                name: "AI Chat Conversations",
+                pct: Math.min(100, total > 0 ? Math.round((convos / Math.max(1, total * 50)) * 100) : 0),
+                description: `${convos.toLocaleString()} total AI-handled chat sessions across all merchants`,
+              },
+              {
+                name: "Message Processing",
+                pct: Math.min(100, avgMsgPerConvo > 0 ? Math.round((avgMsgPerConvo / 20) * 100) : 0),
+                description: `${msgs.toLocaleString()} messages processed — avg ${avgMsgPerConvo} msgs per conversation`,
+              },
+              {
+                name: "Paid Plan Adoption",
+                pct: total > 0 ? Math.round((active / total) * 100) : 0,
+                description: `${active} of ${total} registered merchants on a paid plan`,
+              },
+              {
+                name: "Trial Activation",
+                pct: total > 0 ? Math.round((trial / total) * 100) : 0,
+                description: `${trial} merchants currently on a free trial`,
+              },
+            ];
+            return features.map((f, i) => (
+              <div key={i} className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium text-sm">{f.name}</span>
+                  <span className="text-sm text-muted-foreground">{f.pct}%</span>
+                </div>
+                <Progress value={f.pct} className="h-2" />
+                <p className="text-xs text-muted-foreground">{f.description}</p>
+              </div>
+            ));
+          })()}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5" />
             Growth Summary
           </CardTitle>

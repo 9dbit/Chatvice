@@ -12474,7 +12474,12 @@ Rules:
   // Growth stats for admin Reports tab — period-over-period merchant signups and session counts
   app.get("/api/admin/growth-stats", requireAdmin, async (req, res) => {
     try {
-      const period = (req.query.period as string) || "monthly";
+      const periodRaw = (req.query.period as string) || "monthly";
+      const allowedPeriods = ["daily", "weekly", "monthly", "yearly"];
+      if (!allowedPeriods.includes(periodRaw)) {
+        return res.status(400).json({ error: "Invalid period. Must be one of: daily, weekly, monthly, yearly" });
+      }
+      const period = periodRaw;
       const now = new Date();
 
       let currentStart: Date;
