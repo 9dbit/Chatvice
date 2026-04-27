@@ -4,7 +4,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Coins, QrCode, CreditCard, Wallet, Building2, ArrowLeft, CheckCircle2, XCircle, Clock, AlertTriangle, ExternalLink } from "lucide-react";
+import { Loader2, Coins, QrCode, CreditCard, Wallet, Building2, ArrowLeft, CheckCircle2, XCircle, Clock, AlertTriangle, ExternalLink, RefreshCw } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface Nominal {
@@ -411,6 +411,19 @@ export default function TopupPage() {
                   <XCircle className="h-16 w-16 text-destructive" />
                   <p className="text-lg font-semibold text-destructive" data-testid="text-order-expired">Order kadaluarsa</p>
                   <p className="text-sm text-muted-foreground text-center">Waktu pembayaran telah habis. Silakan buat order baru.</p>
+                  <Button
+                    onClick={handleCreateOrder}
+                    disabled={createOrderMutation.isPending}
+                    data-testid="button-retry-payment"
+                    className="mt-2"
+                  >
+                    {createOrderMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    Coba lagi
+                  </Button>
                 </div>
               ) : (
                 <div className="bg-white p-6 rounded-lg flex items-center justify-center border" data-testid="div-qr-container">
