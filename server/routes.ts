@@ -13396,12 +13396,21 @@ Rules:
       if (!gateway) {
         return res.status(404).json({ error: "Gateway not found" });
       }
+
+      const incomingConfig = (req.body.config as Record<string, any>) || {};
+      console.log("[gateway-update] Saving gateway:", req.params.id, {
+        hasClientKey: !!incomingConfig.clientKey,
+        clientKeyPrefix: incomingConfig.clientKey ? incomingConfig.clientKey.substring(0, 8) + "..." : "(none)",
+        hasClientSecret: !!incomingConfig.clientSecret,
+        apiBaseUrl: incomingConfig.apiBaseUrl || "(using fallback: api.12pay.id)",
+      });
       
       const updated = await storage.updatePaymentGateway(req.params.id, req.body);
 
       const { clearGatewayCache } = await import("./twelvePayClient");
       clearGatewayCache();
 
+      console.log("[gateway-update] Save successful for gateway:", req.params.id);
       res.json(updated);
     } catch (error) {
       console.error("Update payment gateway error:", error);

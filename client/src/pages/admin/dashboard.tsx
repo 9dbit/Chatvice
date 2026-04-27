@@ -8331,6 +8331,7 @@ function GatewayForm({
   const [clientSecretEnvVar, setClientSecretEnvVar] = useState(gateway?.clientSecretEnvVar || "");
   const [clientKey, setClientKey] = useState("");
   const [clientSecret, setClientSecret] = useState("");
+  const [apiBaseUrl, setApiBaseUrl] = useState("");
   const [supportedMethods, setSupportedMethods] = useState<string[]>(gateway?.supportedMethods || []);
   const [feePercentage, setFeePercentage] = useState((gateway?.feePercentage || 0) / 100);
   const [feeFixed, setFeeFixed] = useState(gateway?.feeFixed || 0);
@@ -8340,6 +8341,7 @@ function GatewayForm({
   const existingConfig = (gateway?.config as Record<string, any>) || {};
   const hasExistingClientKey = !!existingConfig.clientKey;
   const hasExistingClientSecret = !!existingConfig.clientSecret;
+  const existingApiBaseUrl = existingConfig.apiBaseUrl || "";
 
   const maskCredential = (value: string): string => {
     if (!value || value.length < 8) return "****";
@@ -8349,15 +8351,31 @@ function GatewayForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const configUpdate: Record<string, any> = { ...existingConfig };
-    if (clientKey.trim()) configUpdate.clientKey = clientKey.trim();
-    if (clientSecret.trim()) configUpdate.clientSecret = clientSecret.trim();
+    
+    const newKey = clientKey.trim();
+    const newSecret = clientSecret.trim();
+    const newApiBaseUrl = apiBaseUrl.trim();
+
+    if (newKey) {
+      configUpdate.clientKey = newKey;
+    }
+    if (newSecret) {
+      configUpdate.clientSecret = newSecret;
+    }
+
+    if (newApiBaseUrl) {
+      configUpdate.apiBaseUrl = newApiBaseUrl;
+    } else {
+      delete configUpdate.apiBaseUrl;
+    }
+
     onSubmit({
       name,
       dashboardUrl: dashboardUrl || null,
       environment,
       isActive,
-      clientKeyEnvVar: clientKeyEnvVar || null,
-      clientSecretEnvVar: clientSecretEnvVar || null,
+      clientKeyEnvVar: newKey ? newKey : (clientKeyEnvVar || null),
+      clientSecretEnvVar: newSecret ? newSecret : (clientSecretEnvVar || null),
       config: configUpdate,
       supportedMethods,
       feePercentage: Math.round(feePercentage * 100),
@@ -8476,6 +8494,26 @@ function GatewayForm({
           </div>
         </div>
         <p className="text-xs text-muted-foreground">Credentials are stored securely in the database and take effect immediately on save.</p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="apiBaseUrl">API Base URL <span className="text-muted-foreground font-normal">(Advanced)</span></Label>
+        {existingApiBaseUrl && !apiBaseUrl && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-muted/60 border rounded-md text-xs text-muted-foreground font-mono">
+            <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />
+            Currently: {existingApiBaseUrl}
+          </div>
+        )}
+        <Input
+          id="apiBaseUrl"
+          value={apiBaseUrl}
+          onChange={(e) => setApiBaseUrl(e.target.value)}
+          placeholder="https://api.12pay.id (leave blank to use default)"
+          data-testid="input-api-base-url"
+        />
+        <p className="text-xs text-muted-foreground">
+          Leave blank to use the default API endpoint. Only change this if instructed by your payment gateway provider.
+        </p>
       </div>
 
       <div className="space-y-2">
