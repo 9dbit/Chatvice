@@ -54,6 +54,12 @@ interface OrderStatus {
   return_url: string;
 }
 
+function formatCountdown(seconds: number): string {
+  const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+  const s = (seconds % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
+
 function formatRupiah(amount: number): string {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -106,6 +112,8 @@ export default function TopupPage() {
   const [orderId, setOrderId] = useState<string>("");
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const isExpired = timeLeft !== null && timeLeft <= 0 && step === "payment" && paymentData !== null;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -141,6 +149,19 @@ export default function TopupPage() {
     }
   }, [verifyQuery.isSuccess, verifyQuery.isError, verifyQuery.error]);
 
+  useEffect(() => {
+    if (step !== "payment" || !paymentData) return;
+    const expiry = new Date(paymentData.expiry_time).getTime();
+    const calc = () => Math.max(0, Math.floor((expiry - Date.now()) / 1000));
+    setTimeLeft(calc());
+    const id = setInterval(() => {
+      const remaining = calc();
+      setTimeLeft(remaining);
+      if (remaining <= 0) clearInterval(id);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [step, paymentData]);
+
   const createOrderMutation = useMutation({
     mutationFn: async (data: { token: string; amount: number; channel: string }) => {
       const res = await apiRequest("POST", "/api/payment/create-order", data);
@@ -149,6 +170,7 @@ export default function TopupPage() {
     onSuccess: (data) => {
       setOrderId(data.order_id);
       setPaymentData(data.payment_data);
+      setTimeLeft(null);
       setStep("payment");
     },
     onError: (error: Error) => {
@@ -164,8 +186,8 @@ export default function TopupPage() {
       if (!res.ok) throw new Error("Gagal cek status");
       return res.json();
     },
-    enabled: step === "payment" && !!orderId,
-    refetchInterval: step === "payment" ? 5000 : false,
+    enabled: step === "payment" && !!orderId && !isExpired,
+    refetchInterval: step === "payment" && !isExpired ? 5000 : false,
   });
 
   useEffect(() => {
@@ -384,40 +406,58 @@ export default function TopupPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-white p-6 rounded-lg flex items-center justify-center border" data-testid="div-qr-container">
-                <QRDisplay
-                  qrString={paymentData.qr_string}
-                  imageUrl={paymentData.qris_image_url}
-                />
-              </div>
+              {isExpired ? (
+                <div className="flex flex-col items-center justify-center gap-3 py-8" data-testid="div-qr-expired">
+                  <XCircle className="h-16 w-16 text-destructive" />
+                  <p className="text-lg font-semibold text-destructive" data-testid="text-order-expired">Order kadaluarsa</p>
+                  <p className="text-sm text-muted-foreground text-center">Waktu pembayaran telah habis. Silakan buat order baru.</p>
+                </div>
+              ) : (
+                <div className="bg-white p-6 rounded-lg flex items-center justify-center border" data-testid="div-qr-container">
+                  <QRDisplay
+                    qrString={paymentData.qr_string}
+                    imageUrl={paymentData.qris_image_url}
+                  />
+                </div>
+              )}
 
-              <div className="flex items-center justify-center gap-2 text-orange-600">
-                <Clock className="h-4 w-4" />
-                <span className="text-sm" data-testid="text-expiry-time">
-                  Berlaku hingga: {expiryTime.toLocaleString("id-ID")}
-                </span>
+              <div className="flex flex-col items-center gap-1">
+                {!isExpired && timeLeft !== null && (
+                  <div className={`flex items-center gap-2 font-mono text-xl font-bold ${timeLeft <= 60 ? "text-destructive" : "text-orange-600"}`} data-testid="text-countdown-timer">
+                    <Clock className="h-5 w-5" />
+                    <span>{formatCountdown(timeLeft)}</span>
+                    <span className="text-sm font-normal font-sans">tersisa</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-center gap-1 text-muted-foreground">
+                  <span className="text-xs" data-testid="text-expiry-time">
+                    Berlaku hingga: {expiryTime.toLocaleString("id-ID")}
+                  </span>
+                </div>
               </div>
 
               {/* 12Pay Deep Link for Mobile */}
-              <div className="space-y-3">
-                <Button
-                  variant="outline"
-                  className="w-full flex items-center justify-center gap-2"
-                  onClick={() => {
-                    const deepLink = `https://pay.12pay.id/pay?order_id=${deepLinkId}&amount=${selectedNominal?.amount}`;
-                    window.open(deepLink, "_blank");
-                  }}
-                  data-testid="button-twelvepay-link"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Buka 12Pay
-                </Button>
-                <p className="text-xs text-center text-muted-foreground">
-                  Atau buka aplikasi 12Pay dan scan QR code di atas
-                </p>
-              </div>
+              {!isExpired && (
+                <div className="space-y-3">
+                  <Button
+                    variant="outline"
+                    className="w-full flex items-center justify-center gap-2"
+                    onClick={() => {
+                      const deepLink = `https://pay.12pay.id/pay?order_id=${deepLinkId}&amount=${selectedNominal?.amount}`;
+                      window.open(deepLink, "_blank");
+                    }}
+                    data-testid="button-twelvepay-link"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Buka 12Pay
+                  </Button>
+                  <p className="text-xs text-center text-muted-foreground">
+                    Atau buka aplikasi 12Pay dan scan QR code di atas
+                  </p>
+                </div>
+              )}
 
-              {statusQuery.isRefetching && (
+              {statusQuery.isRefetching && !isExpired && (
                 <div className="flex items-center justify-center gap-2 text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span className="text-sm">Memeriksa status pembayaran...</span>
