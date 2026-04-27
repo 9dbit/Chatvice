@@ -71,8 +71,8 @@ const integrations: Integration[] = [
     status: "available",
   },
   {
-    id: "kompaspay",
-    name: "Kompas Pay (QRIS)",
+    id: "12pay",
+    name: "12Pay (QRIS)",
     description: "Indonesian payment gateway with QRIS support for easy subscriptions. Compatible with all Indonesian e-wallets.",
     icon: CreditCard,
     category: "payment",

@@ -26,7 +26,7 @@ import bgImageUrl from "@assets/bg-widget-optimized.jpg";
 import qrisImageUrl from "@assets/qris-demo.png";
 import { SiBitcoin, SiEthereum, SiTether, SiSolana, SiBinance, SiDogecoin } from "react-icons/si";
 
-type PaymentMethod = "kompas" | "qris" | "bank" | "va" | "crypto";
+type PaymentMethod = "twelvepay" | "qris" | "bank" | "va" | "crypto";
 type CryptoOption = "btc" | "eth" | "usdt" | "sol" | "bnb" | "doge";
 
 interface PaymentMethodOption {
@@ -56,7 +56,7 @@ interface CryptoCoin {
 }
 
 const paymentMethods: PaymentMethodOption[] = [
-  { id: "kompas", name: "Payment Link", description: "Bayar via link", icon: ExternalLink, gradient: "from-blue-500 to-purple-500" },
+  { id: "twelvepay", name: "Payment Link", description: "Bayar via link", icon: ExternalLink, gradient: "from-blue-500 to-purple-500" },
   { id: "qris", name: "QRIS", description: "Scan QR", icon: QrCode, gradient: "from-emerald-400 to-teal-600" },
   { id: "bank", name: "Transfer Bank", description: "BCA, Mandiri, BNI, BRI", icon: Building2, gradient: "from-slate-600 to-slate-800" },
   { id: "va", name: "Virtual Account", description: "VA otomatis", icon: Smartphone, gradient: "from-purple-400 to-purple-600" },
@@ -1029,7 +1029,7 @@ export default function DemoWidgetPage() {
           border: '1px solid rgba(107, 93, 252, 0.15)'
         }}
       >
-        {selectedPaymentMethod === "kompas" && (
+        {selectedPaymentMethod === "twelvepay" && (
           <div className="p-4">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
@@ -1041,12 +1041,12 @@ export default function DemoWidgetPage() {
               </div>
             </div>
             <a 
-              href="https://pay.kompas.id/pay" 
+              href="https://pay.12pay.id/pay" 
               target="_blank" 
               rel="noopener noreferrer" 
               className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-medium text-sm text-white"
               style={{ backgroundColor: PRIMARY_COLOR }}
-              data-testid="link-kompas-pay"
+              data-testid="link-twelvepay"
             >
               <ExternalLink className="w-4 h-4" />
               Buka Payment Link

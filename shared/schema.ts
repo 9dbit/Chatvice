@@ -37,7 +37,7 @@ export const merchants = pgTable("merchants", {
   bubblePosition: text("bubble_position").default("right"),
   paymentCustomerId: text("payment_customer_id"),
   paymentSubscriptionId: text("payment_subscription_id"),
-  paymentProvider: text("payment_provider").default("kompaspay"),
+  paymentProvider: text("payment_provider").default("12pay"),
   lastInvoiceId: text("last_invoice_id"),
   pendingTransactionId: text("pending_transaction_id"),
   subscriptionStatus: text("subscription_status").default("trial"),
@@ -1850,7 +1850,7 @@ export const customPlanInvoices = pgTable("custom_plan_invoices", {
   currency: text("currency").default("IDR"),
   billingInterval: text("billing_interval").default("monthly"), // monthly or annual
   // Payment info
-  paymentMethod: text("payment_method"), // kompaspay, paypal, crypto, bank_transfer
+  paymentMethod: text("payment_method"), // 12pay, paypal, crypto, bank_transfer
   transactionId: text("transaction_id"),
   proofImageUrl: text("proof_image_url"), // Proof of payment image URL
   proofSubmittedAt: timestamp("proof_submitted_at"), // When proof was submitted

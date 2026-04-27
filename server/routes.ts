@@ -25,7 +25,7 @@ import { processKnowledgeBase, searchKnowledge } from "./embeddings";
 import { getAvailableSlots, bookSlot, getUpcomingAppointments } from "./appointment-engine";
 import { extractFAQContent, syncKnowledgeFromUrl, fetchWebContent } from "./crawler";
 import { parseFile, fetchGoogleDoc, fetchGoogleSheet } from "./fileParser";
-import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isKompasPayConfigured, convertToIDR, formatIDR } from "./twelvePayClient";
+import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isTwelvePayConfigured, convertToIDR, formatIDR } from "./twelvePayClient";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification, sendEmailChangeOtp } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
@@ -8794,7 +8794,7 @@ Rules:
         return res.status(400).json({ error: "Invalid plan" });
       }
 
-      if (!isKompasPayConfigured()) {
+      if (!isTwelvePayConfigured()) {
         return res.status(503).json({ error: "Payment gateway not configured" });
       }
       
@@ -8937,7 +8937,7 @@ Rules:
 
       // Handle addon purchase - separate flow from plan subscriptions
       if (addonType) {
-        if (!isKompasPayConfigured()) {
+        if (!isTwelvePayConfigured()) {
           return res.status(503).json({ error: "Payment gateway not configured" });
         }
         const addonConfigs = await storage.getAddonConfigs();
@@ -9065,11 +9065,11 @@ Rules:
         return res.status(400).json({ error: "Invalid plan" });
       }
 
-      if (!isKompasPayConfigured()) {
+      if (!isTwelvePayConfigured()) {
         return res.status(503).json({ error: "Payment gateway not configured" });
       }
       
-      // Supported bank codes for VA (numeric codes per Kompas Pay credential)
+      // Supported bank codes for VA (numeric codes per 12Pay credential)
       // Note: BNI (009) temporarily excluded due to "BNIVA param error" from gateway
       // Active: BRI=002, Mandiri=008, CIMB=022, Permata=013, Danamon=011, Maybank=016, BNC=490, BSI=451
       const SUPPORTED_BANK_CODES = ['002', '008', '022', '013', '011', '016', '490', '451'];
@@ -9194,7 +9194,7 @@ Rules:
       
       // Convert USD to IDR for Indonesian payment methods
       const priceIDR = Math.round(finalPriceUSD * exchangeRate);
-      // Minimum amount for Kompas Pay is 10,000 IDR
+      // Minimum amount for 12Pay is 10,000 IDR
       const MIN_PAYMENT_AMOUNT = 10000;
       const finalPriceIDR = Math.max(priceIDR, MIN_PAYMENT_AMOUNT);
       
@@ -9500,13 +9500,13 @@ Rules:
           });
           
         case 'ewallet':
-          // E-wallet requires Kompas Pay gateway integration
+          // E-wallet requires 12Pay gateway integration
           return res.status(503).json({ error: "E-Wallet payment coming soon. Please use QRIS for e-wallet payments." });
           
         case 'payment_link':
           console.log('[PAYMENT_LINK] Starting Payment Link creation for merchant:', merchant.id);
           
-          if (!isKompasPayConfigured()) {
+          if (!isTwelvePayConfigured()) {
             return res.status(503).json({ error: "Payment gateway not configured" });
           }
           
@@ -10634,9 +10634,9 @@ Rules:
   });
 
   // Test endpoint for 12Pay API (development only)
-  app.post("/api/billing/test-kompaspay", async (req, res) => {
+  app.post("/api/billing/test-twelvepay", async (req, res) => {
     try {
-      if (!isKompasPayConfigured()) {
+      if (!isTwelvePayConfigured()) {
         return res.status(503).json({ error: "12Pay not configured" });
       }
       
@@ -13098,16 +13098,16 @@ Rules:
       const dbClientKey = dbConfig.clientKey || '';
       const dbClientSecret = dbConfig.clientSecret || '';
 
-      const hasClientKey = !!dbClientKey || !!process.env.KOMPASPAY_CLIENT_KEY;
-      const hasClientSecret = !!dbClientSecret || !!process.env.KOMPASPAY_CLIENT_SECRET;
+      const hasClientKey = !!dbClientKey || !!process.env.TWELVEPAY_CLIENT_KEY;
+      const hasClientSecret = !!dbClientSecret || !!process.env.TWELVEPAY_CLIENT_SECRET;
       const isConfigured = hasClientKey && hasClientSecret;
 
-      const clientKeyPreview = maskKey(dbClientKey || process.env.KOMPASPAY_CLIENT_KEY);
+      const clientKeyPreview = maskKey(dbClientKey || process.env.TWELVEPAY_CLIENT_KEY);
       
       // Get payment settings from platform settings
       const gatewayName = await storage.getPlatformSetting("payment_gateway_name") || "12Pay";
       const webhookUrl = `${process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://chatvice.app"}/api/payment/webhook`;
-      const apiBaseUrl = dbConfig.apiBaseUrl || dbConfig.baseUrl || 'https://api.kompaspay.com';
+      const apiBaseUrl = dbConfig.apiBaseUrl || dbConfig.baseUrl || 'https://api.12pay.id';
       
       res.json({
         isConfigured,
@@ -21211,7 +21211,7 @@ Your Telegram integration is working correctly!`;
         ];
         
         // Only show QRIS for now since other channels are not implemented
-        // TODO: Add more channels when Kompas Pay integration is complete
+        // TODO: Add more channels when 12Pay integration is complete
         res.json({
           success: true,
           site_name: site.siteName,
@@ -21311,11 +21311,11 @@ Your Telegram integration is working correctly!`;
         expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
       });
       
-      // TODO: Call Kompas Pay API here when integrated
+      // TODO: Call 12Pay API here when integrated
       // For now, simulate payment data
       const paymentData = {
         type: "QRIS",
-        qr_string: `00020101021126670016ID.CO.KOMPASPAY.WWW0118${orderId}0215TOPUP${amount}5802ID5925CHATVICE6007JAKARTA61051234062070703A0163044B2C`,
+        qr_string: `00020101021126670016ID.CO.12PAY.WWW0118${orderId}0215TOPUP${amount}5802ID5925CHATVICE6007JAKARTA61051234062070703A0163044B2C`,
         va_number: null,
         expiry_time: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       };
@@ -21371,7 +21371,7 @@ Your Telegram integration is working correctly!`;
   });
   
   // 12Pay webhook (placeholder - will be implemented when API key is available)
-  app.post("/webhook/kompaspay", async (req, res) => {
+  app.post("/webhook/twelvepay", async (req, res) => {
     try {
       const { order_id, status, amount, payment_type, payment_ref, signature } = req.body;
       
@@ -24463,7 +24463,7 @@ Please create a comprehensive help center article that would be useful for custo
       if (existing && existing.isActive) return res.status(409).json({ error: "Already subscribed" });
 
       // Require payment method selection before creating pending subscription
-      const validMethods = ["kompas_pay", "paypal", "crypto"];
+      const validMethods = ["12pay", "paypal", "crypto"];
       if (!paymentMethod || !validMethods.includes(paymentMethod)) {
         return res.status(400).json({
           error: "paymentMethod required",
@@ -24533,7 +24533,7 @@ Please create a comprehensive help center article that would be useful for custo
       const existing = await storage.getMerchantAddon(merchantId, addonType);
       if (existing && existing.isActive) return res.status(409).json({ error: "Already subscribed" });
 
-      const validMethods = ["kompas_pay", "paypal", "crypto"];
+      const validMethods = ["12pay", "paypal", "crypto"];
       if (!validMethods.includes(paymentMethod)) {
         return res.status(400).json({ error: "Invalid payment method. Supported: " + validMethods.join(", ") });
       }
@@ -24544,8 +24544,8 @@ Please create a comprehensive help center article that would be useful for custo
       const orderId = `addon_${merchantId}_${addonType}_${Date.now()}`;
       const amountIDR = convertToIDR(addonConfig.monthlyPriceUsd);
 
-      if (paymentMethod === "kompas_pay") {
-        if (!isKompasPayConfigured()) {
+      if (paymentMethod === "12pay") {
+        if (!isTwelvePayConfigured()) {
           return res.status(503).json({ error: "Payment gateway not configured" });
         }
         const qrisResult = await createQRISPayment({
@@ -24592,7 +24592,7 @@ Please create a comprehensive help center article that would be useful for custo
         return res.json({
           orderId,
           addonType,
-          paymentMethod: "kompas_pay",
+          paymentMethod: "12pay",
           amount: addonConfig.monthlyPriceUsd,
           amountIDR,
           currency: "IDR",

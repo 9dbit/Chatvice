@@ -247,20 +247,20 @@ interface PaymentLinkResponse {
 }
 
 const PAYMENT_METHODS: PaymentMethodOption[] = [
-  { id: 'qris', name: 'QRIS', description: 'All e-wallets & mobile banking', icon: QrCode, available: true, provider: 'Kompas Pay' },
-  { id: 'virtual_account', name: 'Virtual Account', description: 'Automatic verification', icon: CreditCard, available: true, provider: 'Kompas Pay' },
-  { id: 'bank_transfer', name: 'Bank Transfer', description: 'Transfer to merchant account', icon: Building2, available: true, provider: 'Kompas Pay' },
+  { id: 'qris', name: 'QRIS', description: 'All e-wallets & mobile banking', icon: QrCode, available: true, provider: '12Pay' },
+  { id: 'virtual_account', name: 'Virtual Account', description: 'Automatic verification', icon: CreditCard, available: true, provider: '12Pay' },
+  { id: 'bank_transfer', name: 'Bank Transfer', description: 'Transfer to merchant account', icon: Building2, available: true, provider: '12Pay' },
   { id: 'paypal', name: 'PayPal', description: 'Pay with PayPal account or credit card', icon: () => <SiPaypal className="w-5 h-5" />, available: true, provider: 'PayPal' },
-  { id: 'ewallet', name: 'E-Wallet', description: 'Use QRIS for e-wallets', icon: Wallet, available: false, provider: 'Kompas Pay' },
+  { id: 'ewallet', name: 'E-Wallet', description: 'Use QRIS for e-wallets', icon: Wallet, available: false, provider: '12Pay' },
   { id: 'payment_link', name: 'Payment Link', description: 'Share checkout link to others', icon: Link2, available: true, provider: 'Share' },
   { id: 'credit_card', name: 'Credit Card', description: 'Coming soon via PayPal', icon: CreditCard, available: false, provider: 'PayPal' },
   { id: 'crypto', name: 'Cryptocurrency', description: 'Pay with BTC, ETH, SOL, BNB, USDT, XRP', icon: Bitcoin, available: true, provider: 'Manual' },
 ];
 
-// Kompas Pay QRIS maximum limit per transaction
+// 12Pay QRIS maximum limit per transaction
 const QRIS_MAX_LIMIT_IDR = 10000000;
 
-// Kompas Pay VA uses numeric bank codes - Active banks per Kompas Pay credential
+// 12Pay VA uses numeric bank codes - Active banks per 12Pay credential
 // Note: BNI (009) temporarily removed due to "BNIVA param error" from gateway
 const VA_BANKS = [
   { code: '002', name: 'Bank Rakyat Indonesia (BRI)' },
@@ -2016,7 +2016,7 @@ export default function CheckoutPage() {
 
           {/* Powered by */}
           <p className="text-center text-[10px] text-gray-400 dark:text-gray-500">
-            Secured by <span className="font-medium">Kompas Pay</span> • GPN Network
+            Secured by <span className="font-medium">12Pay</span> • GPN Network
           </p>
         </div>
       )}

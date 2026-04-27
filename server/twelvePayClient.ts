@@ -60,7 +60,7 @@ function extractCredentials(gateway: PaymentGateway): PaymentGatewayCredentials 
     throw new Error(`Payment gateway "${gateway.name}" credentials not configured. Please update in admin panel.`);
   }
   
-  const apiBaseUrl = config.apiBaseUrl || config.baseUrl || 'https://api.kompaspay.com';
+  const apiBaseUrl = config.apiBaseUrl || config.baseUrl || 'https://api.12pay.id';
   
   return {
     clientKey,
@@ -874,7 +874,7 @@ export function verifyWebhookSignature(
 ): boolean {
   const { clientKey, clientSecret } = cachedGateway 
     ? extractCredentials(cachedGateway)
-    : { clientKey: process.env.KOMPASPAY_CLIENT_KEY || '', clientSecret: process.env.KOMPASPAY_CLIENT_SECRET || '' };
+    : { clientKey: process.env.TWELVEPAY_CLIENT_KEY || '', clientSecret: process.env.TWELVEPAY_CLIENT_SECRET || '' };
   
   const webhookTarget = '/webhook/callback';
   const expectedSignature = generateSignatureWithCredentials(payload, timestamp, clientKey, clientSecret, webhookTarget);
@@ -921,9 +921,9 @@ export async function isPaymentGatewayConfigured(): Promise<boolean> {
   }
 }
 
-export function isKompasPayConfigured(): boolean {
-  const hasClientKey = !!process.env.KOMPASPAY_CLIENT_KEY;
-  const hasClientSecret = !!process.env.KOMPASPAY_CLIENT_SECRET;
+export function isTwelvePayConfigured(): boolean {
+  const hasClientKey = !!process.env.TWELVEPAY_CLIENT_KEY;
+  const hasClientSecret = !!process.env.TWELVEPAY_CLIENT_SECRET;
   console.log('12Pay configuration check (env vars):', { hasClientKey, hasClientSecret });
   return hasClientKey && hasClientSecret;
 }

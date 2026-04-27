@@ -364,22 +364,22 @@ export default function TopupPage() {
                 </span>
               </div>
 
-              {/* Kompas Pay Deep Link for Mobile */}
+              {/* 12Pay Deep Link for Mobile */}
               <div className="space-y-3">
                 <Button
                   variant="outline"
                   className="w-full flex items-center justify-center gap-2"
                   onClick={() => {
-                    const deepLink = `https://pay.kompas.id/pay?order_id=${orderId}&amount=${selectedNominal?.amount}`;
+                    const deepLink = `https://pay.12pay.id/pay?order_id=${orderId}&amount=${selectedNominal?.amount}`;
                     window.open(deepLink, "_blank");
                   }}
-                  data-testid="button-kompaspay-link"
+                  data-testid="button-twelvepay-link"
                 >
                   <ExternalLink className="h-4 w-4" />
-                  Buka Kompas Pay
+                  Buka 12Pay
                 </Button>
                 <p className="text-xs text-center text-muted-foreground">
-                  Atau buka aplikasi Kompas Pay dan scan QR code di atas
+                  Atau buka aplikasi 12Pay dan scan QR code di atas
                 </p>
               </div>
 

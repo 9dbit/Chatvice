@@ -700,7 +700,7 @@ export default function BillingPage() {
       setQrisData(data);
       setPaymentStep('qris');
       
-      // Parse Kompas Pay format "2025-12-24 18:50:03" - replace space with T for ISO format
+      // Parse 12Pay format "2025-12-24 18:50:03" - replace space with T for ISO format
       const expiryTimeStr = data.expiryTime?.replace(' ', 'T') + 'Z';
       const expiryTime = new Date(expiryTimeStr).getTime();
       const now = Date.now();
