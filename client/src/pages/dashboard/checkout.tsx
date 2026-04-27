@@ -638,9 +638,17 @@ export default function CheckoutPage() {
     },
     onError: (error: Error) => {
       setPaymentStep('select_method');
+      let errorMsg = error.message || "Failed to create payment. Please try again.";
+      try {
+        const jsonStart = errorMsg.indexOf('{');
+        if (jsonStart >= 0) {
+          const parsed = JSON.parse(errorMsg.substring(jsonStart));
+          errorMsg = parsed.error || parsed.message || errorMsg;
+        }
+      } catch {}
       toast({
         title: t("dashboard.checkout.toast.error"),
-        description: error.message || "Failed to create payment. Please try again.",
+        description: errorMsg,
         variant: "destructive",
       });
     },

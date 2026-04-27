@@ -310,16 +310,52 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
     }
     clearTimeout(timeoutId);
 
-    const data = await response.json();
-    
-    console.log(`${gatewayName} QRIS full response:`, JSON.stringify(data, null, 2));
-    
-    if (!response.ok || data.status === 'error' || data.success === false) {
-      console.error(`${gatewayName} QRIS creation error:`, data);
+    let data: any;
+    let rawText: string = '';
+    try {
+      rawText = await response.text();
+      data = JSON.parse(rawText);
+    } catch {
+      console.error(`${gatewayName} QRIS response not valid JSON. HTTP ${response.status}. Raw:`, rawText.substring(0, 500));
       return {
         success: false,
         gatewayName,
-        error: data.message || data.error || 'Failed to create QRIS',
+        error: `HTTP ${response.status}: Response bukan JSON valid — ${rawText.substring(0, 200)}`,
+      };
+    }
+
+    console.log(`\n========== ${gatewayName} QRIS FULL RESPONSE ==========`);
+    console.log('HTTP Status:', response.status);
+    console.log('Response JSON:', JSON.stringify(data, null, 2));
+    console.log('Response Keys:', Object.keys(data));
+    console.log('================================================\n');
+
+    const isErrorStatus = !response.ok
+      || data.status === 'error'
+      || data.status === 'failed'
+      || data.success === false
+      || (typeof data.status === 'number' && data.status !== 200)
+      || (typeof data.status === 'string' && data.status !== '200' && data.status !== 'success' && data.status !== 'ok');
+
+    if (isErrorStatus) {
+      console.error(`${gatewayName} QRIS creation error response:`, data);
+      const errorMsg =
+        data.message ||
+        data.error ||
+        data.responseMessage ||
+        data.errorMessage ||
+        data.error_message ||
+        data.msg ||
+        data.description ||
+        data.code ||
+        data.reason ||
+        (data.status ? `Status: ${data.status}` : null) ||
+        JSON.stringify(data) ||
+        'Failed to create QRIS';
+      return {
+        success: false,
+        gatewayName,
+        error: `[12Pay] ${errorMsg}`,
         message: data.message,
       };
     }
@@ -443,19 +479,52 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
     }
     clearTimeout(timeoutId);
 
-    const data = await response.json();
+    let data: any;
+    let rawText: string = '';
+    try {
+      rawText = await response.text();
+      data = JSON.parse(rawText);
+    } catch {
+      console.error(`${gatewayName} VA response not valid JSON. HTTP ${response.status}. Raw:`, rawText.substring(0, 500));
+      return {
+        success: false,
+        gatewayName,
+        error: `HTTP ${response.status}: Response bukan JSON valid — ${rawText.substring(0, 200)}`,
+      };
+    }
+
     console.log(`\n========== ${gatewayName} VA FULL RESPONSE ==========`);
     console.log('HTTP Status:', response.status);
     console.log('Response JSON:', JSON.stringify(data, null, 2));
     console.log('Response Keys:', Object.keys(data));
     console.log('================================================\n');
-    
-    if (!response.ok || data.status === 'error' || data.success === false) {
-      console.error(`${gatewayName} VA creation error:`, data);
+
+    const isVAErrorStatus = !response.ok
+      || data.status === 'error'
+      || data.status === 'failed'
+      || data.success === false
+      || (typeof data.status === 'number' && data.status !== 200)
+      || (typeof data.status === 'string' && data.status !== '200' && data.status !== 'success' && data.status !== 'ok');
+
+    if (isVAErrorStatus) {
+      console.error(`${gatewayName} VA creation error response:`, data);
+      const errorMsg =
+        data.message ||
+        data.error ||
+        data.responseMessage ||
+        data.errorMessage ||
+        data.error_message ||
+        data.msg ||
+        data.description ||
+        data.code ||
+        data.reason ||
+        (data.status ? `Status: ${data.status}` : null) ||
+        JSON.stringify(data) ||
+        'Failed to create Virtual Account';
       return {
         success: false,
         gatewayName,
-        error: data.message || data.error || 'Failed to create Virtual Account',
+        error: `[12Pay] ${errorMsg}`,
       };
     }
     
