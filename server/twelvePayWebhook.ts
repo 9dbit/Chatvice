@@ -154,31 +154,98 @@ export class PaymentWebhookHandler {
     
     const existingTransaction = await storage.getPaymentTransactionByExternalId(external_id);
     if (existingTransaction) {
-      console.log(`Transaction already processed: ${existingTransaction.invoiceNumber}`);
-      
-      if (!existingTransaction.receiptSentAt) {
-        const merchant = await storage.getMerchant(merchantId);
-        if (merchant) {
-          try {
-            await sendPaymentReceiptEmail({
-              merchantEmail: merchant.email,
-              merchantName: merchant.companyName || merchant.email.split('@')[0],
-              invoiceNumber: existingTransaction.invoiceNumber || existingTransaction.id,
-              planName: existingTransaction.planName || '',
-              subscriptionMonths: existingTransaction.subscriptionMonths || 1,
-              amount: existingTransaction.amount,
-              paymentMethod: existingTransaction.paymentMethod || 'QRIS',
-              paidAt: existingTransaction.paidAt || new Date(),
-              expiresAt: existingTransaction.expiresAt || undefined,
-            });
-            await storage.updatePaymentTransaction(existingTransaction.id, { receiptSentAt: new Date() });
-          } catch (e) {
-            console.error('Retry receipt email failed:', e);
+      // If already paid/completed — just ensure receipt was sent and return early
+      if (existingTransaction.status === 'paid' || existingTransaction.status === 'completed') {
+        console.log(`Transaction already processed: ${existingTransaction.invoiceNumber}`);
+        
+        if (!existingTransaction.receiptSentAt) {
+          const merchant = await storage.getMerchant(merchantId!);
+          if (merchant) {
+            try {
+              await sendPaymentReceiptEmail({
+                merchantEmail: merchant.email,
+                merchantName: merchant.companyName || merchant.email.split('@')[0],
+                invoiceNumber: existingTransaction.invoiceNumber || existingTransaction.id,
+                planName: existingTransaction.planName || '',
+                subscriptionMonths: existingTransaction.subscriptionMonths || 1,
+                amount: existingTransaction.amount,
+                paymentMethod: existingTransaction.paymentMethod || 'QRIS',
+                paidAt: existingTransaction.paidAt || new Date(),
+                expiresAt: existingTransaction.expiresAt || undefined,
+              });
+              await storage.updatePaymentTransaction(existingTransaction.id, { receiptSentAt: new Date() });
+            } catch (e) {
+              console.error('Retry receipt email failed:', e);
+            }
           }
         }
+        
+        return { success: true, message: 'Transaction already processed' };
       }
-      
-      return { success: true, message: 'Transaction already processed' };
+
+      // Transaction exists but is still PENDING — this is the normal case for pre-saved
+      // QRIS/VA transactions. Pull the subscription metadata from the saved gateway response
+      // (since 12Pay does not echo our custom metadata back in the webhook).
+      console.log(`Transaction found in pending state, activating subscription: ${existingTransaction.invoiceNumber}`);
+      const gr = existingTransaction.gatewayResponse as Record<string, any> || {};
+
+      if (!merchantId && gr.merchantId) merchantId = gr.merchantId;
+      if (!planId && gr.planId) planId = gr.planId as SubscriptionPlanId;
+      if (billingInterval === 'monthly' && gr.billingInterval) billingInterval = gr.billingInterval;
+      if (!isDowngrade && gr.isDowngrade === 'true') isDowngrade = true;
+      if (!scheduledActivationDate && gr.scheduledActivationDate) {
+        scheduledActivationDate = new Date(gr.scheduledActivationDate);
+      }
+
+      if (!merchantId || !planId) {
+        console.error('Cannot determine merchantId/planId from pending transaction:', existingTransaction.id);
+        return { success: false, message: 'Missing subscription metadata' };
+      }
+
+      // Mark the transaction as paid
+      const paidAtDate = paid_at ? new Date(paid_at) : new Date();
+      await storage.updatePaymentTransaction(existingTransaction.id, {
+        status: 'paid',
+        paidAt: paidAtDate,
+        paymentMethod: payment_method || existingTransaction.paymentMethod || 'QRIS',
+      });
+
+      // Activate or schedule the subscription
+      if (isDowngrade && scheduledActivationDate) {
+        await this.scheduleSubscriptionDowngrade(merchantId, planId, billingInterval, transaction_id, scheduledActivationDate);
+        console.log(`Subscription downgrade scheduled for merchant ${merchantId}: ${planId}`);
+      } else {
+        await this.activateSubscription(merchantId, planId, billingInterval, transaction_id);
+      }
+
+      // Send receipt email
+      const merchantForReceipt = await storage.getMerchant(merchantId);
+      if (merchantForReceipt && !existingTransaction.receiptSentAt) {
+        try {
+          const planForReceipt = await getEffectiveSubscriptionPlan(planId);
+          const planNameForReceipt = planForReceipt?.name || subscriptionPlans[planId]?.name || planId;
+          const periodEndForReceipt = new Date(paidAtDate);
+          if (billingInterval === 'annual') periodEndForReceipt.setFullYear(periodEndForReceipt.getFullYear() + 1);
+          else periodEndForReceipt.setMonth(periodEndForReceipt.getMonth() + 1);
+
+          await sendPaymentReceiptEmail({
+            merchantEmail: merchantForReceipt.email,
+            merchantName: merchantForReceipt.companyName || merchantForReceipt.email.split('@')[0],
+            invoiceNumber: existingTransaction.invoiceNumber || existingTransaction.id,
+            planName: planNameForReceipt,
+            subscriptionMonths: billingInterval === 'annual' ? 12 : 1,
+            amount: existingTransaction.amount,
+            paymentMethod: payment_method || existingTransaction.paymentMethod || 'QRIS',
+            paidAt: paidAtDate,
+            expiresAt: periodEndForReceipt,
+          });
+          await storage.updatePaymentTransaction(existingTransaction.id, { receiptSentAt: new Date() });
+        } catch (e) {
+          console.error('Receipt email failed for pending transaction:', e);
+        }
+      }
+
+      return { success: true, message: 'Subscription activated from pending transaction' };
     }
     
     const merchant = await storage.getMerchant(merchantId);
@@ -303,7 +370,7 @@ export class PaymentWebhookHandler {
     return { success: true, message: 'Subscription activated with receipt' };
   }
 
-  private static async activateSubscription(
+  static async activateSubscription(
     merchantId: string,
     planId: SubscriptionPlanId,
     billingInterval: string,
@@ -356,7 +423,7 @@ export class PaymentWebhookHandler {
     console.log(`Subscription activated for merchant ${merchantId}: ${planId} (${billingInterval})`);
   }
 
-  private static async scheduleSubscriptionDowngrade(
+  static async scheduleSubscriptionDowngrade(
     merchantId: string,
     planId: SubscriptionPlanId,
     billingInterval: string,

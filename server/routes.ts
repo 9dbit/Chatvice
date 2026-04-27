@@ -8801,7 +8801,9 @@ Rules:
       const priceUSD = billingInterval === 'annual' ? plan.annualPrice * 12 : plan.monthlyPrice;
       const priceIDR = convertToIDR(priceUSD);
       
-      const orderId = `SUB_${merchant.id}_${planId}_${billingInterval}_${Date.now()}`;
+      const timestamp = Date.now();
+      const orderId = `SUB_${merchant.id}_${planId}_${billingInterval}_${timestamp}`;
+      const numericOrderId = timestamp.toString().slice(-15) + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
       
       // Use public URL for callback - prioritize forwarded headers, fallback to production
       const forwardedHost = req.get('x-forwarded-host') || req.get('host');
@@ -8812,7 +8814,7 @@ Rules:
       
       const qrisResult = await createQRISPayment({
         merchantId: merchant.id,
-        orderId,
+        orderId: numericOrderId, // Use short numeric ID — 12Pay limits identifier_id length
         amount: priceIDR,
         customerName: merchant.companyName,
         customerEmail: merchant.email,
@@ -9149,11 +9151,18 @@ Rules:
             ? (newPlan.annualPrice || 0) 
             : (newPlan.monthlyPrice || 0);
           
-          // Only apply proration credit for UPGRADES (when new plan is more expensive)
-          if (newPlanPrice > currentPlanPrice) {
-            const endDate = new Date(merchant.currentPeriodEnd);
-            const now = new Date();
-            const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+          const now = new Date();
+          const periodEnd = new Date(merchant.currentPeriodEnd);
+          const periodExpired = now >= periodEnd;
+
+          if (periodExpired) {
+            // Period has expired — treat as a fresh subscription regardless of plan direction.
+            // No proration credit, no scheduled downgrade; subscription activates immediately.
+            isUpgrade = newPlanPrice > currentPlanPrice;
+            // isDowngrade stays false so we don't schedule activation in the past
+          } else if (newPlanPrice > currentPlanPrice) {
+            // Active period + upgrade: apply proration credit
+            const daysRemaining = Math.max(0, Math.ceil((periodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
             
             if (daysRemaining > 0) {
               const dailyRate = currentPlanPrice / 30;
@@ -9161,7 +9170,7 @@ Rules:
               isUpgrade = true;
             }
           } else if (newPlanPrice < currentPlanPrice) {
-            // This is a downgrade - plan activates after current period ends
+            // Active period + downgrade: plan activates after current period ends
             isDowngrade = true;
             scheduledActivationDate = new Date(merchant.currentPeriodEnd);
           }
@@ -9232,7 +9241,7 @@ Rules:
         case 'qris':
           paymentResult = await createQRISPayment({
             merchantId: merchant.id,
-            orderId,
+            orderId: numericOrderId, // Use short numeric ID — 12Pay limits identifier_id length
             amount: finalPriceIDR,
             customerName: merchant.companyName,
             customerEmail: merchant.email,
@@ -9270,6 +9279,12 @@ Rules:
               gatewayResponse: { 
                 qrisString: paymentResult.data.qrisString,
                 orderId: paymentResult.data.orderId,
+                // Store subscription metadata so webhook can activate even without 12Pay metadata
+                merchantId: merchant.id,
+                planId,
+                billingInterval,
+                isDowngrade: isDowngrade ? 'true' : 'false',
+                scheduledActivationDate: scheduledActivationDate?.toISOString() || '',
               },
               expiresAt: new Date(paymentResult.data.expiryTime),
               invoiceNumber: orderId,
@@ -9388,6 +9403,12 @@ Rules:
                 vaNumber: paymentResult.data.vaNumber,
                 bankCode: paymentResult.data.bankCode,
                 orderId: paymentResult.data.orderId,
+                // Store subscription metadata so webhook can activate even without 12Pay metadata
+                merchantId: merchant.id,
+                planId,
+                billingInterval,
+                isDowngrade: isDowngrade ? 'true' : 'false',
+                scheduledActivationDate: scheduledActivationDate?.toISOString() || '',
               },
               expiresAt: vaExpiresAt,
               invoiceNumber: orderId,
@@ -10816,7 +10837,41 @@ Rules:
         return res.status(500).json({ error: statusResult.error || "Failed to check status" });
       }
       
-      // Gateway returned data - merge with local data if available
+      // Gateway returned data - activate subscription if PAID but not yet activated (safety net)
+      if (statusResult.data?.status === 'PAID' && localTransaction && localTransaction.status === 'pending') {
+        try {
+          const gr = localTransaction.gatewayResponse as Record<string, any> || {};
+          const txPlanId = localTransaction.planId || gr.planId;
+          const txMerchantId = localTransaction.merchantId || gr.merchantId;
+          const txBillingInterval = localTransaction.subscriptionMonths === 12 ? 'annual' : (gr.billingInterval || 'monthly');
+          const txIsDowngrade = gr.isDowngrade === 'true';
+          const txScheduledDate = gr.scheduledActivationDate ? new Date(gr.scheduledActivationDate) : null;
+
+          if (txPlanId && txMerchantId) {
+            const currentMerchant = await storage.getMerchant(txMerchantId);
+            // Only activate if subscription isn't already active with a future period end
+            const alreadyActive = currentMerchant?.subscriptionPlanId === txPlanId
+              && currentMerchant?.subscriptionStatus === 'active'
+              && currentMerchant?.currentPeriodEnd
+              && new Date(currentMerchant.currentPeriodEnd) > new Date();
+
+            if (!alreadyActive) {
+              const { PaymentWebhookHandler } = await import('./twelvePayWebhook');
+              if (txIsDowngrade && txScheduledDate && new Date() < txScheduledDate) {
+                await PaymentWebhookHandler.scheduleSubscriptionDowngrade(txMerchantId, txPlanId, txBillingInterval, localTransaction.id, txScheduledDate);
+              } else {
+                await PaymentWebhookHandler.activateSubscription(txMerchantId, txPlanId, txBillingInterval, localTransaction.id);
+              }
+              await storage.updatePaymentTransaction(localTransaction.id, { status: 'paid', paidAt: new Date() });
+              console.log(`[payment-status] Safety-net activation for merchant ${txMerchantId} plan ${txPlanId}`);
+            }
+          }
+        } catch (activationErr) {
+          console.error('[payment-status] Safety-net activation error:', activationErr);
+        }
+      }
+
+      // Merge with local data if available
       const gatewayResponse = localTransaction?.gatewayResponse as Record<string, any> || {};
       res.json({
         status: statusResult.data?.status || 'PENDING',

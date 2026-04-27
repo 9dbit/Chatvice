@@ -114,8 +114,10 @@ app.post(
   '/api/payment/webhook',
   express.json(),
   async (req, res) => {
-    const signature = req.headers['x-signature'] as string || '';
-    const timestamp = req.headers['x-timestamp'] as string || '';
+    // 12Pay sends headers as "Signature" and "Request-Timestamp"
+    // Support both naming conventions for compatibility
+    const signature = (req.headers['signature'] || req.headers['x-signature']) as string || '';
+    const timestamp = (req.headers['request-timestamp'] || req.headers['x-timestamp']) as string || '';
 
     try {
       const payload: PaymentWebhookPayload = req.body;
@@ -142,8 +144,8 @@ app.post(
 
 // Legacy webhook endpoint (redirect to new endpoint for backward compatibility)
 app.post('/api/12pay/webhook', express.json(), async (req, res) => {
-  const signature = req.headers['x-signature'] as string || '';
-  const timestamp = req.headers['x-timestamp'] as string || '';
+  const signature = (req.headers['signature'] || req.headers['x-signature']) as string || '';
+  const timestamp = (req.headers['request-timestamp'] || req.headers['x-timestamp']) as string || '';
   
   try {
     const payload: PaymentWebhookPayload = req.body;
