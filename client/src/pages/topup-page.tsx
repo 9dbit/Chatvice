@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { QRCodeSVG } from "qrcode.react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,8 +27,10 @@ interface VerifyResponse {
 
 interface PaymentData {
   type: string;
-  qr_string?: string;
-  va_number?: string;
+  qr_string?: string | null;
+  qris_image_url?: string | null;
+  transaction_id?: string | null;
+  va_number?: string | null;
   expiry_time: string;
 }
 
@@ -57,6 +60,42 @@ function formatRupiah(amount: number): string {
     currency: "IDR",
     minimumFractionDigits: 0,
   }).format(amount);
+}
+
+function QRDisplay({ qrString, imageUrl }: { qrString?: string | null; imageUrl?: string | null }) {
+  const [imgError, setImgError] = useState(false);
+
+  if (imageUrl && !imgError) {
+    return (
+      <img
+        src={imageUrl}
+        alt="QRIS Code"
+        className="w-56 h-56 object-contain"
+        onError={() => setImgError(true)}
+        data-testid="img-qris-code"
+      />
+    );
+  }
+
+  if (qrString) {
+    return (
+      <QRCodeSVG
+        value={qrString}
+        size={224}
+        level="M"
+        data-testid="svg-qris-code"
+      />
+    );
+  }
+
+  return (
+    <div className="w-56 h-56 flex items-center justify-center bg-muted rounded-lg">
+      <div className="text-center text-muted-foreground">
+        <QrCode className="h-12 w-12 mx-auto mb-2" />
+        <p className="text-sm">QR Code tidak tersedia</p>
+      </div>
+    </div>
+  );
 }
 
 export default function TopupPage() {
@@ -132,6 +171,9 @@ export default function TopupPage() {
   useEffect(() => {
     if (statusQuery.data?.status === "COMPLETED" || statusQuery.data?.status === "PAID") {
       setStep("status");
+    } else if (statusQuery.data?.status === "EXPIRED" || statusQuery.data?.status === "FAILED" || statusQuery.data?.status === "CANCELLED") {
+      setErrorMessage("Pembayaran gagal atau telah kadaluarsa. Silakan coba lagi.");
+      setStep("error");
     }
   }, [statusQuery.data?.status]);
 
@@ -319,6 +361,7 @@ export default function TopupPage() {
 
   if (step === "payment" && paymentData) {
     const expiryTime = new Date(paymentData.expiry_time);
+    const deepLinkId = paymentData.transaction_id || orderId;
     
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4" data-testid="topup-payment">
@@ -335,31 +378,22 @@ export default function TopupPage() {
 
           <Card>
             <CardHeader className="text-center">
-              <div className="mx-auto bg-primary/10 rounded-full p-4 w-fit mb-4">
-                <QrCode className="h-12 w-12 text-primary" />
-              </div>
               <CardTitle>Scan QRIS untuk Bayar</CardTitle>
               <CardDescription>
                 Total: {formatRupiah(selectedNominal?.amount || 0)}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-white p-6 rounded-lg flex items-center justify-center border">
-                <div className="text-center">
-                  <div className="bg-gray-100 p-4 rounded-lg mb-4">
-                    <p className="font-mono text-xs break-all text-gray-600">
-                      {paymentData.qr_string?.substring(0, 100)}...
-                    </p>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    QR Code akan ditampilkan di sini
-                  </p>
-                </div>
+              <div className="bg-white p-6 rounded-lg flex items-center justify-center border" data-testid="div-qr-container">
+                <QRDisplay
+                  qrString={paymentData.qr_string}
+                  imageUrl={paymentData.qris_image_url}
+                />
               </div>
 
               <div className="flex items-center justify-center gap-2 text-orange-600">
                 <Clock className="h-4 w-4" />
-                <span className="text-sm">
+                <span className="text-sm" data-testid="text-expiry-time">
                   Berlaku hingga: {expiryTime.toLocaleString("id-ID")}
                 </span>
               </div>
@@ -370,7 +404,7 @@ export default function TopupPage() {
                   variant="outline"
                   className="w-full flex items-center justify-center gap-2"
                   onClick={() => {
-                    const deepLink = `https://pay.12pay.id/pay?order_id=${orderId}&amount=${selectedNominal?.amount}`;
+                    const deepLink = `https://pay.12pay.id/pay?order_id=${deepLinkId}&amount=${selectedNominal?.amount}`;
                     window.open(deepLink, "_blank");
                   }}
                   data-testid="button-twelvepay-link"
@@ -427,9 +461,9 @@ export default function TopupPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-2">
-            <p className="text-sm text-muted-foreground">Order ID: {orderId}</p>
+            <p className="text-sm text-muted-foreground" data-testid="text-order-id">Order ID: {orderId}</p>
             {statusQuery.data?.paid_at && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground" data-testid="text-paid-at">
                 Dibayar: {new Date(statusQuery.data.paid_at).toLocaleString("id-ID")}
               </p>
             )}

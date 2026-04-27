@@ -21311,20 +21311,54 @@ Your Telegram integration is working correctly!`;
         expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
       });
       
-      // TODO: Call 12Pay API here when integrated
-      // For now, simulate payment data
-      const paymentData = {
-        type: "QRIS",
-        qr_string: `00020101021126670016ID.CO.12PAY.WWW0118${orderId}0215TOPUP${amount}5802ID5925CHATVICE6007JAKARTA61051234062070703A0163044B2C`,
-        va_number: null,
-        expiry_time: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-      };
+      // Call 12Pay API to create QRIS payment
+      const { isPaymentGatewayConfigured, createQRISPayment: createQRIS } = await import("./twelvePayClient");
+      const gatewayConfigured = await isPaymentGatewayConfigured();
       
-      // Update order with payment data
-      await storage.updateCoinOrder(order.id, {
-        paymentType: "QRIS",
-        paymentData: paymentData as any,
-      });
+      let paymentData: {
+        type: string;
+        qr_string: string | null;
+        qris_image_url: string | null;
+        transaction_id: string | null;
+        va_number: null;
+        expiry_time: string;
+      };
+
+      if (gatewayConfigured) {
+        const qrisResult = await createQRIS({
+          merchantId: decoded.merchant_id,
+          orderId,
+          amount,
+          description: `Top-up coins`,
+          expiryMinutes: 30,
+          callbackUrl: `${process.env.APP_URL || ""}/webhook/twelvepay`,
+        });
+
+        if (!qrisResult.success || !qrisResult.data) {
+          console.error("12Pay QRIS creation failed:", qrisResult.error);
+          return res.status(502).json({ error: qrisResult.error || "Gagal membuat pembayaran. Silakan coba lagi." });
+        }
+
+        paymentData = {
+          type: "QRIS",
+          qr_string: qrisResult.data.qrisString || null,
+          qris_image_url: qrisResult.data.qrisImageUrl || null,
+          transaction_id: qrisResult.data.transactionId || null,
+          va_number: null,
+          expiry_time: qrisResult.data.expiryTime,
+        };
+
+        // Store gateway reference for status checks
+        await storage.updateCoinOrder(order.id, {
+          paymentType: "QRIS",
+          paymentData: paymentData as any,
+          gatewayRef: qrisResult.data.transactionId || null,
+        });
+      } else {
+        // Gateway not configured — return error so admin knows to configure it
+        console.error("Payment gateway not configured. Cannot create QRIS order.");
+        return res.status(503).json({ error: "Payment gateway belum dikonfigurasi. Hubungi administrator." });
+      }
       
       res.json({
         success: true,
@@ -21353,6 +21387,60 @@ Your Telegram integration is working correctly!`;
       if (!order) {
         return res.status(404).json({ error: "Order not found" });
       }
+
+      // If order is still PENDING and has a gateway ref, check 12Pay directly
+      // This acts as a fallback if the webhook was delayed or missed
+      if (order.status === "PENDING" && order.gatewayRef) {
+        try {
+          const { checkPaymentStatus } = await import("./twelvePayClient");
+          const gatewayStatus = await checkPaymentStatus(order.gatewayRef);
+          if (gatewayStatus.success && gatewayStatus.data) {
+            const gwStatus = gatewayStatus.data.status?.toUpperCase();
+            if (gwStatus === "PAID" || gwStatus === "SUCCESS" || gwStatus === "SETTLEMENT") {
+              await storage.updateCoinOrder(order.id, {
+                status: "PAID",
+                paidAt: gatewayStatus.data.paidAt ? new Date(gatewayStatus.data.paidAt) : new Date(),
+                paymentType: gatewayStatus.data.paymentMethod || order.paymentType,
+              });
+              // Mark as COMPLETED immediately (no coin API yet)
+              await storage.updateCoinOrder(order.id, {
+                status: "COMPLETED",
+                creditedAt: new Date(),
+              });
+              // Re-fetch updated order
+              const updatedOrder = await storage.getCoinOrderByOrderId(order_id);
+              return res.json({
+                success: true,
+                order_id: updatedOrder!.orderId,
+                status: updatedOrder!.status,
+                amount: updatedOrder!.amount,
+                payment_type: updatedOrder!.paymentType,
+                paid_at: updatedOrder!.paidAt,
+                credited_at: updatedOrder!.creditedAt,
+                return_url: updatedOrder!.returnUrl,
+              });
+            } else if (gwStatus === "EXPIRED" || gwStatus === "FAILED" || gwStatus === "CANCELLED") {
+              await storage.updateCoinOrder(order.id, {
+                status: gwStatus,
+                errorMessage: `Payment ${gwStatus.toLowerCase()} via gateway`,
+              });
+              const updatedOrder = await storage.getCoinOrderByOrderId(order_id);
+              return res.json({
+                success: true,
+                order_id: updatedOrder!.orderId,
+                status: updatedOrder!.status,
+                amount: updatedOrder!.amount,
+                payment_type: updatedOrder!.paymentType,
+                paid_at: updatedOrder!.paidAt,
+                credited_at: updatedOrder!.creditedAt,
+                return_url: updatedOrder!.returnUrl,
+              });
+            }
+          }
+        } catch (gwError) {
+          console.warn("Gateway status check failed, using DB status:", gwError);
+        }
+      }
       
       res.json({
         success: true,
@@ -21370,18 +21458,32 @@ Your Telegram integration is working correctly!`;
     }
   });
   
-  // 12Pay webhook (placeholder - will be implemented when API key is available)
+  // 12Pay webhook — receives payment status updates from 12Pay gateway
   app.post("/webhook/twelvepay", async (req, res) => {
     try {
       const { order_id, status, amount, payment_type, payment_ref, signature } = req.body;
       
       console.log("12Pay webhook received:", { order_id, status, amount, payment_type });
-      
-      // TODO: Verify signature with 12Pay secret
-      // const isValid = verify12PaySignature(req.body, TWELVEPAY_SECRET);
-      // if (!isValid) {
-      //   return res.status(401).json({ error: "Invalid signature" });
-      // }
+
+      // Verify webhook signature — mandatory on every request to prevent forged status updates
+      // 12Pay sends HMAC-SHA256 via Signature and Request-Timestamp headers
+      const receivedSignature = (req.headers["signature"] as string) || "";
+      const reqTimestamp = (req.headers["request-timestamp"] as string) || "";
+      if (!receivedSignature || !reqTimestamp) {
+        console.warn("12Pay webhook: missing Signature or Request-Timestamp headers — rejecting");
+        return res.status(401).json({ error: "Missing authentication headers" });
+      }
+      const { verifyWebhookSignatureAsync } = await import("./twelvePayClient");
+      // Use raw body bytes captured by express.json's verify() to avoid JSON
+      // canonicalization mismatches (key ordering, whitespace, etc.)
+      const rawPayload: Buffer | string = (req as any).rawBody instanceof Buffer
+        ? (req as any).rawBody
+        : JSON.stringify(req.body);
+      const isValid = await verifyWebhookSignatureAsync(rawPayload, reqTimestamp, receivedSignature, "/webhook/twelvepay");
+      if (!isValid) {
+        console.warn("12Pay webhook: signature mismatch — rejecting");
+        return res.status(401).json({ error: "Invalid signature" });
+      }
       
       // Find order
       const order = await storage.getCoinOrderByOrderId(order_id);

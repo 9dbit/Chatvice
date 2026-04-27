@@ -889,6 +889,34 @@ export function verifyWebhookSignature(
   }
 }
 
+/**
+ * Async version of webhook signature verification — loads gateway credentials
+ * from database so it works even when the in-memory cache is cold.
+ * @param rawPayload  The exact raw request body bytes (as string/Buffer) received from 12Pay
+ * @param timestamp   Value of the Request-Timestamp header sent by 12Pay
+ * @param receivedSignature  Value of the Signature header sent by 12Pay
+ * @param webhookPath  The URL path 12Pay was configured to POST to (e.g. "/webhook/twelvepay")
+ * Returns false (invalid) if credentials cannot be loaded or signature doesn't match.
+ */
+export async function verifyWebhookSignatureAsync(
+  rawPayload: string | Buffer,
+  timestamp: string,
+  receivedSignature: string,
+  webhookPath: string = '/webhook/twelvepay',
+): Promise<boolean> {
+  try {
+    const { clientKey, clientSecret } = await getGatewayCredentials();
+    const payloadStr = Buffer.isBuffer(rawPayload) ? rawPayload.toString('utf8') : rawPayload;
+    const expectedSignature = generateSignatureWithCredentials(payloadStr, timestamp, clientKey, clientSecret, webhookPath);
+    return crypto.timingSafeEqual(
+      Buffer.from(expectedSignature),
+      Buffer.from(receivedSignature)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function isPaymentGatewayConfigured(): Promise<boolean> {
   try {
     const gateway = await storage.getDefaultPaymentGateway();
