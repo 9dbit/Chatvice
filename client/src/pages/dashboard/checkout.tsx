@@ -354,6 +354,14 @@ export default function CheckoutPage() {
     if (!gk || !gatewayStatus?.availableMethods) return false;
     return !gatewayStatus.availableMethods.includes(gk);
   };
+
+  // Auto-switch selected payment method if the current one is not registered
+  useEffect(() => {
+    if (!gatewayStatus?.availableMethods) return;
+    if (!isMethodNotRegistered(selectedPaymentMethod)) return;
+    const fallback = PAYMENT_METHODS.find(m => m.available && !isMethodNotRegistered(m.id));
+    if (fallback) setSelectedPaymentMethod(fallback.id);
+  }, [gatewayStatus]);
   
   const { data: exchangeRateData, isLoading: exchangeLoading } = useQuery<ExchangeRateData>({
     queryKey: ["/api/exchange-rate"],

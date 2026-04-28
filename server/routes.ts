@@ -13209,6 +13209,8 @@ Rules:
         apiBaseUrl,
         supportedMethods: ["QRIS", "Virtual Account (BCA, BNI, BRI, Mandiri, Permata)"],
         lastUpdated: await storage.getPlatformSetting("payment_config_updated"),
+        methodStatus: (dbConfig.methodStatus as Record<string, string>) || null,
+        availableMethods: (dbConfig.availableMethods as string[]) || null,
       });
     } catch (error) {
       console.error("Get payment config error:", error);

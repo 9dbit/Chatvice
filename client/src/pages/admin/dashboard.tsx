@@ -7666,6 +7666,8 @@ interface PaymentConfig {
   apiBaseUrl: string;
   supportedMethods: string[];
   lastUpdated: string | null;
+  methodStatus: Record<string, string> | null;
+  availableMethods: string[] | null;
 }
 
 interface PaymentStats {
@@ -7936,33 +7938,51 @@ function GatewayCredentialsCard({ toast }: { toast: any }) {
           </div>
         </div>
 
-        {testResult && (
-          <div className={`p-3 rounded-lg text-sm ${testResult.success ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-red-500/10 text-red-700 dark:text-red-400'}`}>
-            <div className="flex items-center gap-2 mb-2">
-              {testResult.success ? <CheckCircle className="w-4 h-4 shrink-0" /> : <XCircle className="w-4 h-4 shrink-0" />}
-              <span>{testResult.message}</span>
-            </div>
-            {testResult.methodStatus && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {Object.entries(testResult.methodStatus).map(([key, status]) => {
-                  const label = key === 'qris' ? 'QRIS' : key === 'va' ? 'Virtual Account' : 'Payment Link';
-                  const isActive = status === 'active';
-                  const isNotReg = status === 'not_registered';
-                  return (
-                    <Badge
-                      key={key}
-                      variant="outline"
-                      className={isActive ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30' : isNotReg ? 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30' : 'bg-muted/50 text-muted-foreground'}
-                    >
-                      {isActive ? <CheckCircle className="w-3 h-3 mr-1" /> : isNotReg ? <XCircle className="w-3 h-3 mr-1" /> : null}
-                      {label}
-                    </Badge>
-                  );
-                })}
+        {/* Method status: prefer freshly-tested data, fall back to persisted config, otherwise show guidance */}
+        {(() => {
+          const ms = testResult?.methodStatus || config?.methodStatus;
+          const methodKeys = ['qris', 'va', 'payment_link'] as const;
+          const methodLabel = (k: string) => k === 'qris' ? 'QRIS' : k === 'va' ? 'Virtual Account' : 'Payment Link';
+          if (ms) {
+            return (
+              <div className="p-3 rounded-lg border bg-muted/30 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Payment Method Status</p>
+                <div className="flex flex-wrap gap-1">
+                  {methodKeys.map(key => {
+                    const status = ms[key] || 'unknown';
+                    const isActive = status === 'active';
+                    const isNotReg = status === 'not_registered';
+                    return (
+                      <Badge
+                        key={key}
+                        variant="outline"
+                        className={isActive ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30' : isNotReg ? 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30' : 'bg-muted/50 text-muted-foreground border-border'}
+                      >
+                        {isActive ? <CheckCircle className="w-3 h-3 mr-1" /> : isNotReg ? <XCircle className="w-3 h-3 mr-1" /> : null}
+                        {methodLabel(key)}{status === 'unknown' ? ' (unknown)' : ''}
+                      </Badge>
+                    );
+                  })}
+                </div>
+                {testResult && (
+                  <p className={`text-xs ${testResult.success ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
+                    {testResult.success ? <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3" /> {testResult.message}</span> : <span className="flex items-center gap-1"><XCircle className="w-3 h-3" /> {testResult.message}</span>}
+                  </p>
+                )}
               </div>
-            )}
-          </div>
-        )}
+            );
+          }
+          if (config?.isConfigured) {
+            return (
+              <div className="p-3 rounded-lg border bg-muted/30">
+                <p className="text-xs text-muted-foreground">
+                  Payment method availability not yet checked. Click <strong>Test Connection</strong> to detect which methods are active on your 12Pay account.
+                </p>
+              </div>
+            );
+          }
+          return null;
+        })()}
 
         <div className="p-4 bg-muted/50 rounded-lg">
           <p className="text-sm font-medium mb-2">How to Update Credentials</p>
