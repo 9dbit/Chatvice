@@ -8973,7 +8973,7 @@ Rules:
             paymentResult = await createQRISPayment({
               merchantId: merchant.id, orderId: numericOrderId, amount: priceIDR,
               customerName: merchant.companyName, customerEmail: merchant.email,
-              description: addonDescription, expiryMinutes: 5, callbackUrl, metadata: addonMetadata,
+              description: addonDescription, expiryMinutes: 30, callbackUrl, metadata: addonMetadata,
             });
             if (!paymentResult.success || !paymentResult.data) {
               return res.status(500).json({ error: paymentResult.error || "Failed to create QRIS payment" });
@@ -11024,10 +11024,11 @@ Rules:
       }
       
       if (statusResult.data?.status === 'PAID' || statusResult.data?.status === 'SETTLED') {
-        const orderId = statusResult.data.orderId || '';
-        const parts = orderId.split('_');
-        const planId = parts[2] as SubscriptionPlanId;
-        const billingInterval = parts[3] || 'monthly';
+        // Get plan info from local transaction DB record (not from orderId which is now a short numeric ID)
+        const localTx = await storage.getPaymentTransactionByExternalId(merchant.pendingTransactionId);
+        const gr = (localTx?.gatewayResponse as Record<string, any>) || {};
+        const planId = (localTx?.planId || gr.planId || '') as SubscriptionPlanId;
+        const billingInterval = gr.billingInterval || (localTx?.subscriptionMonths === 12 ? 'annual' : 'monthly');
         
         if (planId && subscriptionPlans[planId]) {
           const periodEnd = new Date();
