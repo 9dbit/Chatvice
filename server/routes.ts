@@ -13544,10 +13544,10 @@ Rules:
         }
       }
 
-      if (!clientKey || !clientSecret) {
+      if (!clientKey) {
         return res.json({
           success: false,
-          error: `Gateway "${gateway.name}" credentials not configured. Please set Client Key and Client Secret in the gateway settings.`,
+          error: `Gateway "${gateway.name}" Client Key is not configured. Please set a Client Key in the gateway settings.`,
           rawResponse: null,
         });
       }
@@ -13580,7 +13580,7 @@ Rules:
         if (httpStatus === 401 || httpStatus === 403) {
           return res.json({
             success: false,
-            error: `Authentication failed (HTTP ${httpStatus}) — check your Client Key and Client Secret`,
+            error: `Authentication failed (HTTP ${httpStatus}) — your Client Key was not accepted by 12Pay`,
             rawResponse,
           });
         }
