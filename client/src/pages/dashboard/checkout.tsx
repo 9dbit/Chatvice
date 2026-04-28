@@ -1765,6 +1765,29 @@ export default function CheckoutPage() {
                     );
                   })}
                   
+                  {/* Pending activation notice — shown when any gateway method is not_registered */}
+                  {gatewayStatus?.methodStatus && Object.values(gatewayStatus.methodStatus).some(s => s === 'not_registered') && (
+                    <div className="flex gap-2 mt-2 p-2.5 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800" data-testid="banner-methods-not-registered">
+                      <Info className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-[10px] font-medium text-amber-800 dark:text-amber-300 leading-snug">
+                          {(() => {
+                            const METHOD_LABELS: Record<string, string> = { qris: 'QRIS', va: 'Virtual Account', payment_link: 'Payment Link' };
+                            const pending = Object.entries(gatewayStatus.methodStatus!)
+                              .filter(([, s]) => s === 'not_registered')
+                              .map(([k]) => METHOD_LABELS[k] ?? k);
+                            return pending.length === 1
+                              ? `${pending[0]} is pending activation`
+                              : `${pending.join(' and ')} are pending activation`;
+                          })()}
+                        </p>
+                        <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-0.5">
+                          These payment methods have not yet been registered with the payment gateway. Please contact support to activate them.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="pt-2 mt-2 border-t border-border/50">
                     <p className="text-[10px] text-muted-foreground mb-2">Coming Soon</p>
                     {PAYMENT_METHODS.filter(m => !m.available).map((method) => (
