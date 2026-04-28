@@ -13517,6 +13517,100 @@ Rules:
     }
   });
 
+  // Test payment gateway connection by ID
+  app.post("/api/admin/payment/gateways/:id/test", requireAdmin, async (req, res) => {
+    try {
+      const gateway = await storage.getPaymentGateway(req.params.id);
+      if (!gateway) {
+        return res.status(404).json({ success: false, error: "Gateway not found" });
+      }
+
+      const config = gateway.config as Record<string, any> || {};
+      let clientKey = config.clientKey || '';
+      let clientSecret = config.clientSecret || '';
+
+      if (!clientKey && gateway.clientKeyEnvVar) {
+        if (gateway.clientKeyEnvVar.startsWith('CK-') || gateway.clientKeyEnvVar.includes('-')) {
+          clientKey = gateway.clientKeyEnvVar;
+        } else {
+          clientKey = process.env[gateway.clientKeyEnvVar] || '';
+        }
+      }
+      if (!clientSecret && gateway.clientSecretEnvVar) {
+        if (gateway.clientSecretEnvVar.startsWith('SK-') || gateway.clientSecretEnvVar.includes('-')) {
+          clientSecret = gateway.clientSecretEnvVar;
+        } else {
+          clientSecret = process.env[gateway.clientSecretEnvVar] || '';
+        }
+      }
+
+      if (!clientKey || !clientSecret) {
+        return res.json({
+          success: false,
+          error: `Gateway "${gateway.name}" credentials not configured. Please set Client Key and Client Secret in the gateway settings.`,
+          rawResponse: null,
+        });
+      }
+
+      const apiBaseUrl = config.apiBaseUrl || config.baseUrl || 'https://api.12pay.id';
+      const crypto = await import("crypto");
+      const requestTarget = '/partner/balance';
+      const timestamp = new Date().toISOString();
+      const bodyDigest = crypto.createHash('sha256').update('').digest('base64');
+      const stringToSign = [
+        `Client-Key:${clientKey}`,
+        `Request-Timestamp:${timestamp}`,
+        `Request-Target:${requestTarget}`,
+        `Digest:${bodyDigest}`
+      ].join('\n');
+      const signature = crypto.createHmac('sha256', clientSecret).update(stringToSign).digest('hex');
+
+      let rawResponse: any = null;
+      let httpStatus: number = 0;
+      try {
+        const response = await fetch(`${apiBaseUrl}${requestTarget}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Client-Key': clientKey,
+            'Request-Timestamp': timestamp,
+            'Signature': signature,
+          },
+        });
+        httpStatus = response.status;
+        const responseText = await response.text().catch(() => '');
+        try {
+          rawResponse = JSON.parse(responseText);
+        } catch {
+          rawResponse = responseText || null;
+        }
+
+        if (response.ok) {
+          return res.json({
+            success: true,
+            message: `Connection successful (HTTP ${httpStatus})`,
+            rawResponse,
+          });
+        } else {
+          return res.json({
+            success: false,
+            error: `Request failed with HTTP ${httpStatus}`,
+            rawResponse,
+          });
+        }
+      } catch (fetchError: any) {
+        return res.json({
+          success: false,
+          error: fetchError.message || 'Network error — could not reach gateway',
+          rawResponse: null,
+        });
+      }
+    } catch (error: any) {
+      console.error("Gateway connection test error:", error);
+      res.status(500).json({ success: false, error: "Server error", rawResponse: null });
+    }
+  });
+
   // Payment Transactions - Admin view all transactions
   app.get("/api/admin/payment/transactions", requireAdmin, async (req, res) => {
     try {

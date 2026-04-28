@@ -7960,6 +7960,8 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingGateway, setEditingGateway] = useState<PaymentGateway | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [testingGatewayId, setTestingGatewayId] = useState<string | null>(null);
+  const [gatewayTestResults, setGatewayTestResults] = useState<Record<string, { success: boolean; message?: string; error?: string; rawResponse: any } | null>>({});
   
   const { data: gateways, isLoading: gatewaysLoading } = useQuery<PaymentGateway[]>({
     queryKey: ["/api/admin/payment/gateways"],
@@ -8048,6 +8050,23 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
+
+  const handleTestGatewayConnection = async (gatewayId: string) => {
+    setTestingGatewayId(gatewayId);
+    setGatewayTestResults(prev => ({ ...prev, [gatewayId]: null }));
+    try {
+      const response = await apiRequest("POST", `/api/admin/payment/gateways/${gatewayId}/test`);
+      const result = await response.json();
+      setGatewayTestResults(prev => ({ ...prev, [gatewayId]: result }));
+    } catch (error: any) {
+      setGatewayTestResults(prev => ({
+        ...prev,
+        [gatewayId]: { success: false, error: error.message || "Connection test failed", rawResponse: null },
+      }));
+    } finally {
+      setTestingGatewayId(null);
+    }
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -8244,6 +8263,26 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
                         Set Default
                       </Button>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-fit"
+                      onClick={() => handleTestGatewayConnection(gateway.id)}
+                      disabled={testingGatewayId === gateway.id}
+                      data-testid={`button-test-gateway-${gateway.id}`}
+                    >
+                      {testingGatewayId === gateway.id ? (
+                        <>
+                          <RefreshCw className="w-3 h-3 mr-1.5 animate-spin" />
+                          Testing...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-3 h-3 mr-1.5" />
+                          Test Connection
+                        </>
+                      )}
+                    </Button>
                   </div>
                   
                   {/* Supported Methods */}
@@ -8252,6 +8291,31 @@ function PaymentIntegrationTab({ toast }: { toast: any }) {
                       {gateway.supportedMethods.map((method, i) => (
                         <Badge key={i} variant="outline" className="text-xs">{method}</Badge>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Test Connection Result */}
+                  {gatewayTestResults[gateway.id] && (
+                    <div className="pl-9 sm:pl-14">
+                      <div className={`p-3 rounded-lg text-sm ${gatewayTestResults[gateway.id]!.success ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-red-500/10 text-red-700 dark:text-red-400'}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          {gatewayTestResults[gateway.id]!.success ? (
+                            <CheckCircle className="w-4 h-4 shrink-0" />
+                          ) : (
+                            <XCircle className="w-4 h-4 shrink-0" />
+                          )}
+                          <span className="font-medium">
+                            {gatewayTestResults[gateway.id]!.success
+                              ? gatewayTestResults[gateway.id]!.message
+                              : gatewayTestResults[gateway.id]!.error}
+                          </span>
+                        </div>
+                        {gatewayTestResults[gateway.id]!.rawResponse !== null && (
+                          <pre className="mt-2 text-xs overflow-x-auto whitespace-pre-wrap break-all opacity-80 bg-black/10 dark:bg-white/10 rounded p-2">
+                            {JSON.stringify(gatewayTestResults[gateway.id]!.rawResponse, null, 2)}
+                          </pre>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
