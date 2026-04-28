@@ -338,7 +338,8 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
       || (typeof data.status === 'string' && data.status !== '200' && data.status !== 'success' && data.status !== 'ok');
 
     if (isErrorStatus) {
-      console.error(`${gatewayName} QRIS creation error response:`, data);
+      console.error(`${gatewayName} QRIS creation error response:`, JSON.stringify(data));
+      const errorsField = Array.isArray(data.errors) ? data.errors.join('; ') : (data.errors || null);
       const errorMsg =
         data.message ||
         data.error ||
@@ -347,10 +348,12 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
         data.error_message ||
         data.msg ||
         data.description ||
+        data.detail ||
+        errorsField ||
         data.code ||
         data.reason ||
-        (data.status ? `Status: ${data.status}` : null) ||
         JSON.stringify(data) ||
+        (data.status ? `Status: ${data.status}` : null) ||
         'Failed to create QRIS';
       return {
         success: false,
@@ -507,7 +510,8 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
       || (typeof data.status === 'string' && data.status !== '200' && data.status !== 'success' && data.status !== 'ok');
 
     if (isVAErrorStatus) {
-      console.error(`${gatewayName} VA creation error response:`, data);
+      console.error(`${gatewayName} VA creation error response:`, JSON.stringify(data));
+      const errorsField = Array.isArray(data.errors) ? data.errors.join('; ') : (data.errors || null);
       const errorMsg =
         data.message ||
         data.error ||
@@ -516,10 +520,12 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
         data.error_message ||
         data.msg ||
         data.description ||
+        data.detail ||
+        errorsField ||
         data.code ||
         data.reason ||
-        (data.status ? `Status: ${data.status}` : null) ||
         JSON.stringify(data) ||
+        (data.status ? `Status: ${data.status}` : null) ||
         'Failed to create Virtual Account';
       return {
         success: false,
@@ -808,22 +814,17 @@ export async function createPaymentLinkPayment(request: CreatePaymentLinkRequest
 
 export async function checkPaymentStatus(transactionId: string): Promise<PaymentStatusResponse> {
   try {
-    const { clientKey, clientSecret, gatewayName, apiBaseUrl } = await getGatewayCredentials();
-    const timestamp = generateTimestamp();
-    const requestTarget = `/partner/transaction/status/${transactionId}`;
-    const signature = generateSignatureWithCredentials('', timestamp, clientKey, clientSecret, requestTarget);
+    const { clientKey, apiBaseUrl } = await getGatewayCredentials();
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
     
     let response: Response;
     try {
-      response = await fetch(`${apiBaseUrl}${requestTarget}`, {
+      response = await fetch(`${apiBaseUrl}/transaction/check-status?identifier_id=${encodeURIComponent(transactionId)}`, {
         method: 'GET',
         headers: {
           'Client-key': clientKey,
-          'Request-Timestamp': timestamp,
-          'Signature': signature,
         },
         signal: controller.signal,
       });
@@ -844,47 +845,49 @@ export async function checkPaymentStatus(transactionId: string): Promise<Payment
     }
     clearTimeout(timeoutId);
     
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) {
-      const textResponse = await response.text();
+    let rawText = '';
+    let data: any;
+    try {
+      rawText = await response.text();
+      data = JSON.parse(rawText);
+    } catch {
       console.warn('Payment status returned non-JSON response:', {
         status: response.status,
-        contentType,
-        preview: textResponse.substring(0, 200),
+        preview: rawText.substring(0, 200),
       });
-      
-      if (textResponse.includes('<!DOCTYPE') || textResponse.includes('<html')) {
-        return {
-          success: false,
-          error: 'Gateway returned error page - status check unavailable',
-        };
-      }
-      
       return {
         success: false,
         error: 'Unexpected response format from gateway',
       };
     }
 
-    const data = await response.json();
-    
-    if (!response.ok) {
+    console.log('Payment status check response:', JSON.stringify(data));
+
+    if (!response.ok || (typeof data.status === 'number' && data.status !== 200)) {
       console.warn('Payment status API error:', data);
       return {
         success: false,
-        error: data.message || 'Failed to check status',
+        error: data.message || JSON.stringify(data) || 'Failed to check status',
       };
     }
     
+    const responseData = data.data || data;
+    const rawStatus = (responseData.status || '').toUpperCase();
+    const normalizedStatus: 'PENDING' | 'PAID' | 'EXPIRED' | 'CANCELLED' | 'FAILED' =
+      rawStatus === 'PAID' || rawStatus === 'SETTLED' ? 'PAID' :
+      rawStatus === 'EXPIRED' ? 'EXPIRED' :
+      rawStatus === 'CANCELLED' || rawStatus === 'FAILED' ? 'FAILED' :
+      'PENDING';
+
     return {
       success: true,
       data: {
-        transactionId: data.transaction_id || transactionId,
-        orderId: data.external_id || data.order_id,
-        amount: data.amount,
-        status: data.status?.toUpperCase() || 'PENDING',
-        paidAt: data.paid_at,
-        paymentMethod: data.payment_method,
+        transactionId: responseData.identifier_id || transactionId,
+        orderId: responseData.identifier_id || transactionId,
+        amount: parseFloat(responseData.amount) || 0,
+        status: normalizedStatus,
+        paidAt: responseData.transaction_time,
+        paymentMethod: responseData.payment_code || responseData.bank_name,
       },
     };
   } catch (error: any) {

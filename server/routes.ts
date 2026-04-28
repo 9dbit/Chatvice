@@ -8803,7 +8803,7 @@ Rules:
       
       const timestamp = Date.now();
       const orderId = `SUB_${merchant.id}_${planId}_${billingInterval}_${timestamp}`;
-      const numericOrderId = timestamp.toString().slice(-15) + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      const numericOrderId = String(timestamp).slice(-4) + String(Math.floor(Math.random() * 10000)).padStart(4, '0');
       
       // Use public URL for callback - prioritize forwarded headers, fallback to production
       const forwardedHost = req.get('x-forwarded-host') || req.get('host');
@@ -8957,7 +8957,7 @@ Rules:
         const priceIDR = Math.max(Math.round(addonConfig.monthlyPriceUsd * exchangeRate), 10000);
         const timestamp = Date.now();
         const orderId = `ADDON_${merchant.id}_${addonType}_${timestamp}`;
-        const numericOrderId = timestamp.toString().slice(-15) + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        const numericOrderId = String(timestamp).slice(-4) + String(Math.floor(Math.random() * 10000)).padStart(4, '0'); // 8 chars, numeric only
         const forwardedHost = req.get('x-forwarded-host') || req.get('host');
         const isLocalhost = !forwardedHost || forwardedHost.includes('localhost');
         const callbackUrl = isLocalhost
@@ -8971,7 +8971,7 @@ Rules:
         switch (paymentMethod) {
           case 'qris':
             paymentResult = await createQRISPayment({
-              merchantId: merchant.id, orderId, amount: priceIDR,
+              merchantId: merchant.id, orderId: numericOrderId, amount: priceIDR,
               customerName: merchant.companyName, customerEmail: merchant.email,
               description: addonDescription, expiryMinutes: 5, callbackUrl, metadata: addonMetadata,
             });
@@ -9227,7 +9227,7 @@ Rules:
       // Generate order ID - standard alphanumeric for QRIS, numeric-only for VA (BNI requires numeric ≤20 chars)
       const timestamp = Date.now();
       const orderId = `SUB_${merchant.id}_${planId}_${billingInterval}_${timestamp}`;
-      const numericOrderId = timestamp.toString().slice(-15) + Math.floor(Math.random() * 10000).toString().padStart(4, '0'); // 19 chars max, numeric only
+      const numericOrderId = String(timestamp).slice(-4) + String(Math.floor(Math.random() * 10000)).padStart(4, '0'); // 8 chars, numeric only
       
       const forwardedHost = req.get('x-forwarded-host') || req.get('host');
       const isLocalhost = !forwardedHost || forwardedHost.includes('localhost');
@@ -9246,7 +9246,7 @@ Rules:
             customerName: merchant.companyName,
             customerEmail: merchant.email,
             description: `Chatvice ${plan.name} - ${billingInterval === 'annual' ? 'Annual' : 'Monthly'} Subscription`,
-            expiryMinutes: 5, // QRIS: 5 minutes expiry
+            expiryMinutes: 30, // QRIS: 30 minutes expiry (12Pay may reject shorter windows)
             callbackUrl,
             metadata: { 
               merchantId: merchant.id, 
