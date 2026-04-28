@@ -8530,6 +8530,7 @@ function GatewayForm({
               value={clientKey}
               onChange={(e) => setClientKey(e.target.value)}
               placeholder={hasExistingClientKey ? "Enter new value to replace" : "Paste your Client Key"}
+              autoComplete="off"
               data-testid="input-client-key"
             />
             {hasExistingClientKey && (
@@ -8550,6 +8551,7 @@ function GatewayForm({
               value={clientSecret}
               onChange={(e) => setClientSecret(e.target.value)}
               placeholder={hasExistingClientSecret ? "Enter new value to replace" : "Paste your Client Secret"}
+              autoComplete="new-password"
               data-testid="input-client-secret"
             />
             {hasExistingClientSecret && (
