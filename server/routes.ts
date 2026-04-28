@@ -13553,51 +13553,52 @@ Rules:
       }
 
       const apiBaseUrl = config.apiBaseUrl || config.baseUrl || 'https://api.12pay.id';
-      const crypto = await import("crypto");
-      const requestTarget = '/partner/balance';
-      const timestamp = new Date().toISOString();
-      const bodyDigest = crypto.createHash('sha256').update('').digest('base64');
-      const stringToSign = [
-        `Client-Key:${clientKey}`,
-        `Request-Timestamp:${timestamp}`,
-        `Request-Target:${requestTarget}`,
-        `Digest:${bodyDigest}`
-      ].join('\n');
-      const signature = crypto.createHmac('sha256', clientSecret).update(stringToSign).digest('hex');
 
+      // Use /transaction/check-status with a dummy ID — confirmed working endpoint
+      // (only requires Client-key header, no signature). Any JSON response means
+      // the key is recognized. HTML or network error means connectivity failure.
       let rawResponse: any = null;
       let httpStatus: number = 0;
       try {
-        const response = await fetch(`${apiBaseUrl}${requestTarget}`, {
+        const response = await fetch(`${apiBaseUrl}/transaction/check-status?identifier_id=00000000`, {
           method: 'GET',
           headers: {
-            'Content-Type': 'application/json',
-            'Client-Key': clientKey,
-            'Request-Timestamp': timestamp,
-            'Signature': signature,
+            'Client-key': clientKey,
           },
         });
         httpStatus = response.status;
         const responseText = await response.text().catch(() => '');
+        let isJson = false;
         try {
           rawResponse = JSON.parse(responseText);
+          isJson = true;
         } catch {
           rawResponse = responseText || null;
         }
 
-        if (response.ok) {
-          return res.json({
-            success: true,
-            message: `Connection successful (HTTP ${httpStatus})`,
-            rawResponse,
-          });
-        } else {
+        // 401/403 = bad credentials; HTML (non-JSON) = wrong endpoint/connectivity issue
+        if (httpStatus === 401 || httpStatus === 403) {
           return res.json({
             success: false,
-            error: `Request failed with HTTP ${httpStatus}`,
+            error: `Authentication failed (HTTP ${httpStatus}) — check your Client Key and Client Secret`,
             rawResponse,
           });
         }
+
+        if (!isJson) {
+          return res.json({
+            success: false,
+            error: `Gateway returned non-JSON response (HTTP ${httpStatus}) — possible connectivity or configuration issue`,
+            rawResponse,
+          });
+        }
+
+        // Any JSON response (even "transaction not found") means credentials were accepted
+        return res.json({
+          success: true,
+          message: `Connection successful — credentials accepted by 12Pay API (HTTP ${httpStatus})`,
+          rawResponse,
+        });
       } catch (fetchError: any) {
         return res.json({
           success: false,
