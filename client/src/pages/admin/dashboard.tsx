@@ -7837,7 +7837,7 @@ function PayPalCredentialsCard({ toast }: { toast: any }) {
 
 function GatewayCredentialsCard({ toast }: { toast: any }) {
   const [isTesting, setIsTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string; methodStatus?: Record<string, string> } | null>(null);
 
   const { data: config, isLoading } = useQuery<PaymentConfig>({
     queryKey: ["/api/admin/payment/config"],
@@ -7850,7 +7850,7 @@ function GatewayCredentialsCard({ toast }: { toast: any }) {
       const response = await apiRequest("POST", "/api/admin/payment/test");
       const result = await response.json();
       if (response.ok) {
-        setTestResult({ success: true, message: result.message || "Connection successful!" });
+        setTestResult({ success: true, message: result.message || "Connection successful!", methodStatus: result.methodStatus });
         toast({ title: "Success", description: "Payment gateway connection verified." });
       } else {
         setTestResult({ success: false, message: result.error || "Connection test failed." });
@@ -7938,10 +7938,29 @@ function GatewayCredentialsCard({ toast }: { toast: any }) {
 
         {testResult && (
           <div className={`p-3 rounded-lg text-sm ${testResult.success ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-red-500/10 text-red-700 dark:text-red-400'}`}>
-            <div className="flex items-center gap-2">
-              {testResult.success ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-              {testResult.message}
+            <div className="flex items-center gap-2 mb-2">
+              {testResult.success ? <CheckCircle className="w-4 h-4 shrink-0" /> : <XCircle className="w-4 h-4 shrink-0" />}
+              <span>{testResult.message}</span>
             </div>
+            {testResult.methodStatus && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {Object.entries(testResult.methodStatus).map(([key, status]) => {
+                  const label = key === 'qris' ? 'QRIS' : key === 'va' ? 'Virtual Account' : 'Payment Link';
+                  const isActive = status === 'active';
+                  const isNotReg = status === 'not_registered';
+                  return (
+                    <Badge
+                      key={key}
+                      variant="outline"
+                      className={isActive ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30' : isNotReg ? 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30' : 'bg-muted/50 text-muted-foreground'}
+                    >
+                      {isActive ? <CheckCircle className="w-3 h-3 mr-1" /> : isNotReg ? <XCircle className="w-3 h-3 mr-1" /> : null}
+                      {label}
+                    </Badge>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

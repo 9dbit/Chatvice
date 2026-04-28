@@ -8780,6 +8780,24 @@ Rules:
     }
   });
 
+  // Returns available payment methods for the default gateway (read from config after Test Connection)
+  app.get("/api/billing/gateway-status", requireMerchant, async (req, res) => {
+    try {
+      const defaultGateway = await storage.getDefaultPaymentGateway().catch(() => null);
+      if (!defaultGateway) {
+        return res.json({ configured: false, availableMethods: null, methodStatus: null });
+      }
+      const cfg = (defaultGateway.config as Record<string, any>) || {};
+      res.json({
+        configured: true,
+        availableMethods: cfg.availableMethods || null,
+        methodStatus: cfg.methodStatus || null,
+      });
+    } catch (error: any) {
+      res.json({ configured: false, availableMethods: null, methodStatus: null });
+    }
+  });
+
   app.post("/api/billing/checkout", requireMerchant, async (req, res) => {
     try {
       const { planId, billingInterval } = req.body;
@@ -8831,7 +8849,11 @@ Rules:
       
       if (!qrisResult.success || !qrisResult.data) {
         console.error("QRIS creation failed:", qrisResult.error);
-        return res.status(500).json({ error: qrisResult.error || "Failed to create payment" });
+        let qrisErrMsg = qrisResult.error || "Failed to create payment";
+        if (qrisErrMsg.includes("not registered on your merchant")) {
+          qrisErrMsg = "QRIS is not yet activated for this payment account. Please log in to the 12Pay merchant dashboard and activate QRIS, or choose a different payment method.";
+        }
+        return res.status(400).json({ error: qrisErrMsg });
       }
       
       await storage.updateMerchantSubscription(merchant.id, {
@@ -8976,7 +8998,11 @@ Rules:
               description: addonDescription, expiryMinutes: 30, callbackUrl, metadata: addonMetadata,
             });
             if (!paymentResult.success || !paymentResult.data) {
-              return res.status(500).json({ error: paymentResult.error || "Failed to create QRIS payment" });
+              let qrisErr = paymentResult.error || "Failed to create QRIS payment";
+              if (qrisErr.includes("not registered on your merchant")) {
+                qrisErr = "QRIS is not yet activated for this payment account. Please activate QRIS in your 12Pay merchant dashboard, or choose a different payment method.";
+              }
+              return res.status(400).json({ error: qrisErr });
             }
             try {
               await storage.createPaymentTransaction({
@@ -9259,7 +9285,11 @@ Rules:
           });
           
           if (!paymentResult.success || !paymentResult.data) {
-            return res.status(500).json({ error: paymentResult.error || "Failed to create QRIS payment" });
+            let qrisErr = paymentResult.error || "Failed to create QRIS payment";
+            if (qrisErr.includes("not registered on your merchant")) {
+              qrisErr = "QRIS is not yet activated for this payment account. Please activate QRIS in your 12Pay merchant dashboard, or choose a different payment method.";
+            }
+            return res.status(400).json({ error: qrisErr });
           }
           
           // Save payment transaction to database for resume capability
@@ -9545,8 +9575,11 @@ Rules:
           console.log('[PAYMENT_LINK] createPaymentLinkPayment result:', JSON.stringify(paymentResult, null, 2));
           
           if (!paymentResult.success || !paymentResult.data) {
-            const errorMsg = paymentResult.error || "Failed to create Payment Link";
+            let errorMsg = paymentResult.error || "Failed to create Payment Link";
             console.error('[PAYMENT_LINK] Payment Link creation failed:', errorMsg);
+            if (errorMsg.includes("not registered on your merchant")) {
+              errorMsg = "Payment Link is not yet activated for this payment account. Please activate it in your 12Pay merchant dashboard, or choose a different payment method.";
+            }
             return res.status(400).json({ 
               error: errorMsg,
               gatewayName: paymentResult.gatewayName,
@@ -13201,19 +13234,70 @@ Rules:
       // Update last tested timestamp
       await storage.setPlatformSetting("payment_last_tested", new Date().toISOString());
       
-      if (testResult.success) {
-        res.json({ 
-          success: true, 
-          message: "Connection successful! Gateway is operational.",
-          balance: testResult.data?.balance,
-          currency: testResult.data?.currency || "IDR"
-        });
-      } else {
-        res.json({ 
+      if (!testResult.success) {
+        return res.json({ 
           success: false, 
           error: testResult.error || "Connection test failed. Please verify your credentials." 
         });
       }
+
+      // Probe payment methods using the default gateway credentials
+      const defaultGw = await storage.getDefaultPaymentGateway().catch(() => null);
+      const gwConfig = (defaultGw?.config as Record<string, any>) || {};
+      const gwCK: string = (gwConfig.clientKey || defaultGw?.clientKeyEnvVar && (defaultGw.clientKeyEnvVar.includes('-') ? defaultGw.clientKeyEnvVar : process.env[defaultGw.clientKeyEnvVar]) || '');
+      const gwCS: string = (gwConfig.clientSecret || defaultGw?.clientSecretEnvVar && (defaultGw.clientSecretEnvVar.includes('-') ? defaultGw.clientSecretEnvVar : process.env[defaultGw.clientSecretEnvVar]) || '');
+      const gwBase = gwConfig.apiBaseUrl || gwConfig.baseUrl || 'https://api.12pay.id';
+
+      let methodStatus: Record<string, string> | undefined;
+      let availableMethods: string[] | undefined;
+
+      if (gwCK && gwCS) {
+        const probeTs = new Date().toISOString();
+        const wibMs = 7 * 60 * 60 * 1000;
+        const probeExp = new Date(Date.now() + 30 * 60 * 1000 + wibMs).toISOString().replace('T', ' ').split('.')[0];
+        const makeProbeSig = (payload: string, target: string) => {
+          const digest = crypto.createHash('sha256').update(payload).digest('base64');
+          const str = [`Client-Key:${gwCK}`, `Request-Timestamp:${probeTs}`, `Request-Target:${target}`, `Digest:${digest}`].join('\n');
+          return crypto.createHmac('sha256', gwCS).update(str).digest('hex');
+        };
+        const probe = async (path: string, body: object): Promise<string> => {
+          try {
+            const payload = JSON.stringify(body);
+            const sig = makeProbeSig(payload, path);
+            const r = await fetch(`${gwBase}${path}`, {
+              method: 'POST', signal: AbortSignal.timeout(12000),
+              headers: { 'Content-Type': 'application/json', 'Client-key': gwCK, 'Request-Timestamp': probeTs, 'Signature': sig },
+              body: payload,
+            });
+            const txt = await r.text().catch(() => '{}');
+            let d: any = {};
+            try { d = JSON.parse(txt); } catch {}
+            const msg = [d.message, d.error, d.msg].filter(v => typeof v === 'string').join(' ').toLowerCase();
+            return msg.includes('not registered') ? 'not_registered' : 'active';
+          } catch { return 'unknown'; }
+        };
+        const probeBody = { expired: probeExp, amount: 1000, customer_phone: '081200000000', customer_email: 'test@test.com', customer_name: 'Test', url_callback: '', identifier_id: 'test001' };
+        const [qs, vs, ps] = await Promise.all([
+          probe('/partner/create/qris', probeBody),
+          probe('/partner/create/va', { ...probeBody, bank_code: '002', remark: 'Test' }),
+          probe('/partner/create/paymentlink', { ...probeBody, remark: 'Test' }),
+        ]);
+        methodStatus = { qris: qs, va: vs, payment_link: ps };
+        availableMethods = Object.entries(methodStatus).filter(([, s]) => s === 'active').map(([k]) => k);
+        if (defaultGw) {
+          await storage.updatePaymentGateway(defaultGw.id, { config: { ...gwConfig, availableMethods, methodStatus } }).catch(() => {});
+        }
+      }
+
+      await storage.setPlatformSetting("payment_last_tested", new Date().toISOString());
+      res.json({ 
+        success: true, 
+        message: "Connection successful! Gateway is operational.",
+        balance: testResult.data?.balance,
+        currency: testResult.data?.currency || "IDR",
+        methodStatus,
+        availableMethods,
+      });
     } catch (error: any) {
       console.error("Payment test error:", error);
       res.status(500).json({ 
@@ -13593,10 +13677,69 @@ Rules:
           });
         }
 
-        // Any JSON response (even "transaction not found") means credentials were accepted
+        // Any JSON response (even "transaction not found") means credentials were accepted.
+        // Now probe each payment method to check if it is registered for this merchant.
+        const probeTimestamp = new Date().toISOString();
+        const wibMs = 7 * 60 * 60 * 1000;
+        const probeExpiry = new Date(Date.now() + 30 * 60 * 1000 + wibMs).toISOString().replace('T', ' ').split('.')[0];
+
+        const makeSig = (payload: string, target: string) => {
+          const digest = crypto.createHash('sha256').update(payload).digest('base64');
+          const str = [`Client-Key:${clientKey}`, `Request-Timestamp:${probeTimestamp}`, `Request-Target:${target}`, `Digest:${digest}`].join('\n');
+          return crypto.createHmac('sha256', clientSecret).update(str).digest('hex');
+        };
+
+        const probeMethod = async (path: string, body: object): Promise<'active' | 'not_registered' | 'unknown'> => {
+          if (!clientSecret) return 'unknown';
+          try {
+            const payload = JSON.stringify(body);
+            const sig = makeSig(payload, path);
+            const r = await fetch(`${apiBaseUrl}${path}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Client-key': clientKey, 'Request-Timestamp': probeTimestamp, 'Signature': sig },
+              body: payload,
+              signal: AbortSignal.timeout(12000),
+            });
+            const txt = await r.text().catch(() => '{}');
+            let d: any = {};
+            try { d = JSON.parse(txt); } catch {}
+            const msg = [d.message, d.error, d.msg].filter(v => typeof v === 'string').join(' ').toLowerCase();
+            if (msg.includes('not registered')) return 'not_registered';
+            return 'active';
+          } catch {
+            return 'unknown';
+          }
+        };
+
+        const probeBody = { expired: probeExpiry, amount: 1000, customer_phone: '081200000000', customer_email: 'test@test.com', customer_name: 'Test', url_callback: '', identifier_id: 'test001' };
+        const [qrisStatus, vaStatus, plStatus] = await Promise.all([
+          probeMethod('/partner/create/qris', probeBody),
+          probeMethod('/partner/create/va', { ...probeBody, bank_code: '002', remark: 'Test' }),
+          probeMethod('/partner/create/paymentlink', { ...probeBody, remark: 'Test' }),
+        ]);
+
+        const methodStatus = { qris: qrisStatus, va: vaStatus, payment_link: plStatus };
+        const availableMethods = Object.entries(methodStatus).filter(([, s]) => s === 'active').map(([k]) => k);
+
+        // Persist result to gateway config so checkout page can use it
+        try {
+          await storage.updatePaymentGateway(gateway.id, {
+            config: { ...config, availableMethods, methodStatus },
+          });
+        } catch (saveErr) {
+          console.warn('Could not save availableMethods to gateway config:', saveErr);
+        }
+
+        const label = (k: string) => k === 'qris' ? 'QRIS' : k === 'va' ? 'Virtual Account' : 'Payment Link';
+        const activeNames = availableMethods.map(label).join(', ') || 'none';
+        const inactiveNames = Object.entries(methodStatus).filter(([, s]) => s === 'not_registered').map(([k]) => label(k)).join(', ');
+        const summaryMsg = `Connection verified. Active: ${activeNames}${inactiveNames ? `. Not registered: ${inactiveNames}` : ''}`;
+
         return res.json({
           success: true,
-          message: `Connection successful — credentials accepted by 12Pay API (HTTP ${httpStatus})`,
+          message: summaryMsg,
+          availableMethods,
+          methodStatus,
           rawResponse,
         });
       } catch (fetchError: any) {

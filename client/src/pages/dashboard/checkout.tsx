@@ -337,6 +337,23 @@ export default function CheckoutPage() {
   const { data: billingStatus, isLoading: billingLoading } = useQuery<BillingStatus>({
     queryKey: ["/api/billing/status"],
   });
+
+  const { data: gatewayStatus } = useQuery<{
+    configured: boolean;
+    availableMethods: string[] | null;
+    methodStatus: Record<string, string> | null;
+  }>({
+    queryKey: ["/api/billing/gateway-status"],
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Map checkout method IDs → gateway method keys
+  const CHECKOUT_TO_GATEWAY: Record<string, string> = { qris: 'qris', virtual_account: 'va', payment_link: 'payment_link' };
+  const isMethodNotRegistered = (methodId: string): boolean => {
+    const gk = CHECKOUT_TO_GATEWAY[methodId];
+    if (!gk || !gatewayStatus?.availableMethods) return false;
+    return !gatewayStatus.availableMethods.includes(gk);
+  };
   
   const { data: exchangeRateData, isLoading: exchangeLoading } = useQuery<ExchangeRateData>({
     queryKey: ["/api/exchange-rate"],
@@ -1523,7 +1540,9 @@ export default function CheckoutPage() {
                 <div className="space-y-2">
                   {PAYMENT_METHODS.filter(m => m.available).map((method) => {
                     // Disable QRIS if amount exceeds 10 million IDR limit
-                    const isDisabled = method.id === 'qris' && isQrisOverLimit;
+                    const isOverLimit = method.id === 'qris' && isQrisOverLimit;
+                    const isNotRegistered = isMethodNotRegistered(method.id);
+                    const isDisabled = isOverLimit || isNotRegistered;
                     
                     return (
                     <div key={method.id}>
@@ -1549,9 +1568,11 @@ export default function CheckoutPage() {
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm font-medium ${isDisabled ? 'text-muted-foreground' : ''}`}>{method.name}</p>
                             <p className="text-[10px] text-muted-foreground">
-                              {isDisabled 
+                              {isOverLimit
                                 ? `Max Rp ${QRIS_MAX_LIMIT_IDR.toLocaleString('id-ID')} per transaction`
-                                : method.description}
+                                : isNotRegistered
+                                  ? 'Not activated on this payment account'
+                                  : method.description}
                             </p>
                           </div>
                           <span className="text-[10px] text-muted-foreground">{method.provider}</span>
