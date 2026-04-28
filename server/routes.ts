@@ -10837,8 +10837,9 @@ Rules:
         return res.status(500).json({ error: statusResult.error || "Failed to check status" });
       }
       
-      // Gateway returned data - activate subscription if PAID but not yet activated (safety net)
-      if (statusResult.data?.status === 'PAID' && localTransaction && localTransaction.status === 'pending') {
+      // Gateway returned data - activate subscription if PAID/SETTLED but not yet activated (safety net)
+      const isPaidOrSettled = statusResult.data?.status === 'PAID' || statusResult.data?.status === 'SETTLED';
+      if (isPaidOrSettled && localTransaction && localTransaction.status === 'pending') {
         try {
           const gr = localTransaction.gatewayResponse as Record<string, any> || {};
           const txPlanId = localTransaction.planId || gr.planId;
@@ -11022,7 +11023,7 @@ Rules:
         return res.json({ synced: false, message: "Failed to check payment status" });
       }
       
-      if (statusResult.data?.status === 'PAID') {
+      if (statusResult.data?.status === 'PAID' || statusResult.data?.status === 'SETTLED') {
         const orderId = statusResult.data.orderId || '';
         const parts = orderId.split('_');
         const planId = parts[2] as SubscriptionPlanId;

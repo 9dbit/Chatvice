@@ -226,7 +226,7 @@ export interface PaymentStatusResponse {
     transactionId: string;
     orderId: string;
     amount: number;
-    status: 'PENDING' | 'PAID' | 'EXPIRED' | 'CANCELLED' | 'FAILED';
+    status: 'PENDING' | 'WAITING_FOR_PAYMENT' | 'PAID' | 'SETTLED' | 'EXPIRED' | 'CANCELLED' | 'FAILED';
     paidAt?: string;
     paymentMethod?: string;
   };
@@ -755,12 +755,35 @@ export async function createPaymentLinkPayment(request: CreatePaymentLinkRequest
     console.log(`${gatewayName} PAYMENT LINK Parsed JSON:`, JSON.stringify(data, null, 2));
     console.log('Response Keys:', Object.keys(data));
     
-    if (!response.ok || data.status === 'error' || data.success === false) {
-      console.error(`${gatewayName} Payment Link creation error:`, data);
+    const isPaymentLinkError = !response.ok
+      || data.status === 'error'
+      || data.status === 'failed'
+      || data.success === false
+      || (typeof data.status === 'number' && data.status !== 200)
+      || (typeof data.status === 'string' && data.status !== '200' && data.status !== 'success' && data.status !== 'ok');
+
+    if (isPaymentLinkError) {
+      console.error(`${gatewayName} Payment Link creation error:`, JSON.stringify(data));
+      const errorsField = Array.isArray(data.errors) ? data.errors.join('; ') : (data.errors || null);
+      const errorMsg =
+        data.message ||
+        data.error ||
+        data.responseMessage ||
+        data.errorMessage ||
+        data.error_message ||
+        data.msg ||
+        data.description ||
+        data.detail ||
+        errorsField ||
+        data.code ||
+        data.reason ||
+        JSON.stringify(data) ||
+        (data.status ? `Status: ${data.status}` : null) ||
+        'Failed to create Payment Link';
       return {
         success: false,
         gatewayName,
-        error: data.message || data.error || 'Failed to create Payment Link',
+        error: `[12Pay] ${errorMsg}`,
       };
     }
     
@@ -873,10 +896,13 @@ export async function checkPaymentStatus(transactionId: string): Promise<Payment
     
     const responseData = data.data || data;
     const rawStatus = (responseData.status || '').toUpperCase();
-    const normalizedStatus: 'PENDING' | 'PAID' | 'EXPIRED' | 'CANCELLED' | 'FAILED' =
-      rawStatus === 'PAID' || rawStatus === 'SETTLED' ? 'PAID' :
+    const normalizedStatus: 'PENDING' | 'WAITING_FOR_PAYMENT' | 'PAID' | 'SETTLED' | 'EXPIRED' | 'CANCELLED' | 'FAILED' =
+      rawStatus === 'PAID' ? 'PAID' :
+      rawStatus === 'SETTLED' ? 'SETTLED' :
+      rawStatus === 'WAITING_FOR_PAYMENT' ? 'WAITING_FOR_PAYMENT' :
       rawStatus === 'EXPIRED' ? 'EXPIRED' :
-      rawStatus === 'CANCELLED' || rawStatus === 'FAILED' ? 'FAILED' :
+      rawStatus === 'CANCELLED' ? 'CANCELLED' :
+      rawStatus === 'FAILED' ? 'FAILED' :
       'PENDING';
 
     return {
