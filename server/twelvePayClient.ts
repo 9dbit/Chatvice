@@ -80,7 +80,7 @@ function generateSignatureWithCredentials(payload: string, timestamp: string, cl
   const bodyDigest = crypto.createHash('sha256').update(payload).digest('base64');
   
   const rawStringData = [
-    `Client-Key:${clientKey}`,
+    `Client-key:${clientKey}`,
     `Request-Timestamp:${timestamp}`,
     `Request-Target:${requestTarget}`,
     `Digest:${bodyDigest}`
@@ -102,6 +102,9 @@ function generateSignatureWithCredentials(payload: string, timestamp: string, cl
 function generateTimestamp(): string {
   return new Date().toISOString();
 }
+
+const toStr = (v: any): string | null =>
+  typeof v === 'string' && v.trim() ? v : null;
 
 export interface CreateQRISRequest {
   merchantId: string;
@@ -249,7 +252,8 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
     
     const expiryMinutes = request.expiryMinutes || 30;
     const expiryDate = new Date(Date.now() + expiryMinutes * 60 * 1000);
-    const expiredStr = expiryDate.toISOString().replace('T', ' ').split('.')[0];
+    const wibOffset = 7 * 60 * 60 * 1000;
+    const expiredStr = new Date(expiryDate.getTime() + wibOffset).toISOString().replace('T', ' ').split('.')[0];
     
     const body = {
       expired: expiredStr,
@@ -339,19 +343,19 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
 
     if (isErrorStatus) {
       console.error(`${gatewayName} QRIS creation error response:`, JSON.stringify(data));
-      const errorsField = Array.isArray(data.errors) ? data.errors.join('; ') : (data.errors || null);
+      const errorsField = Array.isArray(data.errors) ? data.errors.join('; ') : (typeof data.errors === 'string' ? data.errors : null);
       const errorMsg =
-        data.message ||
-        data.error ||
-        data.responseMessage ||
-        data.errorMessage ||
-        data.error_message ||
-        data.msg ||
-        data.description ||
-        data.detail ||
+        toStr(data.message) ||
+        toStr(data.error) ||
+        toStr(data.responseMessage) ||
+        toStr(data.errorMessage) ||
+        toStr(data.error_message) ||
+        toStr(data.msg) ||
+        toStr(data.description) ||
+        toStr(data.detail) ||
         errorsField ||
-        data.code ||
-        data.reason ||
+        toStr(data.code) ||
+        toStr(data.reason) ||
         JSON.stringify(data) ||
         (data.status ? `Status: ${data.status}` : null) ||
         'Failed to create QRIS';
@@ -421,7 +425,8 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
     
     const expiryMinutes = request.expiryMinutes || 1440;
     const expiryDate = new Date(Date.now() + expiryMinutes * 60 * 1000);
-    const expiredStr = expiryDate.toISOString().replace('T', ' ').split('.')[0];
+    const wibOffset = 7 * 60 * 60 * 1000;
+    const expiredStr = new Date(expiryDate.getTime() + wibOffset).toISOString().replace('T', ' ').split('.')[0];
     
     const body = {
       expired: expiredStr,
@@ -511,19 +516,19 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
 
     if (isVAErrorStatus) {
       console.error(`${gatewayName} VA creation error response:`, JSON.stringify(data));
-      const errorsField = Array.isArray(data.errors) ? data.errors.join('; ') : (data.errors || null);
+      const errorsField = Array.isArray(data.errors) ? data.errors.join('; ') : (typeof data.errors === 'string' ? data.errors : null);
       const errorMsg =
-        data.message ||
-        data.error ||
-        data.responseMessage ||
-        data.errorMessage ||
-        data.error_message ||
-        data.msg ||
-        data.description ||
-        data.detail ||
+        toStr(data.message) ||
+        toStr(data.error) ||
+        toStr(data.responseMessage) ||
+        toStr(data.errorMessage) ||
+        toStr(data.error_message) ||
+        toStr(data.msg) ||
+        toStr(data.description) ||
+        toStr(data.detail) ||
         errorsField ||
-        data.code ||
-        data.reason ||
+        toStr(data.code) ||
+        toStr(data.reason) ||
         JSON.stringify(data) ||
         (data.status ? `Status: ${data.status}` : null) ||
         'Failed to create Virtual Account';
@@ -660,7 +665,8 @@ export async function createPaymentLinkPayment(request: CreatePaymentLinkRequest
     
     const expiryMinutes = request.expiryMinutes || 1440;
     const expiryDate = new Date(Date.now() + expiryMinutes * 60 * 1000);
-    const expiredStr = expiryDate.toISOString().replace('T', ' ').split('.')[0];
+    const wibOffset = 7 * 60 * 60 * 1000;
+    const expiredStr = new Date(expiryDate.getTime() + wibOffset).toISOString().replace('T', ' ').split('.')[0];
     
     const body = {
       expired: expiredStr,
@@ -764,19 +770,19 @@ export async function createPaymentLinkPayment(request: CreatePaymentLinkRequest
 
     if (isPaymentLinkError) {
       console.error(`${gatewayName} Payment Link creation error:`, JSON.stringify(data));
-      const errorsField = Array.isArray(data.errors) ? data.errors.join('; ') : (data.errors || null);
+      const errorsField = Array.isArray(data.errors) ? data.errors.join('; ') : (typeof data.errors === 'string' ? data.errors : null);
       const errorMsg =
-        data.message ||
-        data.error ||
-        data.responseMessage ||
-        data.errorMessage ||
-        data.error_message ||
-        data.msg ||
-        data.description ||
-        data.detail ||
+        toStr(data.message) ||
+        toStr(data.error) ||
+        toStr(data.responseMessage) ||
+        toStr(data.errorMessage) ||
+        toStr(data.error_message) ||
+        toStr(data.msg) ||
+        toStr(data.description) ||
+        toStr(data.detail) ||
         errorsField ||
-        data.code ||
-        data.reason ||
+        toStr(data.code) ||
+        toStr(data.reason) ||
         JSON.stringify(data) ||
         (data.status ? `Status: ${data.status}` : null) ||
         'Failed to create Payment Link';
