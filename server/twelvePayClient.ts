@@ -80,7 +80,7 @@ function generateSignatureWithCredentials(payload: string, timestamp: string, cl
   const bodyDigest = crypto.createHash('sha256').update(payload).digest('base64');
   
   const rawStringData = [
-    `Client-key:${clientKey}`,
+    `Client-Key:${clientKey}`,
     `Request-Timestamp:${timestamp}`,
     `Request-Target:${requestTarget}`,
     `Digest:${bodyDigest}`
