@@ -1035,7 +1035,18 @@ function MerchantsTab({
   const [selectedMerchant, setSelectedMerchant] = useState<MerchantWithPlan | null>(null);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [selectedDetailMerchant, setSelectedDetailMerchant] = useState<MerchantWithPlan | null>(null);
-  
+
+  const { data: adminGateways } = useQuery<PaymentGateway[]>({
+    queryKey: ["/api/admin/payment/gateways"],
+  });
+  const adminDefaultGateway = adminGateways?.find(g => g.isDefault) ?? adminGateways?.[0] ?? null;
+  const adminMethodStatus: Record<string, string> | null = (() => {
+    if (!adminDefaultGateway) return null;
+    const rawMs = adminDefaultGateway.config?.methodStatus;
+    if (!rawMs || typeof rawMs !== 'object' || Array.isArray(rawMs)) return null;
+    return rawMs as Record<string, string>;
+  })();
+
   const handleViewDetail = (merchant: MerchantWithPlan) => {
     setSelectedDetailMerchant(merchant);
     setDetailDrawerOpen(true);
@@ -2631,6 +2642,46 @@ function MerchantsTab({
                         : '-'}
                     </p>
                   </div>
+                </div>
+                <div className="space-y-2 pt-1">
+                  <p className="text-xs text-muted-foreground">Payment Method Status</p>
+                  {adminMethodStatus ? (
+                    <div className="flex flex-wrap gap-2" data-testid="admin-method-status-summary">
+                      {([
+                        { key: 'qris', label: 'QRIS' },
+                        { key: 'va', label: 'Virtual Account' },
+                        { key: 'payment_link', label: 'Payment Link' },
+                      ] as const).map(({ key, label }) => {
+                        const status = adminMethodStatus[key] || 'unknown';
+                        return (
+                          <Badge
+                            key={key}
+                            variant="outline"
+                            data-testid={`method-status-${key}`}
+                            className={
+                              status === 'active'
+                                ? 'border-green-500 text-green-700 dark:text-green-400'
+                                : status === 'not_registered'
+                                ? 'border-red-400 text-red-600 dark:text-red-400'
+                                : 'border-muted-foreground text-muted-foreground'
+                            }
+                          >
+                            {status === 'active' ? (
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                            ) : status === 'not_registered' ? (
+                              <XCircle className="w-3 h-3 mr-1" />
+                            ) : null}
+                            {label}
+                            {status === 'unknown' && ' (unknown)'}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic" data-testid="admin-method-status-unavailable">
+                      Not available — run a gateway connection test in Payment Settings to populate.
+                    </p>
+                  )}
                 </div>
               </div>
 
