@@ -2719,7 +2719,8 @@ export class DatabaseStorage implements IStorage {
     const result = await db.insert(merchantDomains).values({ 
       ...data, 
       id,
-      isValidated: false,
+      // Honor the caller-supplied isValidated value; default to false when not provided
+      isValidated: data.isValidated ?? false,
     }).returning();
     return result[0];
   }

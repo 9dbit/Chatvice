@@ -2967,7 +2967,14 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(404).json({ error: "Merchant not found" });
       }
 
-      res.json({ merchantId: merchant.id, slug: merchant.widgetSlug });
+      // Domain security check
+      const requestDomain = extractWidgetRequestDomain(req);
+      const { allowed, gracePeriod } = await checkAndRecordDomainAccess(merchant.id, requestDomain);
+      if (!allowed) {
+        return res.status(403).json({ error: "This domain is not authorized to use the chat widget." });
+      }
+
+      res.json({ merchantId: merchant.id, slug: merchant.widgetSlug, gracePeriod });
     } catch (error: any) {
       res.status(400).json({ error: error.message || "Failed to resolve merchant" });
     }
@@ -4427,11 +4434,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             });
           }
         }
-        await storage.createMerchantDomain({
+        const newDomain = await storage.createMerchantDomain({
           merchantId,
           domain: attempt.domain,
           isValidated: true,
         });
+        await storage.updateMerchantDomain(newDomain.id, { validatedAt: new Date() });
       } else {
         // Mark existing domain as validated
         await storage.updateMerchantDomain(existing.id, { isValidated: true, validatedAt: new Date() });
@@ -4973,29 +4981,32 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     return null;
   }
 
-  // Check if a domain is allowed for a merchant's widget. 
+  // Check if a domain is allowed for a merchant's widget.
+  // Grace period applies when merchant has ZERO validated domains.
+  // Matching is only against isValidated=true domains.
   // Returns { allowed, gracePeriod } — also records unknown domain attempts in the background.
   async function checkAndRecordDomainAccess(
     merchantId: string,
     domain: string | null
   ): Promise<{ allowed: boolean; gracePeriod: boolean }> {
-    const registeredDomains = await storage.getMerchantDomains(merchantId);
+    const allDomains = await storage.getMerchantDomains(merchantId);
+    const validatedDomains = allDomains.filter((d) => d.isValidated);
 
-    // Grace period: merchant has no registered domains yet — allow, but record for visibility
-    if (registeredDomains.length === 0) {
+    // Grace period: merchant has no validated domains yet — allow but record for visibility
+    if (validatedDomains.length === 0) {
       if (domain) {
         storage.upsertUnknownDomainAttempt(merchantId, domain).catch(() => {});
       }
       return { allowed: true, gracePeriod: true };
     }
 
-    // No domain extracted (same-origin request, preview, localhost) — always allow
+    // No domain extracted (same-origin, preview, localhost) — always allow
     if (!domain) {
       return { allowed: true, gracePeriod: false };
     }
 
-    // Check if domain matches any registered domain (exact or subdomain)
-    const isAllowed = registeredDomains.some((d) => {
+    // Check if domain matches any VALIDATED registered domain (exact or subdomain)
+    const isAllowed = validatedDomains.some((d) => {
       const reg = d.domain.toLowerCase();
       return reg === domain || domain.endsWith("." + reg);
     });
@@ -14809,7 +14820,7 @@ Rules:
         const requestDomain = extractWidgetRequestDomain(req);
         const { allowed, gracePeriod } = await checkAndRecordDomainAccess(merchant.id, requestDomain);
         if (!allowed) {
-          res.header("Content-Type", "application/javascript");
+          res.status(403).header("Content-Type", "application/javascript");
           return res.send(`/* Chatvice: This domain (${requestDomain}) is not authorized to embed the widget. Please register it in your Chatvice dashboard. */\nconsole.warn('[Chatvice] This domain is not authorized to use the widget. Add it in your dashboard → Widget → Allowed Domains.');`);
         }
         if (gracePeriod && requestDomain) {
@@ -17792,7 +17803,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
       const requestDomain = extractWidgetRequestDomain(req, pageUrl);
       const { allowed } = await checkAndRecordDomainAccess(resolvedMerchantId, requestDomain);
       if (!allowed) {
-        return res.json({ tracked: false, domainNotAllowed: true });
+        return res.status(403).json({ tracked: false, domainNotAllowed: true });
       }
 
       const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
@@ -18149,7 +18160,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
       const requestDomain = extractWidgetRequestDomain(req, startChatPageUrl);
       const { allowed: domainAllowed } = await checkAndRecordDomainAccess(resolvedMerchantId, requestDomain);
       if (!domainAllowed) {
-        return res.json({ success: false, error: "This domain is not authorized to use the chat widget. Please contact the website owner." });
+        return res.status(403).json({ success: false, error: "This domain is not authorized to use the chat widget. Please contact the website owner." });
       }
 
       // Validate and sanitize customer name
