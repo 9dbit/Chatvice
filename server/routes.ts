@@ -4944,41 +4944,52 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   }
 
   // Extract the requesting domain from a widget HTTP request.
-  // Prefers the Origin header; falls back to pageUrl from body; ignores same-origin & localhost.
+  // Returns:
+  //   null        = positively same-origin or explicitly local-dev → always allow
+  //   ""          = no origin information available → deny when merchant has validated domains
+  //   "foo.com"   = external origin → check against validated domains whitelist
   function extractWidgetRequestDomain(req: Request, pageUrl?: string): string | null {
     const serverHost = req.headers.host as string || "";
-    const normalizeHost = (h: string) => h.split(":")[0].toLowerCase();
-    const srvHostname = normalizeHost(serverHost);
+    const srvHostname = serverHost.split(":")[0].toLowerCase();
+    const isDevMode = process.env.NODE_ENV !== "production";
 
-    const tryUrl = (raw: string): string | null => {
+    // Returns null (same-origin/local), undefined (parse error), or a hostname string.
+    const tryUrl = (raw: string): string | null | undefined => {
       try {
         const u = new URL(raw);
         const h = u.hostname.toLowerCase();
-        // Skip localhost, 127.x, ::1, and same-origin as server
-        if (h === "localhost" || h === "127.0.0.1" || h === "::1" || h === srvHostname) return null;
-        // Skip Replit dev domains (*.replit.dev, *.repl.co, *.replit.app)
-        if (h.endsWith(".replit.dev") || h.endsWith(".repl.co") || h.endsWith(".replit.app")) return null;
-        return h;
+        // Always-allow: same origin as server (dashboard preview, iframe widget API calls)
+        if (h === srvHostname) return null;
+        // Always-allow: local development environments
+        if (h === "localhost" || h === "127.0.0.1" || h === "::1") return null;
+        // In dev/preview only: allow Replit workspace domains (e.g. *.replit.dev).
+        // These are NEVER allowed in production so a rogue Replit app cannot bypass the whitelist.
+        if (isDevMode && (h.endsWith(".replit.dev") || h.endsWith(".repl.co") || h.endsWith(".replit.app"))) {
+          return null;
+        }
+        return h; // External hostname — needs whitelist check
       } catch {
-        return null;
+        return undefined; // Unparseable — skip this source
       }
     };
 
     const origin = req.headers.origin as string;
     if (origin && origin !== "null") {
       const d = tryUrl(origin);
-      if (d) return d;
+      if (d !== undefined) return d; // null = same-origin allowed; string = external
     }
     if (pageUrl) {
       const d = tryUrl(pageUrl);
-      if (d) return d;
+      if (d !== undefined) return d;
     }
     const referer = req.headers.referer as string;
     if (referer) {
       const d = tryUrl(referer);
-      if (d) return d;
+      if (d !== undefined) return d;
     }
-    return null;
+    // No origin information could be extracted at all.
+    // Returning "" (not null) so callers can distinguish "same-origin" from "unknown".
+    return "";
   }
 
   // Check if a domain is allowed for a merchant's widget.
@@ -5000,12 +5011,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       return { allowed: true, gracePeriod: true };
     }
 
-    // No domain extracted (same-origin, preview, localhost) — always allow
-    if (!domain) {
+    // null = positively same-origin (dashboard preview, iframe API calls) — always allow
+    if (domain === null) {
       return { allowed: true, gracePeriod: false };
     }
 
-    // Check if domain matches any VALIDATED registered domain (exact or subdomain)
+    // "" = no origin information available — deny when merchant has validated domains
+    // (prevents origin-stripping bypass; same-origin requests already return null above)
+    if (domain === "") {
+      return { allowed: false, gracePeriod: false };
+    }
+
+    // Check if domain matches any VALIDATED registered domain (exact match or subdomain)
     const isAllowed = validatedDomains.some((d) => {
       const reg = d.domain.toLowerCase();
       return reg === domain || domain.endsWith("." + reg);
