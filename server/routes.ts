@@ -4376,6 +4376,96 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // ---- Unknown Domain Attempts API ----
+
+  // Get all unknown domain attempts for this merchant
+  app.get("/api/merchant/domains/unknown", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const attempts = await storage.getUnknownDomainAttempts(merchantId);
+      res.json(attempts);
+    } catch (error) {
+      console.error("Get unknown domains error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Count of unreviewed unknown domain attempts (for sidebar badge)
+  app.get("/api/merchant/domains/unknown/count", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const count = await storage.countUnknownDomainAttempts(merchantId);
+      res.json({ count });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Approve an unknown domain — add it to registered domains and remove from unknown list
+  app.post("/api/merchant/domains/unknown/:id/approve", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { id } = req.params;
+
+      const attempt = await storage.getUnknownDomainAttempt(id);
+      if (!attempt || attempt.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Not found" });
+      }
+
+      // Check if already registered
+      const existing = await storage.getMerchantDomainByDomain(merchantId, attempt.domain);
+      if (!existing) {
+        // Check plan limit before adding
+        const merchant = await storage.getMerchant(merchantId);
+        if (merchant) {
+          const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+          const currentCount = await storage.countMerchantDomains(merchantId);
+          if (currentCount >= plan.domainsLimit) {
+            return res.status(403).json({ 
+              error: "Domain limit reached. Please upgrade your plan to add more domains.",
+              requiresUpgrade: true,
+            });
+          }
+        }
+        await storage.createMerchantDomain({
+          merchantId,
+          domain: attempt.domain,
+          isValidated: true,
+        });
+      } else {
+        // Mark existing domain as validated
+        await storage.updateMerchantDomain(existing.id, { isValidated: true, validatedAt: new Date() });
+      }
+
+      // Remove from unknown list
+      await storage.deleteUnknownDomainAttempt(id);
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Approve unknown domain error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Dismiss/ignore an unknown domain attempt
+  app.delete("/api/merchant/domains/unknown/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { id } = req.params;
+
+      const attempt = await storage.getUnknownDomainAttempt(id);
+      if (!attempt || attempt.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Not found" });
+      }
+
+      await storage.ignoreUnknownDomainAttempt(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Dismiss unknown domain error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // NOTE: Notification routes and custom-plan-requests must be registered BEFORE /api/merchant/:merchantId to avoid route conflicts
   
   // Get merchant's custom plan requests
@@ -4843,6 +4933,80 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     if (bySlug) return bySlug;
     // Final fallback - try as ID
     return await storage.getMerchant(slugOrId);
+  }
+
+  // Extract the requesting domain from a widget HTTP request.
+  // Prefers the Origin header; falls back to pageUrl from body; ignores same-origin & localhost.
+  function extractWidgetRequestDomain(req: Request, pageUrl?: string): string | null {
+    const serverHost = req.headers.host as string || "";
+    const normalizeHost = (h: string) => h.split(":")[0].toLowerCase();
+    const srvHostname = normalizeHost(serverHost);
+
+    const tryUrl = (raw: string): string | null => {
+      try {
+        const u = new URL(raw);
+        const h = u.hostname.toLowerCase();
+        // Skip localhost, 127.x, ::1, and same-origin as server
+        if (h === "localhost" || h === "127.0.0.1" || h === "::1" || h === srvHostname) return null;
+        // Skip Replit dev domains (*.replit.dev, *.repl.co, *.replit.app)
+        if (h.endsWith(".replit.dev") || h.endsWith(".repl.co") || h.endsWith(".replit.app")) return null;
+        return h;
+      } catch {
+        return null;
+      }
+    };
+
+    const origin = req.headers.origin as string;
+    if (origin && origin !== "null") {
+      const d = tryUrl(origin);
+      if (d) return d;
+    }
+    if (pageUrl) {
+      const d = tryUrl(pageUrl);
+      if (d) return d;
+    }
+    const referer = req.headers.referer as string;
+    if (referer) {
+      const d = tryUrl(referer);
+      if (d) return d;
+    }
+    return null;
+  }
+
+  // Check if a domain is allowed for a merchant's widget. 
+  // Returns { allowed, gracePeriod } — also records unknown domain attempts in the background.
+  async function checkAndRecordDomainAccess(
+    merchantId: string,
+    domain: string | null
+  ): Promise<{ allowed: boolean; gracePeriod: boolean }> {
+    const registeredDomains = await storage.getMerchantDomains(merchantId);
+
+    // Grace period: merchant has no registered domains yet — allow, but record for visibility
+    if (registeredDomains.length === 0) {
+      if (domain) {
+        storage.upsertUnknownDomainAttempt(merchantId, domain).catch(() => {});
+      }
+      return { allowed: true, gracePeriod: true };
+    }
+
+    // No domain extracted (same-origin request, preview, localhost) — always allow
+    if (!domain) {
+      return { allowed: true, gracePeriod: false };
+    }
+
+    // Check if domain matches any registered domain (exact or subdomain)
+    const isAllowed = registeredDomains.some((d) => {
+      const reg = d.domain.toLowerCase();
+      return reg === domain || domain.endsWith("." + reg);
+    });
+
+    if (isAllowed) {
+      return { allowed: true, gracePeriod: false };
+    }
+
+    // Record unknown attempt and deny
+    storage.upsertUnknownDomainAttempt(merchantId, domain).catch(() => {});
+    return { allowed: false, gracePeriod: false };
   }
 
   app.get("/api/merchant/icon/:merchantId", async (req, res) => {
@@ -14637,6 +14801,22 @@ Rules:
     res.header("Access-Control-Allow-Origin", "*");
     
     const merchantId = req.query.merchant || "demo";
+
+    // Domain security: check if the requesting domain is allowed
+    if (merchantId !== "demo") {
+      const merchant = await resolveMerchant(merchantId as string);
+      if (merchant) {
+        const requestDomain = extractWidgetRequestDomain(req);
+        const { allowed, gracePeriod } = await checkAndRecordDomainAccess(merchant.id, requestDomain);
+        if (!allowed) {
+          res.header("Content-Type", "application/javascript");
+          return res.send(`/* Chatvice: This domain (${requestDomain}) is not authorized to embed the widget. Please register it in your Chatvice dashboard. */\nconsole.warn('[Chatvice] This domain is not authorized to use the widget. Add it in your dashboard → Widget → Allowed Domains.');`);
+        }
+        if (gracePeriod && requestDomain) {
+          // Domain is allowed (grace period) but not yet registered — recorded for merchant review
+        }
+      }
+    }
     // Always use the host where this script is served from, not the origin (which could be external domain)
     const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
     const baseUrl = `${protocol}://${req.headers.host}`;
@@ -17608,6 +17788,13 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
       }
       const resolvedMerchantId = merchant.id;
 
+      // Domain security check
+      const requestDomain = extractWidgetRequestDomain(req, pageUrl);
+      const { allowed } = await checkAndRecordDomainAccess(resolvedMerchantId, requestDomain);
+      if (!allowed) {
+        return res.json({ tracked: false, domainNotAllowed: true });
+      }
+
       const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
         req.socket.remoteAddress || "unknown";
 
@@ -17956,6 +18143,14 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         return res.json({ success: false, error: "Chat service is not available. Please try again later." });
       }
       const resolvedMerchantId = merchant.id;
+
+      // Domain security check
+      const startChatPageUrl = req.body.pageUrl as string | undefined;
+      const requestDomain = extractWidgetRequestDomain(req, startChatPageUrl);
+      const { allowed: domainAllowed } = await checkAndRecordDomainAccess(resolvedMerchantId, requestDomain);
+      if (!domainAllowed) {
+        return res.json({ success: false, error: "This domain is not authorized to use the chat widget. Please contact the website owner." });
+      }
 
       // Validate and sanitize customer name
       const nameResult = sanitizeCustomerName(customerName);

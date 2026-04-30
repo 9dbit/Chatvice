@@ -22,9 +22,9 @@ import {
   Loader2, Camera, RefreshCw, X, Send, Paperclip, Smile, ImageIcon, Video,
   Globe, MessageSquare, Frame, Shield, Key, Eye, EyeOff, Crown, Lock, ArrowUpRight, ChevronDown,
   Plus, Trash2, CheckCircle, AlertCircle, ExternalLink, GripVertical, ChevronUp, ChevronDown as ChevronDownIcon,
-  Smartphone, Monitor, Sparkles, ArrowUpDown, ArrowLeftRight, ZoomIn, RotateCw
+  Smartphone, Monitor, Sparkles, ArrowUpDown, ArrowLeftRight, ZoomIn, RotateCw, AlertTriangle, BanIcon, ShieldCheck
 } from "lucide-react";
-import type { MerchantDomain } from "@shared/schema";
+import type { MerchantDomain, UnknownDomainAttempt } from "@shared/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Merchant, Agent } from "@shared/schema";
@@ -278,6 +278,39 @@ export default function WidgetPage() {
         description: t("common.tryAgain"),
         variant: "destructive",
       });
+    },
+  });
+
+  // Unknown domain attempts
+  const { data: unknownDomains = [], refetch: refetchUnknownDomains } = useQuery<UnknownDomainAttempt[]>({
+    queryKey: ["/api/merchant/domains/unknown"],
+    enabled: !!merchantId,
+  });
+
+  const approveDomainMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest("POST", `/api/merchant/domains/unknown/${id}/approve`, {}),
+    onSuccess: () => {
+      toast({ title: "Domain approved", description: "The domain has been added to your allowed domains." });
+      refetchUnknownDomains();
+      refetchDomains();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Could not approve domain",
+        description: error?.message || "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const dismissUnknownDomainMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest("DELETE", `/api/merchant/domains/unknown/${id}`, {}),
+    onSuccess: () => {
+      toast({ title: "Domain dismissed" });
+      refetchUnknownDomains();
+    },
+    onError: () => {
+      toast({ title: "Failed to dismiss", variant: "destructive" });
     },
   });
 
@@ -2231,6 +2264,82 @@ async function handleLogin() {
               )}
             </CardContent>
           </Card>
+
+          {/* Unregistered Domains Panel */}
+          {unknownDomains.length > 0 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-500" />
+                    <CardTitle>Unregistered Domains</CardTitle>
+                    <Badge variant="destructive" data-testid="badge-unknown-domain-count">
+                      {unknownDomains.length}
+                    </Badge>
+                  </div>
+                </div>
+                <CardDescription>
+                  These domains attempted to embed your widget but are not in your allowed domains list. 
+                  Approve domains you own, or dismiss ones you don't recognize.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {unknownDomains.map((attempt) => (
+                  <div
+                    key={attempt.id}
+                    className="flex items-center justify-between p-3 border rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900"
+                    data-testid={`unknown-domain-item-${attempt.id}`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <BanIcon className="w-4 h-4 text-amber-500 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium font-mono text-sm" data-testid={`text-unknown-domain-${attempt.id}`}>
+                            {attempt.domain}
+                          </span>
+                          <a
+                            href={`https://${attempt.domain}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-primary"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {attempt.attemptCount ?? 1} attempt{(attempt.attemptCount ?? 1) !== 1 ? "s" : ""} · Last seen{" "}
+                          {attempt.lastSeenAt ? new Date(attempt.lastSeenAt).toLocaleDateString() : "recently"}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => approveDomainMutation.mutate(attempt.id)}
+                        disabled={approveDomainMutation.isPending}
+                        data-testid={`button-approve-domain-${attempt.id}`}
+                        className="text-green-700 border-green-300 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950/30"
+                      >
+                        <ShieldCheck className="w-4 h-4 mr-1" />
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => dismissUnknownDomainMutation.mutate(attempt.id)}
+                        disabled={dismissUnknownDomainMutation.isPending}
+                        className="text-muted-foreground"
+                        data-testid={`button-dismiss-domain-${attempt.id}`}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>

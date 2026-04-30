@@ -1403,6 +1403,21 @@ export const insertMerchantDomainSchema = createInsertSchema(merchantDomains).om
 export type InsertMerchantDomain = z.infer<typeof insertMerchantDomainSchema>;
 export type MerchantDomain = typeof merchantDomains.$inferSelect;
 
+// Tracks widget embed attempts from domains not registered by the merchant
+export const unknownDomainAttempts = pgTable("unknown_domain_attempts", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  domain: text("domain").notNull(),
+  firstSeenAt: timestamp("first_seen_at").defaultNow(),
+  lastSeenAt: timestamp("last_seen_at").defaultNow(),
+  attemptCount: integer("attempt_count").default(1),
+  isIgnored: boolean("is_ignored").default(false), // merchant dismissed this domain
+});
+
+export const insertUnknownDomainAttemptSchema = createInsertSchema(unknownDomainAttempts).omit({ id: true, firstSeenAt: true, lastSeenAt: true });
+export type InsertUnknownDomainAttempt = z.infer<typeof insertUnknownDomainAttemptSchema>;
+export type UnknownDomainAttempt = typeof unknownDomainAttempts.$inferSelect;
+
 // ============ CHATVICE TOP UP v2: Multi-tenant + Domain Tracking ============
 
 // Widget Sites - represents a site/domain where widget is embedded

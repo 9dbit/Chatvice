@@ -49,6 +49,7 @@ import {
   type CoinOrder, type InsertCoinOrder,
   type TopupNominal, type InsertTopupNominal,
   type MerchantDomain, type InsertMerchantDomain,
+  type UnknownDomainAttempt, type InsertUnknownDomainAttempt,
   type PaymentGateway, type InsertPaymentGateway,
   type PaymentTransaction, type InsertPaymentTransaction,
   type AdminNotification, type InsertAdminNotification,
@@ -73,6 +74,7 @@ import {
   merchants, supervisors, sessions, messages, triggers, knowledge, knowledgeChunks, notifications, admins, crawledLinks, agents, sources, suggestedQuestions, chatLogs, agentSupervisors, mediaAttachments, platformSettings, landingPageSettings, storedFiles, domainRegistrations, leads,
   workShifts, shiftAssignments, workReports, quickReplies, chatButtons, productCards, productCardButtons, welcomeBubbles, notificationSettings, productRecommendationSettings, productTriggers, supervisorInvitations,
   emailVerificationTokens, passwordResetTokens, promotions, promotionUsage,
+  unknownDomainAttempts,
   widgetSites, siteDomains, coinOrders, topupNominals, merchantDomains, paymentGateways,
   paymentTransactions, adminNotifications, chatSecuritySettings, chatSecurityAlerts,
   knowledgeEntries, knowledgebaseArticles, knowledgebaseTemplates, productCrawlSources, crawledProducts, customPlanInvoices,
@@ -387,6 +389,15 @@ export interface IStorage {
   updateMerchantDomain(id: string, data: Partial<MerchantDomain>): Promise<MerchantDomain | undefined>;
   deleteMerchantDomain(id: string): Promise<boolean>;
   countMerchantDomains(merchantId: string): Promise<number>;
+
+  // Unknown Domain Attempts (domains not registered that tried to embed the widget)
+  getUnknownDomainAttempts(merchantId: string): Promise<UnknownDomainAttempt[]>;
+  getUnknownDomainAttempt(id: string): Promise<UnknownDomainAttempt | undefined>;
+  getUnknownDomainAttemptByDomain(merchantId: string, domain: string): Promise<UnknownDomainAttempt | undefined>;
+  upsertUnknownDomainAttempt(merchantId: string, domain: string): Promise<UnknownDomainAttempt>;
+  ignoreUnknownDomainAttempt(id: string): Promise<boolean>;
+  deleteUnknownDomainAttempt(id: string): Promise<boolean>;
+  countUnknownDomainAttempts(merchantId: string): Promise<number>;
   
   // Payment Gateways
   getPaymentGateways(): Promise<PaymentGateway[]>;
@@ -2729,6 +2740,76 @@ export class DatabaseStorage implements IStorage {
   async countMerchantDomains(merchantId: string): Promise<number> {
     const result = await db.select({ count: count() }).from(merchantDomains)
       .where(eq(merchantDomains.merchantId, merchantId));
+    return result[0]?.count ?? 0;
+  }
+
+  // ============ Unknown Domain Attempts ============
+
+  async getUnknownDomainAttempts(merchantId: string): Promise<UnknownDomainAttempt[]> {
+    return db.select().from(unknownDomainAttempts)
+      .where(and(
+        eq(unknownDomainAttempts.merchantId, merchantId),
+        eq(unknownDomainAttempts.isIgnored, false)
+      ))
+      .orderBy(desc(unknownDomainAttempts.lastSeenAt));
+  }
+
+  async getUnknownDomainAttempt(id: string): Promise<UnknownDomainAttempt | undefined> {
+    const result = await db.select().from(unknownDomainAttempts).where(eq(unknownDomainAttempts.id, id));
+    return result[0];
+  }
+
+  async getUnknownDomainAttemptByDomain(merchantId: string, domain: string): Promise<UnknownDomainAttempt | undefined> {
+    const result = await db.select().from(unknownDomainAttempts)
+      .where(and(
+        eq(unknownDomainAttempts.merchantId, merchantId),
+        eq(unknownDomainAttempts.domain, domain)
+      ));
+    return result[0];
+  }
+
+  async upsertUnknownDomainAttempt(merchantId: string, domain: string): Promise<UnknownDomainAttempt> {
+    const existing = await this.getUnknownDomainAttemptByDomain(merchantId, domain);
+    if (existing) {
+      const result = await db.update(unknownDomainAttempts)
+        .set({
+          lastSeenAt: new Date(),
+          attemptCount: (existing.attemptCount ?? 0) + 1,
+          isIgnored: false, // re-surface if it was ignored and hits again
+        })
+        .where(eq(unknownDomainAttempts.id, existing.id))
+        .returning();
+      return result[0];
+    }
+    const id = generateId("unk_");
+    const result = await db.insert(unknownDomainAttempts).values({
+      id,
+      merchantId,
+      domain,
+      attemptCount: 1,
+      isIgnored: false,
+    }).returning();
+    return result[0];
+  }
+
+  async ignoreUnknownDomainAttempt(id: string): Promise<boolean> {
+    const result = await db.update(unknownDomainAttempts)
+      .set({ isIgnored: true })
+      .where(eq(unknownDomainAttempts.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async deleteUnknownDomainAttempt(id: string): Promise<boolean> {
+    const result = await db.delete(unknownDomainAttempts).where(eq(unknownDomainAttempts.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async countUnknownDomainAttempts(merchantId: string): Promise<number> {
+    const result = await db.select({ count: count() }).from(unknownDomainAttempts)
+      .where(and(
+        eq(unknownDomainAttempts.merchantId, merchantId),
+        eq(unknownDomainAttempts.isIgnored, false)
+      ));
     return result[0]?.count ?? 0;
   }
 

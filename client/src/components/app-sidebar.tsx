@@ -411,6 +411,13 @@ export function AppSidebar() {
     refetchInterval: 5000,
   });
 
+  const { data: unknownDomainCountData } = useQuery<{ count: number }>({
+    queryKey: ["/api/merchant/domains/unknown/count"],
+    enabled: !!merchantId && isAdmin,
+    refetchInterval: 60000,
+  });
+  const unknownDomainCount = unknownDomainCountData?.count ?? 0;
+
   const escalatedCount = sessions?.filter(s => s.mode === "HUMAN" || s.needsSupervisorAttention === true).length || 0;
 
   const playAlertSound = useCallback(() => {
@@ -537,6 +544,11 @@ export function AppSidebar() {
                         <div className="flex items-center gap-2">
                           <Palette className="w-4 h-4" />
                           <span>{t("dashboard.widgetSetting")}</span>
+                          {unknownDomainCount > 0 && (
+                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold leading-none" data-testid="badge-sidebar-unknown-domains">
+                              {unknownDomainCount > 9 ? "9+" : unknownDomainCount}
+                            </span>
+                          )}
                         </div>
                         <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${widgetSettingOpen ? "rotate-180" : ""}`} />
                       </SidebarMenuButton>
@@ -555,6 +567,11 @@ export function AppSidebar() {
                             <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
                               <item.icon className="w-4 h-4" />
                               <span className="flex-1">{label}</span>
+                              {item.id === "widget" && unknownDomainCount > 0 && (
+                                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold leading-none" data-testid="badge-widget-item-unknown-domains">
+                                  {unknownDomainCount > 9 ? "9+" : unknownDomainCount}
+                                </span>
+                              )}
                             </Link>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
