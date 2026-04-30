@@ -2231,8 +2231,8 @@ async function handleLogin() {
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Globe className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p className="font-medium">No domains registered</p>
-                  <p className="text-sm">Add a domain to restrict where your widget can be embedded.</p>
+                  <p className="font-medium">No domains registered yet</p>
+                  <p className="text-sm">Your widget is currently in grace period — it works on any domain while no validated domains are registered. Add a domain below to start enforcing access control.</p>
                 </div>
               )}
 

@@ -1412,7 +1412,9 @@ export const unknownDomainAttempts = pgTable("unknown_domain_attempts", {
   lastSeenAt: timestamp("last_seen_at").defaultNow(),
   attemptCount: integer("attempt_count").default(1),
   isIgnored: boolean("is_ignored").default(false), // merchant dismissed this domain
-});
+}, (table) => ({
+  merchantDomainUnique: uniqueIndex("unknown_domain_attempts_merchant_domain_unique").on(table.merchantId, table.domain),
+}));
 
 export const insertUnknownDomainAttemptSchema = createInsertSchema(unknownDomainAttempts).omit({ id: true, firstSeenAt: true, lastSeenAt: true });
 export type InsertUnknownDomainAttempt = z.infer<typeof insertUnknownDomainAttemptSchema>;
