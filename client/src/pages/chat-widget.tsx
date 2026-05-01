@@ -2856,16 +2856,25 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   </span>
                 </div>
               </div>
-              {/* Welcome copy — prefer first AI greeting, fallback to welcomeDescription */}
-              {serverMessages && serverMessages.length > 0 && serverMessages[0].from === 'agent' ? (
-                <p className="text-sm leading-relaxed max-w-xs italic" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.7)' : '#4b5563' }}>
-                  "{serverMessages[0].content?.slice(0, 120)}{(serverMessages[0].content?.length ?? 0) > 120 ? '…' : ''}"
-                </p>
-              ) : merchantConfig?.welcomeDescription ? (
-                <p className="text-sm leading-relaxed max-w-xs" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.7)' : '#4b5563' }}>
-                  {merchantConfig.welcomeDescription}
-                </p>
-              ) : null}
+              {/* Welcome copy — prefer first AI greeting (any position), fallback to welcomeDescription */}
+              {(() => {
+                const firstAgentMsg = serverMessages?.find(m => m.from === 'agent');
+                if (firstAgentMsg) {
+                  return (
+                    <p className="text-sm leading-relaxed max-w-xs italic" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.7)' : '#4b5563' }}>
+                      "{firstAgentMsg.content?.slice(0, 120)}{(firstAgentMsg.content?.length ?? 0) > 120 ? '…' : ''}"
+                    </p>
+                  );
+                }
+                if (merchantConfig?.welcomeDescription) {
+                  return (
+                    <p className="text-sm leading-relaxed max-w-xs" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.7)' : '#4b5563' }}>
+                      {merchantConfig.welcomeDescription}
+                    </p>
+                  );
+                }
+                return null;
+              })()}
               {/* Merchant branding */}
               {merchantConfig?.iconUrl && (
                 <div className="flex items-center gap-2 mt-2 opacity-60">
