@@ -870,9 +870,30 @@ export default function SupervisorPanel() {
                           <CardTitle className="text-lg">
                             {selectedSessionData?.customerName || "Customer"}
                           </CardTitle>
-                          <p className="text-xs text-muted-foreground font-mono">
-                            Session: {selectedSession.slice(0, 20)}...
-                          </p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <p className="text-xs text-muted-foreground font-mono">
+                              Session: {selectedSession.slice(0, 20)}...
+                            </p>
+                            {selectedSessionData && (
+                              selectedSessionData.limitFallback ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10"
+                                  data-testid="badge-escalation-reason-limit"
+                                >
+                                  Escalated: Conversation Limit
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1.5 py-0 h-4 border-blue-500/40 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10"
+                                  data-testid="badge-escalation-reason-manual"
+                                >
+                                  Escalated: Manual
+                                </Badge>
+                              )
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
