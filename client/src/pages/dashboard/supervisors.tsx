@@ -241,12 +241,16 @@ export default function SupervisorsPage() {
       const isLimitReached = errorMessage.toLowerCase().includes("limit reached") ||
                              errorMessage.toLowerCase().includes("upgrade your plan");
       
+      if (isLimitReached) {
+        setIsDialogOpen(false);
+        setShowLimitPopup(true);
+        return;
+      }
+
       toast({
-        title: isDuplicate ? t("dashboard.supervisors.emailExists") : isLimitReached ? t("dashboard.supervisors.limitReached") : t("dashboard.supervisors.addFailed"),
+        title: isDuplicate ? t("dashboard.supervisors.emailExists") : t("dashboard.supervisors.addFailed"),
         description: isDuplicate 
           ? "This email address has already been registered. Please use a different email."
-          : isLimitReached
-          ? t("dashboard.supervisors.limitDesc")
           : "Something went wrong. Please try again.",
         variant: "destructive",
       });

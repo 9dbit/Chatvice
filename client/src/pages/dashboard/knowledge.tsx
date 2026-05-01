@@ -30,6 +30,7 @@ import { Link } from "wouter";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { Merchant, CrawledLink, Agent, SuggestedQuestion, KnowledgebaseArticle, Source, KnowledgeEntry } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
+import { PlanLimitPopup } from "@/components/plan-limit-popup";
 
 // Business type and category constants for Help Articles
 const BUSINESS_TYPES = [
@@ -379,6 +380,11 @@ export default function KnowledgePage() {
   const [isViewOpen, setIsViewOpen] = useState(false);
   
   // Sources state
+  const [showLimitPopup, setShowLimitPopup] = useState(false);
+  const isPlanLimitError = (message: string) =>
+    message.toLowerCase().includes("limit reached") ||
+    message.toLowerCase().includes("upgrade your plan") ||
+    message.toLowerCase().includes("source limit");
   const [isSourceDialogOpen, setIsSourceDialogOpen] = useState(false);
   const [isTransactionTemplateOpen, setIsTransactionTemplateOpen] = useState(false);
   const [transactionTemplateUrl, setTransactionTemplateUrl] = useState("");
@@ -451,6 +457,9 @@ export default function KnowledgePage() {
 
   const plan = merchant ? subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free : subscriptionPlans.free;
   // Use custom limits for custom plan, otherwise use base plan limits
+  const sourcesLimit = merchant?.subscriptionPlanId === 'custom' && merchant.customSourcesLimit != null
+    ? merchant.customSourcesLimit
+    : plan.sourcesLimit;
   const effectiveSuggestedQuestionsLimit = merchant?.subscriptionPlanId === 'custom' && (merchant as any).customSuggestedQuestionsLimit !== undefined 
     ? (merchant as any).customSuggestedQuestionsLimit 
     : plan.suggestedQuestionsLimit;
@@ -918,7 +927,13 @@ export default function KnowledgePage() {
       setSelectedFile(null);
     },
     onError: (error: any) => {
-      toast({ title: t("common.error"), description: error.message || "Failed to add source.", variant: "destructive" });
+      const errorMessage = error.message || "";
+      if (isPlanLimitError(errorMessage)) {
+        setIsSourceDialogOpen(false);
+        setShowLimitPopup(true);
+        return;
+      }
+      toast({ title: t("common.error"), description: errorMessage || "Failed to add source.", variant: "destructive" });
     },
   });
 
@@ -939,7 +954,13 @@ export default function KnowledgePage() {
       setSelectedFile(null);
     },
     onError: (error: any) => {
-      toast({ title: t("common.uploadFailed"), description: error.message || "Failed to upload file.", variant: "destructive" });
+      const errorMessage = error.message || "";
+      if (isPlanLimitError(errorMessage)) {
+        setIsSourceDialogOpen(false);
+        setShowLimitPopup(true);
+        return;
+      }
+      toast({ title: t("common.uploadFailed"), description: errorMessage || "Failed to upload file.", variant: "destructive" });
     },
   });
 
@@ -955,7 +976,13 @@ export default function KnowledgePage() {
       sourceForm.reset();
     },
     onError: (error: any) => {
-      toast({ title: t("dashboard.knowledge.importFailed"), description: error.message || "Failed to import Google Doc.", variant: "destructive" });
+      const errorMessage = error.message || "";
+      if (isPlanLimitError(errorMessage)) {
+        setIsSourceDialogOpen(false);
+        setShowLimitPopup(true);
+        return;
+      }
+      toast({ title: t("dashboard.knowledge.importFailed"), description: errorMessage || "Failed to import Google Doc.", variant: "destructive" });
     },
   });
 
@@ -971,7 +998,13 @@ export default function KnowledgePage() {
       sourceForm.reset();
     },
     onError: (error: any) => {
-      toast({ title: t("dashboard.knowledge.importFailed"), description: error.message || "Failed to import Google Sheet.", variant: "destructive" });
+      const errorMessage = error.message || "";
+      if (isPlanLimitError(errorMessage)) {
+        setIsSourceDialogOpen(false);
+        setShowLimitPopup(true);
+        return;
+      }
+      toast({ title: t("dashboard.knowledge.importFailed"), description: errorMessage || "Failed to import Google Sheet.", variant: "destructive" });
     },
   });
 
@@ -985,7 +1018,13 @@ export default function KnowledgePage() {
       setTransactionTemplateUrl("");
       toast({ title: t("dashboard.knowledge.transactionAdded"), description: "Google Sheet template imported. Auto-sync every 1 minute is active." });
     },
-    onError: () => {
+    onError: (error: any) => {
+      const errorMessage = error.message || "";
+      if (isPlanLimitError(errorMessage)) {
+        setIsTransactionTemplateOpen(false);
+        setShowLimitPopup(true);
+        return;
+      }
       toast({ title: t("dashboard.knowledge.importFailed"), description: "Could not import Google Sheet. Make sure you've copied the template and set sharing to 'Anyone with the link can view'.", variant: "destructive" });
     },
   });
@@ -3965,6 +4004,14 @@ export default function KnowledgePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PlanLimitPopup
+        isOpen={showLimitPopup}
+        onClose={() => setShowLimitPopup(false)}
+        limitType="source"
+        currentPlan={plan.name}
+        currentLimit={sourcesLimit}
+      />
     </div>
   );
 }
