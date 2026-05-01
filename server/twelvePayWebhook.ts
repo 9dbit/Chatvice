@@ -408,6 +408,8 @@ export class PaymentWebhookHandler {
       scheduledPlanTransactionId: null,
     });
 
+    await storage.clearSessionLimitFallback(merchantId);
+
     // Create notification for plan activation
     const planName = plan?.name || subscriptionPlans[planId]?.name || planId;
     const billingText = billingInterval === 'annual' ? 'Annual' : 'Monthly';

@@ -133,6 +133,7 @@ export interface IStorage {
   getSessionByMerchantAndPhone(merchantId: string, customerPhone: string): Promise<Session | undefined>;
   createSession(session: InsertSession): Promise<Session>;
   updateSession(id: string, data: Partial<Session>): Promise<Session | undefined>;
+  clearSessionLimitFallback(merchantId: string): Promise<void>;
 
   getMessages(sessionId: string): Promise<Message[]>;
   getMessage(id: string): Promise<Message | undefined>;
@@ -819,6 +820,19 @@ export class DatabaseStorage implements IStorage {
       .where(eq(sessions.id, id))
       .returning();
     return result[0];
+  }
+
+  async clearSessionLimitFallback(merchantId: string): Promise<void> {
+    const cleared = await db.update(sessions)
+      .set({ limitFallback: false })
+      .where(and(
+        eq(sessions.merchantId, merchantId),
+        eq(sessions.limitFallback, true),
+      ))
+      .returning({ id: sessions.id });
+    if (cleared.length > 0) {
+      console.log(`[clearSessionLimitFallback] Cleared limitFallback on ${cleared.length} session(s) for merchant ${merchantId}`);
+    }
   }
 
   async getSessionByMerchantAndPhone(merchantId: string, customerPhone: string): Promise<Session | undefined> {

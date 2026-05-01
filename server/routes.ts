@@ -10018,6 +10018,8 @@ Rules:
           scheduledPlanId: null,
           scheduledPlanActivationDate: null,
         });
+
+        await storage.clearSessionLimitFallback(merchant.id);
         
         // Clear pending order from session
         delete req.session.pendingPaypalOrder;
@@ -10458,6 +10460,8 @@ Rules:
               scheduledPlanTransactionId: null,
             });
           }
+
+          await storage.clearSessionLimitFallback(confirmation.merchantId);
           
           // Create notification for crypto payment approval
           const billingText = confirmation.billingInterval === 'annual' ? 'Annual' : 'Monthly';
@@ -10816,6 +10820,8 @@ Rules:
               scheduledPlanTransactionId: null,
             });
           }
+
+          await storage.clearSessionLimitFallback(confirmation.merchantId);
           
           // Create notification for bank transfer payment approval
           const billingText = confirmation.billingInterval === 'annual' ? 'Annual' : 'Monthly';
@@ -11019,6 +11025,8 @@ Rules:
         conversationsUsed: 0,
         conversationsResetAt: new Date(),
       });
+
+      await storage.clearSessionLimitFallback(merchantId);
       
       res.json({ success: true, message: "Demo subscription activated" });
     } catch (error: any) {
@@ -11072,6 +11080,8 @@ Rules:
         conversationsUsed: 0,
         conversationsResetAt: new Date(),
       });
+
+      await storage.clearSessionLimitFallback(merchantId);
       
       console.log("Demo payment success - subscription updated:", { merchantId, planId, periodEnd });
       
@@ -11358,6 +11368,8 @@ Rules:
             conversationsUsed: 0,
             conversationsResetAt: new Date(),
           });
+
+          await storage.clearSessionLimitFallback(merchantId);
           
           // Create notification for plan activation via billing sync
           const planName = subscriptionPlans[planId]?.name || planId;
