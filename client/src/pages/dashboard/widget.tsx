@@ -2373,7 +2373,11 @@ async function handleLogin() {
               {/* Total usage progress bar */}
               {merchant && (() => {
                 const used = merchant.conversationsUsed ?? 0;
-                const limit = (subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free).conversationsLimit;
+                // For custom plans use the merchant-level override; fall back to plan definition
+                const planDef = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+                const limit: number = merchant.subscriptionPlanId === "custom"
+                  ? ((merchant as any).customConversationsLimit ?? planDef.conversationsLimit)
+                  : planDef.conversationsLimit;
                 const pct = limit === -1 ? 0 : Math.min(100, Math.round((used / limit) * 100));
                 return (
                   <div className="space-y-1" data-testid="usage-progress-container">

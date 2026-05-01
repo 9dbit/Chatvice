@@ -4,8 +4,8 @@
  */
 
 /**
- * Extract the lowercase hostname from a full URL string.
- * Returns null if the input is falsy, not a valid URL, or an IP address.
+ * Extract the lowercase hostname from a URL string.
+ * Returns null when the input is falsy or cannot be parsed as a URL.
  */
 export function extractHostnameFromUrl(url: string | null | undefined): string | null {
   if (!url) return null;

@@ -91,6 +91,7 @@ declare module "express-session" {
 
 // Import subscription plan utility with caching
 import { getEffectiveSubscriptionPlan, getAllEffectiveSubscriptionPlans, clearPlanCache } from './subscriptionPlanUtils';
+import { extractHostnameFromUrl } from './urlUtils';
 import { sendTelegramNotification, sendTelegramMessage, setTelegramWebhook, generateWebhookSecret, formatChatNotification, formatEscalationNotification, formatCustomerMessage } from './telegram';
 
 function getBaseUrl(req: Request): string {
@@ -4965,24 +4966,20 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     const srvHostname = serverHost.split(":")[0].toLowerCase();
     const isDevMode = process.env.NODE_ENV !== "production";
 
-    // Returns null (same-origin/local), undefined (parse error), or a hostname string.
+    // Returns null (same-origin/local), undefined (unparseable), or an external hostname string.
     const tryUrl = (raw: string): string | null | undefined => {
-      try {
-        const u = new URL(raw);
-        const h = u.hostname.toLowerCase();
-        // Always-allow: same origin as server (dashboard preview, iframe widget API calls)
-        if (h === srvHostname) return null;
-        // Always-allow: local development environments
-        if (h === "localhost" || h === "127.0.0.1" || h === "::1") return null;
-        // In dev/preview only: allow Replit workspace domains (e.g. *.replit.dev).
-        // These are NEVER allowed in production so a rogue Replit app cannot bypass the whitelist.
-        if (isDevMode && (h.endsWith(".replit.dev") || h.endsWith(".repl.co") || h.endsWith(".replit.app"))) {
-          return null;
-        }
-        return h; // External hostname — needs whitelist check
-      } catch {
-        return undefined; // Unparseable — skip this source
+      const h = extractHostnameFromUrl(raw);
+      if (h === null) return undefined; // Unparseable — skip this source
+      // Always-allow: same origin as server (dashboard preview, iframe widget API calls)
+      if (h === srvHostname) return null;
+      // Always-allow: local development environments
+      if (h === "localhost" || h === "127.0.0.1" || h === "::1") return null;
+      // In dev/preview only: allow Replit workspace domains (e.g. *.replit.dev).
+      // These are NEVER allowed in production so a rogue Replit app cannot bypass the whitelist.
+      if (isDevMode && (h.endsWith(".replit.dev") || h.endsWith(".repl.co") || h.endsWith(".replit.app"))) {
+        return null;
       }
+      return h; // External hostname — needs whitelist check
     };
 
     const origin = req.headers.origin as string;
