@@ -152,6 +152,7 @@ interface ChatWidgetProps {
   sessionId?: string;
   embedded?: boolean;
   previewMode?: boolean;
+  desktopStandalone?: boolean;
 }
 
 interface PendingMessage {
@@ -471,7 +472,7 @@ function getContrastColor(hexColor: string): string {
   }
 }
 
-export default function ChatWidget({ merchantId, sessionId: initialSessionId, embedded = false, previewMode = false }: ChatWidgetProps) {
+export default function ChatWidget({ merchantId, sessionId: initialSessionId, embedded = false, previewMode = false, desktopStandalone = false }: ChatWidgetProps) {
   const urlParams = new URLSearchParams(window.location.search);
   const showCloseButton = urlParams.get("showClose") === "true";
   const isVisitorSession = urlParams.get("visitorSession") === "true";
@@ -513,6 +514,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [returningUser, setReturningUser] = useState<{ name: string; phone: string | null } | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [isDesktopMode, setIsDesktopMode] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth >= 768
+  );
+  useEffect(() => {
+    if (!desktopStandalone) return;
+    const onResize = () => setIsDesktopMode(window.innerWidth >= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [desktopStandalone]);
   
   // Make body transparent for iframe embed, lock scrolling for all embed modes
   const isDirectAccessMode = embedded && !isExternalEmbed && (typeof window !== 'undefined' && window.parent === window);
@@ -2184,6 +2194,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   
   // Direct access (embedded but not in iframe) = full screen, no frosted glass border/shadow
   const isDirectAccess = embedded && !isExternalEmbed && (typeof window !== 'undefined' && window.parent === window);
+  const isDesktopTwoCol = desktopStandalone && isDesktopMode && isDirectAccess;
   
   // Flat container with frosted glass effect
   const frostedGlassContainerStyle: React.CSSProperties = applyEmbedStyles
@@ -2469,7 +2480,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       </div>
       
       {/* Main content area with relative positioning for social panel overlay */}
-      <div className="flex-1 min-h-0 flex flex-col relative">
+      <div className={`flex-1 min-h-0 flex ${isDesktopTwoCol ? 'flex-row' : 'flex-col'} relative overflow-hidden`}>
         {/* Social Media Panel - absolute positioned overlay on top of chat area */}
         {merchantConfig?.socialMediaEnabled && (socialIconsExpanded || socialPanelClosing) && (() => {
           const validUrl = (url: string | undefined) => {
@@ -2631,8 +2642,274 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         );
       })()}
 
+      {/* ─── LEFT COLUMN (desktop two-column mode only) ─── */}
+      {isDesktopTwoCol && (
+        <div
+          className="w-[42%] shrink-0 flex flex-col min-h-0 overflow-hidden"
+          style={{ ...frostedBodyStyle, borderRight: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'}` }}
+          data-testid="widget-left-column"
+        >
+          {/* LEFT: Loading state */}
+          {isCheckingSession || (!hasSubmittedName && !serverMessages?.length && !merchantConfig) ? (
+            <div className="flex-1 min-h-0 flex flex-col p-5 gap-4 overflow-y-auto">
+              <div className="w-full h-44 rounded-xl animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }} />
+              <div className="space-y-3 px-1">
+                <div className="h-5 w-24 rounded animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }} />
+                <div className="h-10 w-full rounded-lg animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }} />
+                <div className="h-5 w-32 rounded animate-pulse mt-3" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }} />
+                <div className="h-10 w-full rounded-lg animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }} />
+                <div className="h-5 w-28 rounded animate-pulse mt-3" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }} />
+                <div className="h-10 w-full rounded-lg animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }} />
+              </div>
+              <div className="h-11 w-full rounded-lg animate-pulse mt-2" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }} />
+            </div>
+          ) : returningUser && !hasSubmittedName ? (
+            /* LEFT: Returning user */
+            <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-6 gap-5">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : `${primaryColor}22` }}>
+                <User className="w-8 h-8" style={{ color: primaryColor }} />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-sm" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.55)' : '#6b7280' }}>Welcome back!</p>
+                <p className="text-sm font-medium" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.8)' : '#374151' }}>You are recognized as</p>
+                <p className="text-xl font-bold mt-0.5" style={{ color: primaryColor }}>{returningUser.name}</p>
+              </div>
+              <div className="w-full flex flex-col gap-2 mt-1">
+                <button
+                  disabled={startChatMutation.isPending}
+                  onClick={() => {
+                    setNameInputValue(returningUser.name);
+                    if (returningUser.phone) {
+                      startChatMutation.mutate({ name: returningUser.name, phone: returningUser.phone, email: "", initialMessage: "Hello, I have a question", welcomeDescription: merchantConfig?.welcomeDescription || "", isQuickQuestion: false });
+                    } else {
+                      setReturningUser(null);
+                      setHasSubmittedName(false);
+                    }
+                  }}
+                  style={{ backgroundColor: startChatMutation.isPending ? `${primaryColor}99` : primaryColor, color: '#ffffff', borderRadius: 8, padding: '11px 16px', fontWeight: 600, fontSize: 14, border: 'none', cursor: startChatMutation.isPending ? 'not-allowed' : 'pointer', width: '100%' }}
+                >
+                  {startChatMutation.isPending ? 'Starting...' : `Continue as ${returningUser.name}`}
+                </button>
+                <button
+                  disabled={startChatMutation.isPending}
+                  onClick={() => { setReturningUser(null); setHasSubmittedName(false); }}
+                  style={{ backgroundColor: 'transparent', color: widgetIsDark ? 'rgba(255,255,255,0.65)' : '#6b7280', borderRadius: 8, padding: '11px 16px', fontSize: 14, border: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)'}`, cursor: startChatMutation.isPending ? 'not-allowed' : 'pointer', width: '100%' }}
+                >
+                  Start New Chat
+                </button>
+              </div>
+            </div>
+          ) : !hasSubmittedName && !returningUser ? (
+            /* LEFT: Pre-login form (banner + welcome + name/phone/email + start button) */
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+              {merchantConfig?.prechatBannerUrl && (
+                <div className="w-full overflow-hidden shrink-0">
+                  {merchantConfig.prechatBannerUrl.match(/\.mp4/i) ? (
+                    <video src={merchantConfig.prechatBannerUrl} className="w-full h-auto object-contain" style={{ display: 'block' }} autoPlay loop muted playsInline />
+                  ) : (
+                    <img src={merchantConfig.prechatBannerUrl} alt="Banner" className="w-full h-auto object-contain" style={{ display: 'block' }} />
+                  )}
+                </div>
+              )}
+              <div className="flex flex-col p-5 gap-3 flex-1">
+                <h3 className="text-lg font-semibold text-left" style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#1f2937' } : undefined}>Welcome!</h3>
+                {merchantConfig?.welcomeDescription && (
+                  <div className="text-sm whitespace-pre-wrap" style={applyEmbedStyles ? { color: widgetIsDark ? 'rgba(255,255,255,0.8)' : '#4b5563' } : undefined}>
+                    {merchantConfig.welcomeDescription.split(/(\bhttps?:\/\/\S+)/g).map((part: string, i: number) =>
+                      part.match(/^https?:\/\//) ? <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-primary underline break-all">{part}</a> : part
+                    )}
+                  </div>
+                )}
+                <p className="text-sm" style={applyEmbedStyles ? { color: widgetIsDark ? 'rgba(255,255,255,0.6)' : '#6b7280' } : undefined}>
+                  Please fill in your details to start chatting.
+                </p>
+                <div className="w-full space-y-3 mt-1">
+                  {/* Name */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs flex items-center gap-1" style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#374151' } : undefined}>
+                      <User className="w-3 h-3" /> Name <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="text" placeholder="Enter your name" value={nameInputValue}
+                      onChange={(e) => { setNameInputValue(e.target.value); setNameError(""); }}
+                      className="text-sm" name="chatvice_customer_display_name" id="chatvice_customer_display_name_left"
+                      autoComplete="off" autoCorrect="off" autoCapitalize="words" spellCheck={false}
+                      data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other" aria-autocomplete="none"
+                      style={applyEmbedStyles ? (widgetIsDark ? { backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: '#ffffff', borderRadius: '8px' } : { backgroundColor: 'rgba(255,255,255,0.9)', border: '1px solid rgba(0,0,0,0.1)', color: '#1f2937', borderRadius: '8px' }) : undefined}
+                      data-testid="input-customer-name-left"
+                    />
+                    {nameError && <p className="text-xs text-red-500">{nameError}</p>}
+                  </div>
+                  {/* Phone */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs flex items-center gap-1" style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#374151' } : undefined}>
+                      <Phone className="w-3 h-3" /> Phone Number <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="flex gap-1.5">
+                      <Select value={phoneDialCode} onValueChange={setPhoneDialCode}>
+                        <SelectTrigger className="w-[90px] text-xs" style={applyEmbedStyles ? (widgetIsDark ? { backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: '#ffffff', borderRadius: '8px' } : { backgroundColor: 'rgba(255,255,255,0.9)', border: '1px solid rgba(0,0,0,0.1)', color: '#1f2937', borderRadius: '8px' }) : undefined}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[200px]" style={applyEmbedStyles ? (widgetIsDark ? { backgroundColor: 'rgba(30,30,30,0.95)', border: '1px solid rgba(255,255,255,0.12)' } : { backgroundColor: '#ffffff', border: '1px solid rgba(0,0,0,0.1)' }) : undefined}>
+                          {countryPhoneConfigs.map((country) => (
+                            <SelectItem key={country.code} value={country.dialCode} style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#1f2937' } : undefined}>
+                              +{country.dialCode}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="tel" placeholder="81234567890" value={phoneLocalNumber}
+                        onChange={(e) => { setPhoneLocalNumber(e.target.value.replace(/\D/g, '')); setPhoneError(""); }}
+                        className="flex-1 text-sm" inputMode="numeric"
+                        style={applyEmbedStyles ? (widgetIsDark ? { backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: '#ffffff', borderRadius: '8px' } : { backgroundColor: 'rgba(255,255,255,0.9)', border: '1px solid rgba(0,0,0,0.1)', color: '#1f2937', borderRadius: '8px' }) : undefined}
+                        data-testid="input-phone-number-left"
+                      />
+                    </div>
+                    {phoneError && <p className="text-xs text-red-500">{phoneError}</p>}
+                  </div>
+                  {/* Email */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs flex items-center gap-1" style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#374151' } : undefined}>
+                      <Mail className="w-3 h-3" /> Email <span style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#6b7280' } : undefined}>(optional)</span>
+                    </Label>
+                    <Input
+                      type="email" placeholder="email@example.com" value={emailValue}
+                      onChange={(e) => { setEmailValue(e.target.value); setEmailError(""); }}
+                      className="text-sm"
+                      style={applyEmbedStyles ? (widgetIsDark ? { backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: '#ffffff', borderRadius: '8px' } : { backgroundColor: 'rgba(255,255,255,0.9)', border: '1px solid rgba(0,0,0,0.1)', color: '#1f2937', borderRadius: '8px' }) : undefined}
+                      data-testid="input-email-left"
+                    />
+                    {emailError && <p className="text-xs text-red-500">{emailError}</p>}
+                  </div>
+                  {/* Quick message options */}
+                  {merchantConfig?.quickMessageOptions && merchantConfig.quickMessageOptions.length > 0 && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs" style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#374151' } : undefined}>Quick Question</Label>
+                      <div className="flex flex-col gap-1.5">
+                        {merchantConfig.quickMessageOptions.slice(0, 4).map((opt: string, idx: number) => (
+                          <label key={idx} className="flex items-center gap-2 cursor-pointer text-xs p-2 rounded-lg"
+                            style={{ color: widgetIsDark ? 'rgba(255,255,255,0.85)' : '#4b5563', backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', border: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}` }}>
+                            <input type="checkbox" checked={selectedQuickMessage === opt} onChange={() => setSelectedQuickMessage(selectedQuickMessage === opt ? null : opt)} className="w-3.5 h-3.5 rounded" style={{ accentColor: primaryColor }} />
+                            <span>{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Start Chat button */}
+                  <button
+                    onClick={handleNameSubmit}
+                    disabled={startChatMutation.isPending || !nameInputValue.trim() || !phoneLocalNumber.trim()}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-semibold text-sm"
+                    style={{ backgroundColor: (startChatMutation.isPending || !nameInputValue.trim() || !phoneLocalNumber.trim()) ? `${primaryColor}77` : primaryColor, color: getContrastColor(primaryColor), cursor: (startChatMutation.isPending || !nameInputValue.trim() || !phoneLocalNumber.trim()) ? 'not-allowed' : 'pointer', marginTop: '4px', border: 'none' }}
+                    data-testid="button-start-chat-left"
+                  >
+                    {startChatMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                    Start Chat
+                  </button>
+                </div>
+              </div>
+              </div>
+              {/* End inner scrollable area */}
+              {/* Powered by footer — always pinned at bottom */}
+              <div className="shrink-0 px-4 pb-4 pt-2">
+                <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-full" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.03)', border: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}` }}>
+                  <a href="https://chatvice.app" target="_blank" rel="noopener noreferrer" className="shrink-0 opacity-70 hover:opacity-100 transition-opacity">
+                    <img src={widgetIsDark ? chatviceLogoDark : chatviceLogoLight} alt="Chatvice" className="h-3.5" />
+                  </a>
+                  <a href="/chat/login" target="_blank" rel="noopener noreferrer" className="text-[10px] font-semibold rounded-full px-2.5 py-1 shrink-0 whitespace-nowrap" style={{ background: 'linear-gradient(135deg,#a855f7,#d946ef,#8b5cf6)', color: '#fff' }}>
+                    Sign in to stay connected
+                  </a>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* LEFT: Post-login branding panel */
+            <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-8 gap-5 text-center overflow-y-auto" data-testid="widget-left-branding">
+              {/* Agent avatar */}
+              <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center overflow-hidden shrink-0 shadow-lg" style={{ border: `3px solid ${primaryColor}44` }}>
+                {sessionInfo?.agentInfo?.photoUrl && sessionInfo.agentInfo.photoUrl.trim() !== "" ? (
+                  <img src={sessionInfo.agentInfo.photoUrl} alt="Agent" className="w-full h-full object-cover" />
+                ) : merchantConfig?.agentPhotoUrl ? (
+                  <img src={merchantConfig.agentPhotoUrl} alt="Agent" className="w-full h-full object-cover" />
+                ) : merchantConfig?.iconUrl ? (
+                  <img src={merchantConfig.iconUrl} alt="Chat" className="w-full h-full object-cover" />
+                ) : (
+                  <Bot className="w-10 h-10" style={{ color: primaryColor }} />
+                )}
+              </div>
+              {/* Agent name & status */}
+              <div className="space-y-1">
+                <p className="text-lg font-bold" style={{ color: widgetIsDark ? '#ffffff' : '#1f2937' }}>
+                  {sessionInfo?.agentInfo?.name || merchantConfig?.agentName || "Customer Support"}
+                </p>
+                <div className="flex items-center justify-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-400'}`} />
+                  <span className="text-xs" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.55)' : '#6b7280' }}>
+                    {isOnline ? 'Online – here to help' : 'Offline'}
+                  </span>
+                </div>
+              </div>
+              {/* Welcome copy */}
+              {merchantConfig?.welcomeDescription ? (
+                <p className="text-sm leading-relaxed max-w-xs" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.7)' : '#4b5563' }}>
+                  {merchantConfig.welcomeDescription}
+                </p>
+              ) : serverMessages && serverMessages.length > 0 && serverMessages[0].from === 'agent' ? (
+                <p className="text-sm leading-relaxed max-w-xs italic" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.7)' : '#4b5563' }}>
+                  "{serverMessages[0].content?.slice(0, 120)}{(serverMessages[0].content?.length ?? 0) > 120 ? '…' : ''}"
+                </p>
+              ) : null}
+              {/* Merchant branding */}
+              {merchantConfig?.iconUrl && (
+                <div className="flex items-center gap-2 mt-2 opacity-60">
+                  <img src={merchantConfig.iconUrl} alt="Brand" className="w-5 h-5 rounded object-cover" />
+                  <span className="text-xs font-medium" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.5)' : '#9ca3af' }}>
+                    {merchantConfig.agentName || "Customer Service"}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── RIGHT / FULL COLUMN ─── */}
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+
       {/* Customer name form - shown for new customers - frosted glass background */}
       {isCheckingSession || (!hasSubmittedName && !serverMessages?.length && !merchantConfig) ? (
+        isDesktopTwoCol ? (
+          /* Two-col RIGHT: chat area skeleton */
+          <div className="flex-1 min-h-0 flex flex-col p-6 gap-4" style={frostedBodyStyle} data-testid="widget-chat-skeleton">
+            <div className="flex gap-2.5 items-end">
+              <div className="w-8 h-8 rounded-full shrink-0 animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }} />
+              <div className="flex flex-col gap-2">
+                <div className="h-4 w-44 rounded-full animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.07)' }} />
+                <div className="h-4 w-32 rounded-full animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }} />
+              </div>
+            </div>
+            <div className="flex gap-2.5 items-end justify-end mt-2">
+              <div className="h-4 w-28 rounded-full animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }} />
+            </div>
+            <div className="flex gap-2.5 items-end mt-2">
+              <div className="w-8 h-8 rounded-full shrink-0 animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }} />
+              <div className="flex flex-col gap-2">
+                <div className="h-4 w-52 rounded-full animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.07)' }} />
+                <div className="h-4 w-40 rounded-full animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }} />
+                <div className="h-4 w-36 rounded-full animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }} />
+              </div>
+            </div>
+            <div className="flex-1" />
+            <div className="h-12 w-full rounded-full animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }} />
+          </div>
+        ) : (
         <div 
           className="flex-1 min-h-0 flex flex-col p-4 gap-4"
           style={frostedBodyStyle}
@@ -2648,7 +2925,22 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
           <div className="h-11 w-full rounded-md animate-pulse mt-2" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }} />
         </div>
+        )
       ) : returningUser && !hasSubmittedName ? (
+        isDesktopTwoCol ? (
+          /* Two-col RIGHT: returning user — show chat skeleton while user confirms on left */
+          <div className="flex-1 min-h-0 flex flex-col p-6 gap-4" style={frostedBodyStyle} data-testid="widget-chat-skeleton-returning">
+            <div className="flex gap-2.5 items-end">
+              <div className="w-8 h-8 rounded-full shrink-0 animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }} />
+              <div className="flex flex-col gap-2">
+                <div className="h-4 w-44 rounded-full animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.07)' }} />
+                <div className="h-4 w-32 rounded-full animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }} />
+              </div>
+            </div>
+            <div className="flex-1" />
+            <div className="h-12 w-full rounded-full animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }} />
+          </div>
+        ) : (
         /* Returning visitor confirmation screen */
         <div
           className="flex-1 min-h-0 flex flex-col items-center justify-center p-6 gap-5"
@@ -2743,7 +3035,32 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             </button>
           </div>
         </div>
+        )
       ) : !hasSubmittedName && !serverMessages?.length && !returningUser ? (
+        isDesktopTwoCol ? (
+          /* Two-col RIGHT: form on left, show chat skeleton on right */
+          <div className="flex-1 min-h-0 flex flex-col p-6 gap-4" style={frostedBodyStyle} data-testid="widget-chat-skeleton-form">
+            <div className="flex gap-2.5 items-end">
+              <div className="w-8 h-8 rounded-full shrink-0 animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }} />
+              <div className="flex flex-col gap-2">
+                <div className="h-4 w-44 rounded-full animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.07)' }} />
+                <div className="h-4 w-32 rounded-full animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }} />
+              </div>
+            </div>
+            <div className="flex gap-2.5 items-end justify-end mt-2">
+              <div className="h-4 w-28 rounded-full animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }} />
+            </div>
+            <div className="flex gap-2.5 items-end mt-2">
+              <div className="w-8 h-8 rounded-full shrink-0 animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }} />
+              <div className="flex flex-col gap-2">
+                <div className="h-4 w-52 rounded-full animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.07)' }} />
+                <div className="h-4 w-40 rounded-full animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)' }} />
+              </div>
+            </div>
+            <div className="flex-1" />
+            <div className="h-12 w-full rounded-full animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }} />
+          </div>
+        ) : (
         <div 
           className="flex-1 min-h-0 flex flex-col"
           style={frostedBodyStyle}
@@ -3120,6 +3437,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             </div>
           </div>
         </div>
+        )
       ) : (
         <div className="flex-1 min-h-0 flex flex-col">
           <ScrollArea className="flex-1 min-h-0" style={{ ...frostedBodyStyle, borderRadius: '0' }}>
@@ -3965,6 +4283,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       </div>
       </div>
       )}
+      </div>
+      {/* End of right column wrapper */}
       </div>
       {/* End of main content area wrapper */}
       

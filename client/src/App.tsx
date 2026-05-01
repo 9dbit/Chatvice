@@ -199,10 +199,12 @@ function MainRouter() {
             return <ChatWidget merchantId={params.merchantId} embedded />;
           }
           
-          // Direct access - full screen widget, no centering wrapper
+          // Direct access - two-column layout on desktop (≥768px), full-screen on mobile
           return (
-            <div className="h-screen w-screen overflow-hidden">
-              <ChatWidget merchantId={params.merchantId} embedded />
+            <div className="h-screen w-screen overflow-hidden flex items-center justify-center" style={{ background: 'var(--background)' }}>
+              <div className="w-full h-full md:max-w-[1024px] md:h-[90vh] md:rounded-2xl md:overflow-hidden md:shadow-2xl">
+                <ChatWidget merchantId={params.merchantId} embedded desktopStandalone />
+              </div>
             </div>
           );
         }}
@@ -278,9 +280,12 @@ function MainRouter() {
             return <ChatWidget merchantId={params.slug} embedded />;
           }
           
+          // Direct access - two-column layout on desktop (≥768px), full-screen on mobile
           return (
-            <div className="h-screen w-screen overflow-hidden">
-              <ChatWidget merchantId={params.slug} embedded />
+            <div className="h-screen w-screen overflow-hidden flex items-center justify-center" style={{ background: 'var(--background)' }}>
+              <div className="w-full h-full md:max-w-[1024px] md:h-[90vh] md:rounded-2xl md:overflow-hidden md:shadow-2xl">
+                <ChatWidget merchantId={params.slug} embedded desktopStandalone />
+              </div>
             </div>
           );
         }}
