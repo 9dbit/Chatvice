@@ -327,6 +327,8 @@ export default function WidgetPage() {
   const { data: domainUsageStats = [], isLoading: isLoadingUsage } = useQuery<DomainUsageStat[]>({
     queryKey: ["/api/merchant/domains/usage"],
     enabled: !!merchantId,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const secretKey = secretData?.secretKey || "";

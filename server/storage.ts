@@ -97,6 +97,7 @@ import {
 import { db } from "./db";
 import { eq, desc, gte, gt, and, or, lt, isNull, isNotNull, sql, count, inArray, ne } from "drizzle-orm";
 import { randomBytes } from "crypto";
+import { extractHostnameFromUrl } from "./urlUtils";
 
 export interface AnalyticsData {
   totalSessions: number;
@@ -2841,7 +2842,8 @@ export class DatabaseStorage implements IStorage {
 
     if (validatedDomains.length === 0) return [];
 
-    // Fetch real chat sessions (not visitor-ping-only) with a pageUrl this month
+    // Fetch real chat sessions (not visitor-ping-only) with a pageUrl this month.
+    // Include rows where visitorSession IS NULL (legacy) or IS FALSE.
     const monthSessions = await db.select({
       pageUrl: sessions.pageUrl,
       createdAt: sessions.createdAt,
@@ -2851,13 +2853,8 @@ export class DatabaseStorage implements IStorage {
         eq(sessions.merchantId, merchantId),
         gte(sessions.createdAt, startOfMonth),
         isNotNull(sessions.pageUrl),
-        eq(sessions.visitorSession, false),
+        or(isNull(sessions.visitorSession), eq(sessions.visitorSession, false)),
       ));
-
-    // Hostname extraction helper
-    const extractHostname = (url: string): string | null => {
-      try { return new URL(url).hostname.toLowerCase(); } catch { return null; }
-    };
 
     // Aggregate stats per validated domain
     const stats = validatedDomains.map((d) => {
@@ -2866,7 +2863,7 @@ export class DatabaseStorage implements IStorage {
       let latestMs = 0;
 
       for (const s of monthSessions) {
-        const h = s.pageUrl ? extractHostname(s.pageUrl) : null;
+        const h = extractHostnameFromUrl(s.pageUrl);
         if (!h) continue;
         if (h === regDomain || h.endsWith("." + regDomain)) {
           conversationCount++;
