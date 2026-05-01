@@ -610,6 +610,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [nameError, setNameError] = useState("");
   const [showConversationLimitPopup, setShowConversationLimitPopup] = useState(false);
   const [conversationLimitCount, setConversationLimitCount] = useState(0);
+  const [isLimitFallback, setIsLimitFallback] = useState(false);
+  const [limitFallbackBannerDismissed, setLimitFallbackBannerDismissed] = useState(false);
   const [selectedQuickMessage, setSelectedQuickMessage] = useState<string | null>(null);
   
   // Phone and email state for welcome form
@@ -1177,9 +1179,16 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         isAngry?: boolean;
         triggerHit?: boolean;
         isNewSession?: boolean;
+        limitFallback?: boolean;
       }>;
     },
     onSuccess: (data) => {
+      // Limit fallback: session was just created in HUMAN mode — show warning banner, refresh messages
+      if (data.limitFallback) {
+        setIsLimitFallback(true);
+        queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
+        return;
+      }
       if (data.answer) {
         setPendingMessages((prev) => [
           ...prev,
@@ -1310,7 +1319,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         welcomeDescription, // Include welcome description for chat history (only if no quick question)
         isQuickQuestion, // Flag to indicate if user selected a quick question
       });
-      return response.json() as Promise<{ success: boolean; answer: string; error?: string; code?: string; limit?: number; sanitizedName?: string; welcomeMessage?: string }>;
+      return response.json() as Promise<{ success: boolean; answer: string; error?: string; code?: string; limit?: number; sanitizedName?: string; welcomeMessage?: string; limitFallback?: boolean }>;
     },
     onSuccess: (data, variables) => {
       if (data.success) {
@@ -1323,6 +1332,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             sessionStorage.setItem(customerNameKey, finalName);
             sessionStorage.setItem(`${customerNameKey}_submitted`, "true");
           } catch {}
+        }
+
+        // Limit fallback: session was created in HUMAN mode — no AI response, show in-chat warning
+        if (data.limitFallback) {
+          setIsLimitFallback(true);
+          queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
+          return;
         }
         
         // Add welcome message (if available), user's initial message, and AI response
@@ -4111,6 +4127,46 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           }}
           data-testid="input-file-document"
         />
+        {/* Limit fallback upgrade banner — shown when session was created in HUMAN mode due to quota */}
+        {isLimitFallback && !limitFallbackBannerDismissed && (
+          <div
+            className="flex items-start gap-2 px-3 py-2 rounded-lg mb-2"
+            style={{
+              backgroundColor: widgetIsDark ? 'rgba(251, 191, 36, 0.12)' : 'rgba(251, 191, 36, 0.15)',
+              border: `1px solid ${widgetIsDark ? 'rgba(251, 191, 36, 0.25)' : 'rgba(180, 130, 0, 0.25)'}`,
+            }}
+            data-testid="banner-limit-fallback"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium" style={{ color: widgetIsDark ? '#fbbf24' : '#92400e' }}>
+                AI agent limit reached
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: widgetIsDark ? 'rgba(251,191,36,0.8)' : '#78350f' }}>
+                A supervisor will be with you shortly.{" "}
+                <a
+                  href="/dashboard/plans"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline font-medium"
+                  style={{ color: widgetIsDark ? '#fbbf24' : '#92400e' }}
+                  data-testid="link-limit-upgrade"
+                >
+                  Upgrade plan
+                </a>
+              </p>
+            </div>
+            <button
+              onClick={() => setLimitFallbackBannerDismissed(true)}
+              className="shrink-0 rounded-full p-0.5 transition-opacity opacity-60 hover:opacity-100"
+              style={{ color: widgetIsDark ? '#fbbf24' : '#92400e' }}
+              data-testid="button-dismiss-limit-banner"
+              aria-label="Dismiss"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Input field with + button and send button INSIDE */}
         <div 
           className="flex items-center gap-1"

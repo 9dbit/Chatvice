@@ -5978,7 +5978,30 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const existingSession = await storage.getSession(sessionId);
       if (!existingSession) {
         const limitCheck = await checkSubscriptionLimits(resolvedMerchantId, 'conversation');
-        if (!limitCheck.allowed) {
+        if (!limitCheck.allowed && limitCheck.code === 'CONVERSATION_LIMIT_REACHED') {
+          // Graceful fallback: create session in HUMAN mode and return limitFallback flag
+          await storage.createSession({
+            id: sessionId,
+            merchantId: resolvedMerchantId,
+            mode: "HUMAN",
+            needsSupervisorAttention: true,
+            limitFallback: true,
+            customerName: "Customer",
+          });
+          await storage.createMessage({
+            sessionId,
+            from: "system",
+            content: "Agent is temporarily inactive — your conversation limit has been reached. A supervisor will assist you shortly.",
+          });
+          await storage.createMessage({
+            sessionId,
+            from: "customer",
+            content: message,
+            clientMessageId: clientMessageId || undefined,
+          });
+          await notifySupervisors(resolvedMerchantId, sessionId, "manual");
+          return res.json({ answer: "", mode: "HUMAN", sessionId, needsSupervisorAttention: true, limitFallback: true });
+        } else if (!limitCheck.allowed) {
           return res.status(403).json({ error: limitCheck.message, code: limitCheck.code, limit: limitCheck.limit, requiresUpgrade: limitCheck.requiresUpgrade ?? false });
         }
         const credits = storage.calculateCreditsFromCustomerId(sessionId);
@@ -18237,7 +18260,61 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
       if (!session) {
         // Check subscription limits before creating session
         const limitCheck = await checkSubscriptionLimits(resolvedMerchantId, 'conversation');
-        if (!limitCheck.allowed) {
+        if (!limitCheck.allowed && limitCheck.code === 'CONVERSATION_LIMIT_REACHED') {
+          // Graceful fallback: create the session in HUMAN mode so supervisors can assist
+          let customerAvatarUrl: string | null = null;
+          if (customerPhone) {
+            try {
+              const existingCustomer = await storage.getCustomerByPhone(customerPhone);
+              if (existingCustomer?.avatarUrl) {
+                customerAvatarUrl = existingCustomer.avatarUrl;
+              }
+            } catch {}
+          }
+          await storage.createSession({
+            id: sessionId,
+            merchantId: resolvedMerchantId,
+            mode: "HUMAN",
+            needsSupervisorAttention: true,
+            limitFallback: true,
+            customerName: sanitizedName,
+            customerPhone: customerPhone || null,
+            customerEmail: customerEmail?.trim() || null,
+            customerAvatarUrl,
+            agentId: null,
+            deviceFingerprint: deviceFingerprint || null,
+            clientIp: clientIp || null,
+            userAgent: (req.headers["user-agent"] as string) || null,
+            countryCode: geo.countryCode,
+            countryName: geo.countryName,
+            cityName: geo.city || null,
+          });
+          // Insert system message explaining the situation
+          await storage.createMessage({
+            sessionId,
+            from: "system",
+            content: "Agent is temporarily inactive — your conversation limit has been reached. A supervisor will assist you shortly.",
+          });
+          // Store the customer's initial message so supervisors can see it
+          if (initialMessage && initialMessage.trim()) {
+            await storage.createMessage({
+              sessionId,
+              from: "customer",
+              content: initialMessage.trim(),
+            });
+          }
+          // Notify supervisors about this limit-fallback session
+          await notifySupervisors(resolvedMerchantId, sessionId, "manual");
+          return res.json({
+            success: true,
+            limitFallback: true,
+            sanitizedName,
+            sessionId,
+            mode: "HUMAN",
+            needsSupervisorAttention: true,
+            answer: "",
+          });
+        } else if (!limitCheck.allowed) {
           return res.json({ success: false, error: limitCheck.message, code: limitCheck.code, limit: limitCheck.limit, requiresUpgrade: limitCheck.requiresUpgrade ?? false });
         }
         

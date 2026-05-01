@@ -798,7 +798,18 @@ export default function SupervisorPanel() {
                                   </AvatarFallback>
                                 </Avatar>
                                 <div>
-                                  <p className="text-sm font-medium">{session.customerName || "Customer"}</p>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <p className="text-sm font-medium">{session.customerName || "Customer"}</p>
+                                    {session.limitFallback && (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[10px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10"
+                                        data-testid={`badge-limit-fallback-${session.id}`}
+                                      >
+                                        Limit
+                                      </Badge>
+                                    )}
+                                  </div>
                                   <p className="text-xs text-muted-foreground font-mono">
                                     {session.id.slice(0, 12)}...
                                   </p>

@@ -249,6 +249,8 @@ export const sessions = pgTable("sessions", {
   customerRating: integer("customer_rating"),
   ratingComment: text("rating_comment"),
   ratedAt: timestamp("rated_at"),
+  // Limit fallback: session created in HUMAN mode because conversation quota was exhausted
+  limitFallback: boolean("limit_fallback").default(false),
 }, (table) => [
   index("sessions_merchant_id_idx").on(table.merchantId),
   index("sessions_created_at_idx").on(table.createdAt),
