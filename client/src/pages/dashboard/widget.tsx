@@ -17,7 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   Palette, Save, Copy, Check, Bot, Code, Moon, Sun, AlignLeft, AlignRight, 
   Loader2, Camera, RefreshCw, X, Send, Paperclip, Smile, ImageIcon, Video,
@@ -36,6 +37,8 @@ export default function WidgetPage() {
   const { t } = useLanguage();
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const [showDomainLimitDialog, setShowDomainLimitDialog] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
   const { data: merchantProfile } = useQuery<{ widgetSlug?: string }>({
@@ -224,11 +227,7 @@ export default function WidgetPage() {
     },
     onError: (error: any) => {
       if (error?.requiresUpgrade) {
-        toast({
-          title: t("dashboard.widget.domainLimitReached"),
-          description: t("dashboard.widget.domainLimitDesc"),
-          variant: "destructive",
-        });
+        setShowDomainLimitDialog(true);
       } else {
         toast({
           title: t("dashboard.widget.domainAddFailed"),
@@ -297,11 +296,15 @@ export default function WidgetPage() {
       refetchDomains();
     },
     onError: (error: any) => {
-      toast({
-        title: "Could not approve domain",
-        description: error?.message || "Please try again.",
-        variant: "destructive",
-      });
+      if (error?.requiresUpgrade) {
+        setShowDomainLimitDialog(true);
+      } else {
+        toast({
+          title: "Could not approve domain",
+          description: error?.message || "Please try again.",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -958,6 +961,49 @@ async function handleLogin() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Domain Limit Upgrade Dialog */}
+      <Dialog open={showDomainLimitDialog} onOpenChange={setShowDomainLimitDialog}>
+        <DialogContent
+          className="max-w-sm text-center border border-border/60"
+          style={{
+            background: "hsl(var(--card) / 0.85)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+          }}
+        >
+          <DialogHeader className="items-center gap-3 pb-2">
+            <div className="w-14 h-14 rounded-full flex items-center justify-center bg-destructive/10 border border-destructive/20">
+              <Lock className="w-6 h-6 text-destructive" />
+            </div>
+            <DialogTitle className="text-lg font-semibold">Domain Limit Reached</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+              You've used all available domain slots on your current plan. Upgrade to add more domains and keep your widget running across all your sites.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col gap-2 sm:flex-col mt-2">
+            <Button
+              className="w-full"
+              onClick={() => {
+                setShowDomainLimitDialog(false);
+                setLocation("/dashboard/plans");
+              }}
+              data-testid="button-domain-limit-upgrade"
+            >
+              <Crown className="w-4 h-4 mr-2" />
+              Upgrade Plan
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full"
+              onClick={() => setShowDomainLimitDialog(false)}
+              data-testid="button-domain-limit-dismiss"
+            >
+              Not Now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold">{t("dashboard.widget.title")}</h1>
