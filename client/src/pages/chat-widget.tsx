@@ -917,6 +917,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     supervisorInfo: { id: string; name: string; photoUrl: string } | null;
     agentId: string | null;
     agentInfo: { id: string; name: string; photoUrl: string } | null;
+    limitFallback?: boolean;
   }
   
   const { data: sessionInfo } = useQuery<SessionInfo>({
@@ -924,6 +925,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     enabled: !!sessionId,
     refetchInterval: 3000, // Poll for supervisor takeover
   });
+
+  // Restore limit-fallback state on reload from persisted session metadata
+  useEffect(() => {
+    if (sessionInfo?.limitFallback) {
+      setIsLimitFallback(true);
+    }
+  }, [sessionInfo?.limitFallback]);
 
   // Stop inactivity timer when supervisor takes over (HUMAN mode)
   useEffect(() => {

@@ -18238,6 +18238,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         supervisorInfo,
         agentId: session.agentId,
         agentInfo,
+        limitFallback: session.limitFallback ?? false,
       });
     } catch (error) {
       console.error("Error getting session info:", error);
