@@ -399,12 +399,13 @@ export interface IStorage {
   ignoreUnknownDomainAttempt(id: string): Promise<boolean>;
   deleteUnknownDomainAttempt(id: string): Promise<boolean>;
   countUnknownDomainAttempts(merchantId: string): Promise<number>;
-  getDomainUsageStats(merchantId: string): Promise<{
+  getDomainUsageStats(merchantId: string, monthsCount?: number): Promise<{
     domainId: string;
     domain: string;
     conversationCount: number;
     lastSeenAt: Date | null;
     percentOfTotal: number;
+    months: { month: string; conversationCount: number }[];
   }[]>;
   
   // Payment Gateways
@@ -2822,15 +2823,27 @@ export class DatabaseStorage implements IStorage {
     return result[0]?.count ?? 0;
   }
 
-  async getDomainUsageStats(merchantId: string): Promise<{
+  async getDomainUsageStats(merchantId: string, monthsCount: number = 1): Promise<{
     domainId: string;
     domain: string;
     conversationCount: number;
     lastSeenAt: Date | null;
     percentOfTotal: number;
+    months: { month: string; conversationCount: number }[];
   }[]> {
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const safeMonthsCount = Math.min(Math.max(monthsCount, 1), 12);
+
+    // Build month windows from oldest to newest
+    const monthWindows: { start: Date; end: Date; label: string }[] = [];
+    for (let i = safeMonthsCount - 1; i >= 0; i--) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = i === 0 ? new Date(now.getTime() + 1) : new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      const label = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, "0")}`;
+      monthWindows.push({ start: monthStart, end: monthEnd, label });
+    }
+
+    const oldestStart = monthWindows[0].start;
 
     // Fetch validated domains
     const validatedDomains = await db.select()
@@ -2842,16 +2855,15 @@ export class DatabaseStorage implements IStorage {
 
     if (validatedDomains.length === 0) return [];
 
-    // Fetch real chat sessions (not visitor-ping-only) with a pageUrl this month.
-    // Include rows where visitorSession IS NULL (legacy) or IS FALSE.
-    const monthSessions = await db.select({
+    // Fetch real chat sessions across the entire multi-month window
+    const allSessions = await db.select({
       pageUrl: sessions.pageUrl,
       createdAt: sessions.createdAt,
     })
       .from(sessions)
       .where(and(
         eq(sessions.merchantId, merchantId),
-        gte(sessions.createdAt, startOfMonth),
+        gte(sessions.createdAt, oldestStart),
         isNotNull(sessions.pageUrl),
         or(isNull(sessions.visitorSession), eq(sessions.visitorSession, false)),
       ));
@@ -2859,24 +2871,43 @@ export class DatabaseStorage implements IStorage {
     // Aggregate stats per validated domain
     const stats = validatedDomains.map((d) => {
       const regDomain = d.domain.toLowerCase();
-      let conversationCount = 0;
       let latestMs = 0;
 
-      for (const s of monthSessions) {
+      // Per-month counts (one slot per window)
+      const monthCounts = monthWindows.map((w) => ({
+        month: w.label,
+        conversationCount: 0,
+      }));
+
+      for (const s of allSessions) {
         const h = extractHostnameFromUrl(s.pageUrl);
         if (!h) continue;
-        if (h === regDomain || h.endsWith("." + regDomain)) {
-          conversationCount++;
-          const ts = s.createdAt ? new Date(s.createdAt).getTime() : 0;
-          if (ts > latestMs) latestMs = ts;
+        if (h !== regDomain && !h.endsWith("." + regDomain)) continue;
+
+        const ts = s.createdAt ? new Date(s.createdAt).getTime() : 0;
+        if (ts > latestMs) latestMs = ts;
+
+        const sessionDate = s.createdAt ? new Date(s.createdAt) : null;
+        if (!sessionDate) continue;
+
+        for (let i = 0; i < monthWindows.length; i++) {
+          const w = monthWindows[i];
+          if (sessionDate >= w.start && sessionDate < w.end) {
+            monthCounts[i].conversationCount++;
+            break;
+          }
         }
       }
+
+      // Current month (last window) = the main conversationCount
+      const conversationCount = monthCounts[monthCounts.length - 1].conversationCount;
 
       return {
         domainId: d.id,
         domain: d.domain,
         conversationCount,
         lastSeenAt: latestMs > 0 ? new Date(latestMs) : null,
+        months: monthCounts,
       };
     });
 

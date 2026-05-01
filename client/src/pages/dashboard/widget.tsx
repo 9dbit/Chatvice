@@ -23,7 +23,8 @@ import {
   Loader2, Camera, RefreshCw, X, Send, Paperclip, Smile, ImageIcon, Video,
   Globe, MessageSquare, Frame, Shield, Key, Eye, EyeOff, Crown, Lock, ArrowUpRight, ChevronDown,
   Plus, Trash2, CheckCircle, AlertCircle, ExternalLink, GripVertical, ChevronUp, ChevronDown as ChevronDownIcon,
-  Smartphone, Monitor, Sparkles, ArrowUpDown, ArrowLeftRight, ZoomIn, RotateCw, AlertTriangle, BanIcon, ShieldCheck, BarChart2
+  Smartphone, Monitor, Sparkles, ArrowUpDown, ArrowLeftRight, ZoomIn, RotateCw, AlertTriangle, BanIcon, ShieldCheck, BarChart2,
+  TrendingUp, TrendingDown, Minus
 } from "lucide-react";
 import type { MerchantDomain, UnknownDomainAttempt } from "@shared/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -315,17 +316,25 @@ export default function WidgetPage() {
     },
   });
 
-  // Domain usage stats (current month)
+  // Domain usage stats with 3-month trend
   type DomainUsageStat = {
     domainId: string;
     domain: string;
     conversationCount: number;
     lastSeenAt: string | null;
     percentOfTotal: number;
+    months: { month: string; conversationCount: number }[];
   };
 
+  const DOMAIN_USAGE_MONTHS = 3;
+
   const { data: domainUsageStats = [], isLoading: isLoadingUsage } = useQuery<DomainUsageStat[]>({
-    queryKey: ["/api/merchant/domains/usage"],
+    queryKey: ["/api/merchant/domains/usage", DOMAIN_USAGE_MONTHS],
+    queryFn: async () => {
+      const res = await fetch(`/api/merchant/domains/usage?months=${DOMAIN_USAGE_MONTHS}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch domain usage");
+      return res.json();
+    },
     enabled: !!merchantId,
     staleTime: 0,
     refetchOnMount: "always",
@@ -2366,7 +2375,7 @@ async function handleLogin() {
                 <CardTitle>Usage by Domain</CardTitle>
               </div>
               <CardDescription>
-                Conversations started from each registered domain this month.
+                Conversations per registered domain — current month with 3-month trend.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -2416,43 +2425,108 @@ async function handleLogin() {
                 </div>
               ) : (
                 <div className="divide-y" data-testid="usage-domain-table">
-                  <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-4 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     <span>Domain</span>
+                    <span className="text-right">3-mo trend</span>
                     <span className="text-right">Chats</span>
                     <span className="text-right w-10">%</span>
                     <span className="text-right">Last Chat</span>
                   </div>
-                  {domainUsageStats.map((stat) => (
-                    <div
-                      key={stat.domainId}
-                      className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 py-2 items-center"
-                      data-testid={`usage-row-${stat.domainId}`}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Globe className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <span className="font-mono text-sm truncate" data-testid={`text-domain-name-${stat.domainId}`}>
-                          {stat.domain}
+                  {domainUsageStats.map((stat) => {
+                    const months = stat.months ?? [];
+                    const currentCount = months.length > 0 ? months[months.length - 1].conversationCount : stat.conversationCount;
+                    const prevCount = months.length > 1 ? months[months.length - 2].conversationCount : null;
+                    const trendPct = prevCount !== null && prevCount > 0
+                      ? Math.round(((currentCount - prevCount) / prevCount) * 100)
+                      : prevCount === 0 && currentCount > 0
+                      ? null
+                      : null;
+                    const maxCount = months.length > 0 ? Math.max(...months.map(m => m.conversationCount), 1) : 1;
+
+                    return (
+                      <div
+                        key={stat.domainId}
+                        className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-4 py-2 items-center"
+                        data-testid={`usage-row-${stat.domainId}`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Globe className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          <span className="font-mono text-sm truncate" data-testid={`text-domain-name-${stat.domainId}`}>
+                            {stat.domain}
+                          </span>
+                        </div>
+
+                        {/* Sparkline + trend indicator */}
+                        <div className="flex items-center gap-2" data-testid={`trend-container-${stat.domainId}`}>
+                          {/* Mini bar sparkline */}
+                          {months.length > 0 && (
+                            <div className="flex items-end gap-0.5 h-6" data-testid={`sparkline-${stat.domainId}`}>
+                              {months.map((m, idx) => {
+                                const heightPct = maxCount > 0 ? Math.round((m.conversationCount / maxCount) * 100) : 0;
+                                const isLatest = idx === months.length - 1;
+                                return (
+                                  <Tooltip key={m.month}>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        className={`w-3 rounded-sm ${isLatest ? "bg-primary" : "bg-muted-foreground/30"}`}
+                                        style={{ height: `${Math.max(heightPct, 8)}%` }}
+                                        data-testid={`sparkline-bar-${stat.domainId}-${idx}`}
+                                      />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="text-xs">
+                                      <span className="font-medium">{m.month}</span>: {m.conversationCount.toLocaleString()} chats
+                                    </TooltipContent>
+                                  </Tooltip>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Trend arrow + % */}
+                          {trendPct !== null ? (
+                            <div
+                              className={`flex items-center gap-0.5 text-xs font-medium ${trendPct > 0 ? "text-green-600 dark:text-green-400" : trendPct < 0 ? "text-destructive" : "text-muted-foreground"}`}
+                              data-testid={`trend-indicator-${stat.domainId}`}
+                            >
+                              {trendPct > 0 ? (
+                                <TrendingUp className="w-3 h-3 shrink-0" />
+                              ) : trendPct < 0 ? (
+                                <TrendingDown className="w-3 h-3 shrink-0" />
+                              ) : (
+                                <Minus className="w-3 h-3 shrink-0" />
+                              )}
+                              <span>{trendPct > 0 ? "+" : ""}{trendPct}%</span>
+                            </div>
+                          ) : prevCount === 0 && currentCount > 0 ? (
+                            <div className="flex items-center gap-0.5 text-xs font-medium text-green-600 dark:text-green-400" data-testid={`trend-indicator-${stat.domainId}`}>
+                              <TrendingUp className="w-3 h-3 shrink-0" />
+                              <span>New</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground" data-testid={`trend-indicator-${stat.domainId}`}>—</span>
+                          )}
+                        </div>
+
+                        <span className="text-right font-medium text-sm" data-testid={`text-chat-count-${stat.domainId}`}>
+                          {stat.conversationCount.toLocaleString()}
+                        </span>
+                        <div className="w-10 text-right">
+                          <Badge
+                            variant="secondary"
+                            className="text-xs font-normal"
+                            data-testid={`badge-pct-${stat.domainId}`}
+                          >
+                            {stat.percentOfTotal}%
+                          </Badge>
+                        </div>
+                        <span className="text-right text-xs text-muted-foreground" data-testid={`text-last-seen-${stat.domainId}`}>
+                          {stat.lastSeenAt
+                            ? new Date(stat.lastSeenAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                            : <span className="italic">Never</span>}
                         </span>
                       </div>
-                      <span className="text-right font-medium text-sm" data-testid={`text-chat-count-${stat.domainId}`}>
-                        {stat.conversationCount.toLocaleString()}
-                      </span>
-                      <div className="w-10 text-right">
-                        <Badge
-                          variant="secondary"
-                          className="text-xs font-normal"
-                          data-testid={`badge-pct-${stat.domainId}`}
-                        >
-                          {stat.percentOfTotal}%
-                        </Badge>
-                      </div>
-                      <span className="text-right text-xs text-muted-foreground" data-testid={`text-last-seen-${stat.domainId}`}>
-                        {stat.lastSeenAt
-                          ? new Date(stat.lastSeenAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
-                          : <span className="italic">Never</span>}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

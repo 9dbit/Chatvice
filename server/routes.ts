@@ -4475,11 +4475,12 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
-  // Usage stats per registered domain — current month
+  // Usage stats per registered domain — supports optional ?months=N param for trend data
   app.get("/api/merchant/domains/usage", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
-      const stats = await storage.getDomainUsageStats(merchantId);
+      const months = Math.min(Math.max(parseInt(req.query.months as string) || 1, 1), 12);
+      const stats = await storage.getDomainUsageStats(merchantId, months);
       res.json(stats);
     } catch (error) {
       console.error("Domain usage stats error:", error);
