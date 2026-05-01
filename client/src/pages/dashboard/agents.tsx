@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { isPlanLimitError } from "@/lib/planLimitUtils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -182,9 +183,7 @@ export default function AgentsPage() {
       });
     },
     onError: (error: any) => {
-      // Check if it's an agent limit error - show upselling popup instead of toast
-      const errorMessage = error.message || "";
-      if (errorMessage.includes("Agent limit reached") || errorMessage.includes("limit reached") || errorMessage.includes("403")) {
+      if (isPlanLimitError(error)) {
         setIsDialogOpen(false);
         setShowLimitPopup(true);
         return;

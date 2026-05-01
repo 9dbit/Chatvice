@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { isPlanLimitError } from "@/lib/planLimitUtils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -271,13 +272,14 @@ export default function WidgetPage() {
       setNewDomain("");
       refetchDomains();
     },
-    onError: (error: any) => {
-      if (error?.requiresUpgrade) {
+    onError: (error: unknown) => {
+      if (isPlanLimitError(error)) {
         setShowDomainLimitDialog(true);
       } else {
+        const msg = error instanceof Error ? error.message : undefined;
         toast({
           title: t("dashboard.widget.domainAddFailed"),
-          description: error?.message || "Please try again.",
+          description: msg || "Please try again.",
           variant: "destructive",
         });
       }

@@ -208,7 +208,7 @@ async function getEffectivePlanLimitsAsync(merchant: Merchant) {
   };
 }
 
-async function checkSubscriptionLimits(merchantId: string, type: 'conversation' | 'supervisor'): Promise<{ allowed: boolean; message?: string; code?: string; limit?: number }> {
+async function checkSubscriptionLimits(merchantId: string, type: 'conversation' | 'supervisor' | 'source'): Promise<{ allowed: boolean; message?: string; code?: string; limit?: number; requiresUpgrade?: boolean }> {
   const merchant = await storage.getMerchant(merchantId);
   if (!merchant) {
     return { allowed: false, message: "Merchant not found" };
@@ -229,7 +229,7 @@ async function checkSubscriptionLimits(merchantId: string, type: 'conversation' 
     if (effectiveLimits.conversationsLimit === -1) return { allowed: true };
     const used = merchant.conversationsUsed || 0;
     if (used >= effectiveLimits.conversationsLimit) {
-      return { allowed: false, message: `Monthly conversation limit reached (${effectiveLimits.conversationsLimit}). Please upgrade your plan.`, code: "CONVERSATION_LIMIT_REACHED", limit: effectiveLimits.conversationsLimit };
+      return { allowed: false, message: `Monthly conversation limit reached (${effectiveLimits.conversationsLimit}). Please upgrade your plan.`, code: "CONVERSATION_LIMIT_REACHED", limit: effectiveLimits.conversationsLimit, requiresUpgrade: true };
     }
   }
   
@@ -237,7 +237,15 @@ async function checkSubscriptionLimits(merchantId: string, type: 'conversation' 
     const supervisors = await storage.getSupervisorsByMerchant(merchantId);
     if (effectiveLimits.supervisorsLimit === -1) return { allowed: true };
     if (supervisors.length >= effectiveLimits.supervisorsLimit) {
-      return { allowed: false, message: `Supervisor limit reached (${effectiveLimits.supervisorsLimit}). Please upgrade your plan.` };
+      return { allowed: false, message: `Supervisor limit reached (${effectiveLimits.supervisorsLimit}). Please upgrade your plan.`, requiresUpgrade: true, limit: effectiveLimits.supervisorsLimit };
+    }
+  }
+
+  if (type === 'source') {
+    if (effectiveLimits.sourcesLimit === -1) return { allowed: true };
+    const sources = await storage.getSources(merchantId);
+    if (sources.length >= effectiveLimits.sourcesLimit) {
+      return { allowed: false, message: `Source limit reached (${effectiveLimits.sourcesLimit}). Please upgrade your plan.`, code: "SOURCE_LIMIT_REACHED", limit: effectiveLimits.sourcesLimit, requiresUpgrade: true };
     }
   }
   
@@ -5971,7 +5979,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!existingSession) {
         const limitCheck = await checkSubscriptionLimits(resolvedMerchantId, 'conversation');
         if (!limitCheck.allowed) {
-          return res.status(403).json({ error: limitCheck.message, code: limitCheck.code, limit: limitCheck.limit });
+          return res.status(403).json({ error: limitCheck.message, code: limitCheck.code, limit: limitCheck.limit, requiresUpgrade: limitCheck.requiresUpgrade ?? false });
         }
         const credits = storage.calculateCreditsFromCustomerId(sessionId);
         await storage.incrementConversationUsage(resolvedMerchantId, credits);
@@ -7790,7 +7798,7 @@ Rules:
       
       const limitCheck = await checkSubscriptionLimits(merchantId, 'supervisor');
       if (!limitCheck.allowed) {
-        return res.status(403).json({ error: limitCheck.message });
+        return res.status(403).json({ error: limitCheck.message, requiresUpgrade: limitCheck.requiresUpgrade ?? false, limit: limitCheck.limit });
       }
       
       const existing = await storage.getSupervisorByEmail(email);
@@ -7869,7 +7877,7 @@ Rules:
       
       const limitCheck = await checkSubscriptionLimits(merchantId, 'supervisor');
       if (!limitCheck.allowed) {
-        return res.status(403).json({ error: limitCheck.message });
+        return res.status(403).json({ error: limitCheck.message, requiresUpgrade: limitCheck.requiresUpgrade ?? false, limit: limitCheck.limit });
       }
       
       const existingSupervisor = await storage.getSupervisorByEmail(email);
@@ -16657,7 +16665,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       const existingAgents = await storage.getAgents(merchantId);
       
       if (plan.agentsLimit !== -1 && existingAgents.length >= plan.agentsLimit) {
-        return res.status(403).json({ error: `Agent limit reached (${plan.agentsLimit}). Please upgrade your plan.` });
+        return res.status(403).json({ error: `Agent limit reached (${plan.agentsLimit}). Please upgrade your plan.`, requiresUpgrade: true, limit: plan.agentsLimit });
       }
       
       const { name, description, agentType } = req.body;
@@ -17080,6 +17088,11 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
     try {
       const merchantId = req.session.merchantId!;
       const { type, name, content, url } = req.body;
+
+      const limitCheck = await checkSubscriptionLimits(merchantId, 'source');
+      if (!limitCheck.allowed) {
+        return res.status(403).json({ error: limitCheck.message, code: limitCheck.code, limit: limitCheck.limit, requiresUpgrade: limitCheck.requiresUpgrade ?? false });
+      }
       
       const source = await storage.createSource({
         merchantId,
@@ -17169,6 +17182,11 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           }
         });
       }
+
+      const limitCheck = await checkSubscriptionLimits(merchantId, 'source');
+      if (!limitCheck.allowed) {
+        return res.status(403).json({ error: limitCheck.message, code: limitCheck.code, limit: limitCheck.limit, requiresUpgrade: limitCheck.requiresUpgrade ?? false });
+      }
       
       const source = await storage.createSource({
         merchantId,
@@ -17222,6 +17240,11 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
           }
         });
       }
+
+      const limitCheckDoc = await checkSubscriptionLimits(merchantId, 'source');
+      if (!limitCheckDoc.allowed) {
+        return res.status(403).json({ error: limitCheckDoc.message, code: limitCheckDoc.code, limit: limitCheckDoc.limit, requiresUpgrade: limitCheckDoc.requiresUpgrade ?? false });
+      }
       
       const source = await storage.createSource({
         merchantId,
@@ -17274,6 +17297,11 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
             fileType: 'Google Sheet',
           }
         });
+      }
+
+      const limitCheckSheet = await checkSubscriptionLimits(merchantId, 'source');
+      if (!limitCheckSheet.allowed) {
+        return res.status(403).json({ error: limitCheckSheet.message, code: limitCheckSheet.code, limit: limitCheckSheet.limit, requiresUpgrade: limitCheckSheet.requiresUpgrade ?? false });
       }
       
       const source = await storage.createSource({
@@ -18210,7 +18238,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         // Check subscription limits before creating session
         const limitCheck = await checkSubscriptionLimits(resolvedMerchantId, 'conversation');
         if (!limitCheck.allowed) {
-          return res.json({ success: false, error: limitCheck.message, code: limitCheck.code, limit: limitCheck.limit });
+          return res.json({ success: false, error: limitCheck.message, code: limitCheck.code, limit: limitCheck.limit, requiresUpgrade: limitCheck.requiresUpgrade ?? false });
         }
         
         // Look up customer avatar by phone number from chat platform

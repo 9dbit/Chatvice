@@ -2,6 +2,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { isPlanLimitError } from "@/lib/planLimitUtils";
 import transactionBannerPath from "@assets/generated_images/transaction_record_banner.png";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -381,10 +382,6 @@ export default function KnowledgePage() {
   
   // Sources state
   const [showLimitPopup, setShowLimitPopup] = useState(false);
-  const isPlanLimitError = (message: string) =>
-    message.toLowerCase().includes("limit reached") ||
-    message.toLowerCase().includes("upgrade your plan") ||
-    message.toLowerCase().includes("source limit");
   const [isSourceDialogOpen, setIsSourceDialogOpen] = useState(false);
   const [isTransactionTemplateOpen, setIsTransactionTemplateOpen] = useState(false);
   const [transactionTemplateUrl, setTransactionTemplateUrl] = useState("");
@@ -927,13 +924,12 @@ export default function KnowledgePage() {
       setSelectedFile(null);
     },
     onError: (error: any) => {
-      const errorMessage = error.message || "";
-      if (isPlanLimitError(errorMessage)) {
+      if (isPlanLimitError(error)) {
         setIsSourceDialogOpen(false);
         setShowLimitPopup(true);
         return;
       }
-      toast({ title: t("common.error"), description: errorMessage || "Failed to add source.", variant: "destructive" });
+      toast({ title: t("common.error"), description: error.message || "Failed to add source.", variant: "destructive" });
     },
   });
 
@@ -942,7 +938,17 @@ export default function KnowledgePage() {
       const formData = new FormData();
       formData.append("file", file);
       const response = await fetch("/api/sources/upload", { method: "POST", body: formData, credentials: "include" });
-      if (!response.ok) throw new Error((await response.json()).message || "Upload failed");
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        const err = Object.assign(
+          new Error(body.message || body.error || "Upload failed"),
+          {
+            requiresUpgrade: body.requiresUpgrade === true,
+            ...(body.limit !== undefined ? { limit: body.limit as number } : {}),
+          }
+        );
+        throw err;
+      }
       return response.json();
     },
     onSuccess: (data) => {
@@ -954,13 +960,12 @@ export default function KnowledgePage() {
       setSelectedFile(null);
     },
     onError: (error: any) => {
-      const errorMessage = error.message || "";
-      if (isPlanLimitError(errorMessage)) {
+      if (isPlanLimitError(error)) {
         setIsSourceDialogOpen(false);
         setShowLimitPopup(true);
         return;
       }
-      toast({ title: t("common.uploadFailed"), description: errorMessage || "Failed to upload file.", variant: "destructive" });
+      toast({ title: t("common.uploadFailed"), description: error.message || "Failed to upload file.", variant: "destructive" });
     },
   });
 
@@ -976,13 +981,12 @@ export default function KnowledgePage() {
       sourceForm.reset();
     },
     onError: (error: any) => {
-      const errorMessage = error.message || "";
-      if (isPlanLimitError(errorMessage)) {
+      if (isPlanLimitError(error)) {
         setIsSourceDialogOpen(false);
         setShowLimitPopup(true);
         return;
       }
-      toast({ title: t("dashboard.knowledge.importFailed"), description: errorMessage || "Failed to import Google Doc.", variant: "destructive" });
+      toast({ title: t("dashboard.knowledge.importFailed"), description: error.message || "Failed to import Google Doc.", variant: "destructive" });
     },
   });
 
@@ -998,13 +1002,12 @@ export default function KnowledgePage() {
       sourceForm.reset();
     },
     onError: (error: any) => {
-      const errorMessage = error.message || "";
-      if (isPlanLimitError(errorMessage)) {
+      if (isPlanLimitError(error)) {
         setIsSourceDialogOpen(false);
         setShowLimitPopup(true);
         return;
       }
-      toast({ title: t("dashboard.knowledge.importFailed"), description: errorMessage || "Failed to import Google Sheet.", variant: "destructive" });
+      toast({ title: t("dashboard.knowledge.importFailed"), description: error.message || "Failed to import Google Sheet.", variant: "destructive" });
     },
   });
 
@@ -1019,8 +1022,7 @@ export default function KnowledgePage() {
       toast({ title: t("dashboard.knowledge.transactionAdded"), description: "Google Sheet template imported. Auto-sync every 1 minute is active." });
     },
     onError: (error: any) => {
-      const errorMessage = error.message || "";
-      if (isPlanLimitError(errorMessage)) {
+      if (isPlanLimitError(error)) {
         setIsTransactionTemplateOpen(false);
         setShowLimitPopup(true);
         return;

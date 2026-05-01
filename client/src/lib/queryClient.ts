@@ -27,7 +27,21 @@ async function throwIfResNotOk(res: Response) {
       throw new Error("Sesi berakhir. Silakan login kembali.");
     }
     const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    const err = new Error(`${res.status}: ${text}`) as Error & Record<string, unknown>;
+    try {
+      const body = JSON.parse(text);
+      if (body && typeof body === "object") {
+        if (body.error || body.message) {
+          err.message = (body.error || body.message) as string;
+        }
+        if (body.requiresUpgrade) err.requiresUpgrade = true;
+        if (body.limit !== undefined) err.limit = body.limit;
+        if (body.code) err.code = body.code;
+      }
+    } catch {
+      // body is not JSON – leave error as-is
+    }
+    throw err;
   }
 }
 
