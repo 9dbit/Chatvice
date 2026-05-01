@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,7 +23,7 @@ import {
   Loader2, Camera, RefreshCw, X, Send, Paperclip, Smile, ImageIcon, Video,
   Globe, MessageSquare, Frame, Shield, Key, Eye, EyeOff, Crown, Lock, ArrowUpRight, ChevronDown,
   Plus, Trash2, CheckCircle, AlertCircle, ExternalLink, GripVertical, ChevronUp, ChevronDown as ChevronDownIcon,
-  Smartphone, Monitor, Sparkles, ArrowUpDown, ArrowLeftRight, ZoomIn, RotateCw, AlertTriangle, BanIcon, ShieldCheck
+  Smartphone, Monitor, Sparkles, ArrowUpDown, ArrowLeftRight, ZoomIn, RotateCw, AlertTriangle, BanIcon, ShieldCheck, BarChart2
 } from "lucide-react";
 import type { MerchantDomain, UnknownDomainAttempt } from "@shared/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -312,6 +313,20 @@ export default function WidgetPage() {
     onError: () => {
       toast({ title: "Failed to dismiss", variant: "destructive" });
     },
+  });
+
+  // Domain usage stats (current month)
+  type DomainUsageStat = {
+    domainId: string;
+    domain: string;
+    conversationCount: number;
+    lastSeenAt: string | null;
+    percentOfTotal: number;
+  };
+
+  const { data: domainUsageStats = [], isLoading: isLoadingUsage } = useQuery<DomainUsageStat[]>({
+    queryKey: ["/api/merchant/domains/usage"],
+    enabled: !!merchantId,
   });
 
   const secretKey = secretData?.secretKey || "";
@@ -2340,6 +2355,102 @@ async function handleLogin() {
               </CardContent>
             </Card>
           )}
+
+          {/* Usage by Domain */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <BarChart2 className="w-5 h-5 text-primary" />
+                <CardTitle>Usage by Domain</CardTitle>
+              </div>
+              <CardDescription>
+                Conversations started from each registered domain this month.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Total usage progress bar */}
+              {merchant && (() => {
+                const used = merchant.conversationsUsed ?? 0;
+                const limit = (subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free).conversationsLimit;
+                const pct = limit === -1 ? 0 : Math.min(100, Math.round((used / limit) * 100));
+                return (
+                  <div className="space-y-1" data-testid="usage-progress-container">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Total this month</span>
+                      <span className="font-medium" data-testid="text-usage-count">
+                        {used.toLocaleString()}{limit !== -1 && ` / ${limit.toLocaleString()}`} conversations
+                      </span>
+                    </div>
+                    {limit !== -1 && (
+                      <Progress
+                        value={pct}
+                        className={`h-2 ${pct >= 90 ? "[&>div]:bg-destructive" : pct >= 70 ? "[&>div]:bg-amber-500" : ""}`}
+                        data-testid="progress-usage"
+                      />
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Per-domain table */}
+              {isLoadingUsage ? (
+                <div className="space-y-2" data-testid="usage-skeleton">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-center justify-between py-2">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-4 w-20" />
+                    </div>
+                  ))}
+                </div>
+              ) : domainUsageStats.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground" data-testid="usage-empty-state">
+                  <Globe className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                  <p className="font-medium text-sm">No validated domains yet</p>
+                  <p className="text-xs mt-1">Add and validate a domain above to start seeing per-domain usage.</p>
+                </div>
+              ) : (
+                <div className="divide-y" data-testid="usage-domain-table">
+                  <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    <span>Domain</span>
+                    <span className="text-right">Chats</span>
+                    <span className="text-right w-10">%</span>
+                    <span className="text-right">Last Chat</span>
+                  </div>
+                  {domainUsageStats.map((stat) => (
+                    <div
+                      key={stat.domainId}
+                      className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 py-2 items-center"
+                      data-testid={`usage-row-${stat.domainId}`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Globe className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <span className="font-mono text-sm truncate" data-testid={`text-domain-name-${stat.domainId}`}>
+                          {stat.domain}
+                        </span>
+                      </div>
+                      <span className="text-right font-medium text-sm" data-testid={`text-chat-count-${stat.domainId}`}>
+                        {stat.conversationCount.toLocaleString()}
+                      </span>
+                      <div className="w-10 text-right">
+                        <Badge
+                          variant="secondary"
+                          className="text-xs font-normal"
+                          data-testid={`badge-pct-${stat.domainId}`}
+                        >
+                          {stat.percentOfTotal}%
+                        </Badge>
+                      </div>
+                      <span className="text-right text-xs text-muted-foreground" data-testid={`text-last-seen-${stat.domainId}`}>
+                        {stat.lastSeenAt
+                          ? new Date(stat.lastSeenAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                          : <span className="italic">Never</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

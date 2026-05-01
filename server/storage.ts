@@ -95,7 +95,7 @@ import {
   blogGenerationLogs, type BlogGenerationLog, type InsertBlogGenerationLog,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, gte, gt, and, or, lt, isNull, sql, count, inArray, ne } from "drizzle-orm";
+import { eq, desc, gte, gt, and, or, lt, isNull, isNotNull, sql, count, inArray, ne } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
 export interface AnalyticsData {
@@ -398,6 +398,13 @@ export interface IStorage {
   ignoreUnknownDomainAttempt(id: string): Promise<boolean>;
   deleteUnknownDomainAttempt(id: string): Promise<boolean>;
   countUnknownDomainAttempts(merchantId: string): Promise<number>;
+  getDomainUsageStats(merchantId: string): Promise<{
+    domainId: string;
+    domain: string;
+    conversationCount: number;
+    lastSeenAt: Date | null;
+    percentOfTotal: number;
+  }[]>;
   
   // Payment Gateways
   getPaymentGateways(): Promise<PaymentGateway[]>;
@@ -2812,6 +2819,78 @@ export class DatabaseStorage implements IStorage {
         eq(unknownDomainAttempts.isIgnored, false)
       ));
     return result[0]?.count ?? 0;
+  }
+
+  async getDomainUsageStats(merchantId: string): Promise<{
+    domainId: string;
+    domain: string;
+    conversationCount: number;
+    lastSeenAt: Date | null;
+    percentOfTotal: number;
+  }[]> {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Fetch validated domains
+    const validatedDomains = await db.select()
+      .from(merchantDomains)
+      .where(and(
+        eq(merchantDomains.merchantId, merchantId),
+        eq(merchantDomains.isValidated, true)
+      ));
+
+    if (validatedDomains.length === 0) return [];
+
+    // Fetch real chat sessions (not visitor-ping-only) with a pageUrl this month
+    const monthSessions = await db.select({
+      pageUrl: sessions.pageUrl,
+      createdAt: sessions.createdAt,
+    })
+      .from(sessions)
+      .where(and(
+        eq(sessions.merchantId, merchantId),
+        gte(sessions.createdAt, startOfMonth),
+        isNotNull(sessions.pageUrl),
+        eq(sessions.visitorSession, false),
+      ));
+
+    // Hostname extraction helper
+    const extractHostname = (url: string): string | null => {
+      try { return new URL(url).hostname.toLowerCase(); } catch { return null; }
+    };
+
+    // Aggregate stats per validated domain
+    const stats = validatedDomains.map((d) => {
+      const regDomain = d.domain.toLowerCase();
+      let conversationCount = 0;
+      let latestMs = 0;
+
+      for (const s of monthSessions) {
+        const h = s.pageUrl ? extractHostname(s.pageUrl) : null;
+        if (!h) continue;
+        if (h === regDomain || h.endsWith("." + regDomain)) {
+          conversationCount++;
+          const ts = s.createdAt ? new Date(s.createdAt).getTime() : 0;
+          if (ts > latestMs) latestMs = ts;
+        }
+      }
+
+      return {
+        domainId: d.id,
+        domain: d.domain,
+        conversationCount,
+        lastSeenAt: latestMs > 0 ? new Date(latestMs) : null,
+      };
+    });
+
+    const total = stats.reduce((sum, s) => sum + s.conversationCount, 0);
+
+    return stats
+      .sort((a, b) => b.conversationCount - a.conversationCount)
+      .map((s) => ({
+        ...s,
+        percentOfTotal: total > 0 ? Math.round((s.conversationCount / total) * 100) : 0,
+      }));
   }
 
   // ============ Payment Gateways ============

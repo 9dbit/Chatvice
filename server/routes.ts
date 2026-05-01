@@ -4474,6 +4474,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // Usage stats per registered domain — current month
+  app.get("/api/merchant/domains/usage", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const stats = await storage.getDomainUsageStats(merchantId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Domain usage stats error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // NOTE: Notification routes and custom-plan-requests must be registered BEFORE /api/merchant/:merchantId to avoid route conflicts
   
   // Get merchant's custom plan requests
