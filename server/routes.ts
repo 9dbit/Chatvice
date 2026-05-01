@@ -27,7 +27,7 @@ import { extractFAQContent, syncKnowledgeFromUrl, fetchWebContent } from "./craw
 import { parseFile, fetchGoogleDoc, fetchGoogleSheet } from "./fileParser";
 import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isTwelvePayConfigured, convertToIDR, formatIDR } from "./twelvePayClient";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
-import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification, sendEmailChangeOtp } from "./resendClient";
+import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification, sendEmailChangeOtp, sendQuota80Email, sendQuota100Email } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like } from "drizzle-orm";
@@ -206,6 +206,48 @@ async function getEffectivePlanLimitsAsync(merchant: Merchant) {
     monthlyPrice: effectivePlan.monthlyPrice,
     annualPrice: effectivePlan.annualPrice,
   };
+}
+
+async function checkAndSendQuotaEmails(merchantId: string): Promise<void> {
+  try {
+    const merchant = await storage.getMerchant(merchantId);
+    if (!merchant || !merchant.email) return;
+
+    const effectiveLimits = await getEffectivePlanLimitsAsync(merchant);
+    const limit = effectiveLimits.conversationsLimit;
+    if (limit <= 0) return;
+
+    const used = merchant.conversationsUsed || 0;
+    const displayName = merchant.companyName || merchant.username || merchant.email;
+
+    if (used >= Math.floor(limit * 0.8)) {
+      // Atomic: only update (and therefore only send) if the flag isn't already set
+      const updated80 = await db.update(merchants)
+        .set({ quota80EmailSent: true })
+        .where(and(eq(merchants.id, merchantId), eq(merchants.quota80EmailSent, false)))
+        .returning({ id: merchants.id });
+      if (updated80.length > 0) {
+        sendQuota80Email(merchant.email, displayName, used, limit).catch((err) =>
+          console.error('[quota-email] Failed to send 80% quota email:', err)
+        );
+      }
+    }
+
+    if (used >= limit) {
+      // Atomic: only update (and therefore only send) if the flag isn't already set
+      const updated100 = await db.update(merchants)
+        .set({ quota100EmailSent: true })
+        .where(and(eq(merchants.id, merchantId), eq(merchants.quota100EmailSent, false)))
+        .returning({ id: merchants.id });
+      if (updated100.length > 0) {
+        sendQuota100Email(merchant.email, displayName, limit).catch((err) =>
+          console.error('[quota-email] Failed to send 100% quota email:', err)
+        );
+      }
+    }
+  } catch (err) {
+    console.error('[quota-email] Error in checkAndSendQuotaEmails:', err);
+  }
 }
 
 async function checkSubscriptionLimits(merchantId: string, type: 'conversation' | 'supervisor' | 'source'): Promise<{ allowed: boolean; message?: string; code?: string; limit?: number; requiresUpgrade?: boolean }> {
@@ -6006,6 +6048,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         }
         const credits = storage.calculateCreditsFromCustomerId(sessionId);
         await storage.incrementConversationUsage(resolvedMerchantId, credits);
+        checkAndSendQuotaEmails(resolvedMerchantId).catch(() => {});
       }
 
       // If this session was a visitor-tracking session, upgrade it to a real session now
@@ -18349,6 +18392,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         // Increment conversation usage for new sessions
         const credits = storage.calculateCreditsFromCustomerId(sessionId);
         await storage.incrementConversationUsage(resolvedMerchantId, credits);
+        checkAndSendQuotaEmails(resolvedMerchantId).catch(() => {});
       } else {
         // Security check: Verify session belongs to this merchant
         if (session.merchantId !== resolvedMerchantId) {

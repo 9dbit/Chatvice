@@ -124,6 +124,9 @@ export const merchants = pgTable("merchants", {
   // Storage usage tracking (in bytes)
   storageUsed: integer("storage_used").default(0),
   storageLimit: integer("storage_limit").default(104857600), // 100MB default
+  // Quota email notification flags (reset each billing cycle with conversationsUsed)
+  quota80EmailSent: boolean("quota80_email_sent").default(false),
+  quota100EmailSent: boolean("quota100_email_sent").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   firstSubscribedAt: timestamp("first_subscribed_at"), // First time merchant paid for any subscription
   // IP & country tracking

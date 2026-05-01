@@ -882,3 +882,140 @@ export async function sendMerchantAuthNotification(
     return false;
   }
 }
+
+export async function sendQuota80Email(
+  toEmail: string,
+  merchantName: string,
+  conversationsUsed: number,
+  conversationsLimit: number,
+): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getUncachableResendClient();
+
+    const baseUrl = process.env.REPLIT_DEPLOYMENT_ID
+      ? 'https://chatvice.app'
+      : process.env.REPLIT_DEV_DOMAIN
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : 'http://localhost:5000';
+    const plansUrl = `${baseUrl}/dashboard/plans`;
+
+    const usagePercent = Math.round((conversationsUsed / conversationsLimit) * 100);
+
+    const { error } = await client.emails.send({
+      from: fromEmail,
+      to: toEmail,
+      subject: `You've used ${usagePercent}% of your monthly conversation quota`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+            <div style="background-color: #18181b; border-radius: 12px; padding: 40px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0 0 16px 0; font-size: 24px;">Quota Alert: ${usagePercent}% Used</h1>
+              <p style="color: #a1a1aa; margin: 0 0 24px 0; font-size: 16px; line-height: 1.5;">
+                Hi ${merchantName},
+              </p>
+              <p style="color: #a1a1aa; margin: 0 0 24px 0; font-size: 16px; line-height: 1.5;">
+                You've used <strong style="color: #f59e0b;">${conversationsUsed} of ${conversationsLimit}</strong> conversations this billing cycle. That's ${usagePercent}% of your monthly limit.
+              </p>
+              <p style="color: #a1a1aa; margin: 0 0 32px 0; font-size: 16px; line-height: 1.5;">
+                Consider upgrading your plan now to avoid any interruption to your customers' experience.
+              </p>
+              <a href="${plansUrl}" style="display: inline-block; background-color: #6b5dfc; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                View Upgrade Options
+              </a>
+              <p style="color: #71717a; margin: 32px 0 0 0; font-size: 14px;">
+                This is a one-time notification for this billing cycle.
+              </p>
+            </div>
+            <p style="text-align: center; color: #71717a; margin: 24px 0 0 0; font-size: 12px;">
+              &copy; ${new Date().getFullYear()} Chatvice. All rights reserved.
+            </p>
+          </div>
+        </body>
+        </html>
+      `
+    });
+
+    if (error) {
+      console.error('Resend quota 80% email error:', error);
+      return false;
+    }
+    console.log(`Quota 80% email sent to: ${toEmail}`);
+    return true;
+  } catch (error) {
+    console.error('Failed to send quota 80% email:', error);
+    return false;
+  }
+}
+
+export async function sendQuota100Email(
+  toEmail: string,
+  merchantName: string,
+  conversationsLimit: number,
+): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getUncachableResendClient();
+
+    const baseUrl = process.env.REPLIT_DEPLOYMENT_ID
+      ? 'https://chatvice.app'
+      : process.env.REPLIT_DEV_DOMAIN
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : 'http://localhost:5000';
+    const plansUrl = `${baseUrl}/dashboard/plans`;
+
+    const { error } = await client.emails.send({
+      from: fromEmail,
+      to: toEmail,
+      subject: `Your monthly conversation quota is exhausted`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+            <div style="background-color: #18181b; border-radius: 12px; padding: 40px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0 0 16px 0; font-size: 24px;">Conversation Quota Exhausted</h1>
+              <p style="color: #a1a1aa; margin: 0 0 24px 0; font-size: 16px; line-height: 1.5;">
+                Hi ${merchantName},
+              </p>
+              <p style="color: #a1a1aa; margin: 0 0 24px 0; font-size: 16px; line-height: 1.5;">
+                You've reached your monthly limit of <strong style="color: #ef4444;">${conversationsLimit} conversations</strong>. New customer conversations are currently being handled in human-fallback mode or blocked until your quota resets or you upgrade.
+              </p>
+              <p style="color: #a1a1aa; margin: 0 0 32px 0; font-size: 16px; line-height: 1.5;">
+                Upgrade your plan now to restore full service immediately.
+              </p>
+              <a href="${plansUrl}" style="display: inline-block; background-color: #6b5dfc; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                Upgrade Now
+              </a>
+              <p style="color: #71717a; margin: 32px 0 0 0; font-size: 14px;">
+                This is a one-time notification for this billing cycle.
+              </p>
+            </div>
+            <p style="text-align: center; color: #71717a; margin: 24px 0 0 0; font-size: 12px;">
+              &copy; ${new Date().getFullYear()} Chatvice. All rights reserved.
+            </p>
+          </div>
+        </body>
+        </html>
+      `
+    });
+
+    if (error) {
+      console.error('Resend quota 100% email error:', error);
+      return false;
+    }
+    console.log(`Quota 100% email sent to: ${toEmail}`);
+    return true;
+  } catch (error) {
+    console.error('Failed to send quota 100% email:', error);
+    return false;
+  }
+}

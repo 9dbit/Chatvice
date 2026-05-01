@@ -1359,9 +1359,18 @@ export class DatabaseStorage implements IStorage {
     scheduledPlanActivatesAt?: Date | null;
     scheduledPlanTransactionId?: string | null;
     trialEndsAt?: Date;
+    conversationsLimit?: number | null;
+    agentsLimit?: number | null;
+    supervisorsLimit?: number | null;
+    sourcesLimit?: number | null;
+    suggestedQuestionsLimit?: number | null;
   }): Promise<Merchant | undefined> {
+    const cycleReset: { quota80EmailSent?: boolean; quota100EmailSent?: boolean } =
+      data.conversationsUsed === 0
+        ? { quota80EmailSent: false, quota100EmailSent: false }
+        : {};
     const result = await db.update(merchants)
-      .set(data)
+      .set({ ...data, ...cycleReset })
       .where(eq(merchants.id, id))
       .returning();
     return result[0];
@@ -1385,6 +1394,8 @@ export class DatabaseStorage implements IStorage {
       .set({ 
         conversationsUsed: 0,
         conversationsResetAt: new Date(),
+        quota80EmailSent: false,
+        quota100EmailSent: false,
       })
       .where(eq(merchants.id, merchantId));
   }
