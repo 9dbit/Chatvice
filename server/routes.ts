@@ -208,7 +208,7 @@ async function getEffectivePlanLimitsAsync(merchant: Merchant) {
   };
 }
 
-async function checkSubscriptionLimits(merchantId: string, type: 'conversation' | 'supervisor'): Promise<{ allowed: boolean; message?: string }> {
+async function checkSubscriptionLimits(merchantId: string, type: 'conversation' | 'supervisor'): Promise<{ allowed: boolean; message?: string; code?: string; limit?: number }> {
   const merchant = await storage.getMerchant(merchantId);
   if (!merchant) {
     return { allowed: false, message: "Merchant not found" };
@@ -229,7 +229,7 @@ async function checkSubscriptionLimits(merchantId: string, type: 'conversation' 
     if (effectiveLimits.conversationsLimit === -1) return { allowed: true };
     const used = merchant.conversationsUsed || 0;
     if (used >= effectiveLimits.conversationsLimit) {
-      return { allowed: false, message: `Monthly conversation limit reached (${effectiveLimits.conversationsLimit}). Please upgrade your plan.` };
+      return { allowed: false, message: `Monthly conversation limit reached (${effectiveLimits.conversationsLimit}). Please upgrade your plan.`, code: "CONVERSATION_LIMIT_REACHED", limit: effectiveLimits.conversationsLimit };
     }
   }
   
@@ -5971,7 +5971,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       if (!existingSession) {
         const limitCheck = await checkSubscriptionLimits(resolvedMerchantId, 'conversation');
         if (!limitCheck.allowed) {
-          return res.status(403).json({ error: limitCheck.message });
+          return res.status(403).json({ error: limitCheck.message, code: limitCheck.code, limit: limitCheck.limit });
         }
         const credits = storage.calculateCreditsFromCustomerId(sessionId);
         await storage.incrementConversationUsage(resolvedMerchantId, credits);
@@ -18210,7 +18210,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         // Check subscription limits before creating session
         const limitCheck = await checkSubscriptionLimits(resolvedMerchantId, 'conversation');
         if (!limitCheck.allowed) {
-          return res.json({ success: false, error: limitCheck.message });
+          return res.json({ success: false, error: limitCheck.message, code: limitCheck.code, limit: limitCheck.limit });
         }
         
         // Look up customer avatar by phone number from chat platform

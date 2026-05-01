@@ -16,6 +16,7 @@ import { getImageLocation, type LocationData } from "@/lib/location-utils";
 import { countryPhoneConfigs, validatePhoneNumber } from "@shared/phoneValidation";
 import chatviceLogoLight from "../assets/chatvice-logo-light.png";
 import chatviceLogoDark from "../assets/chatvice-logo-dark.png";
+import { PlanLimitPopup } from "@/components/plan-limit-popup";
 
 interface AppointmentSlotProvider {
   providerName: string;
@@ -607,6 +608,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   });
   const [nameInputValue, setNameInputValue] = useState("");
   const [nameError, setNameError] = useState("");
+  const [showConversationLimitPopup, setShowConversationLimitPopup] = useState(false);
+  const [conversationLimitCount, setConversationLimitCount] = useState(0);
   const [selectedQuickMessage, setSelectedQuickMessage] = useState<string | null>(null);
   
   // Phone and email state for welcome form
@@ -1197,6 +1200,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         apiRequest("POST", "/api/widget/visitor-upgrade", { sessionId }).catch(() => {});
       }
     },
+    onError: (error: Error) => {
+      const msg = error.message || "";
+      if (msg.includes("CONVERSATION_LIMIT_REACHED")) {
+        const limitMatch = msg.match(/"limit":(\d+)/);
+        setConversationLimitCount(limitMatch ? parseInt(limitMatch[1], 10) : 0);
+        setShowConversationLimitPopup(true);
+      }
+    },
   });
 
   useEffect(() => {
@@ -1299,7 +1310,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         welcomeDescription, // Include welcome description for chat history (only if no quick question)
         isQuickQuestion, // Flag to indicate if user selected a quick question
       });
-      return response.json() as Promise<{ success: boolean; answer: string; error?: string; sanitizedName?: string; welcomeMessage?: string }>;
+      return response.json() as Promise<{ success: boolean; answer: string; error?: string; code?: string; limit?: number; sanitizedName?: string; welcomeMessage?: string }>;
     },
     onSuccess: (data, variables) => {
       if (data.success) {
@@ -1347,7 +1358,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         playNotificationSound("reply");
         queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
       } else {
-        setNameError(data.error || "Invalid name. Please try again.");
+        if (data.code === "CONVERSATION_LIMIT_REACHED") {
+          setConversationLimitCount(data.limit ?? 0);
+          setShowConversationLimitPopup(true);
+        } else {
+          setNameError(data.error || "Invalid name. Please try again.");
+        }
       }
     },
     onError: () => {
@@ -4332,6 +4348,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           </div>
         </div>
       )}
+
+      <PlanLimitPopup
+        isOpen={showConversationLimitPopup}
+        onClose={() => setShowConversationLimitPopup(false)}
+        limitType="conversation"
+        currentPlan="Current"
+        currentLimit={conversationLimitCount}
+      />
     </div>
   );
 }
