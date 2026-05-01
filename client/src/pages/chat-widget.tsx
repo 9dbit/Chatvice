@@ -2276,7 +2276,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       style={{
         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
         ...frostedGlassContainerStyle,
-        ...(embedded && !isExternalEmbed && !previewMode ? { height: '100dvh' } : {}),
+        ...(embedded && !isExternalEmbed && !previewMode ? { height: desktopStandalone && isDesktopMode ? '100%' : '100dvh' } : {}),
       }}
       data-testid="widget-container"
     >
@@ -2856,14 +2856,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   </span>
                 </div>
               </div>
-              {/* Welcome copy */}
-              {merchantConfig?.welcomeDescription ? (
-                <p className="text-sm leading-relaxed max-w-xs" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.7)' : '#4b5563' }}>
-                  {merchantConfig.welcomeDescription}
-                </p>
-              ) : serverMessages && serverMessages.length > 0 && serverMessages[0].from === 'agent' ? (
+              {/* Welcome copy — prefer first AI greeting, fallback to welcomeDescription */}
+              {serverMessages && serverMessages.length > 0 && serverMessages[0].from === 'agent' ? (
                 <p className="text-sm leading-relaxed max-w-xs italic" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.7)' : '#4b5563' }}>
                   "{serverMessages[0].content?.slice(0, 120)}{(serverMessages[0].content?.length ?? 0) > 120 ? '…' : ''}"
+                </p>
+              ) : merchantConfig?.welcomeDescription ? (
+                <p className="text-sm leading-relaxed max-w-xs" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.7)' : '#4b5563' }}>
+                  {merchantConfig.welcomeDescription}
                 </p>
               ) : null}
               {/* Merchant branding */}
