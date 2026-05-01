@@ -2456,6 +2456,29 @@ async function handleLogin() {
                         data-testid="progress-usage"
                       />
                     )}
+                    {limit !== -1 && used >= limit && (
+                      <div
+                        className="flex items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 mt-2"
+                        data-testid="banner-conversation-limit"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" />
+                          <span className="text-sm text-destructive font-medium truncate">
+                            Monthly conversation quota exhausted
+                          </span>
+                        </div>
+                        <Link href="/dashboard/plans">
+                          <Button
+                            size="sm"
+                            className="shrink-0 bg-gradient-to-r from-violet-600 to-purple-600 text-white"
+                            data-testid="button-upgrade-from-quota-banner"
+                          >
+                            <Crown className="mr-1.5 h-3.5 w-3.5" />
+                            Upgrade
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
