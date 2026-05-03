@@ -19,7 +19,7 @@ import {
   Hand, ArrowLeft, Clock, Edit, Check, X, Loader2, RefreshCw, AlertCircle,
   CheckCircle2, Circle, XCircle, Filter, ShoppingBag, Plus, ImageIcon, Video, FileText,
   ExternalLink, Maximize2, Minimize2, MapPin, Volume2, VolumeX, Monitor, Globe, Smartphone, Radio,
-  Languages, Wand2, Settings2
+  Languages, Wand2, Settings2, Info, Copy, Link2
 } from "lucide-react";
 import {
   SiAndroid, SiApple, SiLinux,
@@ -329,6 +329,9 @@ export default function SessionsPage() {
 
   // Mobile settings popover state
   const [showMobileSettings, setShowMobileSettings] = useState(false);
+
+  // Visitor info panel state
+  const [showVisitorInfo, setShowVisitorInfo] = useState(false);
 
   // Clear preview when session changes
   useEffect(() => {
@@ -1547,6 +1550,17 @@ export default function SessionsPage() {
                           >
                             <Download className="w-4 h-4" />
                           </Button>
+
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setShowVisitorInfo(!showVisitorInfo)}
+                            title="Visitor Info"
+                            className={`hidden sm:flex h-8 w-8 ${showVisitorInfo ? "bg-primary/10 text-primary" : ""}`}
+                            data-testid="button-toggle-visitor-info"
+                          >
+                            <Info className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -2228,6 +2242,126 @@ export default function SessionsPage() {
             )}
           </Card>
           
+          {/* Visitor Info Panel */}
+          {showVisitorInfo && selectedSessionData && (
+            <Card className="flex flex-col h-full w-72 flex-shrink-0" data-testid="card-visitor-info-panel">
+              <CardHeader className="flex-shrink-0 border-b py-2 px-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Info className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Visitor Info</span>
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => setShowVisitorInfo(false)}
+                    className="h-7 w-7"
+                    data-testid="button-close-visitor-info"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 p-3 overflow-auto">
+                <div className="space-y-4 text-sm">
+
+                  {/* Location */}
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Location</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <CountryFlag code={selectedSessionData.countryCode} name={selectedSessionData.countryName} />
+                        <span className="text-foreground">
+                          {[selectedSessionData.cityName, selectedSessionData.countryName].filter(Boolean).join(", ") || "Unknown"}
+                        </span>
+                      </div>
+                      {selectedSessionData.clientIp && (
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-mono text-xs text-muted-foreground">{selectedSessionData.clientIp}</span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 flex-shrink-0"
+                            onClick={() => {
+                              navigator.clipboard.writeText(selectedSessionData.clientIp || "");
+                              toast({ description: "IP address copied" });
+                            }}
+                            data-testid="button-copy-ip"
+                          >
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-t" />
+
+                  {/* Device */}
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Device</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <DeviceIcon userAgent={selectedSessionData.userAgent} size="md" />
+                      <OsIcon userAgent={selectedSessionData.userAgent} size="md" />
+                      <BrowserIcon userAgent={selectedSessionData.userAgent} size="md" />
+                    </div>
+                    {selectedSessionData.userAgent && (
+                      <p className="text-[10px] text-muted-foreground mt-1.5 break-all leading-relaxed line-clamp-3" title={selectedSessionData.userAgent}>
+                        {selectedSessionData.userAgent}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="border-t" />
+
+                  {/* Current Page */}
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Current Page</p>
+                    {selectedSessionData.pageUrl ? (
+                      <a
+                        href={selectedSessionData.pageUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-start gap-1.5 text-xs text-primary hover:underline break-all"
+                        data-testid="link-current-page"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                        <span>{selectedSessionData.pageUrl}</span>
+                      </a>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Unknown</span>
+                    )}
+                  </div>
+
+                  <div className="border-t" />
+
+                  {/* Traffic Source */}
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Traffic Source</p>
+                    {selectedSessionData.referrerUrl ? (
+                      <a
+                        href={selectedSessionData.referrerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-start gap-1.5 text-xs text-primary hover:underline break-all"
+                        data-testid="link-referrer-url"
+                      >
+                        <Link2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                        <span>{selectedSessionData.referrerUrl}</span>
+                      </a>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Globe className="w-3.5 h-3.5" />
+                        <span>Direct / Unknown</span>
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Preview Panel */}
           {previewContent && (
             <Card className={`flex flex-col h-full transition-all duration-300 ${isPreviewExpanded ? 'w-2/3' : 'w-80'}`} data-testid="card-preview-panel">

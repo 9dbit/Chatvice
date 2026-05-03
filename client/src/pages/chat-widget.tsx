@@ -1326,6 +1326,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         deviceFingerprint, // For 24-hour session persistence
         welcomeDescription, // Include welcome description for chat history (only if no quick question)
         isQuickQuestion, // Flag to indicate if user selected a quick question
+        referrerUrl: (typeof document !== "undefined" && document.referrer) ? document.referrer : "",
       });
       return response.json() as Promise<{ success: boolean; answer: string; error?: string; code?: string; limit?: number; sanitizedName?: string; welcomeMessage?: string; limitFallback?: boolean }>;
     },

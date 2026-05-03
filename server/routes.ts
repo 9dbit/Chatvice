@@ -15699,7 +15699,7 @@ Rules:
 
   function initVisitorTracking() {
     var fp = getDeviceFingerprint();
-    var pingData = { merchantId: merchantId, deviceFingerprint: fp, pageUrl: window.location.href };
+    var pingData = { merchantId: merchantId, deviceFingerprint: fp, pageUrl: window.location.href, referrerUrl: document.referrer || "" };
 
     fetch(baseUrl + "/api/widget/visitor-ping", {
       method: "POST",
@@ -17921,7 +17921,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
 
   app.post("/api/widget/visitor-ping", async (req, res) => {
     try {
-      const { merchantId, deviceFingerprint, pageUrl } = req.body;
+      const { merchantId, deviceFingerprint, pageUrl, referrerUrl } = req.body;
       if (!merchantId || !deviceFingerprint) {
         return res.json({ tracked: false });
       }
@@ -17962,6 +17962,10 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         const incomingUa = (req.headers["user-agent"] as string) || "";
         if (incomingUa && !existingSession.userAgent) {
           updatePayload.userAgent = incomingUa;
+        }
+        // Only store referrer on first ping — don't overwrite with empty subsequent pings
+        if (referrerUrl && !existingSession.referrerUrl) {
+          updatePayload.referrerUrl = referrerUrl;
         }
         await storage.updateSession(existingSession.id, updatePayload);
         return res.json({
@@ -18011,6 +18015,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
         countryName: geo.countryName,
         cityName: geo.city || null,
         pageUrl: pageUrl || "",
+        referrerUrl: referrerUrl || null,
         userAgent: visitorUserAgent,
       });
 
@@ -18262,7 +18267,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
   app.post("/api/widget/start-chat", async (req, res) => {
     // CORS is handled by the middleware at line 907-926 for /api/widget/ routes
     try {
-      const { merchantId, sessionId, customerName, customerPhone, customerEmail, initialMessage, deviceFingerprint, welcomeDescription, isQuickQuestion, isAutoOpen } = req.body;
+      const { merchantId, sessionId, customerName, customerPhone, customerEmail, initialMessage, deviceFingerprint, welcomeDescription, isQuickQuestion, isAutoOpen, referrerUrl: startChatReferrerUrl } = req.body;
       
       // Get client IP from request
       const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 
@@ -18344,6 +18349,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
             countryCode: geo.countryCode,
             countryName: geo.countryName,
             cityName: geo.city || null,
+            referrerUrl: startChatReferrerUrl || null,
           });
           // Insert system message explaining the situation
           await storage.createMessage({
@@ -18400,6 +18406,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
           countryCode: geo.countryCode,
           countryName: geo.countryName,
           cityName: geo.city || null,
+          referrerUrl: startChatReferrerUrl || null,
         });
         
         // Increment conversation usage for new sessions
