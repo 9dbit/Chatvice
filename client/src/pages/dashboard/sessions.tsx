@@ -1511,6 +1511,19 @@ export default function SessionsPage() {
                                   <p className="text-[11px] text-muted-foreground">Auto Refine is available when you take over.</p>
                                 )}
                                 <div className="border-t" />
+                                {/* Visitor Info */}
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-1.5">
+                                    <Info className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <span className="text-sm">Visitor Info</span>
+                                  </div>
+                                  <Switch
+                                    checked={showVisitorInfo}
+                                    onCheckedChange={(v) => { setShowVisitorInfo(v); setShowMobileSettings(false); }}
+                                    data-testid="switch-visitor-info-mobile"
+                                  />
+                                </div>
+                                <div className="border-t" />
                                 {/* Take Over / Return to Bot */}
                                 {selectedSessionData?.mode === "AI" ? (
                                   <Button

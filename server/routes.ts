@@ -18429,6 +18429,10 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
           lastActivity: new Date(),
           visitorSession: false,
         };
+        // Backfill referrerUrl if this existing session doesn't have one yet
+        if (startChatReferrerUrl && !session.referrerUrl) {
+          sessionUpdate.referrerUrl = startChatReferrerUrl;
+        }
         if (customerPhone) {
           try {
             const existingCustomer = await storage.getCustomerByPhone(customerPhone);
