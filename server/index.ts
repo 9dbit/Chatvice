@@ -77,6 +77,18 @@ try {
 }
 app.use("/uploads", express.static(uploadsPath));
 
+// Serve exports as forced downloads
+const exportsPath = path.resolve(process.cwd(), "exports");
+try {
+  if (!fs.existsSync(exportsPath)) fs.mkdirSync(exportsPath, { recursive: true });
+} catch {}
+app.use("/exports", express.static(exportsPath, {
+  setHeaders: (res, filePath) => {
+    res.setHeader("Content-Disposition", `attachment; filename="${path.basename(filePath)}"`);
+    res.setHeader("Cache-Control", "no-cache");
+  },
+}));
+
 // Serve avatar images from public/avatars
 const avatarsPath = path.resolve(process.cwd(), "public", "avatars");
 app.use("/avatars", express.static(avatarsPath, { maxAge: '1y' }));

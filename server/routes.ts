@@ -26216,5 +26216,22 @@ Please create a comprehensive help center article that would be useful for custo
     }
   })();
 
+  const EXPORT_TOKENS: Record<string, string> = {
+    "a21d4dd8af1803d9284f19ae712e85ed": "gunungmas88_knowledge_base.docx",
+  };
+  app.get("/api/export/download/:token", (req, res) => {
+    try {
+      const filename = EXPORT_TOKENS[req.params.token];
+      if (!filename) return res.status(404).json({ error: "Invalid or expired token" });
+      const filePath = path.join(process.cwd(), "exports", filename);
+      if (!fs.existsSync(filePath)) return res.status(404).json({ error: "File not found" });
+      res.download(filePath, filename, (err) => {
+        if (err && !res.headersSent) res.status(500).json({ error: "Download error" });
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   return httpServer;
 }
