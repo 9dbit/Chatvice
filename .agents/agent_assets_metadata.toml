@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "eQc2tmySlLlG86mw9PrV5"
+uri = "file://exports/gunungmas88_knowledge_base.docx"
+type = "word_document"
+title = "Knowledge Base Gunungmas88 — Lengkap"
