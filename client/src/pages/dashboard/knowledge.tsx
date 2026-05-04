@@ -796,9 +796,17 @@ export default function KnowledgePage() {
     refetchInterval: 5000,
   });
 
-  // Password Recovery config query
+  // Password Recovery config query — scoped to the selected agent
+  const prConfigUrl = selectedAgentId
+    ? `/api/merchant/password-recovery-config?agentId=${selectedAgentId}`
+    : `/api/merchant/password-recovery-config`;
   const { data: prConfig } = useQuery<{ id: string; sheetCsvUrl: string; writeBackUrl?: string; isActive: boolean; aiInstructions?: string; lastSyncedAt?: string } | null>({
-    queryKey: ["/api/merchant/password-recovery-config"],
+    queryKey: ["/api/merchant/password-recovery-config", selectedAgentId],
+    queryFn: async () => {
+      const res = await fetch(prConfigUrl, { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json();
+    },
     enabled: !!merchantId,
   });
 
@@ -3185,9 +3193,10 @@ export default function KnowledgePage() {
                           writeBackUrl: prWriteBackUrl,
                           isActive: prEnabled,
                           aiInstructions: prInstructions,
+                          agentId: selectedAgentId || null,
                         });
                         setPrConfigLoaded(false);
-                        queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config"] });
+                        queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config", selectedAgentId] });
                         toast({ title: "Password Recovery config saved", description: prEnabled ? "AI will now handle password recovery requests." : "Password Recovery is disabled." });
                       } catch {
                         toast({ title: "Failed to save config", variant: "destructive" });
@@ -3210,10 +3219,10 @@ export default function KnowledgePage() {
                       onClick={async () => {
                         setPrIsFetching(true);
                         try {
-                          const res = await apiRequest("POST", "/api/merchant/password-recovery-config/manual-fetch", {});
+                          const res = await apiRequest("POST", "/api/merchant/password-recovery-config/manual-fetch", { agentId: selectedAgentId || null });
                           const data = await res.json();
                           setPrConfigLoaded(false);
-                          queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config"] });
+                          queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config", selectedAgentId] });
                           toast({ title: "Sheet fetched", description: data.message || `Fetched successfully` });
                         } catch {
                           toast({ title: "Failed to fetch sheet", variant: "destructive" });
@@ -3236,13 +3245,16 @@ export default function KnowledgePage() {
                       onClick={async () => {
                         if (!confirm("Delete this password recovery configuration?")) return;
                         try {
-                          await apiRequest("DELETE", "/api/merchant/password-recovery-config");
+                          const deleteUrl = selectedAgentId
+                            ? `/api/merchant/password-recovery-config?agentId=${selectedAgentId}`
+                            : `/api/merchant/password-recovery-config`;
+                          await apiRequest("DELETE", deleteUrl);
                           setPrSheetUrl("");
                           setPrWriteBackUrl("");
                           setPrEnabled(false);
                           setPrInstructions("");
                           setPrConfigLoaded(false);
-                          queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config"] });
+                          queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config", selectedAgentId] });
                           toast({ title: "Config deleted" });
                         } catch {
                           toast({ title: "Failed to delete config", variant: "destructive" });

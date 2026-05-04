@@ -516,7 +516,42 @@ export function broadcastToSessionExternal(sessionId: string, data: any) {
 // function reformats data into a human-readable summary string.
 const prCsvCache = new Map<string, { data: string; ts: number }>();
 
+/**
+ * Validates that password recovery URLs are restricted to expected Google domains.
+ * Returns an error message string on failure, or null on success.
+ */
+function validatePasswordRecoveryUrls(sheetCsvUrl?: string, writeBackUrl?: string): string | null {
+  if (sheetCsvUrl) {
+    try {
+      const u = new URL(sheetCsvUrl);
+      if (u.protocol !== "https:" || u.hostname !== "docs.google.com" || !u.pathname.startsWith("/spreadsheets/")) {
+        return "sheetCsvUrl must be a Google Spreadsheets CSV export URL (https://docs.google.com/spreadsheets/...)";
+      }
+    } catch {
+      return "sheetCsvUrl is not a valid URL";
+    }
+  }
+  if (writeBackUrl) {
+    try {
+      const u = new URL(writeBackUrl);
+      const allowedHosts = ["script.google.com", "script.googleusercontent.com"];
+      if (u.protocol !== "https:" || !allowedHosts.includes(u.hostname)) {
+        return "writeBackUrl must be an HTTPS Google Apps Script URL (https://script.google.com/...)";
+      }
+    } catch {
+      return "writeBackUrl is not a valid URL";
+    }
+  }
+  return null;
+}
+
 async function fetchPasswordRecoveryRawCSV(csvUrl: string): Promise<string | null> {
+  // Defense-in-depth: reject non-Google-Sheets URLs even at fetch time
+  const urlError = validatePasswordRecoveryUrls(csvUrl);
+  if (urlError) {
+    console.warn("[PassRecov] Blocked fetch to non-allowlisted URL:", csvUrl);
+    return null;
+  }
   const cached = prCsvCache.get(csvUrl);
   if (cached && Date.now() - cached.ts < 3000) return cached.data;
   try {
@@ -6798,7 +6833,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                     // ── Reset password flow ────────────────────────────────
                     if (matchRow) {
                       // Write-back: POST to Apps Script with rowIndex so it can update the exact row
-                      if (prConfig.writeBackUrl) {
+                      // Validate URL before fetch (defense-in-depth against SSRF)
+                      if (prConfig.writeBackUrl && !validatePasswordRecoveryUrls(undefined, prConfig.writeBackUrl)) {
                         try {
                           await fetch(prConfig.writeBackUrl, {
                             method: "POST",
@@ -26434,6 +26470,8 @@ Please create a comprehensive help center article that would be useful for custo
     try {
       const merchantId = req.session!.merchantId!;
       const { sheetCsvUrl, writeBackUrl, isActive, aiInstructions, agentId } = req.body;
+      const urlValidErr = validatePasswordRecoveryUrls(sheetCsvUrl || undefined, writeBackUrl || undefined);
+      if (urlValidErr) return res.status(400).json({ error: urlValidErr });
       const config = await storage.upsertPasswordRecoveryConfig(merchantId, agentId || null, {
         sheetCsvUrl: sheetCsvUrl ?? "",
         writeBackUrl: writeBackUrl ?? "",
