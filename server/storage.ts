@@ -97,7 +97,7 @@ import {
   blogGenerationLogs, type BlogGenerationLog, type InsertBlogGenerationLog,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, gte, gt, and, or, lt, isNull, isNotNull, sql, count, inArray, ne } from "drizzle-orm";
+import { eq, desc, gte, gt, and, or, lt, isNull, isNotNull, sql, count, inArray, ne, SQL } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { extractHostnameFromUrl } from "./urlUtils";
 
@@ -4447,7 +4447,7 @@ export class DatabaseStorage implements IStorage {
   async upsertPasswordRecoveryConfig(merchantId: string, agentId: string | null, data: Partial<InsertPasswordRecoveryConfig>): Promise<PasswordRecoveryConfig> {
     // Use strict exact-match (no fallback) so saving a global (null) config never
     // accidentally overwrites an agent-specific row and vice-versa.
-    const exactConditions: any[] = [eq(passwordRecoveryConfigs.merchantId, merchantId)];
+    const exactConditions: SQL<unknown>[] = [eq(passwordRecoveryConfigs.merchantId, merchantId)];
     if (agentId) exactConditions.push(eq(passwordRecoveryConfigs.agentId, agentId));
     else exactConditions.push(isNull(passwordRecoveryConfigs.agentId));
     const [existing] = await db.select().from(passwordRecoveryConfigs).where(and(...exactConditions));
@@ -4464,7 +4464,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deletePasswordRecoveryConfig(merchantId: string, agentId?: string): Promise<boolean> {
-    const conditions: any[] = [eq(passwordRecoveryConfigs.merchantId, merchantId)];
+    const conditions: SQL<unknown>[] = [eq(passwordRecoveryConfigs.merchantId, merchantId)];
     if (agentId) conditions.push(eq(passwordRecoveryConfigs.agentId, agentId));
     else conditions.push(isNull(passwordRecoveryConfigs.agentId));
     const result = await db.delete(passwordRecoveryConfigs).where(and(...conditions)).returning();

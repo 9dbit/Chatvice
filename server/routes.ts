@@ -626,7 +626,8 @@ function startPasswordRecoverySessionPoller() {
         const matchRow = rows.find(r => r.rowIndex === entry.rowIndex) ||
                          rows.find(r => r.username.toLowerCase() === entry.username.toLowerCase());
 
-        if (matchRow && matchRow.status === "ok" && matchRow.newPassword) {
+        // Trigger on newPassword being filled — status "ok" is optional/secondary.
+        if (matchRow && matchRow.newPassword) {
           const deliveryMsg = `Password baru akun **${entry.username}** Anda telah disiapkan:\n\n\`${matchRow.newPassword}\`\n\nSilakan segera login dan ubah ke password baru yang lebih aman.`;
           await storage.createMessage({ sessionId, from: "chatvice", content: deliveryMsg });
           broadcastToSessionExternal(sessionId, { type: "message", message: { from: "chatvice", content: deliveryMsg } });
@@ -6797,7 +6798,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                           await fetch(prConfig.writeBackUrl, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ username: prUsername, rowIndex: matchRow.rowIndex, action: "request", phone: prPhone, bank: prBank }),
+                            body: JSON.stringify({ rowNumber: matchRow.rowIndex, newStatus: "request" }),
                             signal: AbortSignal.timeout(8000),
                           });
                           console.log(`[PassRecov] Write-back called for ${prUsername} (row ${matchRow.rowIndex})`);
