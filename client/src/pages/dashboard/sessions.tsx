@@ -912,9 +912,9 @@ export default function SessionsPage() {
   function buildBlastScheduledFor() {
     if (!blastScheduleDate) return undefined;
     const d = new Date(blastScheduleDate);
-    d.setHours(parseInt(blastScheduleHour, 10));
-    d.setMinutes(parseInt(blastScheduleMinute, 10));
-    d.setSeconds(0);
+    const h = Math.min(23, Math.max(0, parseInt(blastScheduleHour, 10) || 0));
+    const m = Math.min(59, Math.max(0, parseInt(blastScheduleMinute, 10) || 0));
+    d.setHours(h, m, 0, 0);
     return d.toISOString();
   }
 
@@ -3141,14 +3141,21 @@ export default function SessionsPage() {
                       mode="single"
                       selected={blastScheduleDate}
                       onSelect={setBlastScheduleDate}
-                      disabled={(d) => d < new Date() || d > new Date(Date.now() + 30 * 86400_000)}
+                      disabled={(d) => {
+                        const today = new Date(); today.setHours(0, 0, 0, 0);
+                        const max = new Date(Date.now() + 30 * 86400_000);
+                        return d < today || d > max;
+                      }}
                       className="rounded-md border w-fit"
                     />
                     <div className="flex items-center gap-2">
                       <Input
                         type="number" min="0" max="23" placeholder="HH"
                         value={blastScheduleHour}
-                        onChange={e => setBlastScheduleHour(e.target.value.padStart(2, "0").slice(-2))}
+                        onChange={e => {
+                          const v = Math.min(23, Math.max(0, parseInt(e.target.value, 10) || 0));
+                          setBlastScheduleHour(String(v).padStart(2, "0"));
+                        }}
                         className="w-16 h-8 text-sm text-center"
                         data-testid="input-blast-hour"
                       />
@@ -3156,7 +3163,10 @@ export default function SessionsPage() {
                       <Input
                         type="number" min="0" max="59" placeholder="MM"
                         value={blastScheduleMinute}
-                        onChange={e => setBlastScheduleMinute(e.target.value.padStart(2, "0").slice(-2))}
+                        onChange={e => {
+                          const v = Math.min(59, Math.max(0, parseInt(e.target.value, 10) || 0));
+                          setBlastScheduleMinute(String(v).padStart(2, "0"));
+                        }}
                         className="w-16 h-8 text-sm text-center"
                         data-testid="input-blast-minute"
                       />
