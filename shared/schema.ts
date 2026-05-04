@@ -2663,3 +2663,29 @@ export const insertHospitalityConfigSchema = createInsertSchema(hospitalityConfi
 export type InsertHospitalityConfig = z.infer<typeof insertHospitalityConfigSchema>;
 export type HospitalityConfig = typeof hospitalityConfigs.$inferSelect;
 
+// ── Blast Campaigns ────────────────────────────────────────────────────────
+export const blastCampaigns = pgTable("blast_campaigns", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  sentBy: varchar("sent_by", { length: 32 }),
+  filters: jsonb("filters").notNull().default({}),
+  message: text("message").notNull(),
+  mediaUrl: text("media_url"),
+  mediaType: text("media_type"),
+  matchedCount: integer("matched_count").notNull().default(0),
+  deliveredCount: integer("delivered_count").notNull().default(0),
+  failedCount: integer("failed_count").notNull().default(0),
+  status: text("status").notNull().default("scheduled"),
+  scheduledFor: timestamp("scheduled_for"),
+  sentAt: timestamp("sent_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  merchantIdx: index("blast_merchant_idx").on(table.merchantId),
+  statusIdx: index("blast_status_idx").on(table.status),
+  scheduledForIdx: index("blast_scheduled_for_idx").on(table.scheduledFor),
+}));
+
+export const insertBlastCampaignSchema = createInsertSchema(blastCampaigns).omit({ createdAt: true });
+export type InsertBlastCampaign = z.infer<typeof insertBlastCampaignSchema>;
+export type BlastCampaign = typeof blastCampaigns.$inferSelect;
+

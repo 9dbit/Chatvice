@@ -30,8 +30,8 @@ import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./payp
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification, sendEmailChangeOtp, sendQuota80Email, sendQuota100Email, sendSubscriptionExpiringEmail } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db, pool } from "./db";
-import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like } from "drizzle-orm";
-import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts } from "@shared/schema";
+import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } from "drizzle-orm";
+import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, blastCampaigns } from "@shared/schema";
 import crypto from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import sharp from "sharp";
@@ -20167,6 +20167,256 @@ ${log.extractedKnowledge}` : ''}
       res.status(500).json({ error: "Server error" });
     }
   });
+
+  // ─── Blast Campaign endpoints ────────────────────────────────────────────
+
+  function detectBlastOs(userAgent: string | null | undefined): string {
+    if (!userAgent) return "desktop";
+    const ua = userAgent.toLowerCase();
+    if (/android/i.test(ua)) return "android";
+    if (/iphone|ipad|ipod/i.test(ua)) return "ios";
+    return "desktop";
+  }
+
+  async function executeBlast(campaign: { id: string; merchantId: string; filters: any; message: string; mediaUrl?: string | null; mediaType?: string | null }) {
+    const { merchantId, filters, message, mediaUrl, mediaType } = campaign;
+    const f = filters as { periods?: string[]; countries?: string[]; cities?: string[]; deviceOs?: string[] };
+
+    const allSessions = await storage.getSessionsByMerchant(merchantId);
+    let matched = allSessions.filter(s => {
+      if (s.status === "ended") return false;
+      if (f.periods?.length) {
+        const sessionPeriod = s.createdAt
+          ? `${s.createdAt.getFullYear()}-${String(s.createdAt.getMonth() + 1).padStart(2, "0")}`
+          : null;
+        if (!sessionPeriod || !f.periods.includes(sessionPeriod)) return false;
+      }
+      if (f.countries?.length) {
+        if (!s.countryName || !f.countries.includes(s.countryName)) return false;
+      }
+      if (f.cities?.length) {
+        if (!s.cityName || !f.cities.some((c: string) => s.cityName!.toLowerCase().includes(c.toLowerCase()))) return false;
+      }
+      if (f.deviceOs?.length && !f.deviceOs.includes("all")) {
+        const os = detectBlastOs(s.userAgent);
+        if (!f.deviceOs.includes(os)) return false;
+      }
+      return true;
+    });
+
+    let delivered = 0;
+    let failed = 0;
+    const now = new Date();
+
+    for (const sess of matched) {
+      try {
+        const msgId = `blast_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const sessionClients = clients.get(sess.id);
+        const hasActiveClient = sessionClients && [...sessionClients].some(c => c.readyState === 1);
+
+        const msgPayload: any = { from: "chatvice", content: message, clientMessageId: msgId };
+        if (mediaUrl) {
+          msgPayload.mediaUrl = mediaUrl;
+          msgPayload.mediaType = mediaType;
+        }
+
+        await storage.createMessage({ sessionId: sess.id, from: "chatvice", content: message, clientMessageId: msgId });
+        broadcastToSession(sess.id, { type: "message", message: msgPayload });
+
+        if (hasActiveClient) {
+          delivered++;
+        } else {
+          failed++;
+        }
+      } catch {
+        failed++;
+      }
+    }
+
+    await db.update(blastCampaigns)
+      .set({ deliveredCount: delivered, failedCount: failed, matchedCount: matched.length, sentAt: now, status: "sent" })
+      .where(eq(blastCampaigns.id, campaign.id));
+
+    return { delivered, failed, matched: matched.length };
+  }
+
+  // GET /api/merchant/blast/options — distinct filter options from sessions
+  app.get("/api/merchant/blast/options", requireMerchantOrSupervisor, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId || req.session.supervisorMerchantId;
+      if (!merchantId) return res.status(401).json({ error: "Unauthorized" });
+
+      const allSessions = await storage.getSessionsByMerchant(merchantId);
+      const countries = [...new Set(allSessions.map(s => s.countryName).filter(Boolean))].sort() as string[];
+      const cities = [...new Set(allSessions.map(s => s.cityName).filter(Boolean))].sort() as string[];
+      const periods = [...new Set(allSessions.map(s => {
+        if (!s.createdAt) return null;
+        return `${s.createdAt.getFullYear()}-${String(s.createdAt.getMonth() + 1).padStart(2, "0")}`;
+      }).filter(Boolean))].sort((a, b) => (b! > a! ? 1 : -1)) as string[];
+
+      res.json({ countries, cities, periods });
+    } catch (err) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // POST /api/merchant/blast/preview — count matching sessions
+  app.post("/api/merchant/blast/preview", requireMerchantOrSupervisor, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId || req.session.supervisorMerchantId;
+      if (!merchantId) return res.status(401).json({ error: "Unauthorized" });
+
+      const { periods = [], countries = [], cities = [], deviceOs = [] } = req.body as {
+        periods?: string[]; countries?: string[]; cities?: string[]; deviceOs?: string[];
+      };
+
+      const allSessions = await storage.getSessionsByMerchant(merchantId);
+      const matched = allSessions.filter(s => {
+        if (s.status === "ended") return false;
+        if (periods.length) {
+          const sp = s.createdAt ? `${s.createdAt.getFullYear()}-${String(s.createdAt.getMonth() + 1).padStart(2, "0")}` : null;
+          if (!sp || !periods.includes(sp)) return false;
+        }
+        if (countries.length && (!s.countryName || !countries.includes(s.countryName))) return false;
+        if (cities.length && (!s.cityName || !cities.some((c: string) => s.cityName!.toLowerCase().includes(c.toLowerCase())))) return false;
+        if (deviceOs.length && !deviceOs.includes("all")) {
+          const os = detectBlastOs(s.userAgent);
+          if (!deviceOs.includes(os)) return false;
+        }
+        return true;
+      });
+
+      res.json({
+        count: matched.length,
+        sessions: matched.slice(0, 50).map(s => ({
+          id: s.id, customerName: s.customerName, countryName: s.countryName, cityName: s.cityName, userAgent: s.userAgent,
+        })),
+      });
+    } catch (err) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // POST /api/merchant/blast/send — send or schedule a blast
+  app.post("/api/merchant/blast/send", requireMerchantOrSupervisor, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId || req.session.supervisorMerchantId;
+      const sentBy = req.session.merchantId || req.session.supervisorId;
+      if (!merchantId) return res.status(401).json({ error: "Unauthorized" });
+
+      const { message, filters = {}, scheduledFor, mediaUrl, mediaType } = req.body as {
+        message: string; filters?: any; scheduledFor?: string; mediaUrl?: string; mediaType?: string;
+      };
+
+      if (!message?.trim()) return res.status(400).json({ error: "Message is required" });
+
+      const campaignId = `blast_${crypto.randomBytes(8).toString("hex")}`;
+      const isScheduled = scheduledFor && new Date(scheduledFor) > new Date();
+
+      const previewSessions = await storage.getSessionsByMerchant(merchantId);
+      const f = filters as { periods?: string[]; countries?: string[]; cities?: string[]; deviceOs?: string[] };
+      const matchedSessions = previewSessions.filter(s => {
+        if (s.status === "ended") return false;
+        if (f.periods?.length) {
+          const sp = s.createdAt ? `${s.createdAt.getFullYear()}-${String(s.createdAt.getMonth() + 1).padStart(2, "0")}` : null;
+          if (!sp || !f.periods.includes(sp)) return false;
+        }
+        if (f.countries?.length && (!s.countryName || !f.countries.includes(s.countryName))) return false;
+        if (f.cities?.length && (!s.cityName || !f.cities.some((c: string) => s.cityName!.toLowerCase().includes(c.toLowerCase())))) return false;
+        if (f.deviceOs?.length && !f.deviceOs.includes("all")) {
+          const os = detectBlastOs(s.userAgent);
+          if (!f.deviceOs.includes(os)) return false;
+        }
+        return true;
+      });
+
+      if (isScheduled) {
+        await db.insert(blastCampaigns).values({
+          id: campaignId, merchantId, sentBy: sentBy || null,
+          filters, message, mediaUrl: mediaUrl || null, mediaType: mediaType || null,
+          matchedCount: matchedSessions.length, deliveredCount: 0, failedCount: 0,
+          status: "scheduled", scheduledFor: new Date(scheduledFor!), sentAt: null,
+        });
+        return res.json({ scheduled: true, scheduledFor, matchedCount: matchedSessions.length });
+      }
+
+      await db.insert(blastCampaigns).values({
+        id: campaignId, merchantId, sentBy: sentBy || null,
+        filters, message, mediaUrl: mediaUrl || null, mediaType: mediaType || null,
+        matchedCount: matchedSessions.length, deliveredCount: 0, failedCount: 0,
+        status: "scheduled", scheduledFor: null, sentAt: null,
+      });
+
+      const result = await executeBlast({ id: campaignId, merchantId, filters, message, mediaUrl, mediaType });
+      res.json({ sent: true, delivered: result.delivered, failed: result.failed, matchedCount: result.matched });
+    } catch (err) {
+      console.error("[blast] send error:", err);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // GET /api/merchant/blast/history — paginated history
+  app.get("/api/merchant/blast/history", requireMerchantOrSupervisor, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId || req.session.supervisorMerchantId;
+      if (!merchantId) return res.status(401).json({ error: "Unauthorized" });
+
+      const page = Math.max(1, parseInt(req.query.page as string || "1", 10));
+      const limit = 20;
+      const offset = (page - 1) * limit;
+
+      const rows = await db.select().from(blastCampaigns)
+        .where(eq(blastCampaigns.merchantId, merchantId))
+        .orderBy(desc(blastCampaigns.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      const totalRows = await db.select({ count: sql<number>`count(*)` }).from(blastCampaigns)
+        .where(eq(blastCampaigns.merchantId, merchantId));
+      const total = Number(totalRows[0]?.count || 0);
+
+      const campaigns = rows.map(r => ({
+        ...r,
+        successRate: r.matchedCount > 0 ? Math.round((r.deliveredCount / r.matchedCount) * 100) : 0,
+      }));
+
+      res.json({ campaigns, total, page, pages: Math.ceil(total / limit) });
+    } catch (err) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // PATCH /api/merchant/blast/:id/cancel — cancel scheduled blast
+  app.patch("/api/merchant/blast/:id/cancel", requireMerchantOrSupervisor, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId || req.session.supervisorMerchantId;
+      if (!merchantId) return res.status(401).json({ error: "Unauthorized" });
+
+      const { id } = req.params;
+      const [campaign] = await db.select().from(blastCampaigns).where(and(eq(blastCampaigns.id, id), eq(blastCampaigns.merchantId, merchantId)));
+      if (!campaign) return res.status(404).json({ error: "Campaign not found" });
+      if (campaign.status !== "scheduled") return res.status(400).json({ error: "Only scheduled blasts can be cancelled" });
+
+      await db.update(blastCampaigns).set({ status: "cancelled" }).where(eq(blastCampaigns.id, id));
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Start blast scheduler — checks every 60s for due scheduled blasts
+  setInterval(async () => {
+    try {
+      const now = new Date();
+      const due = await db.select().from(blastCampaigns)
+        .where(and(eq(blastCampaigns.status, "scheduled"), lte(blastCampaigns.scheduledFor, now), isNotNull(blastCampaigns.scheduledFor)));
+      for (const campaign of due) {
+        await executeBlast(campaign);
+      }
+    } catch (err) {
+      console.error("[blast-scheduler] Error:", err);
+    }
+  }, 60_000);
 
   // Search chat logs by customerName or deviceFingerprint (for agent context)
   app.get("/api/chat-logs/search", requireMerchantOrSupervisor, async (req, res) => {

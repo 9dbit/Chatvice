@@ -11,6 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar } from "@/components/ui/calendar";
+import { Progress } from "@/components/ui/progress";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -20,7 +23,8 @@ import {
   Hand, ArrowLeft, Clock, Edit, Check, X, Loader2, RefreshCw, AlertCircle,
   CheckCircle2, Circle, XCircle, Filter, ShoppingBag, Plus, ImageIcon, Video, FileText,
   ExternalLink, Maximize2, Minimize2, MapPin, Volume2, VolumeX, Monitor, Globe, Smartphone, Radio,
-  Languages, Wand2, Settings2, Info, Copy, Link2, StopCircle, Archive, CalendarDays
+  Languages, Wand2, Settings2, Info, Copy, Link2, StopCircle, Archive, CalendarDays,
+  Megaphone, Users, ChevronDown, ChevronUp, FileUp, RotateCcw, Ban, TrendingUp
 } from "lucide-react";
 import {
   SiAndroid, SiApple, SiLinux,
@@ -341,6 +345,28 @@ export default function SessionsPage() {
   const [archivePopoverOpen, setArchivePopoverOpen] = useState(false);
   const [archiveMobileDialogOpen, setArchiveMobileDialogOpen] = useState(false);
   const [selectedArchivePeriod, setSelectedArchivePeriod] = useState<string | null>(null);
+
+  // Blast Message dialog state
+  const [blastDialogOpen, setBlastDialogOpen] = useState(false);
+  const [blastTab, setBlastTab] = useState<"compose" | "history">("compose");
+  const [blastFilters, setBlastFilters] = useState<{
+    periods: string[]; countries: string[]; cities: string[]; deviceOs: string[];
+  }>({ periods: [], countries: [], cities: [], deviceOs: [] });
+  const [blastMessage, setBlastMessage] = useState("");
+  const [blastMediaUrl, setBlastMediaUrl] = useState<string | null>(null);
+  const [blastMediaType, setBlastMediaType] = useState<string | null>(null);
+  const [blastMediaPreview, setBlastMediaPreview] = useState<string | null>(null);
+  const [blastScheduleMode, setBlastScheduleMode] = useState<"now" | "later">("now");
+  const [blastScheduleDate, setBlastScheduleDate] = useState<Date | undefined>(undefined);
+  const [blastScheduleHour, setBlastScheduleHour] = useState("09");
+  const [blastScheduleMinute, setBlastScheduleMinute] = useState("00");
+  const [blastConfirmOpen, setBlastConfirmOpen] = useState(false);
+  const [blastHistoryPage, setBlastHistoryPage] = useState(1);
+  const [blastPreviewExpanded, setBlastPreviewExpanded] = useState(false);
+  const [blastCitySearch, setBlastCitySearch] = useState("");
+  const [blastIsUploadingMedia, setBlastIsUploadingMedia] = useState(false);
+  const [blastCancelId, setBlastCancelId] = useState<string | null>(null);
+  const blastFileRef = useRef<HTMLInputElement>(null);
 
   // Clear preview when session changes
   useEffect(() => {
@@ -790,6 +816,103 @@ export default function SessionsPage() {
     },
   });
 
+  // Blast: options
+  const { data: blastOptions } = useQuery<{ countries: string[]; cities: string[]; periods: string[] }>({
+    queryKey: ["/api/merchant/blast/options"],
+    enabled: blastDialogOpen,
+    staleTime: 30_000,
+  });
+
+  // Blast: preview (debounced by enabling only when dialog is open)
+  const { data: blastPreview, isLoading: blastPreviewLoading } = useQuery<{ count: number; sessions: any[] }>({
+    queryKey: ["/api/merchant/blast/preview", blastFilters],
+    queryFn: async () => {
+      const res = await apiRequest("POST", "/api/merchant/blast/preview", blastFilters);
+      return res as any;
+    },
+    enabled: blastDialogOpen && blastTab === "compose",
+    staleTime: 5_000,
+  });
+
+  // Blast: history
+  const { data: blastHistory, isLoading: blastHistoryLoading, refetch: refetchBlastHistory } = useQuery<{
+    campaigns: any[]; total: number; page: number; pages: number;
+  }>({
+    queryKey: ["/api/merchant/blast/history", blastHistoryPage],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/merchant/blast/history?page=${blastHistoryPage}`);
+      return res as any;
+    },
+    enabled: blastDialogOpen && blastTab === "history",
+    staleTime: 10_000,
+  });
+
+  // Blast: send mutation
+  const blastSendMutation = useMutation({
+    mutationFn: async (payload: { message: string; filters: any; scheduledFor?: string; mediaUrl?: string; mediaType?: string }) => {
+      return apiRequest("POST", "/api/merchant/blast/send", payload);
+    },
+    onSuccess: (data: any) => {
+      setBlastConfirmOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/blast/history"] });
+      if (data.scheduled) {
+        toast({ title: "Blast scheduled", description: `Will send to ${data.matchedCount} sessions on ${new Date(data.scheduledFor).toLocaleString()}.` });
+      } else {
+        toast({ title: "Blast sent", description: `Delivered: ${data.delivered} — Failed: ${data.failed}` });
+      }
+      setBlastMessage("");
+      setBlastMediaUrl(null);
+      setBlastMediaType(null);
+      setBlastMediaPreview(null);
+      setBlastFilters({ periods: [], countries: [], cities: [], deviceOs: [] });
+      setBlastScheduleMode("now");
+      setBlastScheduleDate(undefined);
+    },
+    onError: () => {
+      setBlastConfirmOpen(false);
+      toast({ title: "Blast failed", description: "Something went wrong. Please try again.", variant: "destructive" });
+    },
+  });
+
+  // Blast: cancel scheduled
+  const blastCancelMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest("PATCH", `/api/merchant/blast/${id}/cancel`),
+    onSuccess: () => {
+      setBlastCancelId(null);
+      refetchBlastHistory();
+      toast({ title: "Blast cancelled" });
+    },
+  });
+
+  // Blast helper: build scheduledFor ISO string
+  function buildBlastScheduledFor() {
+    if (!blastScheduleDate) return undefined;
+    const d = new Date(blastScheduleDate);
+    d.setHours(parseInt(blastScheduleHour, 10));
+    d.setMinutes(parseInt(blastScheduleMinute, 10));
+    d.setSeconds(0);
+    return d.toISOString();
+  }
+
+  // Blast media upload handler
+  async function handleBlastMediaUpload(file: File) {
+    setBlastIsUploadingMedia(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/media/upload", { method: "POST", body: form, credentials: "include" });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      setBlastMediaUrl(data.url);
+      setBlastMediaType(file.type.startsWith("image") ? "image" : file.type.startsWith("video") ? "video" : "document");
+      setBlastMediaPreview(URL.createObjectURL(file));
+    } catch {
+      toast({ title: "Upload failed", description: "Could not upload the file.", variant: "destructive" });
+    } finally {
+      setBlastIsUploadingMedia(false);
+    }
+  }
+
   const reviseAnswerMutation = useMutation({
     mutationFn: async ({ messageId, newContent }: { messageId: string; newContent: string }) => {
       return apiRequest("POST", "/api/message/revise", { messageId, content: newContent });
@@ -1127,6 +1250,16 @@ export default function SessionsPage() {
               <span className="text-xs font-medium">{t("dashboard.sessions.finished")}</span>
               <span className="text-xs font-bold" data-testid="text-count-ended">{statusCounts.ended}</span>
             </button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setBlastDialogOpen(true); setBlastTab("compose"); }}
+              className="gap-1.5"
+              data-testid="button-open-blast"
+            >
+              <Megaphone className="w-4 h-4" />
+              <span className="hidden sm:inline">Blast</span>
+            </Button>
             <Button
               variant={soundEnabled ? "ghost" : "outline"}
               size="icon"
@@ -2737,6 +2870,422 @@ export default function SessionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── Blast Message Dialog ─────────────────────────────────────────── */}
+      <Dialog open={blastDialogOpen} onOpenChange={(open) => { setBlastDialogOpen(open); if (!open) { setBlastConfirmOpen(false); setBlastCancelId(null); } }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Megaphone className="w-5 h-5 text-primary" />
+              Blast Message
+            </DialogTitle>
+          </DialogHeader>
+
+          <Tabs value={blastTab} onValueChange={(v) => setBlastTab(v as "compose" | "history")} className="flex flex-col flex-1 min-h-0">
+            <TabsList className="mx-6 mt-4 mb-0 w-fit">
+              <TabsTrigger value="compose" data-testid="tab-blast-compose">Compose</TabsTrigger>
+              <TabsTrigger value="history" onClick={() => { setBlastHistoryPage(1); }} data-testid="tab-blast-history">History</TabsTrigger>
+            </TabsList>
+
+            {/* ── COMPOSE TAB ── */}
+            <TabsContent value="compose" className="flex-1 overflow-y-auto px-6 pb-6 pt-4 mt-0 space-y-5">
+
+              {/* Section 1: Audience */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold flex items-center gap-1.5"><Users className="w-4 h-4 text-muted-foreground" />Audience</h3>
+
+                {/* Period chips */}
+                {(blastOptions?.periods?.length ?? 0) > 0 && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1.5">Session periods</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {blastOptions!.periods.map(p => {
+                        const [yr, mo] = p.split("-");
+                        const label = new Date(Number(yr), Number(mo) - 1, 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+                        const active = blastFilters.periods.includes(p);
+                        return (
+                          <button key={p}
+                            onClick={() => setBlastFilters(f => ({ ...f, periods: active ? f.periods.filter(x => x !== p) : [...f.periods, p] }))}
+                            className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-muted-foreground hover:border-primary/50"}`}
+                            data-testid={`chip-period-${p}`}
+                          >{label}</button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Country chips */}
+                {(blastOptions?.countries?.length ?? 0) > 0 && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1.5">Country</p>
+                    <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+                      {blastOptions!.countries.map(c => {
+                        const active = blastFilters.countries.includes(c);
+                        return (
+                          <button key={c}
+                            onClick={() => setBlastFilters(f => ({ ...f, countries: active ? f.countries.filter(x => x !== c) : [...f.countries, c] }))}
+                            className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-muted-foreground hover:border-primary/50"}`}
+                            data-testid={`chip-country-${c}`}
+                          >{c}</button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* City search */}
+                {(blastOptions?.cities?.length ?? 0) > 0 && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1.5">City</p>
+                    <Input
+                      placeholder="Search city..."
+                      value={blastCitySearch}
+                      onChange={e => setBlastCitySearch(e.target.value)}
+                      className="h-8 text-sm mb-1.5"
+                      data-testid="input-blast-city-search"
+                    />
+                    <div className="flex flex-wrap gap-1.5 max-h-16 overflow-y-auto">
+                      {blastOptions!.cities
+                        .filter(c => c.toLowerCase().includes(blastCitySearch.toLowerCase()))
+                        .map(c => {
+                          const active = blastFilters.cities.includes(c);
+                          return (
+                            <button key={c}
+                              onClick={() => setBlastFilters(f => ({ ...f, cities: active ? f.cities.filter(x => x !== c) : [...f.cities, c] }))}
+                              className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-muted-foreground hover:border-primary/50"}`}
+                              data-testid={`chip-city-${c}`}
+                            >{c}</button>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Device OS toggle */}
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1.5">Device OS</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {[{ value: "all", label: "All" }, { value: "android", label: "Android" }, { value: "ios", label: "iOS" }, { value: "desktop", label: "Desktop" }].map(({ value, label }) => {
+                      const active = blastFilters.deviceOs.includes(value);
+                      return (
+                        <button key={value}
+                          onClick={() => {
+                            if (value === "all") {
+                              setBlastFilters(f => ({ ...f, deviceOs: active ? [] : ["all"] }));
+                            } else {
+                              setBlastFilters(f => {
+                                const next = active ? f.deviceOs.filter(x => x !== value) : [...f.deviceOs.filter(x => x !== "all"), value];
+                                return { ...f, deviceOs: next };
+                              });
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-md text-xs border transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-muted-foreground hover:border-primary/50"}`}
+                          data-testid={`button-os-${value}`}
+                        >{label}</button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Live preview count */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="secondary" className="text-xs gap-1.5" data-testid="badge-match-count">
+                    {blastPreviewLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Users className="w-3 h-3" />}
+                    {blastPreviewLoading ? "Calculating..." : `${blastPreview?.count ?? 0} sessions matched`}
+                  </Badge>
+                  {(blastPreview?.count ?? 0) > 0 && (
+                    <button
+                      onClick={() => setBlastPreviewExpanded(v => !v)}
+                      className="text-xs text-muted-foreground flex items-center gap-0.5 hover:text-foreground transition-colors"
+                      data-testid="button-toggle-preview-list"
+                    >
+                      {blastPreviewExpanded ? <><ChevronUp className="w-3.5 h-3.5" />Hide</>: <><ChevronDown className="w-3.5 h-3.5" />Show matched</>}
+                    </button>
+                  )}
+                </div>
+                {blastPreviewExpanded && (blastPreview?.sessions?.length ?? 0) > 0 && (
+                  <ScrollArea className="max-h-32 rounded-md border p-2">
+                    <div className="flex flex-col gap-1">
+                      {blastPreview!.sessions.map(s => (
+                        <div key={s.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <User className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{s.customerName || "Visitor"}</span>
+                          {s.countryName && <span className="text-muted-foreground/60">· {s.countryName}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </div>
+
+              {/* Section 2: Message Composer */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold flex items-center gap-1.5"><MessageSquare className="w-4 h-4 text-muted-foreground" />Message</h3>
+                <div className="relative">
+                  <Textarea
+                    placeholder="Type your blast message here..."
+                    value={blastMessage}
+                    onChange={e => setBlastMessage(e.target.value.slice(0, 1000))}
+                    className="min-h-[80px] text-sm resize-none pr-12"
+                    data-testid="textarea-blast-message"
+                  />
+                  <span className={`absolute bottom-2 right-3 text-[10px] ${blastMessage.length > 900 ? "text-destructive" : "text-muted-foreground"}`}>
+                    {blastMessage.length}/1000
+                  </span>
+                </div>
+
+                {/* Media uploader */}
+                <div>
+                  <input
+                    ref={blastFileRef}
+                    type="file"
+                    accept="image/*,video/*,application/pdf"
+                    className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleBlastMediaUpload(f); e.target.value = ""; }}
+                    data-testid="input-blast-file"
+                  />
+                  {blastMediaPreview ? (
+                    <div className="relative inline-block">
+                      {blastMediaType === "image" ? (
+                        <img src={blastMediaPreview} alt="Preview" className="max-h-24 rounded-md border object-cover" />
+                      ) : blastMediaType === "video" ? (
+                        <video src={blastMediaPreview} className="max-h-24 rounded-md border" controls />
+                      ) : (
+                        <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-muted text-xs">
+                          <FileText className="w-4 h-4" />
+                          Document attached
+                        </div>
+                      )}
+                      <button
+                        onClick={() => { setBlastMediaUrl(null); setBlastMediaType(null); setBlastMediaPreview(null); }}
+                        className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center"
+                        data-testid="button-remove-blast-media"
+                      ><X className="w-2.5 h-2.5" /></button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => blastFileRef.current?.click()}
+                      disabled={blastIsUploadingMedia}
+                      className="flex items-center gap-2 border border-dashed rounded-md px-3 py-2.5 text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors w-full justify-center"
+                      data-testid="button-blast-media-upload"
+                    >
+                      {blastIsUploadingMedia ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />}
+                      {blastIsUploadingMedia ? "Uploading..." : "Attach image, video, or PDF (optional)"}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 3: Schedule */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold flex items-center gap-1.5"><Clock className="w-4 h-4 text-muted-foreground" />Schedule</h3>
+                <div className="flex gap-2">
+                  {[{ value: "now", label: "Send Now" }, { value: "later", label: "Schedule for later" }].map(({ value, label }) => (
+                    <button key={value}
+                      onClick={() => setBlastScheduleMode(value as "now" | "later")}
+                      className={`px-3 py-1.5 rounded-md text-xs border transition-colors ${blastScheduleMode === value ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-muted-foreground hover:border-primary/50"}`}
+                      data-testid={`button-schedule-${value}`}
+                    >{label}</button>
+                  ))}
+                </div>
+
+                {blastScheduleMode === "later" && (
+                  <div className="space-y-2">
+                    <Calendar
+                      mode="single"
+                      selected={blastScheduleDate}
+                      onSelect={setBlastScheduleDate}
+                      disabled={(d) => d < new Date() || d > new Date(Date.now() + 30 * 86400_000)}
+                      className="rounded-md border w-fit"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number" min="0" max="23" placeholder="HH"
+                        value={blastScheduleHour}
+                        onChange={e => setBlastScheduleHour(e.target.value.padStart(2, "0").slice(-2))}
+                        className="w-16 h-8 text-sm text-center"
+                        data-testid="input-blast-hour"
+                      />
+                      <span className="text-muted-foreground font-bold">:</span>
+                      <Input
+                        type="number" min="0" max="59" placeholder="MM"
+                        value={blastScheduleMinute}
+                        onChange={e => setBlastScheduleMinute(e.target.value.padStart(2, "0").slice(-2))}
+                        className="w-16 h-8 text-sm text-center"
+                        data-testid="input-blast-minute"
+                      />
+                    </div>
+                    {blastScheduleDate && (
+                      <p className="text-xs text-muted-foreground">
+                        Will send on {blastScheduleDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} at {blastScheduleHour}:{blastScheduleMinute}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            {/* ── HISTORY TAB ── */}
+            <TabsContent value="history" className="flex-1 overflow-y-auto px-6 pb-6 pt-4 mt-0">
+              {blastHistoryLoading ? (
+                <div className="space-y-2">
+                  {[1,2,3].map(i => <Skeleton key={i} className="h-14 w-full rounded-md" />)}
+                </div>
+              ) : (blastHistory?.campaigns?.length ?? 0) === 0 ? (
+                <div className="text-center py-12 text-muted-foreground text-sm">
+                  <Megaphone className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                  No blasts sent yet.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {blastHistory!.campaigns.map(c => {
+                    const f = c.filters as { periods?: string[]; countries?: string[]; cities?: string[]; deviceOs?: string[] };
+                    const dateLabel = (c.sentAt ?? c.scheduledFor) ? new Date(c.sentAt ?? c.scheduledFor).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+                    const rate = c.successRate ?? 0;
+                    const rateColor = rate >= 80 ? "bg-green-500" : rate >= 50 ? "bg-amber-500" : "bg-red-500";
+                    const statusBadge: Record<string, string> = { sent: "bg-green-500/15 text-green-700 dark:text-green-400", scheduled: "bg-blue-500/15 text-blue-700 dark:text-blue-400", cancelled: "bg-muted text-muted-foreground" };
+                    return (
+                      <Card key={c.id} className="p-4 space-y-2" data-testid={`card-blast-${c.id}`}>
+                        <div className="flex items-start justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${statusBadge[c.status] || statusBadge.cancelled}`}>
+                              {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
+                            </span>
+                            <span className="text-xs text-muted-foreground">{dateLabel}</span>
+                            {f.countries?.map((ct: string) => <Badge key={ct} variant="outline" className="text-[10px] h-5">{ct}</Badge>)}
+                            {f.deviceOs?.filter((o: string) => o !== "all").map((o: string) => <Badge key={o} variant="outline" className="text-[10px] h-5">{o}</Badge>)}
+                            {f.periods?.map((p: string) => { const [yr,mo]=p.split("-"); return <Badge key={p} variant="outline" className="text-[10px] h-5">{new Date(Number(yr),Number(mo)-1,1).toLocaleDateString("en-US",{month:"short",year:"numeric"})}</Badge>; })}
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1"
+                              onClick={() => {
+                                setBlastMessage(c.message);
+                                setBlastFilters(c.filters || { periods: [], countries: [], cities: [], deviceOs: [] });
+                                setBlastMediaUrl(c.mediaUrl ?? null);
+                                setBlastMediaType(c.mediaType ?? null);
+                                setBlastMediaPreview(null);
+                                setBlastTab("compose");
+                              }}
+                              data-testid={`button-blast-again-${c.id}`}
+                            ><RotateCcw className="w-3 h-3" />Blast Again</Button>
+                            {c.status === "scheduled" && (
+                              <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-destructive"
+                                onClick={() => setBlastCancelId(c.id)}
+                                data-testid={`button-cancel-blast-${c.id}`}
+                              ><Ban className="w-3 h-3" />Cancel</Button>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate" data-testid={`text-blast-message-${c.id}`}>{c.message}</p>
+                        {c.status === "sent" && (
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Users className="w-3 h-3" />{c.matchedCount} matched
+                            </div>
+                            <div className="flex items-center gap-1 text-xs text-green-600">
+                              <CheckCircle2 className="w-3 h-3" />{c.deliveredCount} delivered
+                            </div>
+                            <div className="flex items-center gap-1 text-xs text-destructive">
+                              <XCircle className="w-3 h-3" />{c.failedCount} failed
+                            </div>
+                            <div className="flex items-center gap-2 flex-1 min-w-24">
+                              <TrendingUp className="w-3 h-3 text-muted-foreground" />
+                              <Progress value={rate} className="h-1.5 flex-1" style={{ ['--progress-color' as any]: rate >= 80 ? '#22c55e' : rate >= 50 ? '#f59e0b' : '#ef4444' }} />
+                              <span className="text-[10px] text-muted-foreground w-7 text-right">{rate}%</span>
+                            </div>
+                          </div>
+                        )}
+                      </Card>
+                    );
+                  })}
+                  {(blastHistory?.pages ?? 0) > 1 && (
+                    <div className="flex items-center justify-center gap-2 pt-2">
+                      <Button size="sm" variant="outline" disabled={blastHistoryPage <= 1} onClick={() => setBlastHistoryPage(p => p - 1)} data-testid="button-blast-history-prev">Prev</Button>
+                      <span className="text-xs text-muted-foreground">Page {blastHistory?.page} of {blastHistory?.pages}</span>
+                      <Button size="sm" variant="outline" disabled={blastHistoryPage >= (blastHistory?.pages ?? 1)} onClick={() => setBlastHistoryPage(p => p + 1)} data-testid="button-blast-history-next">Next</Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+
+          {/* Footer for Compose tab */}
+          {blastTab === "compose" && (
+            <div className="px-6 py-4 border-t flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                {blastPreviewLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Users className="w-3.5 h-3.5" />}
+                {blastPreviewLoading ? "Calculating..." : `${blastPreview?.count ?? 0} recipients`}
+              </div>
+              <Button
+                disabled={!blastMessage.trim() || (blastPreview?.count ?? 0) === 0 || blastSendMutation.isPending || (blastScheduleMode === "later" && !blastScheduleDate)}
+                onClick={() => setBlastConfirmOpen(true)}
+                className="gap-2"
+                data-testid="button-blast-send"
+              >
+                {blastSendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Megaphone className="w-4 h-4" />}
+                {blastScheduleMode === "later" ? "Schedule Blast" : "Send Blast"}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Blast send confirmation */}
+      <AlertDialog open={blastConfirmOpen} onOpenChange={setBlastConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Megaphone className="w-5 h-5 text-primary" />
+              {blastScheduleMode === "later" ? "Schedule this blast?" : `Send to ${blastPreview?.count ?? 0} sessions?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {blastScheduleMode === "later"
+                ? `This blast will be delivered to ${blastPreview?.count ?? 0} sessions on ${blastScheduleDate?.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} at ${blastScheduleHour}:${blastScheduleMinute}.`
+                : `This will immediately send your message to ${blastPreview?.count ?? 0} active sessions. This action cannot be undone.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-blast-confirm">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => blastSendMutation.mutate({
+                message: blastMessage,
+                filters: blastFilters,
+                scheduledFor: blastScheduleMode === "later" ? buildBlastScheduledFor() : undefined,
+                mediaUrl: blastMediaUrl ?? undefined,
+                mediaType: blastMediaType ?? undefined,
+              })}
+              data-testid="button-confirm-blast-send"
+              disabled={blastSendMutation.isPending}
+            >
+              {blastSendMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              {blastScheduleMode === "later" ? "Schedule" : "Send Now"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Blast cancel scheduled confirmation */}
+      <AlertDialog open={!!blastCancelId} onOpenChange={(open) => { if (!open) setBlastCancelId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel scheduled blast?</AlertDialogTitle>
+            <AlertDialogDescription>This will cancel the scheduled blast. It will not be sent.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-blast-cancel">Keep</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground"
+              onClick={() => { if (blastCancelId) blastCancelMutation.mutate(blastCancelId); }}
+              data-testid="button-confirm-blast-cancel"
+            >
+              {blastCancelMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Yes, Cancel Blast
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* End Session confirmation dialog */}
       <AlertDialog open={endSessionDialogOpen} onOpenChange={setEndSessionDialogOpen}>
