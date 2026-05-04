@@ -1481,7 +1481,7 @@ export default function SessionsPage() {
                           )}
 
                           {/* Desktop: End Session (only when session is live) */}
-                          {selectedSessionData && ["active", "needs_response", "angry"].includes(selectedSessionData.status ?? "") && (
+                          {selectedSessionData && ["active", "needs_response", "angry"].includes(getSessionStatus(selectedSessionData)) && (
                             <Button
                               size="sm"
                               variant="destructive"
@@ -1672,7 +1672,7 @@ export default function SessionsPage() {
                                 )}
                                 <div className="border-t" />
                                 {/* End Session (mobile) */}
-                                {selectedSessionData && ["active", "needs_response", "angry"].includes(selectedSessionData.status ?? "") && (
+                                {selectedSessionData && ["active", "needs_response", "angry"].includes(getSessionStatus(selectedSessionData)) && (
                                   <Button
                                     size="sm"
                                     variant="destructive"

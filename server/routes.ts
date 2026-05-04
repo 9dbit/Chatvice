@@ -20075,6 +20075,10 @@ ${log.extractedKnowledge}` : ''}
       if (!period || !/^\d{4}-\d{2}$/.test(period)) {
         return res.status(400).json({ error: "Invalid period. Use YYYY-MM format." });
       }
+      const monthNum = parseInt(period.split("-")[1], 10);
+      if (monthNum < 1 || monthNum > 12) {
+        return res.status(400).json({ error: "Invalid month in period. Must be 01-12." });
+      }
 
       const session = await storage.getSession(sessionId);
       if (!session || session.merchantId !== merchantId) {
