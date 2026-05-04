@@ -2670,6 +2670,7 @@ export const blastCampaigns = pgTable("blast_campaigns", {
   sentBy: varchar("sent_by", { length: 32 }),
   filters: jsonb("filters").notNull().default({}),
   message: text("message").notNull(),
+  blastMessageType: text("blast_message_type").notNull().default("text"),
   mediaUrl: text("media_url"),
   mediaType: text("media_type"),
   matchedCount: integer("matched_count").notNull().default(0),

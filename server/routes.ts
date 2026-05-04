@@ -20178,9 +20178,26 @@ ${log.extractedKnowledge}` : ''}
     return "desktop";
   }
 
-  async function executeBlast(campaign: { id: string; merchantId: string; filters: any; message: string; mediaUrl?: string | null; mediaType?: string | null }) {
-    const { merchantId, filters, message, mediaUrl, mediaType } = campaign;
-    const f = filters as { periods?: string[]; countries?: string[]; cities?: string[]; deviceOs?: string[] };
+  interface BlastFilters {
+    periods?: string[];
+    countries?: string[];
+    cities?: string[];
+    deviceOs?: string[];
+  }
+
+  interface BlastCampaignRef {
+    id: string;
+    merchantId: string;
+    filters: BlastFilters;
+    message: string;
+    blastMessageType?: string | null;
+    mediaUrl?: string | null;
+    mediaType?: string | null;
+  }
+
+  async function executeBlast(campaign: BlastCampaignRef) {
+    const { merchantId, filters, message, blastMessageType, mediaUrl, mediaType } = campaign;
+    const f: BlastFilters = filters;
 
     const allSessions = await storage.getSessionsByMerchant(merchantId);
     let matched = allSessions.filter(s => {
@@ -20214,14 +20231,19 @@ ${log.extractedKnowledge}` : ''}
         const sessionClients = clients.get(sess.id);
         const hasActiveClient = sessionClients && [...sessionClients].some(c => c.readyState === 1);
 
-        const msgPayload: any = { from: "chatvice", content: message, clientMessageId: msgId };
+        const msgWsPayload: Record<string, unknown> = { from: "chatvice", content: message, clientMessageId: msgId };
+        const msgRecord: { sessionId: string; from: string; content: string; clientMessageId: string; messageType?: string; payload?: Record<string, unknown> } = {
+          sessionId: sess.id, from: "chatvice", content: message, clientMessageId: msgId,
+          messageType: blastMessageType === "announcement" ? "announcement" : "text",
+        };
         if (mediaUrl) {
-          msgPayload.mediaUrl = mediaUrl;
-          msgPayload.mediaType = mediaType;
+          msgWsPayload.mediaUrl = mediaUrl;
+          msgWsPayload.mediaType = mediaType;
+          msgRecord.payload = { mediaUrl, mediaType };
         }
 
-        await storage.createMessage({ sessionId: sess.id, from: "chatvice", content: message, clientMessageId: msgId });
-        broadcastToSession(sess.id, { type: "message", message: msgPayload });
+        await storage.createMessage(msgRecord);
+        broadcastToSession(sess.id, { type: "message", message: msgWsPayload });
 
         if (hasActiveClient) {
           delivered++;
@@ -20253,8 +20275,9 @@ ${log.extractedKnowledge}` : ''}
         if (!s.createdAt) return null;
         return `${s.createdAt.getFullYear()}-${String(s.createdAt.getMonth() + 1).padStart(2, "0")}`;
       }).filter(Boolean))].sort((a, b) => (b! > a! ? 1 : -1)) as string[];
+      const osOptions = ["android", "ios", "desktop"];
 
-      res.json({ countries, cities, periods });
+      res.json({ countries, cities, periods, osOptions });
     } catch (err) {
       res.status(500).json({ error: "Server error" });
     }
@@ -20304,8 +20327,13 @@ ${log.extractedKnowledge}` : ''}
       const sentBy = req.session.merchantId || req.session.supervisorId;
       if (!merchantId) return res.status(401).json({ error: "Unauthorized" });
 
-      const { message, filters = {}, scheduledFor, mediaUrl, mediaType } = req.body as {
-        message: string; filters?: any; scheduledFor?: string; mediaUrl?: string; mediaType?: string;
+      const { message, filters = {}, blastMessageType = "text", scheduledFor, mediaUrl, mediaType } = req.body as {
+        message: string;
+        filters?: BlastFilters;
+        blastMessageType?: string;
+        scheduledFor?: string;
+        mediaUrl?: string;
+        mediaType?: string;
       };
 
       if (!message?.trim()) return res.status(400).json({ error: "Message is required" });
@@ -20314,7 +20342,7 @@ ${log.extractedKnowledge}` : ''}
       const isScheduled = scheduledFor && new Date(scheduledFor) > new Date();
 
       const previewSessions = await storage.getSessionsByMerchant(merchantId);
-      const f = filters as { periods?: string[]; countries?: string[]; cities?: string[]; deviceOs?: string[] };
+      const f: BlastFilters = filters;
       const matchedSessions = previewSessions.filter(s => {
         if (s.status === "ended") return false;
         if (f.periods?.length) {
@@ -20333,7 +20361,7 @@ ${log.extractedKnowledge}` : ''}
       if (isScheduled) {
         await db.insert(blastCampaigns).values({
           id: campaignId, merchantId, sentBy: sentBy || null,
-          filters, message, mediaUrl: mediaUrl || null, mediaType: mediaType || null,
+          filters, message, blastMessageType, mediaUrl: mediaUrl || null, mediaType: mediaType || null,
           matchedCount: matchedSessions.length, deliveredCount: 0, failedCount: 0,
           status: "scheduled", scheduledFor: new Date(scheduledFor!), sentAt: null,
         });
@@ -20342,12 +20370,12 @@ ${log.extractedKnowledge}` : ''}
 
       await db.insert(blastCampaigns).values({
         id: campaignId, merchantId, sentBy: sentBy || null,
-        filters, message, mediaUrl: mediaUrl || null, mediaType: mediaType || null,
+        filters, message, blastMessageType, mediaUrl: mediaUrl || null, mediaType: mediaType || null,
         matchedCount: matchedSessions.length, deliveredCount: 0, failedCount: 0,
         status: "scheduled", scheduledFor: null, sentAt: null,
       });
 
-      const result = await executeBlast({ id: campaignId, merchantId, filters, message, mediaUrl, mediaType });
+      const result = await executeBlast({ id: campaignId, merchantId, filters, message, blastMessageType, mediaUrl, mediaType });
       res.json({ sent: true, delivered: result.delivered, failed: result.failed, matchedCount: result.matched });
     } catch (err) {
       console.error("[blast] send error:", err);
@@ -20367,7 +20395,7 @@ ${log.extractedKnowledge}` : ''}
 
       const rows = await db.select().from(blastCampaigns)
         .where(eq(blastCampaigns.merchantId, merchantId))
-        .orderBy(desc(blastCampaigns.createdAt))
+        .orderBy(desc(sql`COALESCE(${blastCampaigns.sentAt}, ${blastCampaigns.scheduledFor}, ${blastCampaigns.createdAt})`))
         .limit(limit)
         .offset(offset);
 

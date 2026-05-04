@@ -13,7 +13,6 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
-import { Progress } from "@/components/ui/progress";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -353,6 +352,7 @@ export default function SessionsPage() {
     periods: string[]; countries: string[]; cities: string[]; deviceOs: string[];
   }>({ periods: [], countries: [], cities: [], deviceOs: [] });
   const [blastMessage, setBlastMessage] = useState("");
+  const [blastMessageTypeVal, setBlastMessageTypeVal] = useState<"text" | "announcement">("text");
   const [blastMediaUrl, setBlastMediaUrl] = useState<string | null>(null);
   const [blastMediaType, setBlastMediaType] = useState<string | null>(null);
   const [blastMediaPreview, setBlastMediaPreview] = useState<string | null>(null);
@@ -367,12 +367,20 @@ export default function SessionsPage() {
   const [blastIsUploadingMedia, setBlastIsUploadingMedia] = useState(false);
   const [blastCancelId, setBlastCancelId] = useState<string | null>(null);
   const blastFileRef = useRef<HTMLInputElement>(null);
+  // Debounced filter state for preview queries
+  const [blastFiltersDebounced, setBlastFiltersDebounced] = useState(blastFilters);
 
   // Clear preview when session changes
   useEffect(() => {
     setPreviewContent(null);
     setIsPreviewExpanded(false);
   }, [selectedSession]);
+
+  // Debounce blast filters for preview queries (400ms)
+  useEffect(() => {
+    const t = setTimeout(() => setBlastFiltersDebounced(blastFilters), 400);
+    return () => clearTimeout(t);
+  }, [blastFilters]);
 
   // Reset auto-translate and auto-refine state when switching sessions
   useEffect(() => {
@@ -816,32 +824,47 @@ export default function SessionsPage() {
     },
   });
 
+  interface BlastFilterState { periods: string[]; countries: string[]; cities: string[]; deviceOs: string[]; }
+  interface BlastPreviewSession { id: string; customerName: string | null; countryName: string | null; cityName: string | null; userAgent: string | null; }
+  interface BlastPreviewResult { count: number; sessions: BlastPreviewSession[]; }
+  interface BlastCampaignRow {
+    id: string; message: string; blastMessageType: string; status: string;
+    filters: BlastFilterState; mediaUrl: string | null; mediaType: string | null;
+    matchedCount: number; deliveredCount: number; failedCount: number;
+    sentAt: string | null; scheduledFor: string | null; successRate: number;
+  }
+  interface BlastHistoryResult { campaigns: BlastCampaignRow[]; total: number; page: number; pages: number; }
+  interface BlastSendPayload {
+    message: string; blastMessageType: string;
+    filters: BlastFilterState; scheduledFor?: string;
+    mediaUrl?: string; mediaType?: string;
+  }
+  interface BlastSendResult { sent?: boolean; scheduled?: boolean; delivered?: number; failed?: number; matchedCount?: number; scheduledFor?: string; }
+
   // Blast: options
-  const { data: blastOptions } = useQuery<{ countries: string[]; cities: string[]; periods: string[] }>({
+  const { data: blastOptions } = useQuery<{ countries: string[]; cities: string[]; periods: string[]; osOptions: string[] }>({
     queryKey: ["/api/merchant/blast/options"],
     enabled: blastDialogOpen,
     staleTime: 30_000,
   });
 
-  // Blast: preview (debounced by enabling only when dialog is open)
-  const { data: blastPreview, isLoading: blastPreviewLoading } = useQuery<{ count: number; sessions: any[] }>({
-    queryKey: ["/api/merchant/blast/preview", blastFilters],
+  // Blast: preview — uses debounced filters to avoid a request on every keystroke
+  const { data: blastPreview, isLoading: blastPreviewLoading } = useQuery<BlastPreviewResult>({
+    queryKey: ["/api/merchant/blast/preview", blastFiltersDebounced],
     queryFn: async () => {
-      const res = await apiRequest("POST", "/api/merchant/blast/preview", blastFilters);
-      return res as any;
+      const res = await apiRequest("POST", "/api/merchant/blast/preview", blastFiltersDebounced);
+      return res as BlastPreviewResult;
     },
     enabled: blastDialogOpen && blastTab === "compose",
     staleTime: 5_000,
   });
 
   // Blast: history
-  const { data: blastHistory, isLoading: blastHistoryLoading, refetch: refetchBlastHistory } = useQuery<{
-    campaigns: any[]; total: number; page: number; pages: number;
-  }>({
+  const { data: blastHistory, isLoading: blastHistoryLoading, refetch: refetchBlastHistory } = useQuery<BlastHistoryResult>({
     queryKey: ["/api/merchant/blast/history", blastHistoryPage],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/merchant/blast/history?page=${blastHistoryPage}`);
-      return res as any;
+      return res as BlastHistoryResult;
     },
     enabled: blastDialogOpen && blastTab === "history",
     staleTime: 10_000,
@@ -849,18 +872,19 @@ export default function SessionsPage() {
 
   // Blast: send mutation
   const blastSendMutation = useMutation({
-    mutationFn: async (payload: { message: string; filters: any; scheduledFor?: string; mediaUrl?: string; mediaType?: string }) => {
-      return apiRequest("POST", "/api/merchant/blast/send", payload);
+    mutationFn: async (payload: BlastSendPayload) => {
+      return apiRequest("POST", "/api/merchant/blast/send", payload) as Promise<BlastSendResult>;
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: BlastSendResult) => {
       setBlastConfirmOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/blast/history"] });
       if (data.scheduled) {
-        toast({ title: "Blast scheduled", description: `Will send to ${data.matchedCount} sessions on ${new Date(data.scheduledFor).toLocaleString()}.` });
+        toast({ title: "Blast scheduled", description: `Will send to ${data.matchedCount} sessions on ${new Date(data.scheduledFor!).toLocaleString()}.` });
       } else {
         toast({ title: "Blast sent", description: `Delivered: ${data.delivered} — Failed: ${data.failed}` });
       }
       setBlastMessage("");
+      setBlastMessageTypeVal("text");
       setBlastMediaUrl(null);
       setBlastMediaType(null);
       setBlastMediaPreview(null);
@@ -3022,9 +3046,21 @@ export default function SessionsPage() {
               {/* Section 2: Message Composer */}
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold flex items-center gap-1.5"><MessageSquare className="w-4 h-4 text-muted-foreground" />Message</h3>
+
+                {/* Message type selector */}
+                <div className="flex gap-2">
+                  {([{ value: "text", label: "Text" }, { value: "announcement", label: "Announcement" }] as const).map(({ value, label }) => (
+                    <button key={value}
+                      onClick={() => setBlastMessageTypeVal(value)}
+                      className={`px-3 py-1.5 rounded-md text-xs border transition-colors ${blastMessageTypeVal === value ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-muted-foreground hover:border-primary/50"}`}
+                      data-testid={`button-blast-type-${value}`}
+                    >{label}</button>
+                  ))}
+                </div>
+
                 <div className="relative">
                   <Textarea
-                    placeholder="Type your blast message here..."
+                    placeholder={blastMessageTypeVal === "announcement" ? "Type your announcement here..." : "Type your blast message here..."}
                     value={blastMessage}
                     onChange={e => setBlastMessage(e.target.value.slice(0, 1000))}
                     className="min-h-[80px] text-sm resize-none pr-12"
@@ -3140,10 +3176,9 @@ export default function SessionsPage() {
               ) : (
                 <div className="space-y-3">
                   {blastHistory!.campaigns.map(c => {
-                    const f = c.filters as { periods?: string[]; countries?: string[]; cities?: string[]; deviceOs?: string[] };
+                    const f = c.filters;
                     const dateLabel = (c.sentAt ?? c.scheduledFor) ? new Date(c.sentAt ?? c.scheduledFor).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
                     const rate = c.successRate ?? 0;
-                    const rateColor = rate >= 80 ? "bg-green-500" : rate >= 50 ? "bg-amber-500" : "bg-red-500";
                     const statusBadge: Record<string, string> = { sent: "bg-green-500/15 text-green-700 dark:text-green-400", scheduled: "bg-blue-500/15 text-blue-700 dark:text-blue-400", cancelled: "bg-muted text-muted-foreground" };
                     return (
                       <Card key={c.id} className="p-4 space-y-2" data-testid={`card-blast-${c.id}`}>
@@ -3161,6 +3196,7 @@ export default function SessionsPage() {
                             <Button size="sm" variant="ghost" className="h-7 text-xs gap-1"
                               onClick={() => {
                                 setBlastMessage(c.message);
+                                setBlastMessageTypeVal(c.blastMessageType === "announcement" ? "announcement" : "text");
                                 setBlastFilters(c.filters || { periods: [], countries: [], cities: [], deviceOs: [] });
                                 setBlastMediaUrl(c.mediaUrl ?? null);
                                 setBlastMediaType(c.mediaType ?? null);
@@ -3191,7 +3227,15 @@ export default function SessionsPage() {
                             </div>
                             <div className="flex items-center gap-2 flex-1 min-w-24">
                               <TrendingUp className="w-3 h-3 text-muted-foreground" />
-                              <Progress value={rate} className="h-1.5 flex-1" style={{ ['--progress-color' as any]: rate >= 80 ? '#22c55e' : rate >= 50 ? '#f59e0b' : '#ef4444' }} />
+                              <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className="h-full rounded-full transition-all"
+                                  style={{
+                                    width: `${rate}%`,
+                                    backgroundColor: rate >= 80 ? '#22c55e' : rate >= 50 ? '#f59e0b' : '#ef4444',
+                                  } satisfies React.CSSProperties}
+                                />
+                              </div>
                               <span className="text-[10px] text-muted-foreground w-7 text-right">{rate}%</span>
                             </div>
                           </div>
@@ -3251,6 +3295,7 @@ export default function SessionsPage() {
             <AlertDialogAction
               onClick={() => blastSendMutation.mutate({
                 message: blastMessage,
+                blastMessageType: blastMessageTypeVal,
                 filters: blastFilters,
                 scheduledFor: blastScheduleMode === "later" ? buildBlastScheduledFor() : undefined,
                 mediaUrl: blastMediaUrl ?? undefined,
