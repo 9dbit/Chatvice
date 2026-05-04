@@ -278,7 +278,7 @@ export default function DashboardOverview() {
 
       {/* Dashboard Overview Title - Moved below Install Widget */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" data-testid="text-dashboard-title">{t("dashboard.overview.dashboardOverviewTitle")}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-dashboard-title">{t("dashboard.overview.dashboardOverviewTitle")}</h1>
         <p className="text-sm text-muted-foreground hidden sm:block">{t("dashboard.overview.monitorPerformance")}</p>
       </div>
 

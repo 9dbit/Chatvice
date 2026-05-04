@@ -1015,7 +1015,7 @@ export default function SessionsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-2 sm:mb-4">
           <div>
             <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
-              <h1 className="hidden sm:flex text-2xl sm:text-3xl font-bold tracking-tight items-center gap-2 sm:gap-3" data-testid="text-page-title">
+              <h1 className="hidden sm:flex text-2xl font-semibold tracking-tight items-center gap-2 sm:gap-3" data-testid="text-page-title">
                 Chat Sessions
                 {(statusCounts.needsResponse > 0 || statusCounts.angry > 0) && (
                   <span className="relative flex h-2.5 w-2.5 sm:h-3 sm:w-3">
