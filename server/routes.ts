@@ -1580,17 +1580,17 @@ SINYAL YANG TERSEDIA:
 [PASSWORD_RECOVERY_DETECTED:username=X,bank=Y,phone=Z] → customer minta RESET password baru
 [PASSWORD_LOOKUP_DETECTED:username=X,bank=Y,phone=Z] → customer minta LIHAT password saat ini
 
-ALUR WAJIB (jangan emit sinyal sebelum semua info terkumpul):
+ALUR WAJIB (jangan emit sinyal sebelum SEMUA TIGA info terkumpul):
 1. Tanya username akun
-2. Tanya nama bank terdaftar (prioritas utama untuk verifikasi)
-3. Tanya nomor HP terdaftar (opsional jika bank sudah diisi)
-4. Setelah semua terkumpul, emit sinyal yang sesuai
+2. Tanya nama bank terdaftar (wajib — verifikasi identitas primer)
+3. Tanya nomor HP terdaftar (WAJIB — verifikasi identitas sekunder, tidak boleh dilewati)
+4. Setelah ketiga info terkumpul, emit sinyal yang sesuai
 
 CONTOH:
 - "lupa password" / "minta reset" → kumpulkan info → emit [PASSWORD_RECOVERY_DETECTED:username=budi123,bank=BCA,phone=08123456789]
-- "mau lihat password" / "cek password" → kumpulkan info → emit [PASSWORD_LOOKUP_DETECTED:username=budi123,bank=BCA,phone=]
+- "mau lihat password" / "cek password" → kumpulkan info → emit [PASSWORD_LOOKUP_DETECTED:username=budi123,bank=BCA,phone=08123456789]
 
-PENTING: JANGAN emit sinyal sebelum username terkumpul. JANGAN tampilkan tag sinyal kepada customer.${extraInstr}`;
+PENTING: JANGAN emit sinyal sebelum username, bank, DAN nomor HP terkumpul. JANGAN tampilkan tag sinyal kepada customer.${extraInstr}`;
     }
   } catch (_err) {
     // Password recovery signals are optional
@@ -6788,11 +6788,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             const prBank = (params.bank || "").trim();
             const prPhone = (params.phone || "").trim();
 
-            // Require both username AND bank — without bank we cannot safely verify identity
-            if (!prUsername || !prBank) {
+            // Require ALL THREE fields: username, bank, AND phone — all are mandatory for identity verification
+            if (!prUsername || !prBank || !prPhone) {
               const missingMsg = !prUsername
                 ? `Mohon masukkan username akun Anda terlebih dahulu.`
-                : `Untuk keamanan, kami memerlukan nama bank yang terdaftar pada akun Anda. Silakan sebutkan nama bank Anda.`;
+                : !prBank
+                ? `Untuk keamanan, kami memerlukan nama bank yang terdaftar pada akun Anda. Silakan sebutkan nama bank Anda.`
+                : `Untuk keamanan, kami memerlukan nomor HP yang terdaftar pada akun Anda. Silakan masukkan nomor HP Anda.`;
               await storage.createMessage({ sessionId, from: "chatvice", content: missingMsg });
               broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: missingMsg } });
             } else {
@@ -6802,16 +6804,15 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                 if (csvText) {
                   const { rows } = parsePRCsv(csvText);
 
-                  // Identity verification: username + bank required; phone as additional check if provided
+                  // Identity verification: ALL THREE fields required — username + bank + phone must all match
                   const matchRow = rows.find(row => {
                     if (row.username.toLowerCase() !== prUsername.toLowerCase()) return false;
                     const bankOk = row.bank.toLowerCase().includes(prBank.toLowerCase()) || prBank.toLowerCase().includes(row.bank.toLowerCase());
                     if (!bankOk) return false;
-                    if (prPhone && row.phone) {
-                      const phoneOk = row.phone.replace(/\D/g, "").endsWith(prPhone.replace(/\D/g, "").slice(-8));
-                      return phoneOk;
-                    }
-                    return true;
+                    // Phone is always required (guaranteed non-empty by outer check above)
+                    if (!row.phone) return false; // Row has no phone — cannot verify
+                    const phoneOk = row.phone.replace(/\D/g, "").endsWith(prPhone.replace(/\D/g, "").slice(-8));
+                    return phoneOk;
                   }) ?? null;
 
                   if (!prIsReset) {
