@@ -853,7 +853,7 @@ async function runSubscriptionExpiryReminders(): Promise<void> {
         const alreadySent = merchant.expiryReminder7dSentAt
           && new Date(merchant.expiryReminder7dSentAt) > new Date(expiresAt.getTime() - 40 * 24 * 60 * 60 * 1000);
         if (!alreadySent) {
-          await sendSubscriptionExpiringEmail({
+          const sent = await sendSubscriptionExpiringEmail({
             merchantEmail: merchant.email,
             merchantName,
             planName,
@@ -861,13 +861,15 @@ async function runSubscriptionExpiryReminders(): Promise<void> {
             daysRemaining: Math.ceil(daysRemaining),
             amount: planAmountCents,
             billingInterval,
-          }).catch(err => console.error('[sub-reminder] 7d email error:', err));
+          }).catch(err => { console.error('[sub-reminder] 7d email error:', err); return false; });
 
-          await storage.updateMerchantSubscription(merchant.id, {
-            expiryReminder7dSentAt: now,
-          });
-          reminded++;
-          console.log(`[sub-reminder] Sent 7-day reminder to ${merchant.email}`);
+          if (sent) {
+            await storage.updateMerchantSubscription(merchant.id, {
+              expiryReminder7dSentAt: now,
+            });
+            reminded++;
+            console.log(`[sub-reminder] Sent 7-day reminder to ${merchant.email}`);
+          }
         }
       }
 
@@ -876,7 +878,7 @@ async function runSubscriptionExpiryReminders(): Promise<void> {
         const alreadySent = merchant.expiryReminder3dSentAt
           && new Date(merchant.expiryReminder3dSentAt) > new Date(expiresAt.getTime() - 40 * 24 * 60 * 60 * 1000);
         if (!alreadySent) {
-          await sendSubscriptionExpiringEmail({
+          const sent = await sendSubscriptionExpiringEmail({
             merchantEmail: merchant.email,
             merchantName,
             planName,
@@ -884,13 +886,15 @@ async function runSubscriptionExpiryReminders(): Promise<void> {
             daysRemaining: Math.ceil(daysRemaining),
             amount: planAmountCents,
             billingInterval,
-          }).catch(err => console.error('[sub-reminder] 3d email error:', err));
+          }).catch(err => { console.error('[sub-reminder] 3d email error:', err); return false; });
 
-          await storage.updateMerchantSubscription(merchant.id, {
-            expiryReminder3dSentAt: now,
-          });
-          reminded++;
-          console.log(`[sub-reminder] Sent 3-day reminder to ${merchant.email}`);
+          if (sent) {
+            await storage.updateMerchantSubscription(merchant.id, {
+              expiryReminder3dSentAt: now,
+            });
+            reminded++;
+            console.log(`[sub-reminder] Sent 3-day reminder to ${merchant.email}`);
+          }
         }
       }
     }

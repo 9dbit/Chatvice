@@ -83,6 +83,7 @@ interface BillingStatus {
   hasActiveSubscription: boolean;
   pendingTransaction?: PendingTransaction | null;
   paypalSubscriptionId?: string | null;
+  paymentProvider?: string | null;
 }
 
 interface QRISPaymentResponse {
@@ -2208,13 +2209,18 @@ export default function BillingPage() {
             <div className="flex items-center gap-2">
               <RefreshCw className="w-4 h-4 text-primary" />
               <CardTitle className="text-base font-semibold">PayPal Auto-Renewal</CardTitle>
-              {billingStatus.paypalSubscriptionId && (
+              {billingStatus.paypalSubscriptionId && billingStatus.paymentProvider === 'paypal' && (
                 <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0">Active</Badge>
+              )}
+              {billingStatus.paypalSubscriptionId && billingStatus.paymentProvider !== 'paypal' && (
+                <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-0">Pending Activation</Badge>
               )}
             </div>
             <CardDescription>
-              {billingStatus.paypalSubscriptionId
+              {billingStatus.paypalSubscriptionId && billingStatus.paymentProvider === 'paypal'
                 ? 'Your subscription renews automatically every month via PayPal. No manual action needed.'
+                : billingStatus.paypalSubscriptionId
+                ? 'Your PayPal setup is pending approval confirmation. This may take a few minutes.'
                 : 'Enable automatic monthly billing via PayPal so your chatbot never goes offline.'}
             </CardDescription>
           </CardHeader>
@@ -2222,8 +2228,10 @@ export default function BillingPage() {
             {billingStatus.paypalSubscriptionId ? (
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  <span>Auto-renewing monthly via PayPal</span>
+                  {billingStatus.paymentProvider === 'paypal'
+                    ? <CheckCircle className="w-4 h-4 text-green-500" />
+                    : <Loader2 className="w-4 h-4 animate-spin text-yellow-500" />}
+                  <span>{billingStatus.paymentProvider === 'paypal' ? 'Auto-renewing monthly via PayPal' : 'Awaiting PayPal activation confirmation...'}</span>
                 </div>
                 <Button
                   variant="outline"
