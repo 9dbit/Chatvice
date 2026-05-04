@@ -561,9 +561,12 @@ function parsePRCsv(csvText: string): { headers: string[]; rows: PRRow[] } {
 
   const headers = splitLine(lines[0]).map(h => h.toLowerCase().trim().replace(/\s+/g, "_"));
   const find = (...keys: string[]) => headers.findIndex(h => keys.some(k => h.includes(k)));
+  // Canonical column names (spec): Number, Username, Registered Bank Account, Phone Number,
+  // Current Password, New Password, Status. Parser also accepts common aliases.
+  const numIdx = find("number", "no", "num", "row_number");
   const uIdx   = find("username", "user_name", "user");
-  const bIdx   = find("bank", "rekening", "registered_bank", "nama_bank");
-  const phIdx  = find("phone", "hp", "nomor_hp", "telp", "telepon", "no_hp");
+  const bIdx   = find("registered_bank", "bank_account", "bank", "rekening", "nama_bank");
+  const phIdx  = find("phone_number", "phone", "hp", "nomor_hp", "telp", "telepon", "no_hp");
   const cpIdx  = find("current_password", "password", "pass", "kata_sandi");
   const npIdx  = find("new_password", "new_pass", "password_baru", "pass_baru");
   const stIdx  = find("status");
@@ -571,8 +574,10 @@ function parsePRCsv(csvText: string): { headers: string[]; rows: PRRow[] } {
   const rows: PRRow[] = lines.slice(1).map((line, idx) => {
     const raw = splitLine(line);
     const g = (i: number) => (i >= 0 && i < raw.length ? raw[i].trim() : "");
+    // rowIndex: prefer the sheet's own Number column if present (1-based), else derive from position
+    const sheetNumber = numIdx >= 0 ? parseInt(g(numIdx), 10) : NaN;
     return {
-      rowIndex: idx + 1,
+      rowIndex: !isNaN(sheetNumber) && sheetNumber > 0 ? sheetNumber : idx + 1,
       username:        g(uIdx),
       bank:            g(bIdx),
       phone:           g(phIdx),

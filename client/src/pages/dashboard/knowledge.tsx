@@ -3060,12 +3060,13 @@ export default function KnowledgePage() {
                   <p className="text-xs font-medium" style={{ color: "#a1a1aa" }}>Required Google Sheet Columns</p>
                   <div className="flex flex-wrap gap-1">
                     {[
-                      { col: "username", note: "User identifier (primary key)" },
-                      { col: "bank", note: "Registered bank — used for identity verification" },
-                      { col: "phone", note: "Registered phone — secondary verification" },
-                      { col: "current_password", note: "Returned on lookup requests" },
-                      { col: "new_password", note: "Filled by Apps Script when reset is ready" },
-                      { col: "status", note: "normal → request → ok" },
+                      { col: "Number", note: "Row number — used by Apps Script to update the exact row" },
+                      { col: "Username", note: "User identifier (primary key)" },
+                      { col: "Registered Bank Account", note: "Bank name — used for identity verification" },
+                      { col: "Phone Number", note: "Registered phone — secondary verification" },
+                      { col: "Current Password", note: "Returned on lookup requests" },
+                      { col: "New Password", note: "Filled by Apps Script when reset is ready" },
+                      { col: "Status", note: "normal → request → ok" },
                     ].map(({ col, note }) => (
                       <span key={col} title={note} className="text-xs px-2 py-0.5 rounded-md" style={{ backgroundColor: "#3f3f46", color: "#e4e4e7", border: "1px solid #52525b" }}>{col}</span>
                     ))}

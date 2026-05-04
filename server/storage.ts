@@ -4432,15 +4432,25 @@ export class DatabaseStorage implements IStorage {
 
   // ── Password Recovery ──────────────────────────────────────────────────────
   async getPasswordRecoveryConfig(merchantId: string, agentId?: string): Promise<PasswordRecoveryConfig | undefined> {
-    const conditions: any[] = [eq(passwordRecoveryConfigs.merchantId, merchantId)];
-    if (agentId) conditions.push(eq(passwordRecoveryConfigs.agentId, agentId));
-    else conditions.push(isNull(passwordRecoveryConfigs.agentId));
-    const [row] = await db.select().from(passwordRecoveryConfigs).where(and(...conditions));
-    return row;
+    // 1. Try exact agent-specific match first
+    if (agentId) {
+      const [agentRow] = await db.select().from(passwordRecoveryConfigs)
+        .where(and(eq(passwordRecoveryConfigs.merchantId, merchantId), eq(passwordRecoveryConfigs.agentId, agentId)));
+      if (agentRow) return agentRow;
+    }
+    // 2. Fall back to merchant-level (agentId IS NULL) config
+    const [globalRow] = await db.select().from(passwordRecoveryConfigs)
+      .where(and(eq(passwordRecoveryConfigs.merchantId, merchantId), isNull(passwordRecoveryConfigs.agentId)));
+    return globalRow;
   }
 
   async upsertPasswordRecoveryConfig(merchantId: string, agentId: string | null, data: Partial<InsertPasswordRecoveryConfig>): Promise<PasswordRecoveryConfig> {
-    const existing = await this.getPasswordRecoveryConfig(merchantId, agentId || undefined);
+    // Use strict exact-match (no fallback) so saving a global (null) config never
+    // accidentally overwrites an agent-specific row and vice-versa.
+    const exactConditions: any[] = [eq(passwordRecoveryConfigs.merchantId, merchantId)];
+    if (agentId) exactConditions.push(eq(passwordRecoveryConfigs.agentId, agentId));
+    else exactConditions.push(isNull(passwordRecoveryConfigs.agentId));
+    const [existing] = await db.select().from(passwordRecoveryConfigs).where(and(...exactConditions));
     if (existing) {
       const [row] = await db.update(passwordRecoveryConfigs)
         .set({ ...data, updatedAt: new Date() })
