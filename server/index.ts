@@ -837,6 +837,17 @@ async function runSubscriptionExpiryReminders(): Promise<void> {
         : merchant.subscriptionPlanId?.replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Plan';
       const merchantName = merchant.companyName || merchant.email.split('@')[0];
 
+      // Resolve effective plan pricing for the email invoice
+      const { getEffectiveSubscriptionPlan } = await import('./subscriptionPlanUtils');
+      const effectivePlan = merchant.subscriptionPlanId
+        ? await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId).catch(() => null)
+        : null;
+      const billingInterval = merchant.billingInterval || 'monthly';
+      // Prices are stored in cents (USD * 100)
+      const planAmountCents = effectivePlan
+        ? (billingInterval === 'annual' ? effectivePlan.annualPrice : effectivePlan.monthlyPrice)
+        : undefined;
+
       // 7-day reminder: send if 6–8 days remaining and not yet sent for this period
       if (daysRemaining >= 6 && daysRemaining <= 8) {
         const alreadySent = merchant.expiryReminder7dSentAt
@@ -848,6 +859,8 @@ async function runSubscriptionExpiryReminders(): Promise<void> {
             planName,
             expiresAt,
             daysRemaining: Math.ceil(daysRemaining),
+            amount: planAmountCents,
+            billingInterval,
           }).catch(err => console.error('[sub-reminder] 7d email error:', err));
 
           await storage.updateMerchantSubscription(merchant.id, {
@@ -869,6 +882,8 @@ async function runSubscriptionExpiryReminders(): Promise<void> {
             planName,
             expiresAt,
             daysRemaining: Math.ceil(daysRemaining),
+            amount: planAmountCents,
+            billingInterval,
           }).catch(err => console.error('[sub-reminder] 3d email error:', err));
 
           await storage.updateMerchantSubscription(merchant.id, {

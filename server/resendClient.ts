@@ -790,6 +790,11 @@ export async function sendSubscriptionExpiringEmail(data: SubscriptionExpiringDa
                     <td style="color: #71717a; padding: 8px 0; font-size: 14px; border-bottom: 1px solid #3f3f46;">Billing Cycle</td>
                     <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right; border-bottom: 1px solid #3f3f46;">${data.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</td>
                   </tr>
+                  ${data.amount != null ? `
+                  <tr>
+                    <td style="color: #71717a; padding: 8px 0; font-size: 14px; border-bottom: 1px solid #3f3f46;">Amount Due</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right; border-bottom: 1px solid #3f3f46; font-weight: 600;">$${(data.amount / 100).toFixed(2)}</td>
+                  </tr>` : ''}
                   <tr>
                     <td style="color: #71717a; padding: 8px 0; font-size: 14px;">
                       ${isExpired ? 'Expired On' : 'Expires On'}

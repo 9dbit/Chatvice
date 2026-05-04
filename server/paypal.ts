@@ -328,6 +328,49 @@ export async function getPaypalSubscription(subscriptionId: string): Promise<any
   return resp.json();
 }
 
+export async function verifyPaypalWebhookSignature(
+  headers: Record<string, string | string[] | undefined>,
+  webhookEvent: object,
+  webhookId: string
+): Promise<boolean> {
+  const token = await getPaypalAccessToken();
+  const baseUrl = process.env.NODE_ENV === 'production'
+    ? 'https://api-m.paypal.com'
+    : 'https://api-m.sandbox.paypal.com';
+
+  const getHeader = (name: string) => {
+    const val = headers[name.toLowerCase()] ?? headers[name];
+    return Array.isArray(val) ? val[0] : val ?? '';
+  };
+
+  const body = {
+    auth_algo: getHeader('paypal-auth-algo'),
+    cert_url: getHeader('paypal-cert-url'),
+    transmission_id: getHeader('paypal-transmission-id'),
+    transmission_sig: getHeader('paypal-transmission-sig'),
+    transmission_time: getHeader('paypal-transmission-time'),
+    webhook_id: webhookId,
+    webhook_event: webhookEvent,
+  };
+
+  const resp = await fetch(`${baseUrl}/v1/notifications/verify-webhook-signature`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`PayPal signature verification error: ${resp.status} ${text}`);
+  }
+
+  const data = await resp.json() as { verification_status: string };
+  return data.verification_status === 'SUCCESS';
+}
+
 export async function cancelPaypalSubscription(subscriptionId: string, reason: string): Promise<void> {
   const token = await getPaypalAccessToken();
   const baseUrl = process.env.NODE_ENV === 'production'

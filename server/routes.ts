@@ -10029,6 +10029,29 @@ Rules:
       const event = req.body;
       const eventType = event?.event_type;
 
+      // Verify PayPal signature when PAYPAL_WEBHOOK_ID is configured
+      const webhookId = process.env.PAYPAL_WEBHOOK_ID;
+      if (webhookId) {
+        try {
+          const { verifyPaypalWebhookSignature } = await import('./paypal');
+          const isValid = await verifyPaypalWebhookSignature(
+            req.headers as Record<string, string | string[] | undefined>,
+            event,
+            webhookId
+          );
+          if (!isValid) {
+            console.warn('[PayPal Webhook] Signature verification failed — rejecting event');
+            return res.status(401).json({ error: "Webhook signature verification failed" });
+          }
+        } catch (sigErr) {
+          console.error('[PayPal Webhook] Signature verification error:', sigErr);
+          // Reject the request if verification itself throws (misconfiguration, PayPal API down)
+          return res.status(401).json({ error: "Could not verify webhook signature" });
+        }
+      } else {
+        console.warn('[PayPal Webhook] PAYPAL_WEBHOOK_ID not set — skipping signature verification (configure for production)');
+      }
+
       console.log(`[PayPal Webhook] Received event: ${eventType}`);
 
       if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED') {
@@ -10097,11 +10120,10 @@ Rules:
           subscriptionMonths: 1,
           merchantEmail: merchant.email,
           merchantCompanyName: merchant.companyName || merchant.email.split('@')[0],
-          amountUsd: amountUsd || undefined,
           currency: 'USD',
-          description: `${planName} Auto-Renewal via PayPal`,
           paidAt: new Date(),
-        } as any);
+          invoiceNumber: `PP-${Date.now()}`,
+        });
 
         // Send payment receipt
         const { sendPaymentReceiptEmail } = await import('./resendClient');

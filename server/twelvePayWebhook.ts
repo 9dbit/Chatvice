@@ -590,13 +590,28 @@ export async function checkAndRenewExpiredSubscriptions(): Promise<void> {
 
       // Skip if they have an active PayPal subscription (PayPal handles renewal)
       if (merchant.paypalSubscriptionId) {
-        console.log(`[subscription-expiry] Merchant ${merchant.id} has PayPal subscription, skipping`);
-        continue;
+        // Verify the PayPal subscription is actually in ACTIVE state before skipping
+        try {
+          const { getPaypalSubscription } = await import('./paypal');
+          const sub = await getPaypalSubscription(merchant.paypalSubscriptionId);
+          if (sub?.status === 'ACTIVE') {
+            console.log(`[subscription-expiry] Merchant ${merchant.id} has active PayPal subscription, skipping`);
+            continue;
+          }
+          // PayPal subscription is not active — clear the stale ID and fall through to expire
+          console.log(`[subscription-expiry] Merchant ${merchant.id} PayPal subscription status=${sub?.status}, clearing ID and expiring`);
+          await storage.updateMerchantSubscription(merchant.id, { paypalSubscriptionId: null });
+        } catch (err) {
+          console.error(`[subscription-expiry] Could not verify PayPal subscription for merchant ${merchant.id}:`, err);
+          // If we can't verify, be conservative and skip (PayPal may be temporarily down)
+          continue;
+        }
       }
 
-      // Mark as expired
+      // Mark as expired and reset usage counter
       await storage.updateMerchantSubscription(merchant.id, {
         subscriptionStatus: 'expired',
+        conversationsUsed: 0,
       });
       expiredCount++;
 
