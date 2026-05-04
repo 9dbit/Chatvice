@@ -10123,6 +10123,20 @@ Rules:
           return;
         }
 
+        // If the triggering event did not carry an amount (common with BILLING.SUBSCRIPTION.RENEWED),
+        // enrich it from the subscription's last payment record via the PayPal API.
+        let resolvedAmountUsd = amountUsd;
+        if (resolvedAmountUsd === 0) {
+          try {
+            const { getPaypalSubscription: fetchSub } = await import('./paypal');
+            const sub = await fetchSub(subscriptionId);
+            const lastPaymentValue = sub.billing_info?.last_payment?.amount?.value;
+            if (lastPaymentValue) resolvedAmountUsd = parseFloat(lastPaymentValue);
+          } catch {
+            // Non-fatal — proceed with zero amount if enrichment fails
+          }
+        }
+
         const allMerchants = await storage.getAllMerchants();
         const merchant = allMerchants.find(m => m.paypalSubscriptionId === subscriptionId);
         if (!merchant) {
@@ -10145,7 +10159,7 @@ Rules:
 
         const savedRate = await storage.getPlatformSetting("exchange_rate");
         const exchangeRate = savedRate ? parseInt(savedRate) : 16500;
-        const amountIDR = Math.round(amountUsd * exchangeRate);
+        const amountIDR = Math.round(resolvedAmountUsd * exchangeRate);
 
         const planName = merchant.subscriptionPlanId === 'custom' ? 'Custom Plan'
           : merchant.subscriptionPlanId?.replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Plan';
