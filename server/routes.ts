@@ -20460,13 +20460,24 @@ ${log.extractedKnowledge}` : ''}
   });
 
   // Start blast scheduler — checks every 60s for due scheduled blasts
+  // Uses atomic claim: UPDATE status='sending' WHERE status='scheduled' AND scheduled_for<=now
+  // to prevent duplicate execution across restarts or overlapping intervals.
   setInterval(async () => {
     try {
       const now = new Date();
-      const due = await db.select().from(blastCampaigns)
+      // Find due campaigns without claiming yet
+      const candidates = await db.select({ id: blastCampaigns.id }).from(blastCampaigns)
         .where(and(eq(blastCampaigns.status, "scheduled"), lte(blastCampaigns.scheduledFor, now), isNotNull(blastCampaigns.scheduledFor)));
-      for (const campaign of due) {
-        await executeBlast(campaign);
+      for (const { id } of candidates) {
+        // Atomic claim: only proceed if we successfully transition scheduled -> sending
+        const claimed = await db.update(blastCampaigns)
+          .set({ status: "sending" })
+          .where(and(eq(blastCampaigns.id, id), eq(blastCampaigns.status, "scheduled")))
+          .returning({ id: blastCampaigns.id });
+        if (claimed.length === 0) continue; // Another process already claimed it
+        // Fetch the full row and execute
+        const [campaign] = await db.select().from(blastCampaigns).where(eq(blastCampaigns.id, id));
+        if (campaign) await executeBlast(campaign);
       }
     } catch (err) {
       console.error("[blast-scheduler] Error:", err);
