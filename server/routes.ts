@@ -6798,7 +6798,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
               await storage.createMessage({ sessionId, from: "chatvice", content: missingMsg });
               broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: missingMsg } });
             } else {
-              const prConfig = await storage.getPasswordRecoveryConfig(resolvedMerchantId, merchant.activeAgentId || undefined);
+              // Use session's assigned agentId to match the agent that generated the signal
+              const prAgentId = existingSession?.agentId || merchant.activeAgentId || undefined;
+              const prConfig = await storage.getPasswordRecoveryConfig(resolvedMerchantId, prAgentId);
               if (prConfig && prConfig.isActive && prConfig.sheetCsvUrl) {
                 const csvText = await fetchPasswordRecoveryRawCSV(prConfig.sheetCsvUrl);
                 if (csvText) {
@@ -6832,10 +6834,15 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                     }
                   } else {
                     // ── Reset password flow ────────────────────────────────
-                    if (matchRow) {
+                    if (!prConfig.writeBackUrl) {
+                      // No write-back URL configured — reset cannot proceed, inform user clearly
+                      const noWbMsg = `Maaf, fitur reset password belum dikonfigurasi sepenuhnya oleh merchant. Silakan hubungi tim dukungan kami untuk bantuan reset password.`;
+                      await storage.createMessage({ sessionId, from: "chatvice", content: noWbMsg });
+                      broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: noWbMsg } });
+                    } else if (matchRow) {
                       // Write-back: POST to Apps Script with rowIndex so it can update the exact row
                       // Validate URL before fetch (defense-in-depth against SSRF)
-                      if (prConfig.writeBackUrl && !validatePasswordRecoveryUrls(undefined, prConfig.writeBackUrl)) {
+                      if (!validatePasswordRecoveryUrls(undefined, prConfig.writeBackUrl)) {
                         try {
                           await fetch(prConfig.writeBackUrl, {
                             method: "POST",

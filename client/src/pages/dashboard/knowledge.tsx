@@ -491,6 +491,8 @@ export default function KnowledgePage() {
   const handleAgentSelect = (agentId: string) => {
     setSelectedAgentId(agentId);
     setContent(""); // Clear content when switching agents
+    // Reset PR form state so it reloads from the new agent's config
+    setPrConfigLoaded(false);
   };
 
   const { data: knowledge, isLoading } = useQuery<{ content: string }>({
