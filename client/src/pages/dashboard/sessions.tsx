@@ -337,8 +337,9 @@ export default function SessionsPage() {
   // End Session dialog state
   const [endSessionDialogOpen, setEndSessionDialogOpen] = useState(false);
 
-  // Archive popover state
+  // Archive popover state (desktop) and dialog state (mobile)
   const [archivePopoverOpen, setArchivePopoverOpen] = useState(false);
+  const [archiveMobileDialogOpen, setArchiveMobileDialogOpen] = useState(false);
   const [selectedArchivePeriod, setSelectedArchivePeriod] = useState<string | null>(null);
 
   // Clear preview when session changes
@@ -773,6 +774,7 @@ export default function SessionsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/chat-logs/periods"] });
       setArchivePopoverOpen(false);
+      setArchiveMobileDialogOpen(false);
       setSelectedArchivePeriod(null);
       toast({
         title: "Session archived",
@@ -1690,7 +1692,7 @@ export default function SessionsPage() {
                                   size="sm"
                                   variant="outline"
                                   className="w-full gap-1.5"
-                                  onClick={() => { setShowMobileSettings(false); setArchivePopoverOpen(true); }}
+                                  onClick={() => { setShowMobileSettings(false); setSelectedArchivePeriod(null); setArchiveMobileDialogOpen(true); }}
                                   data-testid="button-archive-session-mobile"
                                 >
                                   <Archive className="w-3.5 h-3.5" />
@@ -2680,6 +2682,57 @@ export default function SessionsPage() {
                 <Check className="w-4 h-4 mr-2" />
               )}
               Save Revision
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mobile archive Dialog — proper dialog anchored correctly on small screens */}
+      <Dialog open={archiveMobileDialogOpen} onOpenChange={(open) => { setArchiveMobileDialogOpen(open); if (!open) setSelectedArchivePeriod(null); }}>
+        <DialogContent className="sm:hidden max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarDays className="w-4 h-4 text-muted-foreground" />
+              Add to Archive
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Select a month period to archive this session transcript into.</p>
+          <ScrollArea className="max-h-56">
+            <div className="flex flex-col gap-1">
+              {archivePeriods.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No archive periods found. Archive a session first to create a period.</p>
+              ) : archivePeriods.map((period) => {
+                const [yr, mo] = period.split("-");
+                const label = new Date(Number(yr), Number(mo) - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+                return (
+                  <button
+                    key={period}
+                    onClick={() => setSelectedArchivePeriod(period === selectedArchivePeriod ? null : period)}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-md text-sm transition-colors text-left ${selectedArchivePeriod === period ? "bg-primary/15 text-primary font-medium" : "hover:bg-muted/60 text-foreground"}`}
+                    data-testid={`button-period-mobile-${period}`}
+                  >
+                    <Check className={`w-3.5 h-3.5 flex-shrink-0 ${selectedArchivePeriod === period ? "opacity-100" : "opacity-0"}`} />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </ScrollArea>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setArchiveMobileDialogOpen(false)} data-testid="button-cancel-archive-mobile">
+              Cancel
+            </Button>
+            <Button
+              disabled={!selectedArchivePeriod || archiveSessionMutation.isPending}
+              onClick={() => {
+                if (selectedSession && selectedArchivePeriod) {
+                  archiveSessionMutation.mutate({ sessionId: selectedSession, period: selectedArchivePeriod });
+                }
+              }}
+              data-testid="button-confirm-archive-mobile"
+            >
+              {archiveSessionMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Archive className="w-3.5 h-3.5 mr-1.5" />}
+              Confirm Archive
             </Button>
           </DialogFooter>
         </DialogContent>
