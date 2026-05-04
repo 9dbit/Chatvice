@@ -20023,7 +20023,7 @@ ${log.extractedKnowledge}` : ''}
   });
 
   // Manually end a session (set status to "ended")
-  app.patch("/api/merchant/sessions/:sessionId/end", requireMerchant, async (req, res) => {
+  app.patch("/api/merchant/sessions/:sessionId/end", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
       const { sessionId } = req.params;
@@ -20046,7 +20046,7 @@ ${log.extractedKnowledge}` : ''}
   });
 
   // Get distinct archive periods (YYYY-MM strings) for the merchant's chat logs
-  app.get("/api/merchant/chat-logs/periods", requireMerchant, async (req, res) => {
+  app.get("/api/merchant/chat-logs/periods", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
 
@@ -20065,8 +20065,8 @@ ${log.extractedKnowledge}` : ''}
     }
   });
 
-  // Archive a session into a specific monthly period
-  app.post("/api/merchant/sessions/:sessionId/archive", requireMerchant, async (req, res) => {
+  // Archive a session into a specific monthly period (upsert: update existing row for sessionId+period, or insert new)
+  app.post("/api/merchant/sessions/:sessionId/archive", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
       const { sessionId } = req.params;
@@ -20093,36 +20093,69 @@ ${log.extractedKnowledge}` : ''}
             m.from === "user" || m.from === "customer"
               ? session.customerName || "Customer"
               : "Agent";
-          const ts = m.createdAt ? new Date(m.createdAt).toISOString() : "";
+          const ts = m.timestamp ? new Date(m.timestamp).toISOString() : "";
           return `[${ts}] ${sender}: ${m.content || ""}`;
         })
         .join("\n");
 
-      const id = `cl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const [chatLog] = await db
-        .insert(chatLogs)
-        .values({
-          id,
-          merchantId,
-          sessionId,
-          agentId: session.agentId ?? null,
-          supervisorId: session.supervisorId ?? null,
-          customerName: session.customerName ?? null,
-          customerEmail: session.customerEmail ?? null,
-          customerPhone: session.customerPhone ?? null,
-          deviceFingerprint: session.deviceFingerprint ?? null,
-          bankRecords: session.bankRecords ?? null,
-          leadStatus: session.leadStatus ?? "new",
-          locationData: null,
-          summary: `Manually archived – ${session.customerName || "Customer"} (${msgs.length} messages)`,
-          messageCount: msgs.length,
-          fullTranscript: transcript,
-          extractedKnowledge: null,
-          sessionStartedAt: session.createdAt ?? null,
-          sessionEndedAt: session.lastActivity ?? null,
-          clearedAt,
-        })
-        .returning();
+      const summary = `Manually archived – ${session.customerName || "Customer"} (${msgs.length} messages)`;
+
+      // Upsert: update existing row for this session+period, or insert a new one
+      const existing = await db
+        .select()
+        .from(chatLogs)
+        .where(and(eq(chatLogs.merchantId, merchantId), eq(chatLogs.sessionId, sessionId)))
+        .then((rows) =>
+          rows.find((r) => {
+            const rowPeriod = r.clearedAt
+              ? `${r.clearedAt.getFullYear()}-${String(r.clearedAt.getMonth() + 1).padStart(2, "0")}`
+              : null;
+            return rowPeriod === period;
+          })
+        );
+
+      let chatLog;
+      if (existing) {
+        const [updated] = await db
+          .update(chatLogs)
+          .set({
+            messageCount: msgs.length,
+            fullTranscript: transcript,
+            summary,
+            sessionEndedAt: session.lastActivity ?? null,
+            clearedAt,
+          })
+          .where(eq(chatLogs.id, existing.id))
+          .returning();
+        chatLog = updated;
+      } else {
+        const id = `cl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const [inserted] = await db
+          .insert(chatLogs)
+          .values({
+            id,
+            merchantId,
+            sessionId,
+            agentId: session.agentId ?? null,
+            supervisorId: session.supervisorId ?? null,
+            customerName: session.customerName ?? null,
+            customerEmail: session.customerEmail ?? null,
+            customerPhone: session.customerPhone ?? null,
+            deviceFingerprint: session.deviceFingerprint ?? null,
+            bankRecords: session.bankRecords ?? null,
+            leadStatus: session.leadStatus ?? "new",
+            locationData: null,
+            summary,
+            messageCount: msgs.length,
+            fullTranscript: transcript,
+            extractedKnowledge: null,
+            sessionStartedAt: session.createdAt ?? null,
+            sessionEndedAt: session.lastActivity ?? null,
+            clearedAt,
+          })
+          .returning();
+        chatLog = inserted;
+      }
 
       res.json({ success: true, chatLog });
     } catch (error) {
