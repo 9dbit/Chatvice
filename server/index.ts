@@ -878,10 +878,12 @@ async function runSubscriptionExpiryReminders(): Promise<void> {
         }
       }
 
-      // 3-day reminder: send if 1–3 days remaining and not yet sent for this period.
-      // Always sent as urgent (3-day framing) so the recipient sees consistent urgency
-      // regardless of when within the window the scheduler runs.
-      if (daysRemaining >= 1 && daysRemaining <= 3) {
+      // 3-day reminder: send if 1–4 days remaining and not yet sent for this period.
+      // Always sent as urgent (3-day framing — daysRemaining fixed at 3) so the
+      // recipient sees consistent urgency regardless of when in the window the
+      // scheduler runs. The 4-day upper bound gives a full 6-hour scheduler cycle
+      // of tolerance so no urgent reminder is ever missed.
+      if (daysRemaining >= 1 && daysRemaining <= 4) {
         const alreadySent = merchant.expiryReminder3dSentAt
           && new Date(merchant.expiryReminder3dSentAt) > periodStart;
         if (!alreadySent) {

@@ -603,10 +603,21 @@ export async function checkAndRenewExpiredSubscriptions(): Promise<void> {
           // PayPal subscription is not active — clear the stale ID and fall through to expire
           console.log(`[subscription-expiry] Merchant ${merchant.id} PayPal subscription status=${sub?.status}, clearing ID and expiring`);
           await storage.updateMerchantSubscription(merchant.id, { paypalSubscriptionId: null });
-        } catch (err) {
-          console.error(`[subscription-expiry] Could not verify PayPal subscription for merchant ${merchant.id}:`, err);
-          // If we can't verify, be conservative and skip (PayPal may be temporarily down)
-          continue;
+        } catch (err: any) {
+          // Distinguish definitive failures (404 stale ID, 400 bad request) from
+          // transient API/network errors. Fail closed on definitive failures so a
+          // broken PayPal linkage cannot keep an expired subscription active forever.
+          const status = err?.status || err?.response?.status || err?.statusCode;
+          const isDefinitiveFailure = status === 404 || status === 400 || status === 422;
+          if (isDefinitiveFailure) {
+            console.warn(`[subscription-expiry] PayPal subscription for merchant ${merchant.id} returned ${status} — treating as inactive, clearing ID and expiring`);
+            await storage.updateMerchantSubscription(merchant.id, { paypalSubscriptionId: null });
+            // Fall through to expire this merchant
+          } else {
+            // Transient error (5xx, network timeout, etc.) — skip conservatively this run
+            console.error(`[subscription-expiry] Transient error verifying PayPal subscription for merchant ${merchant.id} (status=${status}):`, err?.message || err);
+            continue;
+          }
         }
       }
 
