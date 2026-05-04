@@ -815,13 +815,25 @@ export default function KnowledgePage() {
   // Sync PR config to local state when fetched (only if user hasn't started editing)
   const [prConfigLoaded, setPrConfigLoaded] = useState(false);
   useEffect(() => {
-    if (prConfig && !prConfigLoaded) {
+    if (!prConfigLoaded) return;
+    // Already loaded for a previous agent — wait for explicit reset via setPrConfigLoaded(false)
+  }, []);
+  useEffect(() => {
+    if (prConfigLoaded) return;
+    if (prConfig === undefined) return; // Still loading — wait
+    if (prConfig) {
       setPrSheetUrl(prConfig.sheetCsvUrl || "");
       setPrWriteBackUrl(prConfig.writeBackUrl || "");
       setPrEnabled(prConfig.isActive || false);
       setPrInstructions(prConfig.aiInstructions || "");
-      setPrConfigLoaded(true);
+    } else {
+      // Agent has no config — clear fields so previous agent's values don't persist
+      setPrSheetUrl("");
+      setPrWriteBackUrl("");
+      setPrEnabled(false);
+      setPrInstructions("");
     }
+    setPrConfigLoaded(true);
   }, [prConfig, prConfigLoaded]);
 
   // Help Articles queries

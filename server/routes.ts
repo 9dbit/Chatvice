@@ -6820,8 +6820,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                 await storage.createMessage({ sessionId, from: "chatvice", content: tooShortMsg });
                 broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: tooShortMsg } });
               } else {
-              // Use session's assigned agentId to match the agent that generated the signal
-              const prAgentId = existingSession?.agentId || merchant.activeAgentId || undefined;
+              // Re-fetch session to get the agentId assigned by askChatvice (may differ from existingSession on first message)
+              const prSession = await storage.getSession(sessionId);
+              const prAgentId = prSession?.agentId || existingSession?.agentId || merchant.activeAgentId || undefined;
               const prConfig = await storage.getPasswordRecoveryConfig(resolvedMerchantId, prAgentId);
               if (prConfig && prConfig.isActive && prConfig.sheetCsvUrl) {
                 const csvText = await fetchPasswordRecoveryRawCSV(prConfig.sheetCsvUrl);
@@ -6864,19 +6865,31 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                     } else if (matchRow) {
                       // Write-back: POST to Apps Script with rowIndex so it can update the exact row
                       // Validate URL before fetch (defense-in-depth against SSRF)
+                      let writeBackOk = false;
                       if (!validatePasswordRecoveryUrls(undefined, prConfig.writeBackUrl)) {
                         try {
-                          await fetch(prConfig.writeBackUrl, {
+                          const wbRes = await fetch(prConfig.writeBackUrl, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ rowNumber: matchRow.rowIndex, newStatus: "request" }),
                             signal: AbortSignal.timeout(8000),
                           });
-                          console.log(`[PassRecov] Write-back called for ${prUsername} (row ${matchRow.rowIndex})`);
+                          if (wbRes.ok) {
+                            writeBackOk = true;
+                            console.log(`[PassRecov] Write-back OK for ${prUsername} (row ${matchRow.rowIndex})`);
+                          } else {
+                            console.warn(`[PassRecov] Write-back non-2xx (${wbRes.status}) for ${prUsername}`);
+                          }
                         } catch (wbErr) {
-                          console.warn(`[PassRecov] Write-back failed (non-fatal):`, wbErr);
+                          console.warn(`[PassRecov] Write-back failed (network):`, wbErr);
                         }
                       }
+
+                      if (!writeBackOk) {
+                        const wbFailMsg = `Maaf, sistem tidak dapat memproses permintaan reset password saat ini. Silakan coba lagi dalam beberapa menit atau hubungi tim dukungan kami.`;
+                        await storage.createMessage({ sessionId, from: "chatvice", content: wbFailMsg });
+                        broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: wbFailMsg } });
+                      } else {
 
                       const prRequestId = "prr_" + crypto.randomBytes(8).toString("hex");
                       await storage.createPasswordRecoveryRequest({
@@ -6907,6 +6920,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                       await storage.createMessage({ sessionId, from: "chatvice", content: pendingMsg });
                       broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: pendingMsg } });
                       console.log(`[PassRecov] Reset request created for ${prUsername} (row ${matchRow.rowIndex}), session ${sessionId}`);
+                      } // close writeBackOk else block
                     } else {
                       const notFoundMsg = `Maaf, akun **${prUsername}** tidak ditemukan atau data identitas tidak cocok. Pastikan username dan nama bank yang Anda masukkan benar.`;
                       await storage.createMessage({ sessionId, from: "chatvice", content: notFoundMsg });
