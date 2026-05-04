@@ -3186,7 +3186,7 @@ export default function SessionsPage() {
             <TabsContent value="history" className="flex-1 overflow-y-auto px-6 pb-6 pt-4 mt-0">
               {blastHistoryLoading ? (
                 <div className="space-y-2">
-                  {[1,2,3].map(i => <Skeleton key={i} className="h-14 w-full rounded-md" />)}
+                  {[1,2,3].map(i => <Skeleton key={i} className="h-10 w-full rounded-md" />)}
                 </div>
               ) : (blastHistory?.campaigns?.length ?? 0) === 0 ? (
                 <div className="text-center py-12 text-muted-foreground text-sm">
@@ -3195,73 +3195,79 @@ export default function SessionsPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
+                  {/* Table header */}
+                  <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-x-3 px-2 pb-1 border-b">
+                    <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Message / Audience</span>
+                    <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide text-right">Matched</span>
+                    <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide text-right">Delivered</span>
+                    <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide text-right">Failed</span>
+                    <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide text-right">Rate</span>
+                    <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide text-right">Actions</span>
+                  </div>
                   {blastHistory!.campaigns.map(c => {
                     const f = c.filters;
                     const dateLabel = (c.sentAt ?? c.scheduledFor) ? new Date(c.sentAt ?? c.scheduledFor).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
                     const rate = c.successRate ?? 0;
                     const statusBadge: Record<string, string> = { sent: "bg-green-500/15 text-green-700 dark:text-green-400", scheduled: "bg-blue-500/15 text-blue-700 dark:text-blue-400", sending: "bg-amber-500/15 text-amber-700 dark:text-amber-400", cancelled: "bg-muted text-muted-foreground" };
                     return (
-                      <Card key={c.id} className="p-4 space-y-2" data-testid={`card-blast-${c.id}`}>
-                        <div className="flex items-start justify-between gap-2 flex-wrap">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${statusBadge[c.status] || statusBadge.cancelled}`}>
+                      <div key={c.id} className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-x-3 items-center px-2 py-2 rounded-md hover-elevate" data-testid={`row-blast-${c.id}`}>
+                        {/* Message + audience column */}
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${statusBadge[c.status] || statusBadge.cancelled}`}>
                               {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
                             </span>
-                            <span className="text-xs text-muted-foreground">{dateLabel}</span>
-                            {f.countries?.map((ct: string) => <Badge key={ct} variant="outline" className="text-[10px] h-5 gap-1"><CountryFlag code={blastOptions?.countries?.find(x => x.name === ct)?.code} name={ct} />{ct}</Badge>)}
-                            {f.cities?.map((ci: string) => <Badge key={ci} variant="outline" className="text-[10px] h-5">{ci}</Badge>)}
-                            {f.deviceOs?.filter((o: string) => o !== "all").map((o: string) => <Badge key={o} variant="outline" className="text-[10px] h-5">{o}</Badge>)}
-                            {f.periods?.map((p: string) => { const [yr,mo]=p.split("-"); return <Badge key={p} variant="outline" className="text-[10px] h-5">{new Date(Number(yr),Number(mo)-1,1).toLocaleDateString("en-US",{month:"short",year:"numeric"})}</Badge>; })}
+                            <span className="text-[10px] text-muted-foreground">{dateLabel}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1"
-                              onClick={() => {
-                                setBlastMessage(c.message);
-                                setBlastMessageTypeVal(c.blastMessageType === "announcement" ? "announcement" : "text");
-                                setBlastFilters(c.filters || { periods: [], countries: [], cities: [], deviceOs: [] });
-                                setBlastMediaUrl(c.mediaUrl ?? null);
-                                setBlastMediaType(c.mediaType ?? null);
-                                setBlastMediaPreview(null);
-                                setBlastTab("compose");
-                              }}
-                              data-testid={`button-blast-again-${c.id}`}
-                            ><RotateCcw className="w-3 h-3" />Blast Again</Button>
-                            {c.status === "scheduled" && (
-                              <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-destructive"
-                                onClick={() => setBlastCancelId(c.id)}
-                                data-testid={`button-cancel-blast-${c.id}`}
-                              ><Ban className="w-3 h-3" />Cancel</Button>
-                            )}
-                          </div>
+                          <p className="text-xs truncate" data-testid={`text-blast-message-${c.id}`}>{c.message}</p>
+                          {(f.countries?.length || f.cities?.length || f.deviceOs?.filter((o: string) => o !== "all").length || f.periods?.length) ? (
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {f.countries?.map((ct: string) => <Badge key={ct} variant="outline" className="text-[10px] h-4 gap-0.5 px-1"><CountryFlag code={blastOptions?.countries?.find(x => x.name === ct)?.code} name={ct} />{ct}</Badge>)}
+                              {f.cities?.map((ci: string) => <Badge key={ci} variant="outline" className="text-[10px] h-4 px-1">{ci}</Badge>)}
+                              {f.deviceOs?.filter((o: string) => o !== "all").map((o: string) => <Badge key={o} variant="outline" className="text-[10px] h-4 px-1">{o}</Badge>)}
+                              {f.periods?.map((p: string) => { const [yr,mo]=p.split("-"); return <Badge key={p} variant="outline" className="text-[10px] h-4 px-1">{new Date(Number(yr),Number(mo)-1,1).toLocaleDateString("en-US",{month:"short",year:"numeric"})}</Badge>; })}
+                            </div>
+                          ) : null}
                         </div>
-                        <p className="text-xs text-muted-foreground truncate" data-testid={`text-blast-message-${c.id}`}>{c.message}</p>
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Users className="w-3 h-3" />{c.matchedCount} matched
-                          </div>
-                          {c.status === "sent" && (<>
-                            <div className="flex items-center gap-1 text-xs text-green-600">
-                              <CheckCircle2 className="w-3 h-3" />{c.deliveredCount} delivered
-                            </div>
-                            <div className="flex items-center gap-1 text-xs text-destructive">
-                              <XCircle className="w-3 h-3" />{c.failedCount} failed
-                            </div>
-                            <div className="flex items-center gap-2 flex-1 min-w-24">
-                              <TrendingUp className="w-3 h-3 text-muted-foreground" />
-                              <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
-                                <div
-                                  className="h-full rounded-full transition-all"
-                                  style={{
-                                    width: `${rate}%`,
-                                    backgroundColor: rate >= 80 ? '#22c55e' : rate >= 50 ? '#f59e0b' : '#ef4444',
-                                  } satisfies React.CSSProperties}
-                                />
+                        {/* Matched */}
+                        <span className="text-xs text-muted-foreground text-right tabular-nums">{c.matchedCount}</span>
+                        {/* Delivered */}
+                        <span className="text-xs text-right tabular-nums" style={{ color: c.status === "sent" ? '#22c55e' : undefined }}>{c.status === "sent" ? c.deliveredCount : "—"}</span>
+                        {/* Failed */}
+                        <span className="text-xs text-right tabular-nums" style={{ color: c.status === "sent" && c.failedCount > 0 ? '#ef4444' : undefined }}>{c.status === "sent" ? c.failedCount : "—"}</span>
+                        {/* Success rate */}
+                        <div className="flex items-center gap-1 justify-end w-16">
+                          {c.status === "sent" ? (
+                            <>
+                              <div className="h-1.5 w-10 rounded-full bg-muted overflow-hidden">
+                                <div className="h-full rounded-full" style={{ width: `${rate}%`, backgroundColor: rate >= 80 ? '#22c55e' : rate >= 50 ? '#f59e0b' : '#ef4444' } satisfies React.CSSProperties} />
                               </div>
-                              <span className="text-[10px] text-muted-foreground w-7 text-right">{rate}%</span>
-                            </div>
-                          </>)}
+                              <span className="text-[10px] text-muted-foreground w-6 text-right tabular-nums">{rate}%</span>
+                            </>
+                          ) : <span className="text-xs text-muted-foreground">—</span>}
                         </div>
-                      </Card>
+                        {/* Actions */}
+                        <div className="flex items-center gap-1 justify-end">
+                          <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px] gap-0.5"
+                            onClick={() => {
+                              setBlastMessage(c.message);
+                              setBlastMessageTypeVal(c.blastMessageType === "announcement" ? "announcement" : "text");
+                              setBlastFilters(c.filters || { periods: [], countries: [], cities: [], deviceOs: [] });
+                              setBlastMediaUrl(c.mediaUrl ?? null);
+                              setBlastMediaType(c.mediaType ?? null);
+                              setBlastMediaPreview(null);
+                              setBlastTab("compose");
+                            }}
+                            data-testid={`button-blast-again-${c.id}`}
+                          ><RotateCcw className="w-2.5 h-2.5" />Again</Button>
+                          {c.status === "scheduled" && (
+                            <Button size="sm" variant="ghost" className="h-6 px-1.5 text-[10px] gap-0.5 text-destructive"
+                              onClick={() => setBlastCancelId(c.id)}
+                              data-testid={`button-cancel-blast-${c.id}`}
+                            ><Ban className="w-2.5 h-2.5" /></Button>
+                          )}
+                        </div>
+                      </div>
                     );
                   })}
                   {(blastHistory?.pages ?? 0) > 1 && (

@@ -20351,6 +20351,10 @@ ${log.extractedKnowledge}` : ''}
 
       if (!message?.trim()) return res.status(400).json({ error: "Message is required" });
       if (message.trim().length > 1000) return res.status(400).json({ error: "Message cannot exceed 1000 characters" });
+      const validMsgTypes = ["text", "announcement"];
+      if (blastMessageType && !validMsgTypes.includes(blastMessageType)) return res.status(400).json({ error: "Invalid blastMessageType" });
+      const validMediaTypes = ["image", "video", "document"];
+      if (mediaType && !validMediaTypes.includes(mediaType)) return res.status(400).json({ error: "Invalid mediaType" });
 
       // Validate scheduledFor: must be a valid timestamp, in the future, and ≤30 days out
       let scheduledDate: Date | null = null;
