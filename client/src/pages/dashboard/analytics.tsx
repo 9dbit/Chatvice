@@ -1,5 +1,5 @@
 import { useLanguage } from "@/hooks/use-language";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,7 @@ import {
   Zap,
   AlertTriangle,
   Star,
+  X,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 import type { Merchant } from "@shared/schema";
@@ -150,10 +151,57 @@ const CHART_COLORS = ["#6b5dfc", "#8b7dfc", "#ab9dfc", "#cbbdfc", "#ebddfc"];
 const AGENT_COLOR = "#6b5dfc";
 const SUPERVISOR_COLOR = "#22c55e";
 
+// Map metric query param → tab value
+const METRIC_TAB_MAP: Record<string, string> = {
+  sessions: "team-performance",
+  messages: "keywords",
+  "ai-resolution": "topics",
+  "response-time": "performance",
+};
+
+// Map metric → section label for the focus banner
+const METRIC_LABEL_MAP: Record<string, string> = {
+  sessions: "Active Sessions",
+  messages: "Messages",
+  "ai-resolution": "AI Resolution",
+  "response-time": "Response Times",
+};
+
 export default function AnalyticsPage() {
   const { t } = useLanguage();
   const merchantId = localStorage.getItem("merchantId") || "";
   const [performancePeriod, setPerformancePeriod] = useState<"daily" | "weekly" | "monthly" | "yearly">("daily");
+
+  // Read ?metric= query param reactively using a state-backed parser
+  const getMetricFromSearch = () => new URLSearchParams(window.location.search).get("metric") || "";
+  const [focusMetric, setFocusMetric] = useState(getMetricFromSearch);
+  const initialTab = focusMetric && METRIC_TAB_MAP[focusMetric] ? METRIC_TAB_MAP[focusMetric] : "topics";
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const [showFocusBanner, setShowFocusBanner] = useState(!!focusMetric);
+  const chartSectionRef = useRef<HTMLDivElement>(null);
+
+  // Sync focusMetric and tab when the URL search string changes (e.g. same-page navigation)
+  useEffect(() => {
+    const handlePopState = () => {
+      const next = getMetricFromSearch();
+      setFocusMetric(next);
+      if (next && METRIC_TAB_MAP[next]) {
+        setActiveTab(METRIC_TAB_MAP[next]);
+        setShowFocusBanner(true);
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  // Scroll to chart section if a metric is focused; clean up timer on unmount
+  useEffect(() => {
+    if (!focusMetric || !chartSectionRef.current) return;
+    const timer = setTimeout(() => {
+      chartSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [focusMetric]);
 
   const { data: merchant } = useQuery<Merchant>({
     queryKey: ["/api/merchant", merchantId],
@@ -261,6 +309,30 @@ export default function AnalyticsPage() {
         )}
       </div>
 
+      {/* Focus banner — shown when arriving from a KPI stat card */}
+      {showFocusBanner && focusMetric && METRIC_LABEL_MAP[focusMetric] && (
+        <div
+          className="flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/5 px-4 py-3"
+          data-testid="banner-metric-focus"
+        >
+          <div className="flex items-center gap-2 text-sm">
+            <BarChart3 className="w-4 h-4 text-primary flex-shrink-0" />
+            <span>
+              Showing detailed breakdown for{" "}
+              <span className="font-semibold text-foreground">{METRIC_LABEL_MAP[focusMetric]}</span>
+            </span>
+          </div>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => setShowFocusBanner(false)}
+            data-testid="button-dismiss-focus-banner"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statsCards.map((stat, index) => (
           <Card key={index} data-testid={`stat-card-${index}`} className="relative overflow-hidden">
@@ -285,8 +357,8 @@ export default function AnalyticsPage() {
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+      <div ref={chartSectionRef} className="grid gap-6 lg:grid-cols-2">
+        <Card className={focusMetric === "messages" || focusMetric === "sessions" ? "ring-2 ring-primary/40" : ""}>
           <CardHeader>
             <CardTitle>{t("dashboard.analytics.messagesOverTime")}</CardTitle>
             <CardDescription>{t("dashboard.analytics.messagesOverTimeDesc")}</CardDescription>
@@ -318,7 +390,7 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={focusMetric === "ai-resolution" || focusMetric === "response-time" ? "ring-2 ring-primary/40" : ""}>
           <CardHeader>
             <CardTitle>{t("dashboard.analytics.aiVsHuman")}</CardTitle>
             <CardDescription>{t("dashboard.analytics.aiVsHumanDesc")}</CardDescription>
@@ -349,22 +421,22 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="topics">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="topics" className="flex items-center gap-2">
+          <TabsTrigger value="topics" className="flex items-center gap-2" data-testid="tab-topics">
             Chat Topics
             {!canViewChatTopics && <Lock className="w-3 h-3" />}
           </TabsTrigger>
-          <TabsTrigger value="keywords">{t("dashboard.analytics.popularKeywords")}</TabsTrigger>
-          <TabsTrigger value="locations" className="flex items-center gap-2">
+          <TabsTrigger value="keywords" data-testid="tab-keywords">{t("dashboard.analytics.popularKeywords")}</TabsTrigger>
+          <TabsTrigger value="locations" className="flex items-center gap-2" data-testid="tab-locations">
             <MapPin className="w-3 h-3" />
             Locations
           </TabsTrigger>
-          <TabsTrigger value="team-performance" className="flex items-center gap-2">
+          <TabsTrigger value="team-performance" className="flex items-center gap-2" data-testid="tab-team-performance">
             <Users className="w-3 h-3" />
             Team Performance
           </TabsTrigger>
-          <TabsTrigger value="performance">{t("dashboard.analytics.responseTimes")}</TabsTrigger>
+          <TabsTrigger value="performance" data-testid="tab-performance">{t("dashboard.analytics.responseTimes")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="topics" className="mt-4">

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLanguage } from "@/hooks/use-language";
+import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -107,6 +108,7 @@ export default function DashboardOverview() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [, navigate] = useLocation();
 
   const { data: sessions, isLoading: sessionsLoading } = useQuery<Session[]>({
     queryKey: ["/api/sessions", merchantId],
@@ -189,6 +191,7 @@ export default function DashboardOverview() {
       trend: null as number | null,
       trendLabel: "",
       accentClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+      metric: "sessions",
     },
     {
       title: t("dashboard.overview.messagesDay"),
@@ -198,6 +201,7 @@ export default function DashboardOverview() {
       trend: todayVsYesterdayPct,
       trendLabel: t("dashboard.overview.trendVsYesterday"),
       accentClass: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+      metric: "messages",
     },
     {
       title: t("dashboard.overview.aiResolution"),
@@ -207,6 +211,7 @@ export default function DashboardOverview() {
       trend: aiResolutionTrend,
       trendLabel: t("dashboard.overview.trendVsTarget"),
       accentClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+      metric: "ai-resolution",
     },
     {
       title: t("dashboard.overview.avgResponse"),
@@ -216,6 +221,7 @@ export default function DashboardOverview() {
       trend: avgResponseTrend,
       trendLabel: t("dashboard.overview.trendResponseSpeed"),
       accentClass: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+      metric: "response-time",
     },
   ];
 
@@ -270,13 +276,29 @@ export default function DashboardOverview() {
       {/* ── KPI Stat Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {statCards.map((stat, index) => (
-          <Card key={index} data-testid={`card-stat-${index}`} className="relative overflow-hidden">
+          <Card
+            key={index}
+            data-testid={`card-stat-${index}`}
+            className="relative cursor-pointer hover-elevate active-elevate-2 transition-shadow"
+            onClick={() => navigate(`/dashboard/analytics?metric=${stat.metric}`)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                navigate(`/dashboard/analytics?metric=${stat.metric}`);
+              }
+            }}
+          >
             <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 p-4 sm:p-5 sm:pb-2">
               <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground truncate">
                 {stat.title}
               </CardTitle>
-              <div className={`w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 ${stat.accentClass}`}>
-                <stat.icon className="w-4 h-4" />
+              <div className="flex items-center gap-1.5">
+                <div className={`w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 ${stat.accentClass}`}>
+                  <stat.icon className="w-4 h-4" />
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0" />
               </div>
             </CardHeader>
             <CardContent className="p-4 sm:p-5 pt-0">
