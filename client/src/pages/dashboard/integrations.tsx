@@ -27,7 +27,7 @@ import {
   SiHubspot,
   SiIntercom,
 } from "react-icons/si";
-import { Search, ExternalLink, Check, Clock, Plug, Send, Bell, BellRing, Sparkles, CreditCard } from "lucide-react";
+import { Search, ExternalLink, Check, Clock, Plug, Send, Bell, BellRing, Sparkles, CreditCard, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { NotificationSetting } from "@shared/schema";
 
@@ -43,6 +43,7 @@ interface Integration {
 }
 
 const categoryLabels: Record<string, string> = {
+  all: "All",
   notifications: "Notifications",
   messaging: "Messaging",
   crm: "CRM",
@@ -50,6 +51,16 @@ const categoryLabels: Record<string, string> = {
   helpdesk: "Helpdesk",
   payment: "Payment",
   ai: "AI & Automation",
+};
+
+const categoryIconBg: Record<string, string> = {
+  notifications: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  messaging: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+  crm: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+  ecommerce: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
+  helpdesk: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+  payment: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400",
+  ai: "bg-primary/15 text-primary",
 };
 
 export default function IntegrationsPage() {
@@ -181,7 +192,7 @@ export default function IntegrationsPage() {
       id: "paypal",
       name: "PayPal",
       description: "Accept PayPal payments and let customers check order & payment status directly in chat.",
-      icon: Plug,
+      icon: CreditCard,
       category: "payment",
       status: "coming_soon",
       popular: true,
@@ -190,7 +201,7 @@ export default function IntegrationsPage() {
       id: "stripe",
       name: "Stripe",
       description: "Process card payments and surface invoice or subscription data in your AI responses.",
-      icon: Plug,
+      icon: CreditCard,
       category: "payment",
       status: "coming_soon",
     },
@@ -213,15 +224,15 @@ export default function IntegrationsPage() {
     },
   ];
 
+  const categories = ["all", ...Array.from(new Set(integrations.map((i) => i.category)))];
+
   const filteredIntegrations = integrations.filter((integration) => {
-    const matchesSearch = 
+    const matchesSearch =
       integration.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       integration.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === "all" || integration.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
-
-  const categories = ["all", ...Array.from(new Set(integrations.map((i) => i.category)))];
 
   function handleIntegrationClick(integration: Integration) {
     if (integration.id === "telegram") {
@@ -238,13 +249,10 @@ export default function IntegrationsPage() {
       toast({ title: t("dashboard.integrations.botTokenRequired"), variant: "destructive" });
       return;
     }
-    
-    // Save first
-    await updateMutation.mutateAsync({ 
-      telegramBotToken: localBotToken, 
-      telegramChatId: localChatId 
+    await updateMutation.mutateAsync({
+      telegramBotToken: localBotToken,
+      telegramChatId: localChatId,
     });
-    
     try {
       const res = await apiRequest("POST", "/api/notification-settings/test-telegram");
       if (res.ok) {
@@ -262,13 +270,10 @@ export default function IntegrationsPage() {
       toast({ title: t("dashboard.integrations.browserNotSupported"), variant: "destructive" });
       return;
     }
-
     const permission = await Notification.requestPermission();
     if (permission === "granted") {
       updateMutation.mutate({ browserPushEnabled: true });
       toast({ title: t("dashboard.integrations.browserEnabled") });
-      
-      // Send test notification
       new Notification("Chatvice Notifications Enabled", {
         body: "You'll now receive sound alerts when browser is in background",
         icon: "/favicon.ico",
@@ -278,190 +283,182 @@ export default function IntegrationsPage() {
     }
   }
 
+  const renderStatusBadge = (status: Integration["status"]) => {
+    if (status === "connected") {
+      return (
+        <Badge
+          className="text-[10px] bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30 gap-1"
+          variant="outline"
+          data-testid="badge-status-connected"
+        >
+          <Check className="w-2.5 h-2.5" />
+          Connected
+        </Badge>
+      );
+    }
+    if (status === "coming_soon") {
+      return (
+        <Badge
+          className="text-[10px] bg-muted text-muted-foreground border-border gap-1"
+          variant="outline"
+          data-testid="badge-status-coming-soon"
+        >
+          <Clock className="w-2.5 h-2.5" />
+          Coming Soon
+        </Badge>
+      );
+    }
+    return (
+      <Badge
+        className="text-[10px] bg-primary/10 text-primary border-primary/20 gap-1"
+        variant="outline"
+        data-testid="badge-status-available"
+      >
+        <Zap className="w-2.5 h-2.5" />
+        Available
+      </Badge>
+    );
+  };
+
+  const renderCard = (integration: Integration) => {
+    const iconBgClass = categoryIconBg[integration.category] ?? "bg-muted text-muted-foreground";
+    const isConnected = integration.status === "connected";
+    const isComingSoon = integration.status === "coming_soon";
+
+    return (
+      <Card
+        key={integration.id}
+        className={`hover-elevate transition-all flex flex-col relative overflow-hidden ${
+          isConnected
+            ? "ring-2 ring-green-500/40 border-green-500/30"
+            : ""
+        }`}
+        data-testid={`card-integration-${integration.id}`}
+      >
+        {isConnected && (
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-green-500/60 via-green-400/80 to-green-500/60" />
+        )}
+        <CardHeader className="pb-3 pt-4">
+          <div className="flex items-start justify-between gap-2">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBgClass}`}>
+              <integration.icon className="w-7 h-7" />
+            </div>
+            <div className="flex flex-col items-end gap-1.5">
+              {renderStatusBadge(integration.status)}
+              {integration.popular && (
+                <Badge variant="secondary" className="text-[10px]">Popular</Badge>
+              )}
+            </div>
+          </div>
+          <div className="mt-3">
+            <CardTitle className="text-sm font-semibold leading-tight">
+              {integration.name}
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0 flex flex-col flex-1">
+          <CardDescription className="text-xs mb-4 line-clamp-2 flex-1 leading-relaxed">
+            {integration.description}
+          </CardDescription>
+          {isConnected ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => handleIntegrationClick(integration)}
+              data-testid={`button-connect-${integration.id}`}
+            >
+              <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+              Manage
+            </Button>
+          ) : isComingSoon ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-muted-foreground"
+              disabled
+              data-testid={`button-connect-${integration.id}`}
+            >
+              <Clock className="w-3.5 h-3.5 mr-1.5" />
+              Coming Soon
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="w-full"
+              onClick={() => handleIntegrationClick(integration)}
+              data-testid={`button-connect-${integration.id}`}
+            >
+              <Plug className="w-3.5 h-3.5 mr-1.5" />
+              {t("dashboard.integrations.connect")}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-integrations-title">{t("dashboard.integrations.title")}</h1>
-        <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+        <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-integrations-title">
+          {t("dashboard.integrations.title")}
+        </h1>
+        <p className="text-muted-foreground mt-1 text-sm">
           Connect Chatvice with your favorite tools and platforms
         </p>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search integrations..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-            data-testid="input-search-integrations"
-          />
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 sm:pb-0">
-          {categories.map((category) => (
-            <Button
-              key={category}
-              variant={selectedCategory === category ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedCategory(category)}
-              className="whitespace-nowrap"
-              data-testid={`button-category-${category}`}
-            >
-              {category === "all" ? "All" : categoryLabels[category] || category}
-            </Button>
-          ))}
-        </div>
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search integrations..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+          data-testid="input-search-integrations"
+        />
       </div>
 
-      {(() => {
-        const categoryIconBg: Record<string, string> = {
-          notifications: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-          messaging: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-          crm: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-          ecommerce: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
-          helpdesk: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
-          payment: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400",
-          ai: "bg-primary/15 text-primary",
-        };
-        const categoryAccent: Record<string, string> = {
-          notifications: "text-amber-600 dark:text-amber-400",
-          messaging: "text-blue-600 dark:text-blue-400",
-          crm: "text-emerald-600 dark:text-emerald-400",
-          ecommerce: "text-violet-600 dark:text-violet-400",
-          helpdesk: "text-rose-600 dark:text-rose-400",
-          payment: "text-cyan-600 dark:text-cyan-400",
-          ai: "text-primary",
-        };
-        const categoryIcon: Record<string, (props: { className?: string }) => JSX.Element | null> = {
-          notifications: Bell,
-          messaging: Send,
-          crm: ExternalLink,
-          ecommerce: Plug,
-          helpdesk: Plug,
-          payment: CreditCard,
-          ai: Sparkles,
-        };
-
-        const renderCard = (integration: Integration) => {
-          const iconBgClass = categoryIconBg[integration.category] ?? "bg-muted text-muted-foreground";
-          const isConnected = integration.status === "connected";
+      {/* Category pill tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        {categories.map((category) => {
+          const isSelected = selectedCategory === category;
           return (
-            <Card
-              key={integration.id}
-              className={`hover-elevate transition-all flex flex-col ${isConnected ? "ring-1 ring-green-500/30" : ""}`}
-              data-testid={`card-integration-${integration.id}`}
+            <button
+              key={category}
+              onClick={() => setSelectedCategory(category)}
+              className={`inline-flex items-center whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-medium transition-colors flex-shrink-0 border ${
+                isSelected
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background text-muted-foreground border-border hover-elevate"
+              }`}
+              data-testid={`button-category-${category}`}
             >
-              <CardHeader className="pb-3">
-                <div className="flex items-start gap-3">
-                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${iconBgClass}`}>
-                    <integration.icon className="w-6 h-6" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <CardTitle className="text-sm font-semibold">
-                        {integration.name}
-                      </CardTitle>
-                      {integration.popular && (
-                        <Badge variant="secondary" className="text-[10px]">Popular</Badge>
-                      )}
-                    </div>
-                    <div className="mt-1">
-                      {isConnected ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-600 dark:text-green-400">
-                          <Check className="w-3 h-3" />
-                          Connected
-                        </span>
-                      ) : integration.status === "coming_soon" ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
-                          <Clock className="w-3 h-3" />
-                          Coming Soon
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
-                          <Plug className="w-3 h-3" />
-                          Available
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0 flex flex-col flex-1">
-                <CardDescription className="text-xs mb-4 line-clamp-2 flex-1">
-                  {integration.description}
-                </CardDescription>
-                <Button
-                  variant={isConnected ? "outline" : integration.status === "coming_soon" ? "outline" : "default"}
-                  size="sm"
-                  className="w-full"
-                  disabled={integration.status === "coming_soon"}
-                  onClick={() => handleIntegrationClick(integration)}
-                  data-testid={`button-connect-${integration.id}`}
-                >
-                  {isConnected ? (
-                    <>
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Manage
-                    </>
-                  ) : integration.status === "coming_soon" ? (
-                    "Coming Soon"
-                  ) : (
-                    <>
-                      <Plug className="w-4 h-4 mr-2" />{t("dashboard.integrations.connect")}
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
+              {categoryLabels[category] ?? category}
+            </button>
           );
-        };
+        })}
+      </div>
 
-        if (filteredIntegrations.length === 0) {
-          return (
-            <div className="text-center py-12">
-              <Plug className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No integrations found</h3>
-              <p className="text-muted-foreground text-sm">Try adjusting your search or filter criteria</p>
-            </div>
-          );
-        }
-
-        if (selectedCategory !== "all" || searchQuery) {
-          return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredIntegrations.map(renderCard)}
-            </div>
-          );
-        }
-
-        return (
-          <div className="space-y-8">
-            {(Object.keys(categoryLabels) as Array<keyof typeof categoryLabels>).map((catKey) => {
-              const catIntegrations = filteredIntegrations.filter((i) => i.category === catKey);
-              if (catIntegrations.length === 0) return null;
-              const CatIcon = categoryIcon[catKey] ?? Plug;
-              const accentClass = categoryAccent[catKey] ?? "text-muted-foreground";
-              const iconBg = categoryIconBg[catKey] ?? "bg-muted text-muted-foreground";
-              return (
-                <div key={catKey} className="space-y-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className={`w-6 h-6 rounded-md flex items-center justify-center ${iconBg}`}>
-                      <CatIcon className="w-3.5 h-3.5" />
-                    </div>
-                    <h2 className={`text-sm font-semibold ${accentClass}`}>{categoryLabels[catKey]}</h2>
-                    <Badge variant="secondary" className="text-[10px]">{catIntegrations.length}</Badge>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {catIntegrations.map(renderCard)}
-                  </div>
-                </div>
-              );
-            })}
+      {/* Grid */}
+      {filteredIntegrations.length === 0 ? (
+        <div className="text-center py-16">
+          <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+            <Plug className="w-7 h-7 text-muted-foreground" />
           </div>
-        );
-      })()}
+          <h3 className="text-base font-medium mb-1">No integrations found</h3>
+          <p className="text-muted-foreground text-sm">Try adjusting your search or filter</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredIntegrations.map(renderCard)}
+        </div>
+      )}
 
+      {/* Custom integration CTA */}
       <Card className="bg-muted/50">
         <CardContent className="py-6">
           <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
@@ -493,7 +490,6 @@ export default function IntegrationsPage() {
               Receive chat notifications via Telegram even when browser is closed
             </DialogDescription>
           </DialogHeader>
-          
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -552,8 +548,8 @@ export default function IntegrationsPage() {
               </p>
             </div>
 
-            <Button 
-              className="w-full" 
+            <Button
+              className="w-full"
               onClick={handleTestTelegram}
               disabled={updateMutation.isPending}
               data-testid="button-test-telegram"
@@ -562,8 +558,8 @@ export default function IntegrationsPage() {
               Send Test Notification
             </Button>
 
-            <Button 
-              className="w-full" 
+            <Button
+              className="w-full"
               variant="outline"
               onClick={async () => {
                 try {
@@ -611,7 +607,6 @@ export default function IntegrationsPage() {
               Get desktop alerts when dashboard tab is open in background
             </DialogDescription>
           </DialogHeader>
-          
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -641,7 +636,6 @@ export default function IntegrationsPage() {
                   </p>
                 </div>
               </div>
-              
               <div className="text-xs text-muted-foreground border-t pt-3">
                 <p className="font-medium mb-1">Note:</p>
                 <ul className="list-disc list-inside space-y-0.5">
@@ -660,9 +654,9 @@ export default function IntegrationsPage() {
               </div>
             )}
 
-            <Button 
+            <Button
               variant="outline"
-              className="w-full" 
+              className="w-full"
               onClick={() => {
                 new Notification("Test Notification", {
                   body: "This is how notifications will appear",
