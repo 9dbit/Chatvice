@@ -9978,9 +9978,12 @@ Rules:
 
       const planName = `Chatvice ${plan.name} Monthly`;
       const cacheKey = `${planId}_${amountUsd}`;
+      const dbSettingKey = `paypal_plan_id_${cacheKey}`;
 
-      // Reuse cached PayPal plan ID if available to avoid creating duplicate plans
-      let paypalPlanId = paypalPlanIdCache.get(cacheKey);
+      // Reuse cached PayPal plan ID — check in-process cache first, then DB-persisted
+      // setting, and only create a new product+plan if neither is available.
+      let paypalPlanId = paypalPlanIdCache.get(cacheKey)
+        ?? await storage.getPlatformSetting(dbSettingKey);
       if (!paypalPlanId) {
         const product = await createPaypalProduct(
           planName,
@@ -9988,8 +9991,11 @@ Rules:
         );
         const paypalPlan = await createPaypalBillingPlan(product.id, planName, amountUsd);
         paypalPlanId = paypalPlan.id;
-        paypalPlanIdCache.set(cacheKey, paypalPlanId);
+        // Persist to DB so restarts don't recreate the product+plan
+        await storage.setPlatformSetting(dbSettingKey, paypalPlanId);
       }
+      // Always keep the in-process cache warm
+      paypalPlanIdCache.set(cacheKey, paypalPlanId);
 
       const baseUrl = process.env.REPLIT_DEPLOYMENT_ID
         ? 'https://chatvice.app'
