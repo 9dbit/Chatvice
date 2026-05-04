@@ -842,7 +842,7 @@ export default function SessionsPage() {
   interface BlastSendResult { sent?: boolean; scheduled?: boolean; delivered?: number; failed?: number; matchedCount?: number; scheduledFor?: string; }
 
   // Blast: options
-  const { data: blastOptions } = useQuery<{ countries: string[]; cities: string[]; periods: string[]; osOptions: string[] }>({
+  const { data: blastOptions } = useQuery<{ countries: { name: string; code: string }[]; cities: string[]; periods: string[]; osOptions: string[] }>({
     queryKey: ["/api/merchant/blast/options"],
     enabled: blastDialogOpen,
     staleTime: 30_000,
@@ -2944,14 +2944,17 @@ export default function SessionsPage() {
                   <div>
                     <p className="text-xs text-muted-foreground mb-1.5">Country</p>
                     <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
-                      {blastOptions!.countries.map(c => {
-                        const active = blastFilters.countries.includes(c);
+                      {blastOptions!.countries.map(({ name, code }) => {
+                        const active = blastFilters.countries.includes(name);
                         return (
-                          <button key={c}
-                            onClick={() => setBlastFilters(f => ({ ...f, countries: active ? f.countries.filter(x => x !== c) : [...f.countries, c] }))}
-                            className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-muted-foreground hover:border-primary/50"}`}
-                            data-testid={`chip-country-${c}`}
-                          >{c}</button>
+                          <button key={name}
+                            onClick={() => setBlastFilters(f => ({ ...f, countries: active ? f.countries.filter(x => x !== name) : [...f.countries, name] }))}
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-muted-foreground hover:border-primary/50"}`}
+                            data-testid={`chip-country-${name}`}
+                          >
+                            <CountryFlag code={code} name={name} />
+                            {name}
+                          </button>
                         );
                       })}
                     </div>
@@ -3103,11 +3106,17 @@ export default function SessionsPage() {
                     <button
                       onClick={() => blastFileRef.current?.click()}
                       disabled={blastIsUploadingMedia}
+                      onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                      onDrop={e => {
+                        e.preventDefault(); e.stopPropagation();
+                        const f = e.dataTransfer.files?.[0];
+                        if (f && !blastIsUploadingMedia) handleBlastMediaUpload(f);
+                      }}
                       className="flex items-center gap-2 border border-dashed rounded-md px-3 py-2.5 text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors w-full justify-center"
                       data-testid="button-blast-media-upload"
                     >
                       {blastIsUploadingMedia ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />}
-                      {blastIsUploadingMedia ? "Uploading..." : "Attach image, video, or PDF (optional)"}
+                      {blastIsUploadingMedia ? "Uploading..." : "Drag & drop or click to attach image, video, or PDF"}
                     </button>
                   )}
                 </div>
@@ -3179,7 +3188,7 @@ export default function SessionsPage() {
                     const f = c.filters;
                     const dateLabel = (c.sentAt ?? c.scheduledFor) ? new Date(c.sentAt ?? c.scheduledFor).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
                     const rate = c.successRate ?? 0;
-                    const statusBadge: Record<string, string> = { sent: "bg-green-500/15 text-green-700 dark:text-green-400", scheduled: "bg-blue-500/15 text-blue-700 dark:text-blue-400", cancelled: "bg-muted text-muted-foreground" };
+                    const statusBadge: Record<string, string> = { sent: "bg-green-500/15 text-green-700 dark:text-green-400", scheduled: "bg-blue-500/15 text-blue-700 dark:text-blue-400", sending: "bg-amber-500/15 text-amber-700 dark:text-amber-400", cancelled: "bg-muted text-muted-foreground" };
                     return (
                       <Card key={c.id} className="p-4 space-y-2" data-testid={`card-blast-${c.id}`}>
                         <div className="flex items-start justify-between gap-2 flex-wrap">
@@ -3188,7 +3197,8 @@ export default function SessionsPage() {
                               {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
                             </span>
                             <span className="text-xs text-muted-foreground">{dateLabel}</span>
-                            {f.countries?.map((ct: string) => <Badge key={ct} variant="outline" className="text-[10px] h-5">{ct}</Badge>)}
+                            {f.countries?.map((ct: string) => <Badge key={ct} variant="outline" className="text-[10px] h-5 gap-1"><CountryFlag code={blastOptions?.countries?.find(x => x.name === ct)?.code} name={ct} />{ct}</Badge>)}
+                            {f.cities?.map((ci: string) => <Badge key={ci} variant="outline" className="text-[10px] h-5">{ci}</Badge>)}
                             {f.deviceOs?.filter((o: string) => o !== "all").map((o: string) => <Badge key={o} variant="outline" className="text-[10px] h-5">{o}</Badge>)}
                             {f.periods?.map((p: string) => { const [yr,mo]=p.split("-"); return <Badge key={p} variant="outline" className="text-[10px] h-5">{new Date(Number(yr),Number(mo)-1,1).toLocaleDateString("en-US",{month:"short",year:"numeric"})}</Badge>; })}
                           </div>

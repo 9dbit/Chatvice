@@ -20269,7 +20269,18 @@ ${log.extractedKnowledge}` : ''}
       if (!merchantId) return res.status(401).json({ error: "Unauthorized" });
 
       const allSessions = await storage.getSessionsByMerchant(merchantId);
-      const countries = [...new Set(allSessions.map(s => s.countryName).filter(Boolean))].sort() as string[];
+
+      // Build deduplicated country list preserving code for flag display
+      const countryMap = new Map<string, string>();
+      for (const s of allSessions) {
+        if (s.countryName && !countryMap.has(s.countryName)) {
+          countryMap.set(s.countryName, s.countryCode ?? "");
+        }
+      }
+      const countries = [...countryMap.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([name, code]) => ({ name, code }));
+
       const cities = [...new Set(allSessions.map(s => s.cityName).filter(Boolean))].sort() as string[];
       const periods = [...new Set(allSessions.map(s => {
         if (!s.createdAt) return null;
@@ -20338,8 +20349,19 @@ ${log.extractedKnowledge}` : ''}
 
       if (!message?.trim()) return res.status(400).json({ error: "Message is required" });
 
+      // Validate scheduledFor: must be a valid timestamp, in the future, and ≤30 days out
+      let scheduledDate: Date | null = null;
+      if (scheduledFor) {
+        scheduledDate = new Date(scheduledFor);
+        if (isNaN(scheduledDate.getTime())) return res.status(400).json({ error: "Invalid scheduledFor timestamp" });
+        const now = new Date();
+        if (scheduledDate <= now) return res.status(400).json({ error: "Scheduled time must be in the future" });
+        const maxFuture = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+        if (scheduledDate > maxFuture) return res.status(400).json({ error: "Cannot schedule more than 30 days in advance" });
+      }
+
       const campaignId = `blast_${crypto.randomBytes(8).toString("hex")}`;
-      const isScheduled = scheduledFor && new Date(scheduledFor) > new Date();
+      const isScheduled = !!scheduledDate;
 
       const previewSessions = await storage.getSessionsByMerchant(merchantId);
       const f: BlastFilters = filters;
@@ -20358,21 +20380,26 @@ ${log.extractedKnowledge}` : ''}
         return true;
       });
 
+      if (matchedSessions.length === 0) {
+        return res.status(400).json({ error: "No active sessions match the selected filters" });
+      }
+
       if (isScheduled) {
         await db.insert(blastCampaigns).values({
           id: campaignId, merchantId, sentBy: sentBy || null,
           filters, message, blastMessageType, mediaUrl: mediaUrl || null, mediaType: mediaType || null,
           matchedCount: matchedSessions.length, deliveredCount: 0, failedCount: 0,
-          status: "scheduled", scheduledFor: new Date(scheduledFor!), sentAt: null,
+          status: "scheduled", scheduledFor: scheduledDate!, sentAt: null,
         });
-        return res.json({ scheduled: true, scheduledFor, matchedCount: matchedSessions.length });
+        return res.json({ scheduled: true, scheduledFor: scheduledDate!.toISOString(), matchedCount: matchedSessions.length });
       }
 
+      // Immediate send: insert with status "sending" to avoid stale "scheduled" records if execution fails
       await db.insert(blastCampaigns).values({
         id: campaignId, merchantId, sentBy: sentBy || null,
         filters, message, blastMessageType, mediaUrl: mediaUrl || null, mediaType: mediaType || null,
         matchedCount: matchedSessions.length, deliveredCount: 0, failedCount: 0,
-        status: "scheduled", scheduledFor: null, sentAt: null,
+        status: "sending", scheduledFor: null, sentAt: null,
       });
 
       const result = await executeBlast({ id: campaignId, merchantId, filters, message, blastMessageType, mediaUrl, mediaType });
