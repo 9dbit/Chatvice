@@ -1257,11 +1257,9 @@ export default function SessionsPage() {
                                     })()}
                                   </span>
                                 )}
-                                <span className={`inline-flex items-center gap-0.5 text-[10px] ${/android|iphone|ipad|mobile|tablet/i.test(session.userAgent || "") ? "text-muted-foreground/70" : "text-muted-foreground/70"}`}>
-                                  {/android|iphone|ipad|mobile|tablet/i.test(session.userAgent || "")
-                                    ? <Smartphone className="w-2.5 h-2.5" />
-                                    : <Monitor className="w-2.5 h-2.5" />}
-                                  {/android|iphone|ipad|mobile|tablet/i.test(session.userAgent || "") ? "Mobile" : "Web"}
+                                <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
+                                  <MessageSquare className="w-2.5 h-2.5" />
+                                  {session.visitorSession ? "Proactive" : "Widget"}
                                 </span>
                                 {session.customerRating && (
                                   <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-500">

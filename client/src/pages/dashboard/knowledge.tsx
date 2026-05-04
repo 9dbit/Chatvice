@@ -3562,7 +3562,7 @@ export default function KnowledgePage() {
                         )}
 
                         <div className="flex items-center gap-1.5">
-                          <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded border font-medium" style={{ borderColor: "#3f3f46", color: "#a1a1aa" }}>
+                          <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded border font-medium text-muted-foreground border-border/50">
                             <Globe className="w-2.5 h-2.5" />
                             Active Source
                           </span>
