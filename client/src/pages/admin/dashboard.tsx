@@ -128,6 +128,7 @@ import {
   ArrowUpRight,
   Sun,
   Moon,
+  Mail,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -1329,6 +1330,25 @@ function MerchantsTab({
       toast({
         title: "Error",
         description: "Failed to extend trial period.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const sendExpiryReminderMutation = useMutation({
+    mutationFn: async (merchantId: string) => {
+      return apiRequest("POST", `/api/admin/subscription/send-reminder/${merchantId}`, {});
+    },
+    onSuccess: () => {
+      toast({
+        title: "Reminder Sent",
+        description: "Subscription expiry reminder email has been sent to the merchant.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to send expiry reminder email.",
         variant: "destructive",
       });
     },
@@ -2731,6 +2751,15 @@ function MerchantsTab({
                 <Button variant="outline" onClick={() => handleEdit(selectedDetailMerchant)} className="flex-1" data-testid="button-drawer-edit">
                   <Edit className="w-4 h-4 mr-2" />
                   Edit Plan
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => sendExpiryReminderMutation.mutate(selectedDetailMerchant.id)}
+                  disabled={sendExpiryReminderMutation.isPending}
+                  data-testid="button-drawer-send-reminder"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  Send Reminder
                 </Button>
                 <Button variant="destructive" onClick={() => handleDelete(selectedDetailMerchant)} data-testid="button-drawer-delete">
                   <Trash className="w-4 h-4" />

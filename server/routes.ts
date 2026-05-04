@@ -27,7 +27,7 @@ import { extractFAQContent, syncKnowledgeFromUrl, fetchWebContent } from "./craw
 import { parseFile, fetchGoogleDoc, fetchGoogleSheet } from "./fileParser";
 import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isTwelvePayConfigured, convertToIDR, formatIDR } from "./twelvePayClient";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
-import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification, sendEmailChangeOtp, sendQuota80Email, sendQuota100Email } from "./resendClient";
+import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification, sendEmailChangeOtp, sendQuota80Email, sendQuota100Email, sendSubscriptionExpiringEmail } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like } from "drizzle-orm";
@@ -11942,6 +11942,64 @@ Rules:
       const updated = await storage.updateMerchantSubscription(merchant.id, updateData);
       res.json({ success: true, merchant: updated });
     } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/admin/subscription/send-reminder/:merchantId", requireAdmin, async (req, res) => {
+    try {
+      const merchant = await resolveMerchant(req.params.merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+
+      const expiresAt = merchant.currentPeriodEnd
+        ? new Date(merchant.currentPeriodEnd)
+        : merchant.trialEndsAt
+        ? new Date(merchant.trialEndsAt)
+        : null;
+
+      if (!expiresAt) {
+        return res.status(400).json({ error: "No subscription expiry date found for this merchant" });
+      }
+
+      const now = new Date();
+      const daysRemaining = (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+
+      const merchantName = merchant.picName || merchant.companyName || merchant.username;
+      const basePlan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      const planName = basePlan.name;
+      const billingInterval = merchant.billingInterval || 'monthly';
+      const effectivePlan = merchant.subscriptionPlanId === 'custom' ? {
+        ...basePlan,
+        monthlyPrice: merchant.customMonthlyPrice ?? basePlan.monthlyPrice,
+        annualPrice: merchant.customAnnualPrice ?? basePlan.annualPrice,
+      } : basePlan;
+      const planAmountCents = billingInterval === 'annual' ? effectivePlan.annualPrice : effectivePlan.monthlyPrice;
+
+      // Reset deduplication flags so the email actually sends regardless of prior sends
+      await storage.updateMerchantSubscription(merchant.id, {
+        expiryReminder7dSentAt: null,
+        expiryReminder3dSentAt: null,
+      });
+
+      const sent = await sendSubscriptionExpiringEmail({
+        merchantEmail: merchant.email,
+        merchantName,
+        planName,
+        expiresAt,
+        daysRemaining: Math.max(1, Math.ceil(daysRemaining)),
+        amount: planAmountCents,
+        billingInterval,
+      });
+
+      if (!sent) {
+        return res.status(500).json({ error: "Failed to send reminder email" });
+      }
+
+      res.json({ success: true, message: "Subscription expiry reminder sent successfully" });
+    } catch (error) {
+      console.error("Error sending subscription reminder:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
