@@ -20455,11 +20455,18 @@ ${log.extractedKnowledge}` : ''}
       if (!merchantId) return res.status(401).json({ error: "Unauthorized" });
 
       const { id } = req.params;
-      const [campaign] = await db.select().from(blastCampaigns).where(and(eq(blastCampaigns.id, id), eq(blastCampaigns.merchantId, merchantId)));
+      // Verify campaign exists and belongs to merchant
+      const [campaign] = await db.select({ id: blastCampaigns.id, status: blastCampaigns.status })
+        .from(blastCampaigns).where(and(eq(blastCampaigns.id, id), eq(blastCampaigns.merchantId, merchantId)));
       if (!campaign) return res.status(404).json({ error: "Campaign not found" });
       if (campaign.status !== "scheduled") return res.status(400).json({ error: "Only scheduled blasts can be cancelled" });
 
-      await db.update(blastCampaigns).set({ status: "cancelled" }).where(eq(blastCampaigns.id, id));
+      // Atomic conditional cancel — only proceeds if still in 'scheduled' state (guards against scheduler race)
+      const updated = await db.update(blastCampaigns)
+        .set({ status: "cancelled" })
+        .where(and(eq(blastCampaigns.id, id), eq(blastCampaigns.status, "scheduled"), eq(blastCampaigns.merchantId, merchantId)))
+        .returning({ id: blastCampaigns.id });
+      if (updated.length === 0) return res.status(409).json({ error: "Blast is already in progress or cancelled" });
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ error: "Server error" });
