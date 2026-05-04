@@ -20022,6 +20022,121 @@ ${log.extractedKnowledge}` : ''}
     }
   });
 
+  // Manually end a session (set status to "ended")
+  app.patch("/api/merchant/sessions/:sessionId/end", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { sessionId } = req.params;
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+
+      const updated = await storage.updateSession(sessionId, {
+        status: "ended",
+        lastActivity: new Date(),
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error ending session:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Get distinct archive periods (YYYY-MM strings) for the merchant's chat logs
+  app.get("/api/merchant/chat-logs/periods", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+
+      const results = await db
+        .selectDistinct({ period: sql<string>`to_char(${chatLogs.clearedAt}, 'YYYY-MM')` })
+        .from(chatLogs)
+        .where(eq(chatLogs.merchantId, merchantId))
+        .orderBy(desc(sql<string>`to_char(${chatLogs.clearedAt}, 'YYYY-MM')`));
+
+      const periods: string[] = results.map((r) => r.period).filter(Boolean) as string[];
+
+      // Always include the current month so supervisors can archive into it even if empty
+      const currentPeriod = new Date().toISOString().slice(0, 7);
+      if (!periods.includes(currentPeriod)) {
+        periods.unshift(currentPeriod);
+      }
+
+      res.json(periods);
+    } catch (error) {
+      console.error("Error fetching chat log periods:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Archive a session into a specific monthly period
+  app.post("/api/merchant/sessions/:sessionId/archive", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { sessionId } = req.params;
+      const { period } = req.body as { period?: string };
+
+      if (!period || !/^\d{4}-\d{2}$/.test(period)) {
+        return res.status(400).json({ error: "Invalid period. Use YYYY-MM format." });
+      }
+
+      const session = await storage.getSession(sessionId);
+      if (!session || session.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+
+      const msgs = await storage.getMessages(sessionId);
+
+      // Compute clearedAt = last second of the last day of the chosen month
+      const [year, month] = period.split("-").map(Number);
+      const clearedAt = new Date(year, month, 0, 23, 59, 59); // day-0 of month+1 = last day of month
+
+      const transcript = msgs
+        .map((m) => {
+          const sender =
+            m.from === "user" || m.from === "customer"
+              ? session.customerName || "Customer"
+              : "Agent";
+          const ts = m.createdAt ? new Date(m.createdAt).toISOString() : "";
+          return `[${ts}] ${sender}: ${m.content || ""}`;
+        })
+        .join("\n");
+
+      const id = `cl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const [chatLog] = await db
+        .insert(chatLogs)
+        .values({
+          id,
+          merchantId,
+          sessionId,
+          agentId: session.agentId ?? null,
+          supervisorId: session.supervisorId ?? null,
+          customerName: session.customerName ?? null,
+          customerEmail: session.customerEmail ?? null,
+          customerPhone: session.customerPhone ?? null,
+          deviceFingerprint: session.deviceFingerprint ?? null,
+          bankRecords: session.bankRecords ?? null,
+          leadStatus: session.leadStatus ?? "new",
+          locationData: null,
+          summary: `Manually archived – ${session.customerName || "Customer"} (${msgs.length} messages)`,
+          messageCount: msgs.length,
+          fullTranscript: transcript,
+          extractedKnowledge: null,
+          sessionStartedAt: session.createdAt ?? null,
+          sessionEndedAt: session.lastActivity ?? null,
+          clearedAt,
+        })
+        .returning();
+
+      res.json({ success: true, chatLog });
+    } catch (error) {
+      console.error("Error archiving session:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // Search chat logs by customerName or deviceFingerprint (for agent context)
   app.get("/api/chat-logs/search", requireMerchantOrSupervisor, async (req, res) => {
     try {

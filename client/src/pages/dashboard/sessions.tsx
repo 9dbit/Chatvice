@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,7 +20,7 @@ import {
   Hand, ArrowLeft, Clock, Edit, Check, X, Loader2, RefreshCw, AlertCircle,
   CheckCircle2, Circle, XCircle, Filter, ShoppingBag, Plus, ImageIcon, Video, FileText,
   ExternalLink, Maximize2, Minimize2, MapPin, Volume2, VolumeX, Monitor, Globe, Smartphone, Radio,
-  Languages, Wand2, Settings2, Info, Copy, Link2
+  Languages, Wand2, Settings2, Info, Copy, Link2, StopCircle, Archive, CalendarDays
 } from "lucide-react";
 import {
   SiAndroid, SiApple, SiLinux,
@@ -332,6 +333,13 @@ export default function SessionsPage() {
 
   // Visitor info panel state
   const [showVisitorInfo, setShowVisitorInfo] = useState(false);
+
+  // End Session dialog state
+  const [endSessionDialogOpen, setEndSessionDialogOpen] = useState(false);
+
+  // Archive popover state
+  const [archivePopoverOpen, setArchivePopoverOpen] = useState(false);
+  const [selectedArchivePeriod, setSelectedArchivePeriod] = useState<string | null>(null);
 
   // Clear preview when session changes
   useEffect(() => {
@@ -726,6 +734,55 @@ export default function SessionsPage() {
       toast({
         title: t("dashboard.sessions.returnToBotFailed"),
         description: t("dashboard.common.errorDesc"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Fetch archive periods (always, not just when popover opens, so it's ready)
+  const { data: archivePeriods = [] } = useQuery<string[]>({
+    queryKey: ["/api/merchant/chat-logs/periods"],
+    enabled: !!merchantId,
+  });
+
+  const endSessionMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      return apiRequest("PATCH", `/api/merchant/sessions/${sessionId}/end`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sessions", merchantId] });
+      setEndSessionDialogOpen(false);
+      toast({
+        title: "Session ended",
+        description: "The session has been marked as finished.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to end session",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const archiveSessionMutation = useMutation({
+    mutationFn: async ({ sessionId, period }: { sessionId: string; period: string }) => {
+      return apiRequest("POST", `/api/merchant/sessions/${sessionId}/archive`, { period });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/chat-logs/periods"] });
+      setArchivePopoverOpen(false);
+      setSelectedArchivePeriod(null);
+      toast({
+        title: "Session archived",
+        description: "The session transcript has been added to the selected archive period.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Archive failed",
+        description: "Something went wrong. Please try again.",
         variant: "destructive",
       });
     },
@@ -1423,6 +1480,77 @@ export default function SessionsPage() {
                             </Button>
                           )}
 
+                          {/* Desktop: End Session (only when session is live) */}
+                          {selectedSessionData && ["active", "needs_response", "angry"].includes(selectedSessionData.status ?? "") && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => setEndSessionDialogOpen(true)}
+                              disabled={endSessionMutation.isPending}
+                              className="hidden sm:flex h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3 gap-1.5"
+                              data-testid="button-end-session"
+                            >
+                              <StopCircle className="w-3.5 h-3.5" />
+                              <span>End Session</span>
+                            </Button>
+                          )}
+
+                          {/* Desktop: Archive button */}
+                          <Popover open={archivePopoverOpen} onOpenChange={(open) => { setArchivePopoverOpen(open); if (!open) setSelectedArchivePeriod(null); }}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="hidden sm:flex h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3 gap-1.5"
+                                data-testid="button-archive-session"
+                              >
+                                <Archive className="w-3.5 h-3.5" />
+                                <span>Archive</span>
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent side="bottom" align="end" className="w-64 p-3">
+                              <div className="flex flex-col gap-3">
+                                <div className="flex items-center gap-2">
+                                  <CalendarDays className="w-4 h-4 text-muted-foreground" />
+                                  <span className="text-sm font-medium">Add to Archive</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">Select a month period to archive this session transcript into.</p>
+                                <ScrollArea className="max-h-48">
+                                  <div className="flex flex-col gap-1">
+                                    {archivePeriods.map((period) => {
+                                      const [yr, mo] = period.split("-");
+                                      const label = new Date(Number(yr), Number(mo) - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+                                      return (
+                                        <button
+                                          key={period}
+                                          onClick={() => setSelectedArchivePeriod(period === selectedArchivePeriod ? null : period)}
+                                          className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors text-left ${selectedArchivePeriod === period ? "bg-primary/15 text-primary font-medium" : "hover:bg-muted/60 text-foreground"}`}
+                                          data-testid={`button-period-${period}`}
+                                        >
+                                          <Check className={`w-3.5 h-3.5 flex-shrink-0 ${selectedArchivePeriod === period ? "opacity-100" : "opacity-0"}`} />
+                                          {label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </ScrollArea>
+                                <Button
+                                  size="sm"
+                                  disabled={!selectedArchivePeriod || archiveSessionMutation.isPending}
+                                  onClick={() => {
+                                    if (selectedSession && selectedArchivePeriod) {
+                                      archiveSessionMutation.mutate({ sessionId: selectedSession, period: selectedArchivePeriod });
+                                    }
+                                  }}
+                                  data-testid="button-confirm-archive"
+                                >
+                                  {archiveSessionMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Archive className="w-3.5 h-3.5 mr-1.5" />}
+                                  Confirm Archive
+                                </Button>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+
                           {/* Mobile gear icon: opens settings + actions dropdown */}
                           <Popover open={showMobileSettings} onOpenChange={setShowMobileSettings}>
                             <PopoverTrigger asChild>
@@ -1542,6 +1670,32 @@ export default function SessionsPage() {
                                     Return to Bot
                                   </Button>
                                 )}
+                                <div className="border-t" />
+                                {/* End Session (mobile) */}
+                                {selectedSessionData && ["active", "needs_response", "angry"].includes(selectedSessionData.status ?? "") && (
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    className="w-full gap-1.5"
+                                    onClick={() => { setShowMobileSettings(false); setEndSessionDialogOpen(true); }}
+                                    disabled={endSessionMutation.isPending}
+                                    data-testid="button-end-session-mobile"
+                                  >
+                                    <StopCircle className="w-3.5 h-3.5" />
+                                    End Session
+                                  </Button>
+                                )}
+                                {/* Archive (mobile) */}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full gap-1.5"
+                                  onClick={() => { setShowMobileSettings(false); setArchivePopoverOpen(true); }}
+                                  data-testid="button-archive-session-mobile"
+                                >
+                                  <Archive className="w-3.5 h-3.5" />
+                                  Archive Session
+                                </Button>
                               </div>
                             </PopoverContent>
                           </Popover>
@@ -2530,6 +2684,40 @@ export default function SessionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* End Session confirmation dialog */}
+      <AlertDialog open={endSessionDialogOpen} onOpenChange={setEndSessionDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <StopCircle className="w-5 h-5 text-destructive" />
+              End this session?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark the session with{" "}
+              <span className="font-medium text-foreground">
+                {getVisitorDisplayName(selectedSessionData?.customerName)}
+              </span>{" "}
+              as finished. The chat history is preserved and you can still view it afterwards.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-end-session">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (selectedSession) endSessionMutation.mutate(selectedSession); }}
+              data-testid="button-confirm-end-session"
+            >
+              {endSessionMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <StopCircle className="w-4 h-4 mr-2" />
+              )}
+              End Session
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
