@@ -89,7 +89,7 @@ export default function LivePreviewPage() {
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">{t("dashboard.livePreview.title")}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-page-title">{t("dashboard.livePreview.title")}</h1>
           <p className="text-muted-foreground text-sm sm:text-base">
             Real-time preview of your widget with all current settings
           </p>

@@ -3561,6 +3561,13 @@ export default function KnowledgePage() {
                           <p className="text-xs truncate" style={{ color: "#71717a" }}>{source.url}</p>
                         )}
 
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded border font-medium" style={{ borderColor: "#3f3f46", color: "#a1a1aa" }}>
+                            <Globe className="w-2.5 h-2.5" />
+                            Active Source
+                          </span>
+                        </div>
+
                         <div className="flex items-center gap-2">
                           <Button
                             variant="outline"
@@ -3963,7 +3970,15 @@ export default function KnowledgePage() {
                           <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                             <BookOpen className="w-4 h-4 text-primary" />
                           </div>
-                          <CardTitle className="text-sm font-semibold line-clamp-2 leading-snug">{article.title}</CardTitle>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1 mb-1">
+                              <Badge variant="outline" className="text-[9px] gap-0.5 px-1.5 py-0 text-primary border-primary/30 flex-shrink-0">
+                                <Sparkles className="w-2.5 h-2.5" />
+                                AI Generated
+                              </Badge>
+                            </div>
+                            <CardTitle className="text-sm font-semibold line-clamp-2 leading-snug">{article.title}</CardTitle>
+                          </div>
                         </div>
                         <Badge
                           variant={article.status === "published" ? "default" : article.status === "archived" ? "secondary" : "outline"}

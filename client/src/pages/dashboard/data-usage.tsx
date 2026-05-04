@@ -79,7 +79,7 @@ export default function DataUsagePage() {
   return (
     <div className="p-6 space-y-6" data-testid="page-data-usage">
       <div>
-        <h1 className="text-2xl font-bold" data-testid="text-page-title">{t("dashboard.dataUsage.title")}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-page-title">{t("dashboard.dataUsage.title")}</h1>
         <p className="text-muted-foreground" data-testid="text-page-description">
           Monitor your storage usage and media uploads
         </p>

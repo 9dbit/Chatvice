@@ -148,7 +148,7 @@ export default function ChatButtonsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-page-title">
+          <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2" data-testid="text-page-title">
             <MousePointer2 className="w-6 h-6" />
             {t("dashboard.chatButtons.title")}
           </h1>

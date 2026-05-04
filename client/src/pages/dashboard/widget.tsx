@@ -1013,7 +1013,7 @@ async function handleLogin() {
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold">{t("dashboard.widget.title")}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard.widget.title")}</h1>
           <p className="text-sm text-muted-foreground hidden sm:block">
             Customize your chat widget appearance and get embed codes.
           </p>

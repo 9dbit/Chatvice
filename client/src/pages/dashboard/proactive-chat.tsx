@@ -159,7 +159,7 @@ export default function ProactiveChatPage() {
           <div className="flex items-center gap-2 mb-2">
             <Badge className="text-xs font-medium">{t("dashboard.proactiveChat.widgetSetting")}</Badge>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">{t("dashboard.proactiveChat.title")}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-white leading-tight">{t("dashboard.proactiveChat.title")}</h1>
           <p className="text-sm text-white/80 mt-1 max-w-md">
             Automatically reach out to visitors before they ask — turning passive browsing into active conversations.
           </p>

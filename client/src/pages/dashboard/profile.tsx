@@ -363,7 +363,7 @@ export default function ProfilePage() {
     <div className="space-y-6" data-testid="profile-page">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-profile-title">{t("dashboard.profile.businessProfile")}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-profile-title">{t("dashboard.profile.businessProfile")}</h1>
           <p className="text-muted-foreground">
             Manage your business information and contact details
           </p>

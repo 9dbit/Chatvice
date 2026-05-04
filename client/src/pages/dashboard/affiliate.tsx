@@ -511,7 +511,7 @@ export default function AffiliateDashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">{t("dashboard.affiliate.title")}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard.affiliate.title")}</h1>
           <p className="text-muted-foreground">{t("dashboard.affiliate.subtitle")}</p>
         </div>
         <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 w-fit">

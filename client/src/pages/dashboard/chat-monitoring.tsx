@@ -155,7 +155,7 @@ export default function ChatMonitoringPage() {
         <div className="flex items-center gap-3">
           <Eye className="w-8 h-8 text-primary" />
           <div>
-            <h1 className="text-2xl font-bold" data-testid="text-page-title">{t("dashboard.chatMonitoring.title")}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-page-title">{t("dashboard.chatMonitoring.title")}</h1>
             <p className="text-muted-foreground">
               Realtime supervisor conversation logs
             </p>

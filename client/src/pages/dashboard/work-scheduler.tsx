@@ -268,7 +268,7 @@ export default function WorkSchedulerPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">{t("dashboard.workScheduler.title")}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-page-title">{t("dashboard.workScheduler.title")}</h1>
           <p className="text-muted-foreground">{t("dashboard.workScheduler.subtitle")}</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
