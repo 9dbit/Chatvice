@@ -20058,12 +20058,6 @@ ${log.extractedKnowledge}` : ''}
 
       const periods: string[] = results.map((r) => r.period).filter(Boolean) as string[];
 
-      // Always include the current month so supervisors can archive into it even if empty
-      const currentPeriod = new Date().toISOString().slice(0, 7);
-      if (!periods.includes(currentPeriod)) {
-        periods.unshift(currentPeriod);
-      }
-
       res.json(periods);
     } catch (error) {
       console.error("Error fetching chat log periods:", error);
