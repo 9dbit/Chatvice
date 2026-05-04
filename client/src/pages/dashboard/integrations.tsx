@@ -278,22 +278,36 @@ export default function IntegrationsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredIntegrations.map((integration) => {
-          const categoryIconBg: Record<string, string> = {
-            notifications: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-            messaging: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-            crm: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-            ecommerce: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
-            helpdesk: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
-          };
+      {(() => {
+        const categoryIconBg: Record<string, string> = {
+          notifications: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+          messaging: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+          crm: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+          ecommerce: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
+          helpdesk: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+        };
+        const categoryAccent: Record<string, string> = {
+          notifications: "text-amber-600 dark:text-amber-400",
+          messaging: "text-blue-600 dark:text-blue-400",
+          crm: "text-emerald-600 dark:text-emerald-400",
+          ecommerce: "text-violet-600 dark:text-violet-400",
+          helpdesk: "text-rose-600 dark:text-rose-400",
+        };
+        const categoryIcon: Record<string, (props: { className?: string }) => JSX.Element | null> = {
+          notifications: Bell,
+          messaging: Send,
+          crm: ExternalLink,
+          ecommerce: Plug,
+          helpdesk: Plug,
+        };
+
+        const renderCard = (integration: Integration) => {
           const iconBgClass = categoryIconBg[integration.category] ?? "bg-muted text-muted-foreground";
           const isConnected = integration.status === "connected";
-
           return (
-            <Card 
-              key={integration.id} 
-              className={`hover-elevate transition-all ${isConnected ? "ring-1 ring-green-500/30" : ""}`}
+            <Card
+              key={integration.id}
+              className={`hover-elevate transition-all flex flex-col ${isConnected ? "ring-1 ring-green-500/30" : ""}`}
               data-testid={`card-integration-${integration.id}`}
             >
               <CardHeader className="pb-3">
@@ -331,11 +345,11 @@ export default function IntegrationsPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="pt-0">
-                <CardDescription className="text-xs mb-4 line-clamp-2">
+              <CardContent className="pt-0 flex flex-col flex-1">
+                <CardDescription className="text-xs mb-4 line-clamp-2 flex-1">
                   {integration.description}
                 </CardDescription>
-                <Button 
+                <Button
                   variant={isConnected ? "outline" : integration.status === "coming_soon" ? "outline" : "default"}
                   size="sm"
                   className="w-full"
@@ -359,18 +373,52 @@ export default function IntegrationsPage() {
               </CardContent>
             </Card>
           );
-        })}
-      </div>
+        };
 
-      {filteredIntegrations.length === 0 && (
-        <div className="text-center py-12">
-          <Plug className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium mb-2">No integrations found</h3>
-          <p className="text-muted-foreground text-sm">
-            Try adjusting your search or filter criteria
-          </p>
-        </div>
-      )}
+        if (filteredIntegrations.length === 0) {
+          return (
+            <div className="text-center py-12">
+              <Plug className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">No integrations found</h3>
+              <p className="text-muted-foreground text-sm">Try adjusting your search or filter criteria</p>
+            </div>
+          );
+        }
+
+        if (selectedCategory !== "all" || searchQuery) {
+          return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredIntegrations.map(renderCard)}
+            </div>
+          );
+        }
+
+        return (
+          <div className="space-y-8">
+            {(Object.keys(categoryLabels) as Array<keyof typeof categoryLabels>).map((catKey) => {
+              const catIntegrations = filteredIntegrations.filter((i) => i.category === catKey);
+              if (catIntegrations.length === 0) return null;
+              const CatIcon = categoryIcon[catKey] ?? Plug;
+              const accentClass = categoryAccent[catKey] ?? "text-muted-foreground";
+              const iconBg = categoryIconBg[catKey] ?? "bg-muted text-muted-foreground";
+              return (
+                <div key={catKey} className="space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-6 h-6 rounded-md flex items-center justify-center ${iconBg}`}>
+                      <CatIcon className="w-3.5 h-3.5" />
+                    </div>
+                    <h2 className={`text-sm font-semibold ${accentClass}`}>{categoryLabels[catKey]}</h2>
+                    <Badge variant="secondary" className="text-[10px]">{catIntegrations.length}</Badge>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {catIntegrations.map(renderCard)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       <Card className="bg-muted/50">
         <CardContent className="py-6">

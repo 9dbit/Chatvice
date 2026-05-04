@@ -1015,7 +1015,7 @@ export default function SessionsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-2 sm:mb-4">
           <div>
             <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
-              <h1 className="hidden sm:flex text-xl sm:text-2xl font-bold items-center gap-2 sm:gap-3" data-testid="text-page-title">
+              <h1 className="hidden sm:flex text-2xl sm:text-3xl font-bold tracking-tight items-center gap-2 sm:gap-3" data-testid="text-page-title">
                 Chat Sessions
                 {(statusCounts.needsResponse > 0 || statusCounts.angry > 0) && (
                   <span className="relative flex h-2.5 w-2.5 sm:h-3 sm:w-3">
@@ -1027,53 +1027,52 @@ export default function SessionsPage() {
             </div>
             <p className="text-muted-foreground text-xs sm:text-sm hidden sm:block">{t("dashboard.sessions.subtitle")}</p>
           </div>
-          <div className={`${selectedSession ? 'hidden' : 'flex'} sm:flex items-center gap-1 sm:gap-3 text-[8px] sm:text-xs flex-wrap`}>
+          <div className={`${selectedSession ? 'hidden' : 'flex'} sm:flex items-center gap-2 flex-wrap`}>
             <button
               onClick={() => setStatusFilter(statusFilter === "angry" ? "all" : "angry")}
-              className={`flex items-center gap-0.5 sm:gap-1.5 px-0.5 sm:px-2 py-0 sm:py-0.5 rounded border cursor-pointer select-none transition-colors ${statusFilter === "angry" ? "bg-red-500/30 border-red-500/50" : "bg-red-500/10 border-red-500/20 hover:bg-red-500/20"}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "angry" ? "bg-red-500/20 border-red-500/50 text-red-600 dark:text-red-400" : "bg-card border-border text-muted-foreground hover:border-red-500/40 hover:text-red-600 dark:hover:text-red-400"}`}
               title="Filter: Alert"
               data-testid="button-filter-angry"
             >
               <StatusDot status="angry" />
-              <span className="hidden sm:inline text-red-600 dark:text-red-400">{t("dashboard.sessions.alert")}</span>
-              <span data-testid="text-count-angry">{statusCounts.angry}</span>
+              <span className="text-xs font-medium">{t("dashboard.sessions.alert")}</span>
+              <span className="text-xs font-bold" data-testid="text-count-angry">{statusCounts.angry}</span>
             </button>
             <button
               onClick={() => setStatusFilter(statusFilter === "active" ? "all" : "active")}
-              className={`flex items-center gap-0.5 sm:gap-1.5 px-0.5 sm:px-2 py-0 sm:py-0.5 rounded border cursor-pointer select-none transition-colors ${statusFilter === "active" ? "bg-green-500/30 border-green-500/50" : "bg-green-500/10 border-green-500/20 hover:bg-green-500/20"}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "active" ? "bg-green-500/20 border-green-500/50 text-green-600 dark:text-green-400" : "bg-card border-border text-muted-foreground hover:border-green-500/40 hover:text-green-600 dark:hover:text-green-400"}`}
               title="Filter: Active"
               data-testid="button-filter-active"
             >
               <StatusDot status="active" />
-              <span className="hidden sm:inline text-green-600 dark:text-green-400">{t("common.active")}</span>
-              <span data-testid="text-count-active">{statusCounts.active}</span>
+              <span className="text-xs font-medium">{t("common.active")}</span>
+              <span className="text-xs font-bold" data-testid="text-count-active">{statusCounts.active}</span>
             </button>
             <button
               onClick={() => setStatusFilter(statusFilter === "needs_response" ? "all" : "needs_response")}
-              className={`flex items-center gap-0.5 sm:gap-1.5 px-0.5 sm:px-2 py-0 sm:py-0.5 rounded border cursor-pointer select-none transition-colors ${statusFilter === "needs_response" ? "bg-orange-500/30 border-orange-500/50" : "bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/20"}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "needs_response" ? "bg-orange-500/20 border-orange-500/50 text-orange-600 dark:text-orange-400" : "bg-card border-border text-muted-foreground hover:border-orange-500/40 hover:text-orange-600 dark:hover:text-orange-400"}`}
               title="Filter: Pending"
               data-testid="button-filter-needs-response"
             >
               <StatusDot status="needs_response" />
-              <span className="hidden sm:inline text-orange-600 dark:text-orange-400">{t("dashboard.sessions.pending")}</span>
-              <span data-testid="text-count-needs-response">{statusCounts.needsResponse}</span>
+              <span className="text-xs font-medium">{t("dashboard.sessions.pending")}</span>
+              <span className="text-xs font-bold" data-testid="text-count-needs-response">{statusCounts.needsResponse}</span>
             </button>
             <button
               onClick={() => setStatusFilter(statusFilter === "ended" ? "all" : "ended")}
-              className={`flex items-center gap-0.5 sm:gap-1.5 px-0.5 sm:px-2 py-0 sm:py-0.5 rounded border cursor-pointer select-none transition-colors ${statusFilter === "ended" ? "bg-gray-500/30 border-gray-500/50" : "bg-gray-500/10 border-gray-500/20 hover:bg-gray-500/20"}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "ended" ? "bg-muted border-border/80 text-foreground" : "bg-card border-border text-muted-foreground hover:border-border/80 hover:text-foreground"}`}
               title="Filter: Finished"
               data-testid="button-filter-ended"
             >
               <StatusDot status="ended" />
-              <span className="hidden sm:inline text-gray-600 dark:text-gray-400">{t("dashboard.sessions.finished")}</span>
-              <span data-testid="text-count-ended">{statusCounts.ended}</span>
+              <span className="text-xs font-medium">{t("dashboard.sessions.finished")}</span>
+              <span className="text-xs font-bold" data-testid="text-count-ended">{statusCounts.ended}</span>
             </button>
             <Button
               variant={soundEnabled ? "ghost" : "outline"}
               size="icon"
               onClick={() => setSoundEnabled(!soundEnabled)}
               title={soundEnabled ? "Sound alerts on" : "Sound alerts off"}
-              className="h-7 w-7 sm:h-8 sm:w-8"
               data-testid="button-toggle-sound"
             >
               {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}

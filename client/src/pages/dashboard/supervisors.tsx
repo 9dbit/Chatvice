@@ -397,7 +397,7 @@ export default function SupervisorsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
             <Users className="w-6 h-6" />
             Supervisors
           </h1>
@@ -601,7 +601,7 @@ export default function SupervisorsPage() {
             const assignedAgents = getAgentsForSupervisor(supervisor.id);
             const isEditing = editingId === supervisor.id;
             
-            const hasTelegram = !!(supervisor as any).telegramChatId;
+            const hasTelegram = !!supervisor.telegramChatId;
 
             return (
               <Card key={supervisor.id} className="relative" data-testid={`card-supervisor-${supervisor.id}`}>
