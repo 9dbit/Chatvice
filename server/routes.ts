@@ -9949,6 +9949,11 @@ Rules:
     }
   });
 
+  // In-process cache: maps "{planId}_{amountUsd}" → PayPal billing plan ID.
+  // Reusing the same plan avoids creating a new product+plan on every request
+  // and prevents PayPal catalog sprawl.
+  const paypalPlanIdCache = new Map<string, string>();
+
   // PayPal Recurring Subscription endpoints
   app.post("/api/paypal/subscription", requireMerchant, async (req, res) => {
     try {
@@ -9967,13 +9972,19 @@ Rules:
         : '9.00';
 
       const planName = `Chatvice ${plan.name} Monthly`;
+      const cacheKey = `${planId}_${amountUsd}`;
 
-      const product = await createPaypalProduct(
-        planName,
-        `Chatvice ${plan.name} subscription — monthly auto-renewal`,
-      );
-
-      const paypalPlan = await createPaypalBillingPlan(product.id, planName, amountUsd);
+      // Reuse cached PayPal plan ID if available to avoid creating duplicate plans
+      let paypalPlanId = paypalPlanIdCache.get(cacheKey);
+      if (!paypalPlanId) {
+        const product = await createPaypalProduct(
+          planName,
+          `Chatvice ${plan.name} subscription — monthly auto-renewal`,
+        );
+        const paypalPlan = await createPaypalBillingPlan(product.id, planName, amountUsd);
+        paypalPlanId = paypalPlan.id;
+        paypalPlanIdCache.set(cacheKey, paypalPlanId);
+      }
 
       const baseUrl = process.env.REPLIT_DEPLOYMENT_ID
         ? 'https://chatvice.app'
@@ -9982,14 +9993,14 @@ Rules:
           : 'http://localhost:5000';
 
       const subscription = await createPaypalSubscription(
-        paypalPlan.id,
+        paypalPlanId,
         merchant.email,
         merchant.companyName || merchant.email.split('@')[0],
         `${baseUrl}/dashboard/billing?paypal_sub=success`,
         `${baseUrl}/dashboard/billing?paypal_sub=canceled`,
       );
 
-      const approveLink = subscription.links?.find((l: any) => l.rel === 'approve')?.href;
+      const approveLink = subscription.links?.find(l => l.rel === 'approve')?.href;
       if (!approveLink) return res.status(500).json({ error: "PayPal did not return an approval URL" });
 
       // Store the subscription ID on the merchant record
@@ -9998,9 +10009,10 @@ Rules:
       });
 
       res.json({ approveUrl: approveLink, subscriptionId: subscription.id });
-    } catch (error: any) {
-      console.error("PayPal subscription creation error:", error);
-      res.status(500).json({ error: error.message || "Failed to create PayPal subscription" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("PayPal subscription creation error:", err);
+      res.status(500).json({ error: msg || "Failed to create PayPal subscription" });
     }
   });
 

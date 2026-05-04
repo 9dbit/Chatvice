@@ -310,7 +310,27 @@ export async function createPaypalSubscription(
   return resp.json();
 }
 
-export async function getPaypalSubscription(subscriptionId: string): Promise<any> {
+/** Structured error thrown by PayPal API helpers so callers can inspect HTTP status. */
+export class PaypalApiError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message);
+    this.name = 'PaypalApiError';
+  }
+}
+
+export interface PaypalSubscription {
+  id: string;
+  status: string;
+  plan_id?: string;
+  start_time?: string;
+  billing_info?: {
+    next_billing_time?: string;
+    last_payment?: { amount?: { value?: string } };
+  };
+  links?: Array<{ rel: string; href: string }>;
+}
+
+export async function getPaypalSubscription(subscriptionId: string): Promise<PaypalSubscription> {
   const token = await getPaypalAccessToken();
   const baseUrl = process.env.NODE_ENV === 'production'
     ? 'https://api-m.paypal.com'
@@ -322,10 +342,10 @@ export async function getPaypalSubscription(subscriptionId: string): Promise<any
 
   if (!resp.ok) {
     const text = await resp.text();
-    throw new Error(`PayPal get subscription error: ${resp.status} ${text}`);
+    throw new PaypalApiError(resp.status, `PayPal get subscription error: ${resp.status} ${text}`);
   }
 
-  return resp.json();
+  return resp.json() as Promise<PaypalSubscription>;
 }
 
 export async function verifyPaypalWebhookSignature(

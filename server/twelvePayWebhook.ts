@@ -603,19 +603,27 @@ export async function checkAndRenewExpiredSubscriptions(): Promise<void> {
           // PayPal subscription is not active — clear the stale ID and fall through to expire
           console.log(`[subscription-expiry] Merchant ${merchant.id} PayPal subscription status=${sub?.status}, clearing ID and expiring`);
           await storage.updateMerchantSubscription(merchant.id, { paypalSubscriptionId: null });
-        } catch (err: any) {
-          // Distinguish definitive failures (404 stale ID, 400 bad request) from
-          // transient API/network errors. Fail closed on definitive failures so a
-          // broken PayPal linkage cannot keep an expired subscription active forever.
-          const status = err?.status || err?.response?.status || err?.statusCode;
-          const isDefinitiveFailure = status === 404 || status === 400 || status === 422;
-          if (isDefinitiveFailure) {
-            console.warn(`[subscription-expiry] PayPal subscription for merchant ${merchant.id} returned ${status} — treating as inactive, clearing ID and expiring`);
-            await storage.updateMerchantSubscription(merchant.id, { paypalSubscriptionId: null });
-            // Fall through to expire this merchant
+        } catch (err: unknown) {
+          // Use structured PaypalApiError.status to distinguish definitive failures
+          // (404 stale ID, 400/422 invalid) from transient errors (5xx, network).
+          // Fail closed on definitive failures so a broken PayPal linkage cannot
+          // keep an expired subscription active forever.
+          const { PaypalApiError } = await import('./paypal');
+          if (err instanceof PaypalApiError) {
+            const isDefinitiveFailure = err.status === 404 || err.status === 400 || err.status === 422;
+            if (isDefinitiveFailure) {
+              console.warn(`[subscription-expiry] PayPal subscription for merchant ${merchant.id} returned HTTP ${err.status} — treating as inactive, clearing ID and expiring`);
+              await storage.updateMerchantSubscription(merchant.id, { paypalSubscriptionId: null });
+              // Fall through to expire this merchant
+            } else {
+              // Transient API error (5xx, rate-limit, etc.) — skip conservatively this run
+              console.error(`[subscription-expiry] Transient PayPal error for merchant ${merchant.id} (HTTP ${err.status}):`, err.message);
+              continue;
+            }
           } else {
-            // Transient error (5xx, network timeout, etc.) — skip conservatively this run
-            console.error(`[subscription-expiry] Transient error verifying PayPal subscription for merchant ${merchant.id} (status=${status}):`, err?.message || err);
+            // Non-PayPal error (network failure, DNS, etc.) — skip conservatively
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`[subscription-expiry] Network error verifying PayPal subscription for merchant ${merchant.id}:`, msg);
             continue;
           }
         }
