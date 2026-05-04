@@ -2016,7 +2016,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       "sess" json NOT NULL,
       "expire" timestamp(6) NOT NULL,
       CONSTRAINT "session_pkey" PRIMARY KEY ("sid") NOT DEFERRABLE INITIALLY IMMEDIATE
-    ) WITH (OIDS=FALSE);
+    );
     CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
   `);
   
@@ -2118,6 +2118,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       secure: isProduction,
       httpOnly: true,
       sameSite: isProduction ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms — matches store TTL
     },
   };
   
