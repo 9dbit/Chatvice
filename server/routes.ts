@@ -20231,16 +20231,24 @@ ${log.extractedKnowledge}` : ''}
         const sessionClients = clients.get(sess.id);
         const hasActiveClient = sessionClients && [...sessionClients].some(c => c.readyState === 1);
 
-        const msgWsPayload: Record<string, unknown> = { from: "chatvice", content: message, clientMessageId: msgId };
+        // Resolve final messageType — media takes precedence, then announcement, then text
+        const finalMsgType = mediaUrl ? "media" : blastMessageType === "announcement" ? "announcement" : "text";
+        // Build payload in chat-standard format: { type, url } for media messages
+        const mediaPayload = mediaUrl ? {
+          type: mediaType === "video" ? "video" : mediaType === "document" ? "document" : "photo",
+          url: mediaUrl,
+          filename: mediaUrl.split("/").pop() ?? "file",
+        } : undefined;
+
+        const msgWsPayload: Record<string, unknown> = {
+          from: "chatvice", content: message, clientMessageId: msgId, messageType: finalMsgType,
+          ...(mediaPayload ? { payload: mediaPayload } : {}),
+        };
         const msgRecord: { sessionId: string; from: string; content: string; clientMessageId: string; messageType?: string; payload?: Record<string, unknown> } = {
           sessionId: sess.id, from: "chatvice", content: message, clientMessageId: msgId,
-          messageType: blastMessageType === "announcement" ? "announcement" : "text",
+          messageType: finalMsgType,
+          ...(mediaPayload ? { payload: mediaPayload } : {}),
         };
-        if (mediaUrl) {
-          msgWsPayload.mediaUrl = mediaUrl;
-          msgWsPayload.mediaType = mediaType;
-          msgRecord.payload = { mediaUrl, mediaType };
-        }
 
         await storage.createMessage(msgRecord);
         broadcastToSession(sess.id, { type: "message", message: msgWsPayload });
@@ -20353,7 +20361,7 @@ ${log.extractedKnowledge}` : ''}
       if (message.trim().length > 1000) return res.status(400).json({ error: "Message cannot exceed 1000 characters" });
       const validMsgTypes = ["text", "announcement"];
       if (blastMessageType && !validMsgTypes.includes(blastMessageType)) return res.status(400).json({ error: "Invalid blastMessageType" });
-      const validMediaTypes = ["image", "video", "document"];
+      const validMediaTypes = ["photo", "video", "document"];
       if (mediaType && !validMediaTypes.includes(mediaType)) return res.status(400).json({ error: "Invalid mediaType" });
 
       // Validate scheduledFor: must be a valid timestamp, in the future, and ≤30 days out

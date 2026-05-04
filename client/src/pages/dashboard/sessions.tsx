@@ -925,11 +925,14 @@ export default function SessionsPage() {
     try {
       const form = new FormData();
       form.append("file", file);
-      const res = await fetch("/api/media/upload", { method: "POST", body: form, credentials: "include" });
+      form.append("type", "blast");
+      const res = await fetch("/api/upload", { method: "POST", body: form, credentials: "include" });
       if (!res.ok) throw new Error("Upload failed");
       const data = await res.json();
+      // Normalize to chat-standard types: photo | video | document
+      const normalizedType = file.type.startsWith("image") ? "photo" : file.type.startsWith("video") ? "video" : "document";
       setBlastMediaUrl(data.url);
-      setBlastMediaType(file.type.startsWith("image") ? "image" : file.type.startsWith("video") ? "video" : "document");
+      setBlastMediaType(normalizedType);
       setBlastMediaPreview(URL.createObjectURL(file));
     } catch {
       toast({ title: "Upload failed", description: "Could not upload the file.", variant: "destructive" });
@@ -3087,7 +3090,7 @@ export default function SessionsPage() {
                   />
                   {blastMediaPreview ? (
                     <div className="relative inline-block">
-                      {blastMediaType === "image" ? (
+                      {blastMediaType === "photo" ? (
                         <img src={blastMediaPreview} alt="Preview" className="max-h-24 rounded-md border object-cover" />
                       ) : blastMediaType === "video" ? (
                         <video src={blastMediaPreview} className="max-h-24 rounded-md border" controls />
