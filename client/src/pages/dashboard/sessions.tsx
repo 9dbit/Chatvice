@@ -3224,11 +3224,11 @@ export default function SessionsPage() {
                           </div>
                         </div>
                         <p className="text-xs text-muted-foreground truncate" data-testid={`text-blast-message-${c.id}`}>{c.message}</p>
-                        {c.status === "sent" && (
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Users className="w-3 h-3" />{c.matchedCount} matched
-                            </div>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Users className="w-3 h-3" />{c.matchedCount} matched
+                          </div>
+                          {c.status === "sent" && (<>
                             <div className="flex items-center gap-1 text-xs text-green-600">
                               <CheckCircle2 className="w-3 h-3" />{c.deliveredCount} delivered
                             </div>
@@ -3248,8 +3248,8 @@ export default function SessionsPage() {
                               </div>
                               <span className="text-[10px] text-muted-foreground w-7 text-right">{rate}%</span>
                             </div>
-                          </div>
-                        )}
+                          </>)}
+                        </div>
                       </Card>
                     );
                   })}

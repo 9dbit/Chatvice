@@ -20269,10 +20269,12 @@ ${log.extractedKnowledge}` : ''}
       if (!merchantId) return res.status(401).json({ error: "Unauthorized" });
 
       const allSessions = await storage.getSessionsByMerchant(merchantId);
+      // Options are derived from active sessions only (non-ended), matching blast filter semantics
+      const activeSessions = allSessions.filter(s => s.status !== "ended");
 
       // Build deduplicated country list preserving code for flag display
       const countryMap = new Map<string, string>();
-      for (const s of allSessions) {
+      for (const s of activeSessions) {
         if (s.countryName && !countryMap.has(s.countryName)) {
           countryMap.set(s.countryName, s.countryCode ?? "");
         }
@@ -20281,8 +20283,8 @@ ${log.extractedKnowledge}` : ''}
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([name, code]) => ({ name, code }));
 
-      const cities = [...new Set(allSessions.map(s => s.cityName).filter(Boolean))].sort() as string[];
-      const periods = [...new Set(allSessions.map(s => {
+      const cities = [...new Set(activeSessions.map(s => s.cityName).filter(Boolean))].sort() as string[];
+      const periods = [...new Set(activeSessions.map(s => {
         if (!s.createdAt) return null;
         return `${s.createdAt.getFullYear()}-${String(s.createdAt.getMonth() + 1).padStart(2, "0")}`;
       }).filter(Boolean))].sort((a, b) => (b! > a! ? 1 : -1)) as string[];
