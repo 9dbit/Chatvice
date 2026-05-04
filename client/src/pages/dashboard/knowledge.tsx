@@ -3073,6 +3073,17 @@ export default function KnowledgePage() {
                   <p className="text-xs" style={{ color: "#71717a" }}>
                     Reset flow: AI collects username + bank + phone → server verifies row → POSTs to Write-Back URL → polls sheet every 3s for Status=<strong style={{ color: "#a1a1aa" }}>ok</strong> + new_password → delivers via chat automatically.
                   </p>
+                  <a
+                    href="https://docs.google.com/spreadsheets/d/1X6TY-PASSWORD-RECOVERY-TEMPLATE/copy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs"
+                    style={{ color: "#818cf8" }}
+                    data-testid="link-password-recovery-template"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Open Google Sheet template
+                  </a>
                 </div>
 
                 <div className="space-y-3">
