@@ -10268,6 +10268,8 @@ Rules:
           pendingTransactionId: null,
           scheduledPlanId: null,
           scheduledPlanActivationDate: null,
+          expiryReminder7dSentAt: null,
+          expiryReminder3dSentAt: null,
         });
 
         await storage.clearSessionLimitFallback(merchant.id);
@@ -10678,6 +10680,8 @@ Rules:
                 billingInterval: confirmation.billingInterval,
                 conversationsUsed: 0,
                 conversationsResetAt: new Date(),
+                expiryReminder7dSentAt: null,
+                expiryReminder3dSentAt: null,
                 // Custom plan limits from invoice
                 conversationsLimit: customInvoice.conversationsLimit,
                 agentsLimit: customInvoice.agentsLimit,
@@ -10704,6 +10708,8 @@ Rules:
               billingInterval: confirmation.billingInterval,
               conversationsUsed: 0,
               conversationsResetAt: new Date(),
+              expiryReminder7dSentAt: null,
+              expiryReminder3dSentAt: null,
               // Clear any scheduled plan change
               scheduledPlanId: null,
               scheduledBillingInterval: null,
@@ -11038,6 +11044,8 @@ Rules:
                 billingInterval: confirmation.billingInterval,
                 conversationsUsed: 0,
                 conversationsResetAt: new Date(),
+                expiryReminder7dSentAt: null,
+                expiryReminder3dSentAt: null,
                 // Custom plan limits from invoice
                 conversationsLimit: customInvoice.conversationsLimit,
                 agentsLimit: customInvoice.agentsLimit,
@@ -11064,6 +11072,8 @@ Rules:
               billingInterval: confirmation.billingInterval,
               conversationsUsed: 0,
               conversationsResetAt: new Date(),
+              expiryReminder7dSentAt: null,
+              expiryReminder3dSentAt: null,
               // Clear any scheduled plan change
               scheduledPlanId: null,
               scheduledBillingInterval: null,
@@ -11275,6 +11285,8 @@ Rules:
         billingInterval: billingInterval,
         conversationsUsed: 0,
         conversationsResetAt: new Date(),
+        expiryReminder7dSentAt: null,
+        expiryReminder3dSentAt: null,
       });
 
       await storage.clearSessionLimitFallback(merchantId);
@@ -11330,6 +11342,8 @@ Rules:
         pendingTransactionId: null,
         conversationsUsed: 0,
         conversationsResetAt: new Date(),
+        expiryReminder7dSentAt: null,
+        expiryReminder3dSentAt: null,
       });
 
       await storage.clearSessionLimitFallback(merchantId);
@@ -11618,6 +11632,8 @@ Rules:
             pendingTransactionId: null,
             conversationsUsed: 0,
             conversationsResetAt: new Date(),
+            expiryReminder7dSentAt: null,
+            expiryReminder3dSentAt: null,
           });
 
           await storage.clearSessionLimitFallback(merchantId);

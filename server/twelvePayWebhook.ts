@@ -401,6 +401,8 @@ export class PaymentWebhookHandler {
       pendingTransactionId: null,
       conversationsUsed: 0,
       conversationsResetAt: new Date(),
+      expiryReminder7dSentAt: null,
+      expiryReminder3dSentAt: null,
       // Clear any scheduled downgrade when activating a new subscription
       scheduledPlanId: null,
       scheduledBillingInterval: null,

@@ -848,10 +848,15 @@ async function runSubscriptionExpiryReminders(): Promise<void> {
         ? (billingInterval === 'annual' ? effectivePlan.annualPrice : effectivePlan.monthlyPrice)
         : undefined;
 
+      // Period length in ms — used for period-aware deduplication so a prior cycle's
+      // reminder timestamp can never suppress the current cycle's reminder.
+      const periodMs = (billingInterval === 'annual' ? 365 : 30) * 24 * 60 * 60 * 1000;
+      const periodStart = new Date(expiresAt.getTime() - periodMs);
+
       // 7-day reminder: send if 6–8 days remaining and not yet sent for this period
       if (daysRemaining >= 6 && daysRemaining <= 8) {
         const alreadySent = merchant.expiryReminder7dSentAt
-          && new Date(merchant.expiryReminder7dSentAt) > new Date(expiresAt.getTime() - 40 * 24 * 60 * 60 * 1000);
+          && new Date(merchant.expiryReminder7dSentAt) > periodStart;
         if (!alreadySent) {
           const sent = await sendSubscriptionExpiringEmail({
             merchantEmail: merchant.email,
@@ -876,7 +881,7 @@ async function runSubscriptionExpiryReminders(): Promise<void> {
       // 3-day reminder: send if 1–4 days remaining and not yet sent for this period
       if (daysRemaining >= 1 && daysRemaining <= 4) {
         const alreadySent = merchant.expiryReminder3dSentAt
-          && new Date(merchant.expiryReminder3dSentAt) > new Date(expiresAt.getTime() - 40 * 24 * 60 * 60 * 1000);
+          && new Date(merchant.expiryReminder3dSentAt) > periodStart;
         if (!alreadySent) {
           const sent = await sendSubscriptionExpiringEmail({
             merchantEmail: merchant.email,
