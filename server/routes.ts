@@ -6327,7 +6327,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const cancelAppointmentMatch = result.answer.match(/\[CANCEL_APPOINTMENT:([^\]]+)\]/i);
       const hasGetMyAppointments = /\[GET_MY_APPOINTMENTS\]/i.test(result.answer);
       
-      // Remove appointment and hospitality tags from displayed answer
+      // Remove all internal signal tags from the customer-visible answer
       let cleanAnswer = result.answer
         .replace(/\[RECOMMEND_PRODUCT(?::[^\]]+)?\]/gi, "")
         .replace(/\[CHECK_AVAILABILITY\]/gi, "")
@@ -6335,6 +6335,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         .replace(/\[CANCEL_APPOINTMENT:[^\]]*\]/gi, "")
         .replace(/\[GET_MY_APPOINTMENTS\]/gi, "")
         .replace(/\[HOTEL_QUERY_DETECTED\]/gi, "")
+        .replace(/\[PASSWORD_RECOVERY_DETECTED:[^\]]*\]/gi, "")
+        .replace(/\[PASSWORD_LOOKUP_DETECTED:[^\]]*\]/gi, "")
         .trim();
 
       const responseClientId = clientMessageId ? `response_${clientMessageId}` : undefined;
@@ -6807,7 +6809,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                         }
                       }
 
-                      const prRequestId = "prr_" + randomBytes(8).toString("hex");
+                      const prRequestId = "prr_" + crypto.randomBytes(8).toString("hex");
                       await storage.createPasswordRecoveryRequest({
                         id: prRequestId,
                         merchantId: resolvedMerchantId,
