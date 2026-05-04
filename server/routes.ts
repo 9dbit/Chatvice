@@ -495,6 +495,21 @@ async function notifySupervisors(merchantId: string, sessionId: string, reason: 
   }
 }
 
+// Module-level WebSocket clients map (exported so background jobs can broadcast)
+export const wsClients = new Map<string, Set<WebSocket>>();
+
+export function broadcastToSessionExternal(sessionId: string, data: any) {
+  const sessionClients = wsClients.get(sessionId);
+  if (sessionClients) {
+    const message = JSON.stringify(data);
+    sessionClients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
+}
+
 // Round-robin agent assignment tracking per merchant
 const lastAssignedAgentIndex: Map<string, number> = new Map();
 
@@ -1379,7 +1394,31 @@ PENTING: Sertakan tag [HOTEL_QUERY_DETECTED] di akhir respons saat customer mena
     // Hospitality signals are optional
   }
 
-  const finalSystemMessage = `${systemMessage}${hospitalitySignals ? `\n${hospitalitySignals}` : ""}
+  // Inject password recovery signals if enabled
+  let passwordRecoverySignals = "";
+  try {
+    const prConfig = await storage.getPasswordRecoveryConfig(merchantId);
+    if (prConfig && prConfig.isEnabled && prConfig.googleSheetUrl) {
+      const extraInstr = prConfig.aiInstructions ? `\nInstruksi Tambahan: ${prConfig.aiInstructions}` : "";
+      passwordRecoverySignals = `
+PASSWORD RECOVERY FEATURE:
+Merchant ini menggunakan fitur Password Recovery via Google Sheet.
+
+SINYAL YANG TERSEDIA:
+[PASS_RECOVERY_REQUEST:type=reset,username=X,phone=Y,bank=Z] → untuk reset password (Y dan Z bisa kosong jika tidak diketahui)
+[PASS_RECOVERY_REQUEST:type=retrieve,username=X,phone=Y,bank=Z] → untuk melihat password saat ini
+
+KAPAN GUNAKAN:
+- Customer minta reset password / lupa password → kumpulkan: username, nomor HP (opsional), nama bank terdaftar (opsional) → emit [PASS_RECOVERY_REQUEST:type=reset,username=X,phone=Y,bank=Z]
+- Customer minta lihat password saat ini → kumpulkan info yang sama → emit [PASS_RECOVERY_REQUEST:type=retrieve,username=X,phone=Y,bank=Z]
+
+PENTING: Kumpulkan minimal username sebelum emit sinyal. Jangan tampilkan tag sinyal kepada customer.${extraInstr}`;
+    }
+  } catch (_err) {
+    // Password recovery signals are optional
+  }
+
+  const finalSystemMessage = `${systemMessage}${hospitalitySignals ? `\n${hospitalitySignals}` : ""}${passwordRecoverySignals ? `\n${passwordRecoverySignals}` : ""}
 Relevant Company Information:
 ${knowledgeContext || "No specific knowledge base configured yet."}
 
@@ -1892,7 +1931,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.use(session(sessionConfig));
 
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
-  const clients = new Map<string, Set<WebSocket>>();
+  const clients = wsClients;
 
   wss.on("connection", (ws, req) => {
     const url = new URL(req.url || "", `http://${req.headers.host}`);
@@ -6548,6 +6587,103 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           }
         } catch (hospSignalErr) {
           console.error("[Hospitality Signal] Error processing hotel signals:", hospSignalErr);
+        }
+
+        // ── Password Recovery Signal ──────────────────────────────────────────
+        try {
+          const passRecovMatch = result.answer.match(/\[PASS_RECOVERY_REQUEST:([^\]]+)\]/i);
+          if (passRecovMatch) {
+            const params: Record<string, string> = {};
+            passRecovMatch[1].split(",").forEach(part => {
+              const eqIdx = part.indexOf("=");
+              if (eqIdx > -1) {
+                const k = part.slice(0, eqIdx).trim().toLowerCase();
+                const v = part.slice(eqIdx + 1).trim();
+                params[k] = v;
+              }
+            });
+            const prUsername = params.username || "";
+            const prPhone = params.phone || "";
+            const prBank = params.bank || "";
+            const prType = params.type === "retrieve" ? "retrieve" : "reset";
+
+            const prConfig = await storage.getPasswordRecoveryConfig(resolvedMerchantId);
+            if (prConfig && prConfig.isEnabled && prConfig.googleSheetUrl && prUsername) {
+              function parsePassCSVLine(line: string): string[] {
+                const cells: string[] = [];
+                let cur = "";
+                let inQuote = false;
+                for (let i = 0; i < line.length; i++) {
+                  const ch = line[i];
+                  if (ch === '"') {
+                    if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
+                    else { inQuote = !inQuote; }
+                  } else if (ch === ',' && !inQuote) { cells.push(cur.trim()); cur = ""; }
+                  else { cur += ch; }
+                }
+                cells.push(cur.trim());
+                return cells;
+              }
+
+              const sheetResult = await fetchGoogleSheet(prConfig.googleSheetUrl);
+              if (sheetResult.success && sheetResult.content) {
+                const prLines = sheetResult.content.split("\n").filter(l => l.trim());
+                const prHeaders = parsePassCSVLine(prLines[0] ?? "").map(h => h.toLowerCase().trim().replace(/[^a-z0-9_]/g, "_"));
+                const prRows = prLines.slice(1);
+
+                const findCol = (...keys: string[]) => prHeaders.findIndex(h => keys.some(k => h.includes(k)));
+                const usernameIdx = findCol("username", "user_name", "user");
+                const currentPassIdx = findCol("current_password", "password", "pass");
+                const statusIdx = findCol("status");
+
+                let matchedCols: string[] | null = null;
+                for (const row of prRows) {
+                  const cols = parsePassCSVLine(row);
+                  const rowUser = usernameIdx >= 0 ? (cols[usernameIdx] || "").trim() : "";
+                  if (rowUser.toLowerCase() === prUsername.toLowerCase()) {
+                    matchedCols = cols;
+                    break;
+                  }
+                }
+
+                if (matchedCols) {
+                  if (prType === "retrieve") {
+                    const currentPass = currentPassIdx >= 0 ? (matchedCols[currentPassIdx] || "").trim() : "";
+                    if (currentPass) {
+                      const deliveryMsg = `Password akun **${prUsername}** Anda saat ini adalah:\n\n\`${currentPass}\`\n\nDemi keamanan, segera ganti password Anda setelah masuk.`;
+                      await storage.createMessage({ sessionId, from: "chatvice", content: deliveryMsg });
+                      broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: deliveryMsg } });
+                    } else {
+                      const noPassMsg = `Maaf, kami tidak dapat menemukan data password untuk akun **${prUsername}**. Silakan hubungi tim dukungan kami.`;
+                      await storage.createMessage({ sessionId, from: "chatvice", content: noPassMsg });
+                      broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: noPassMsg } });
+                    }
+                  } else {
+                    const prRequestId = "prr_" + randomBytes(8).toString("hex");
+                    await storage.createPasswordRecoveryRequest({
+                      id: prRequestId,
+                      merchantId: resolvedMerchantId,
+                      sessionId,
+                      username: prUsername,
+                      phoneNumber: prPhone,
+                      bankAccount: prBank,
+                      requestType: "reset",
+                      status: "pending",
+                    });
+                    const pendingMsg = `Permintaan reset password untuk akun **${prUsername}** telah diterima dan sedang diproses oleh tim kami. Anda akan menerima password baru melalui chat ini. Mohon tetap di sini.`;
+                    await storage.createMessage({ sessionId, from: "chatvice", content: pendingMsg });
+                    broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: pendingMsg } });
+                  }
+                } else {
+                  const notFoundMsg = `Maaf, akun dengan username **${prUsername}** tidak ditemukan dalam sistem kami. Periksa kembali username yang Anda masukkan.`;
+                  await storage.createMessage({ sessionId, from: "chatvice", content: notFoundMsg });
+                  broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: notFoundMsg } });
+                }
+              }
+            }
+          }
+        } catch (passRecovErr) {
+          console.error("[PassRecov Signal] Error handling password recovery signal:", passRecovErr);
         }
       }
 
@@ -26094,6 +26230,65 @@ Please create a comprehensive help center article that would be useful for custo
       });
     } catch (err) {
       res.status(500).json({ error: "Gagal mengakses sheet. Periksa URL dan pastikan sheet bisa diakses publik." });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PASSWORD RECOVERY CONFIG
+  // ═══════════════════════════════════════════════════════════════════════════
+  app.get("/api/merchant/password-recovery-config", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const config = await storage.getPasswordRecoveryConfig(merchantId);
+      res.json(config || null);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch password recovery config" });
+    }
+  });
+
+  app.put("/api/merchant/password-recovery-config", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { googleSheetUrl, isEnabled, aiInstructions } = req.body;
+      const config = await storage.upsertPasswordRecoveryConfig(merchantId, {
+        googleSheetUrl: googleSheetUrl ?? "",
+        isEnabled: isEnabled ?? false,
+        aiInstructions: aiInstructions ?? "",
+      });
+      res.json(config);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to save password recovery config" });
+    }
+  });
+
+  app.post("/api/merchant/password-recovery-config/test-sheet", requireMerchant, async (req, res) => {
+    try {
+      const { googleSheetUrl } = req.body;
+      if (!googleSheetUrl) return res.status(400).json({ error: "googleSheetUrl required" });
+      const sheetIdMatch = googleSheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (!sheetIdMatch) return res.status(400).json({ error: "URL Google Sheet tidak valid." });
+      const sheetId = sheetIdMatch[1];
+      const gidMatch = googleSheetUrl.match(/gid=(\d+)/);
+      const gid = gidMatch ? gidMatch[1] : "0";
+      const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+      const resp = await fetch(csvUrl, { signal: AbortSignal.timeout(10000) });
+      if (!resp.ok) return res.status(400).json({ error: "Sheet tidak dapat diakses. Pastikan sudah di-set ke Public." });
+      const text = await resp.text();
+      const lines = text.split("\n").filter(l => l.trim());
+      res.json({ success: true, rowCount: lines.length - 1, sampleRows: lines.slice(0, 4), message: `Sheet berhasil diakses. Ditemukan ${lines.length - 1} baris data.` });
+    } catch (err) {
+      res.status(500).json({ error: "Gagal mengakses sheet." });
+    }
+  });
+
+  app.get("/api/merchant/password-recovery-requests", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { status } = req.query;
+      const requests = await storage.getPasswordRecoveryRequestsByMerchant(merchantId, status as string | undefined);
+      res.json(requests);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch password recovery requests" });
     }
   });
 

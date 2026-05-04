@@ -2600,6 +2600,44 @@ export const insertAppointmentSchema = createInsertSchema(appointments).omit({ c
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type Appointment = typeof appointments.$inferSelect;
 
+// ── Password Recovery Config ───────────────────────────────────────────────
+export const passwordRecoveryConfigs = pgTable("password_recovery_configs", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull().unique(),
+  googleSheetUrl: text("google_sheet_url").notNull().default(""),
+  isEnabled: boolean("is_enabled").notNull().default(false),
+  aiInstructions: text("ai_instructions").default(""),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  merchantIdx: index("pass_recov_merchant_idx").on(table.merchantId),
+}));
+export const insertPasswordRecoveryConfigSchema = createInsertSchema(passwordRecoveryConfigs).omit({ createdAt: true, updatedAt: true });
+export type InsertPasswordRecoveryConfig = z.infer<typeof insertPasswordRecoveryConfigSchema>;
+export type PasswordRecoveryConfig = typeof passwordRecoveryConfigs.$inferSelect;
+
+// ── Password Recovery Requests ─────────────────────────────────────────────
+export const passwordRecoveryRequests = pgTable("password_recovery_requests", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  sessionId: varchar("session_id", { length: 64 }).notNull(),
+  username: text("username").notNull(),
+  phoneNumber: text("phone_number").notNull().default(""),
+  bankAccount: text("bank_account").notNull().default(""),
+  requestType: text("request_type").notNull().default("reset"),
+  status: text("status").notNull().default("pending"),
+  newPassword: text("new_password"),
+  createdAt: timestamp("created_at").defaultNow(),
+  deliveredAt: timestamp("delivered_at"),
+}, (table) => ({
+  merchantIdx: index("pass_recov_req_merchant_idx").on(table.merchantId),
+  sessionIdx: index("pass_recov_req_session_idx").on(table.sessionId),
+  statusIdx: index("pass_recov_req_status_idx").on(table.status),
+}));
+export const insertPasswordRecoveryRequestSchema = createInsertSchema(passwordRecoveryRequests).omit({ createdAt: true, deliveredAt: true });
+export type InsertPasswordRecoveryRequest = z.infer<typeof insertPasswordRecoveryRequestSchema>;
+export type PasswordRecoveryRequest = typeof passwordRecoveryRequests.$inferSelect;
+
 // ── Hospitality Config ─────────────────────────────────────────────────────
 export const hospitalityConfigs = pgTable("hospitality_configs", {
   id: varchar("id", { length: 32 }).primaryKey(),

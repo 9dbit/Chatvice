@@ -2,13 +2,15 @@ import {
   type AddonConfig, type InsertAddonConfig,
   type MerchantAddon, type InsertMerchantAddon,
   type HospitalityConfig, type InsertHospitalityConfig,
+  type PasswordRecoveryConfig, type InsertPasswordRecoveryConfig,
+  type PasswordRecoveryRequest, type InsertPasswordRecoveryRequest,
   type AppointmentDivision, type InsertAppointmentDivision,
   type AppointmentProvider, type InsertAppointmentProvider,
   type AppointmentService, type InsertAppointmentService,
   type ProviderSchedule, type InsertProviderSchedule,
   type ProviderBlockedDate, type InsertProviderBlockedDate,
   type Appointment, type InsertAppointment,
-  addonConfigs, merchantAddons, hospitalityConfigs, appointmentDivisions, appointmentProviders, appointmentServices, providerSchedules, providerBlockedDates, appointments,
+  addonConfigs, merchantAddons, hospitalityConfigs, passwordRecoveryConfigs, passwordRecoveryRequests, appointmentDivisions, appointmentProviders, appointmentServices, providerSchedules, providerBlockedDates, appointments,
   type Merchant, type InsertMerchant,
   type Supervisor, type InsertSupervisor,
   type Session, type InsertSession,
@@ -603,6 +605,14 @@ export interface IStorage {
   getHospitalityConfig(merchantId: string): Promise<HospitalityConfig | undefined>;
   upsertHospitalityConfig(merchantId: string, data: Partial<InsertHospitalityConfig>): Promise<HospitalityConfig>;
   updateHospitalityCache(merchantId: string, cachedData: string): Promise<void>;
+
+  // Password Recovery
+  getPasswordRecoveryConfig(merchantId: string): Promise<PasswordRecoveryConfig | undefined>;
+  upsertPasswordRecoveryConfig(merchantId: string, data: Partial<InsertPasswordRecoveryConfig>): Promise<PasswordRecoveryConfig>;
+  getActivePasswordRecoveryConfigs(): Promise<PasswordRecoveryConfig[]>;
+  createPasswordRecoveryRequest(data: InsertPasswordRecoveryRequest & { id: string }): Promise<PasswordRecoveryRequest>;
+  getPasswordRecoveryRequestsByMerchant(merchantId: string, status?: string): Promise<PasswordRecoveryRequest[]>;
+  updatePasswordRecoveryRequest(id: string, data: Partial<PasswordRecoveryRequest>): Promise<PasswordRecoveryRequest | undefined>;
 
   // Appointment Divisions
   getAppointmentDivisions(merchantId: string): Promise<AppointmentDivision[]>;
@@ -4416,6 +4426,47 @@ export class DatabaseStorage implements IStorage {
     await db.update(hospitalityConfigs)
       .set({ cachedSheetData: cachedData, sheetLastFetched: new Date(), updatedAt: new Date() })
       .where(eq(hospitalityConfigs.merchantId, merchantId));
+  }
+
+  // ── Password Recovery ──────────────────────────────────────────────────────
+  async getPasswordRecoveryConfig(merchantId: string): Promise<PasswordRecoveryConfig | undefined> {
+    const [row] = await db.select().from(passwordRecoveryConfigs).where(eq(passwordRecoveryConfigs.merchantId, merchantId));
+    return row;
+  }
+
+  async upsertPasswordRecoveryConfig(merchantId: string, data: Partial<InsertPasswordRecoveryConfig>): Promise<PasswordRecoveryConfig> {
+    const existing = await this.getPasswordRecoveryConfig(merchantId);
+    if (existing) {
+      const [row] = await db.update(passwordRecoveryConfigs)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(passwordRecoveryConfigs.merchantId, merchantId))
+        .returning();
+      return row;
+    }
+    const id = "prc_" + randomBytes(8).toString("hex");
+    const [row] = await db.insert(passwordRecoveryConfigs).values({ id, merchantId, ...data }).returning();
+    return row;
+  }
+
+  async getActivePasswordRecoveryConfigs(): Promise<PasswordRecoveryConfig[]> {
+    return db.select().from(passwordRecoveryConfigs)
+      .where(and(eq(passwordRecoveryConfigs.isEnabled, true), isNotNull(passwordRecoveryConfigs.googleSheetUrl)));
+  }
+
+  async createPasswordRecoveryRequest(data: InsertPasswordRecoveryRequest & { id: string }): Promise<PasswordRecoveryRequest> {
+    const [row] = await db.insert(passwordRecoveryRequests).values(data).returning();
+    return row;
+  }
+
+  async getPasswordRecoveryRequestsByMerchant(merchantId: string, status?: string): Promise<PasswordRecoveryRequest[]> {
+    const conditions = [eq(passwordRecoveryRequests.merchantId, merchantId)];
+    if (status) conditions.push(eq(passwordRecoveryRequests.status, status));
+    return db.select().from(passwordRecoveryRequests).where(and(...conditions)).orderBy(desc(passwordRecoveryRequests.createdAt));
+  }
+
+  async updatePasswordRecoveryRequest(id: string, data: Partial<PasswordRecoveryRequest>): Promise<PasswordRecoveryRequest | undefined> {
+    const [row] = await db.update(passwordRecoveryRequests).set(data).where(eq(passwordRecoveryRequests.id, id)).returning();
+    return row;
   }
 
   // ── Appointment Divisions ──────────────────────────────────────────────────

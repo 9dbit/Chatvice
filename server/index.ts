@@ -14,6 +14,7 @@ import { extractFAQContent } from './crawler';
 import { processKnowledgeBase } from './embeddings';
 import { fetchGoogleSheet } from './fileParser';
 import { generateDailyBlogPosts, seedBlogPostsFromStaticData } from './blog-generator';
+import { broadcastToSessionExternal } from './routes';
 
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught exception:', err.message, err.stack);
@@ -919,6 +920,80 @@ async function runSubscriptionExpiryReminders(): Promise<void> {
   }
 }
 
+async function runPasswordRecoveryPoller(): Promise<void> {
+  try {
+    const configs = await storage.getActivePasswordRecoveryConfigs();
+    if (configs.length === 0) return;
+
+    for (const config of configs) {
+      try {
+        const pendingRequests = await storage.getPasswordRecoveryRequestsByMerchant(config.merchantId, "pending");
+        if (pendingRequests.length === 0) continue;
+
+        const sheetResult = await fetchGoogleSheet(config.googleSheetUrl);
+        if (!sheetResult.success || !sheetResult.content) continue;
+
+        const lines = sheetResult.content.split("\n").filter((l: string) => l.trim());
+        if (lines.length < 2) continue;
+
+        function parseLine(line: string): string[] {
+          const cells: string[] = [];
+          let cur = "";
+          let inQ = false;
+          for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else { inQ = !inQ; } }
+            else if (ch === ',' && !inQ) { cells.push(cur.trim()); cur = ""; }
+            else { cur += ch; }
+          }
+          cells.push(cur.trim());
+          return cells;
+        }
+
+        const headers = parseLine(lines[0] ?? "").map((h: string) => h.toLowerCase().trim().replace(/[^a-z0-9_]/g, "_"));
+        const dataRows = lines.slice(1);
+
+        const findCol = (...keys: string[]) => headers.findIndex((h: string) => keys.some((k: string) => h.includes(k)));
+        const usernameIdx = findCol("username", "user_name", "user");
+        const newPassIdx = findCol("new_password", "new_pass", "password_baru", "pass_baru");
+        const statusIdx = findCol("status");
+
+        for (const request of pendingRequests) {
+          for (const row of dataRows) {
+            const cols = parseLine(row);
+            const rowUser = usernameIdx >= 0 ? (cols[usernameIdx] || "").trim() : "";
+            const rowStatus = statusIdx >= 0 ? (cols[statusIdx] || "").trim().toLowerCase() : "";
+            const rowNewPass = newPassIdx >= 0 ? (cols[newPassIdx] || "").trim() : "";
+
+            if (rowUser.toLowerCase() === request.username.toLowerCase() && rowStatus === "ok" && rowNewPass) {
+              await storage.updatePasswordRecoveryRequest(request.id, { status: "ready", newPassword: rowNewPass });
+              console.log(`[pass-recov-poll] Password ready for ${request.username} in session ${request.sessionId}`);
+              break;
+            }
+          }
+        }
+
+        const readyRequests = await storage.getPasswordRecoveryRequestsByMerchant(config.merchantId, "ready");
+        for (const request of readyRequests) {
+          try {
+            const deliveryMsg = `Password baru akun **${request.username}** Anda telah disiapkan:\n\n\`${request.newPassword}\`\n\nSilakan segera login dan ubah ke password baru yang lebih aman.`;
+            await storage.createMessage({ sessionId: request.sessionId, from: "chatvice", content: deliveryMsg });
+            await storage.updatePasswordRecoveryRequest(request.id, { status: "delivered", deliveredAt: new Date() });
+            broadcastToSessionExternal(request.sessionId, { type: "message", message: { from: "chatvice", content: deliveryMsg } });
+            console.log(`[pass-recov-poll] Delivered new password to session ${request.sessionId}`);
+          } catch (delivErr) {
+            console.error(`[pass-recov-poll] Delivery error for request ${request.id}:`, delivErr);
+          }
+        }
+      } catch (configErr) {
+        console.error(`[pass-recov-poll] Error processing merchant ${config.merchantId}:`, configErr);
+      }
+    }
+  } catch (error) {
+    console.error("[pass-recov-poll] Poller error:", error);
+  }
+}
+
 function startBackgroundSync(): void {
   setTimeout(() => migrateLegacyCrawledLinks(), 3000);
   setTimeout(() => runAllBackgroundJobs(), 5 * 60 * 1000);
@@ -932,6 +1007,10 @@ function startBackgroundSync(): void {
 
   setInterval(() => runGoogleSheetFastSyncJob(), 10 * 1000);
   console.log("[fast-sync] Google Sheet fast sync scheduler started (10s interval)");
+
+  // Password recovery poller: check every 3s for sheets with Status="ok"
+  setInterval(() => runPasswordRecoveryPoller().catch(err => console.error("[pass-recov-poll] Error:", err)), 3 * 1000);
+  console.log("[pass-recov-poll] Password recovery poller started (3s interval)");
 
   // Deactivate expired addon trials every hour
   setTimeout(() => deactivateExpiredTrials(), 30 * 1000);

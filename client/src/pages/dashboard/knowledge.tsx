@@ -385,6 +385,14 @@ export default function KnowledgePage() {
   const [isSourceDialogOpen, setIsSourceDialogOpen] = useState(false);
   const [isTransactionTemplateOpen, setIsTransactionTemplateOpen] = useState(false);
   const [transactionTemplateUrl, setTransactionTemplateUrl] = useState("");
+
+  // Password Recovery state
+  const [prSheetUrl, setPrSheetUrl] = useState("");
+  const [prEnabled, setPrEnabled] = useState(false);
+  const [prInstructions, setPrInstructions] = useState("");
+  const [prTestResult, setPrTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [prIsTesting, setPrIsTesting] = useState(false);
+  const [prIsSaving, setPrIsSaving] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -785,6 +793,21 @@ export default function KnowledgePage() {
     enabled: !!merchantId,
     refetchInterval: 5000,
   });
+
+  // Password Recovery config query
+  const { data: prConfig } = useQuery<{ id: string; googleSheetUrl: string; isEnabled: boolean; aiInstructions?: string } | null>({
+    queryKey: ["/api/merchant/password-recovery-config"],
+    enabled: !!merchantId,
+  });
+
+  // Sync PR config to local state when fetched
+  useEffect(() => {
+    if (prConfig) {
+      setPrSheetUrl(prConfig.googleSheetUrl || "");
+      setPrEnabled(prConfig.isEnabled || false);
+      setPrInstructions(prConfig.aiInstructions || "");
+    }
+  }, [prConfig]);
 
   // Help Articles queries
   const { data: articles = [], isLoading: articlesLoading } = useQuery<KnowledgebaseArticle[]>({
@@ -3001,6 +3024,133 @@ export default function KnowledgePage() {
                     Use this template
                   </Button>
                 </div>
+              </div>
+            </div>
+
+            {/* Password Recovery via Google Sheet Card */}
+            <div className="rounded-lg bg-zinc-800 dark:bg-zinc-900 overflow-hidden" data-testid="card-password-recovery">
+              <div className="p-4 space-y-4" style={{ color: "white" }}>
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Lock className="w-4 h-4 shrink-0" style={{ color: "#a1a1aa" }} />
+                      <h3 className="font-semibold" style={{ color: "white" }}>Password Recovery via Google Sheet</h3>
+                    </div>
+                    <p className="text-sm" style={{ color: "#d4d4d8" }}>
+                      Allow the AI to help customers reset or retrieve passwords by looking up a Google Sheet. The sheet acts as your user database — AI collects identity info, verifies the row, and delivers passwords securely via chat.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-sm" style={{ color: "#a1a1aa" }}>{prEnabled ? "On" : "Off"}</span>
+                    <Switch
+                      checked={prEnabled}
+                      onCheckedChange={setPrEnabled}
+                      data-testid="switch-password-recovery-enabled"
+                    />
+                  </div>
+                </div>
+
+                {/* Sheet column reference */}
+                <div className="rounded-md p-3 space-y-2" style={{ backgroundColor: "#27272a", border: "1px solid #3f3f46" }}>
+                  <p className="text-xs font-medium" style={{ color: "#a1a1aa" }}>Required Google Sheet Columns</p>
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      { col: "username", note: "User identifier" },
+                      { col: "current_password", note: "For retrieve requests" },
+                      { col: "new_password", note: "Filled when reset is ready" },
+                      { col: "status", note: "normal / request / ok / no" },
+                    ].map(({ col, note }) => (
+                      <span key={col} title={note} className="text-xs px-2 py-0.5 rounded-md" style={{ backgroundColor: "#3f3f46", color: "#e4e4e7", border: "1px solid #52525b" }}>{col}</span>
+                    ))}
+                  </div>
+                  <p className="text-xs" style={{ color: "#71717a" }}>
+                    Workflow: AI collects username → verifies identity → For retrieve: returns <code>current_password</code>. For reset: creates pending request → your team updates the sheet row with a new password and sets Status to <strong style={{ color: "#a1a1aa" }}>ok</strong> → password is delivered automatically.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label style={{ color: "#d4d4d8" }}>Google Sheet URL</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={prSheetUrl}
+                        onChange={(e) => { setPrSheetUrl(e.target.value); setPrTestResult(null); }}
+                        placeholder="https://docs.google.com/spreadsheets/d/..."
+                        style={{ backgroundColor: "#27272a", borderColor: "#3f3f46", color: "white" }}
+                        data-testid="input-password-recovery-sheet-url"
+                      />
+                      <Button
+                        variant="outline"
+                        size="default"
+                        disabled={!prSheetUrl.includes("docs.google.com") || prIsTesting}
+                        style={{ borderColor: "#52525b", color: "white", whiteSpace: "nowrap" }}
+                        data-testid="button-test-password-recovery-sheet"
+                        onClick={async () => {
+                          setPrIsTesting(true);
+                          setPrTestResult(null);
+                          try {
+                            const res = await apiRequest("POST", "/api/merchant/password-recovery-config/test-sheet", { googleSheetUrl: prSheetUrl });
+                            const data = await res.json();
+                            setPrTestResult({ success: data.success, message: data.message || data.error });
+                          } catch {
+                            setPrTestResult({ success: false, message: "Failed to test sheet connection" });
+                          } finally {
+                            setPrIsTesting(false);
+                          }
+                        }}
+                      >
+                        {prIsTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                        <span className="ml-1.5">Test</span>
+                      </Button>
+                    </div>
+                    {prTestResult && (
+                      <p className="text-xs" style={{ color: prTestResult.success ? "#86efac" : "#fca5a5" }}>
+                        {prTestResult.success ? <CheckCircle2 className="w-3 h-3 inline mr-1" /> : <X className="w-3 h-3 inline mr-1" />}
+                        {prTestResult.message}
+                      </p>
+                    )}
+                    <p className="text-xs" style={{ color: "#71717a" }}>Sheet must be set to <strong style={{ color: "#a1a1aa" }}>Public (Anyone with the link can view)</strong> in Google Sheets sharing settings.</p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label style={{ color: "#d4d4d8" }}>Additional AI Instructions <span style={{ color: "#71717a" }}>(optional)</span></Label>
+                    <Textarea
+                      value={prInstructions}
+                      onChange={(e) => setPrInstructions(e.target.value)}
+                      placeholder="e.g. Ask for the customer's registered phone number before proceeding..."
+                      rows={2}
+                      style={{ backgroundColor: "#27272a", borderColor: "#3f3f46", color: "white", resize: "none" }}
+                      data-testid="input-password-recovery-instructions"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="default"
+                  disabled={prIsSaving}
+                  style={{ borderColor: "#52525b", color: "white" }}
+                  data-testid="button-save-password-recovery-config"
+                  onClick={async () => {
+                    setPrIsSaving(true);
+                    try {
+                      await apiRequest("PUT", "/api/merchant/password-recovery-config", {
+                        googleSheetUrl: prSheetUrl,
+                        isEnabled: prEnabled,
+                        aiInstructions: prInstructions,
+                      });
+                      queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config"] });
+                      toast({ title: "Password Recovery config saved", description: prEnabled ? "AI will now handle password recovery requests." : "Password Recovery is disabled." });
+                    } catch {
+                      toast({ title: "Failed to save config", variant: "destructive" });
+                    } finally {
+                      setPrIsSaving(false);
+                    }
+                  }}
+                >
+                  {prIsSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Save className="w-4 h-4 mr-1.5" />}
+                  Save Configuration
+                </Button>
               </div>
             </div>
 
