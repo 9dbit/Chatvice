@@ -3153,7 +3153,7 @@ export default function KnowledgePage() {
                       data-testid="input-password-recovery-writeback-url"
                     />
                     <p className="text-xs" style={{ color: "#71717a" }}>
-                      When a customer requests a reset, the server POSTs <code style={{ color: "#a1a1aa" }}>{"{ username, action: \"request\" }"}</code> to this URL so your Apps Script can generate a new password and write it to the sheet.
+                      When a customer requests a reset, the server POSTs <code style={{ color: "#a1a1aa" }}>{"{ rowNumber, newStatus: \"request\" }"}</code> to this URL so your Apps Script can locate the exact row, generate a new password, and write it back to the sheet.
                     </p>
                   </div>
 

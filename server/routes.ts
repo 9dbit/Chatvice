@@ -601,6 +601,8 @@ interface PassRecovPollEntry {
   sheetCsvUrl: string;
   configId: string;
   startedAt: number;
+  /** Snapshot of newPassword at request creation — delivery only fires when this changes */
+  baselineNewPassword: string;
 }
 const passwordRecoveryPollRegistry = new Map<string, PassRecovPollEntry>();
 
@@ -626,8 +628,9 @@ function startPasswordRecoverySessionPoller() {
         const matchRow = rows.find(r => r.rowIndex === entry.rowIndex) ||
                          rows.find(r => r.username.toLowerCase() === entry.username.toLowerCase());
 
-        // Trigger on newPassword being filled — status "ok" is optional/secondary.
-        if (matchRow && matchRow.newPassword) {
+        // Trigger when newPassword is non-empty AND different from the baseline
+        // captured at request creation — guards against delivering stale/pre-existing values.
+        if (matchRow && matchRow.newPassword && matchRow.newPassword !== entry.baselineNewPassword) {
           const deliveryMsg = `Password baru akun **${entry.username}** Anda telah disiapkan:\n\n\`${matchRow.newPassword}\`\n\nSilakan segera login dan ubah ke password baru yang lebih aman.`;
           await storage.createMessage({ sessionId, from: "chatvice", content: deliveryMsg });
           broadcastToSessionExternal(sessionId, { type: "message", message: { from: "chatvice", content: deliveryMsg } });
@@ -6821,7 +6824,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                         status: "pending",
                       });
 
-                      // Register session-level poll with rowIndex for precise matching
+                      // Register session-level poll with rowIndex and baseline password
+                      // so delivery only fires when newPassword actually changes (avoids stale data)
                       passwordRecoveryPollRegistry.set(sessionId, {
                         requestId: prRequestId,
                         merchantId: resolvedMerchantId,
@@ -6830,6 +6834,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                         sheetCsvUrl: prConfig.sheetCsvUrl,
                         configId: prConfig.id,
                         startedAt: Date.now(),
+                        baselineNewPassword: matchRow.newPassword || "",
                       });
 
                       const pendingMsg = `Permintaan reset password untuk akun **${prUsername}** telah diterima dan sedang diproses. Anda akan menerima password baru melalui chat ini secara otomatis. Mohon tetap di sini.`;
@@ -6846,7 +6851,17 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                   if (prConfig.id) {
                     await storage.updatePasswordRecoveryLastSynced(prConfig.id).catch(() => {});
                   }
+                } else {
+                  // CSV fetch failed — sheet URL may be wrong or temporarily unavailable
+                  const fetchFailMsg = `Layanan password recovery tidak dapat mengakses data saat ini. Silakan coba lagi dalam beberapa menit atau hubungi tim dukungan kami.`;
+                  await storage.createMessage({ sessionId, from: "chatvice", content: fetchFailMsg });
+                  broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: fetchFailMsg } });
                 }
+              } else {
+                // Config not found or not active — feature not enabled for this merchant/agent
+                const configMissingMsg = `Maaf, layanan password recovery belum tersedia saat ini. Silakan hubungi tim dukungan kami untuk bantuan lebih lanjut.`;
+                await storage.createMessage({ sessionId, from: "chatvice", content: configMissingMsg });
+                broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: configMissingMsg } });
               }
             }
           }
