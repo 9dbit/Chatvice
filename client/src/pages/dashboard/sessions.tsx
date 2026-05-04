@@ -1283,7 +1283,7 @@ export default function SessionsPage() {
               data-testid="button-open-blast"
             >
               <Megaphone className="w-4 h-4" />
-              <span className="hidden sm:inline">Blast</span>
+              <span className="hidden sm:inline">Blast Message</span>
             </Button>
             <Button
               variant={soundEnabled ? "ghost" : "outline"}
