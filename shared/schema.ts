@@ -2676,6 +2676,7 @@ export const blastCampaigns = pgTable("blast_campaigns", {
   matchedCount: integer("matched_count").notNull().default(0),
   deliveredCount: integer("delivered_count").notNull().default(0),
   failedCount: integer("failed_count").notNull().default(0),
+  // status contract: "scheduled" | "sending" (in-flight, atomic lock) | "sent" | "cancelled"
   status: text("status").notNull().default("scheduled"),
   scheduledFor: timestamp("scheduled_for"),
   sentAt: timestamp("sent_at"),

@@ -20350,6 +20350,7 @@ ${log.extractedKnowledge}` : ''}
       };
 
       if (!message?.trim()) return res.status(400).json({ error: "Message is required" });
+      if (message.trim().length > 1000) return res.status(400).json({ error: "Message cannot exceed 1000 characters" });
 
       // Validate scheduledFor: must be a valid timestamp, in the future, and ≤30 days out
       let scheduledDate: Date | null = null;
