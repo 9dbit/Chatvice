@@ -9963,6 +9963,11 @@ Rules:
       const { createPaypalProduct, createPaypalBillingPlan, createPaypalSubscription } = await import('./paypal');
       const { getEffectiveSubscriptionPlan: getPlan } = await import('./subscriptionPlanUtils');
 
+      // PayPal auto-renewal is monthly-only — annual plans must not create recurring subscriptions
+      if (merchant.billingInterval === 'annual') {
+        return res.status(400).json({ error: "PayPal auto-renewal is only available for monthly plans" });
+      }
+
       const planId = merchant.subscriptionPlanId || 'starter';
       const plan = await getPlan(planId);
       if (!plan) return res.status(400).json({ error: "No active plan found" });
@@ -10027,12 +10032,14 @@ Rules:
 
       await storage.updateMerchantSubscription(merchant.id, {
         paypalSubscriptionId: null,
+        paymentProvider: null,
       });
 
       res.json({ success: true, message: "PayPal auto-renewal cancelled" });
-    } catch (error: any) {
-      console.error("PayPal subscription cancel error:", error);
-      res.status(500).json({ error: error.message || "Failed to cancel PayPal subscription" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("PayPal subscription cancel error:", err);
+      res.status(500).json({ error: msg || "Failed to cancel PayPal subscription" });
     }
   });
 
