@@ -10082,42 +10082,27 @@ Rules:
         console.log(`[PayPal Webhook] Subscription activated for merchant ${merchant.id}`);
       }
 
-      // BILLING.SUBSCRIPTION.RENEWED is the canonical event for monthly subscription cycles.
-      // We deliberately do NOT process PAYMENT.SALE.COMPLETED for subscriptions because
-      // PayPal can emit both for the same billing cycle, which would cause double-extension.
-      // PAYMENT.SALE.COMPLETED with a billing_agreement_id is a subscription payment receipt —
-      // we acknowledge it but skip the renewal logic to avoid duplication.
-      if (eventType === 'PAYMENT.SALE.COMPLETED') {
-        const isSubscriptionPayment = !!(event?.resource?.billing_agreement_id);
-        if (isSubscriptionPayment) {
-          console.log(`[PayPal Webhook] PAYMENT.SALE.COMPLETED for subscription — acknowledged, handled by BILLING.SUBSCRIPTION.RENEWED`);
-          return res.status(200).json({ received: true });
-        }
-        // Non-subscription sale completed — no action needed in this context
-        return res.status(200).json({ received: true });
-      }
-
-      if (eventType === 'BILLING.SUBSCRIPTION.RENEWED') {
-        const subscriptionId = event?.resource?.id;
-        // Use top-level event ID as the idempotency key (unique per PayPal event)
-        const paymentEventId = event?.id;
-
-        if (!subscriptionId) return res.status(200).json({ received: true });
-
-        // Idempotency: skip if we already processed this exact renewal event
-        if (paymentEventId) {
-          const existing = await storage.getPaymentTransactionByExternalId(paymentEventId);
-          if (existing) {
-            console.log(`[PayPal Webhook] Event ${paymentEventId} already processed (tx ${existing.id}), skipping`);
-            return res.status(200).json({ received: true });
-          }
+      // Helper: perform subscription renewal side-effects idempotently.
+      // cycleKey is a per-billing-cycle idempotency key shared between
+      // PAYMENT.SALE.COMPLETED and BILLING.SUBSCRIPTION.RENEWED so whichever
+      // arrives first processes the renewal; the other is a no-op.
+      const processPaypalRenewal = async (
+        subscriptionId: string,
+        cycleKey: string,
+        amountUsd: number
+      ): Promise<void> => {
+        // Idempotency: skip if we already processed this billing cycle
+        const existing = await storage.getPaymentTransactionByExternalId(cycleKey);
+        if (existing) {
+          console.log(`[PayPal Webhook] Cycle ${cycleKey} already processed (tx ${existing.id}), skipping`);
+          return;
         }
 
         const allMerchants = await storage.getAllMerchants();
         const merchant = allMerchants.find(m => m.paypalSubscriptionId === subscriptionId);
         if (!merchant) {
           console.log(`[PayPal Webhook] No merchant for subscription ${subscriptionId}, skipping`);
-          return res.status(200).json({ received: true });
+          return;
         }
 
         // Extend subscription 30 days from current period end or now
@@ -10133,8 +10118,6 @@ Rules:
           expiryReminder3dSentAt: null,
         });
 
-        // Record billing transaction (use canonical event ID as externalId for dedup)
-        const amountUsd = parseFloat(event?.resource?.amount?.total || '0');
         const savedRate = await storage.getPlatformSetting("exchange_rate");
         const exchangeRate = savedRate ? parseInt(savedRate) : 16500;
         const amountIDR = Math.round(amountUsd * exchangeRate);
@@ -10148,7 +10131,7 @@ Rules:
           amount: amountIDR || 0,
           status: 'completed',
           gatewayName: 'PayPal',
-          externalId: paymentEventId || undefined,
+          externalId: cycleKey,
           paymentMethod: 'paypal_subscription',
           planId: merchant.subscriptionPlanId || 'unknown',
           planName,
@@ -10160,7 +10143,6 @@ Rules:
           invoiceNumber: invoiceNum,
         });
 
-        // Send payment receipt
         const { sendPaymentReceiptEmail } = await import('./resendClient');
         sendPaymentReceiptEmail({
           merchantEmail: merchant.email,
@@ -10174,7 +10156,36 @@ Rules:
           invoiceNumber: invoiceNum,
         }).catch(err => console.error('[PayPal Webhook] Receipt email error:', err));
 
-        console.log(`[PayPal Webhook] Renewed subscription for merchant ${merchant.id}, new period end: ${newPeriodEnd.toISOString()}`);
+        console.log(`[PayPal Webhook] Renewed subscription ${subscriptionId} via ${cycleKey}, new period end: ${newPeriodEnd.toISOString()}`);
+      };
+
+      // PAYMENT.SALE.COMPLETED fires when a subscription payment is collected.
+      // We process it with a per-billing-cycle idempotency key so that if
+      // BILLING.SUBSCRIPTION.RENEWED also fires for the same cycle, the second
+      // event is a no-op (both keys resolve to the same cycleKey).
+      if (eventType === 'PAYMENT.SALE.COMPLETED') {
+        const billingAgreementId = event?.resource?.billing_agreement_id;
+        if (billingAgreementId) {
+          const createTime: string = event?.resource?.create_time || new Date().toISOString();
+          const yyyyMM = createTime.slice(0, 7).replace('-', '_'); // "2025_04"
+          const cycleKey = `paypal_cycle_${billingAgreementId}_${yyyyMM}`;
+          const amountUsd = parseFloat(event?.resource?.amount?.total || '0');
+          await processPaypalRenewal(billingAgreementId, cycleKey, amountUsd);
+        }
+        return res.status(200).json({ received: true });
+      }
+
+      if (eventType === 'BILLING.SUBSCRIPTION.RENEWED') {
+        const subscriptionId = event?.resource?.id;
+        if (!subscriptionId) return res.status(200).json({ received: true });
+
+        // Shared cycle key: same format as PAYMENT.SALE.COMPLETED uses so only
+        // one of the two events performs the renewal — whichever arrives first wins.
+        const eventTime: string = event?.create_time || new Date().toISOString();
+        const yyyyMM = eventTime.slice(0, 7).replace('-', '_');
+        const cycleKey = `paypal_cycle_${subscriptionId}_${yyyyMM}`;
+        const amountUsd = parseFloat(event?.resource?.amount?.total || '0');
+        await processPaypalRenewal(subscriptionId, cycleKey, amountUsd);
       }
 
       if (eventType === 'BILLING.SUBSCRIPTION.CANCELLED' || eventType === 'BILLING.SUBSCRIPTION.SUSPENDED') {
