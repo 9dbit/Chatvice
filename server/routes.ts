@@ -6798,6 +6798,28 @@ Sitemap: ${baseUrl}/sitemap.xml`;
               await storage.createMessage({ sessionId, from: "chatvice", content: missingMsg });
               broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: missingMsg } });
             } else {
+              // Normalizers for deterministic identity matching (no substring tricks)
+              const normalizePhone = (p: string) => {
+                let d = p.replace(/\D/g, "");
+                if (d.startsWith("62")) d = d.slice(2);
+                if (d.startsWith("0")) d = d.slice(1);
+                return d;
+              };
+              const normalizeBank = (b: string) => b.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+
+              const prBankNorm = normalizeBank(prBank);
+              const prPhoneNorm = normalizePhone(prPhone);
+
+              // Minimum-length guards — reject ambiguous/partial credentials before lookup
+              if (prBankNorm.length < 2) {
+                const tooShortMsg = `Nama bank yang Anda masukkan terlalu pendek. Mohon masukkan nama bank lengkap (misalnya: BCA, Mandiri, BRI).`;
+                await storage.createMessage({ sessionId, from: "chatvice", content: tooShortMsg });
+                broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: tooShortMsg } });
+              } else if (prPhoneNorm.length < 8) {
+                const tooShortMsg = `Nomor HP yang Anda masukkan terlalu pendek atau tidak valid. Mohon masukkan nomor HP lengkap minimal 8 digit.`;
+                await storage.createMessage({ sessionId, from: "chatvice", content: tooShortMsg });
+                broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: tooShortMsg } });
+              } else {
               // Use session's assigned agentId to match the agent that generated the signal
               const prAgentId = existingSession?.agentId || merchant.activeAgentId || undefined;
               const prConfig = await storage.getPasswordRecoveryConfig(resolvedMerchantId, prAgentId);
@@ -6806,15 +6828,15 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                 if (csvText) {
                   const { rows } = parsePRCsv(csvText);
 
-                  // Identity verification: ALL THREE fields required — username + bank + phone must all match
+                  // Identity verification: exact normalized match for all three fields (username, bank, phone)
                   const matchRow = rows.find(row => {
-                    if (row.username.toLowerCase() !== prUsername.toLowerCase()) return false;
-                    const bankOk = row.bank.toLowerCase().includes(prBank.toLowerCase()) || prBank.toLowerCase().includes(row.bank.toLowerCase());
-                    if (!bankOk) return false;
-                    // Phone is always required (guaranteed non-empty by outer check above)
-                    if (!row.phone) return false; // Row has no phone — cannot verify
-                    const phoneOk = row.phone.replace(/\D/g, "").endsWith(prPhone.replace(/\D/g, "").slice(-8));
-                    return phoneOk;
+                    if (row.username.toLowerCase().trim() !== prUsername.toLowerCase().trim()) return false;
+                    // Bank: exact normalized match — no substring tricks
+                    if (normalizeBank(row.bank) !== prBankNorm) return false;
+                    // Phone is always required — row must have a phone value
+                    if (!row.phone) return false;
+                    // Phone: exact normalized match after stripping country code / leading zero
+                    return normalizePhone(row.phone) === prPhoneNorm;
                   }) ?? null;
 
                   if (!prIsReset) {
@@ -6907,6 +6929,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                 await storage.createMessage({ sessionId, from: "chatvice", content: configMissingMsg });
                 broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: configMissingMsg } });
               }
+              } // close min-length guard else block
             }
           }
         } catch (passRecovErr) {
