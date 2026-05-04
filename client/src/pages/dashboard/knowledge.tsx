@@ -29,7 +29,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import type { Merchant, CrawledLink, Agent, SuggestedQuestion, KnowledgebaseArticle, Source, KnowledgeEntry } from "@shared/schema";
+import type { Merchant, CrawledLink, Agent, SuggestedQuestion, KnowledgebaseArticle, Source, KnowledgeEntry, PasswordRecoveryRequest } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 import { PlanLimitPopup } from "@/components/plan-limit-popup";
 
@@ -810,6 +810,18 @@ export default function KnowledgePage() {
       return res.json();
     },
     enabled: !!merchantId,
+  });
+
+  // Password Recovery request history — auto-refreshes every 10s while on the sources tab
+  const { data: prRequests = [], isLoading: prRequestsLoading, isError: prRequestsError } = useQuery<PasswordRecoveryRequest[]>({
+    queryKey: ["/api/merchant/password-recovery-requests"],
+    queryFn: async () => {
+      const res = await fetch("/api/merchant/password-recovery-requests", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch password recovery requests");
+      return res.json();
+    },
+    enabled: !!merchantId && activeTab === "sources",
+    refetchInterval: activeTab === "sources" ? 10000 : false,
   });
 
   // Sync PR config to local state when fetched (only if user hasn't started editing)
@@ -3276,6 +3288,103 @@ export default function KnowledgePage() {
                     </Button>
                   )}
                 </div>
+              </div>
+            </div>
+
+            {/* Password Recovery Request History */}
+            <div className="rounded-lg bg-zinc-800 dark:bg-zinc-900 overflow-hidden" data-testid="card-password-recovery-history">
+              <div className="p-4 space-y-3" style={{ color: "white" }}>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 shrink-0" style={{ color: "#a1a1aa" }} />
+                    <h3 className="font-semibold" style={{ color: "white" }}>Password Reset Request History</h3>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {prRequestsLoading ? (
+                      <Loader2 className="w-3 h-3 animate-spin" style={{ color: "#71717a" }} />
+                    ) : (
+                      <RefreshCw className="w-3 h-3" style={{ color: "#71717a" }} />
+                    )}
+                    <span className="text-xs" style={{ color: "#71717a" }}>Auto-refreshes every 10s</span>
+                  </div>
+                </div>
+
+                {prRequestsLoading && prRequests.length === 0 ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-9 w-full rounded-md" style={{ backgroundColor: "#3f3f46" }} />
+                    ))}
+                  </div>
+                ) : prRequestsError ? (
+                  <p className="text-sm py-4 text-center" style={{ color: "#fca5a5" }}>
+                    Failed to load request history. The auto-refresh will retry shortly.
+                  </p>
+                ) : prRequests.length === 0 ? (
+                  <p className="text-sm py-4 text-center" style={{ color: "#71717a" }}>
+                    No password recovery requests yet. Requests will appear here once customers initiate a password reset or retrieve flow.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                      <thead>
+                        <tr style={{ borderBottom: "1px solid #3f3f46" }}>
+                          <th className="text-left py-2 pr-4 text-xs font-medium" style={{ color: "#a1a1aa" }}>Username</th>
+                          <th className="text-left py-2 pr-4 text-xs font-medium" style={{ color: "#a1a1aa" }}>Request Type</th>
+                          <th className="text-left py-2 pr-4 text-xs font-medium" style={{ color: "#a1a1aa" }}>Status</th>
+                          <th className="text-left py-2 pr-4 text-xs font-medium" style={{ color: "#a1a1aa" }}>Created At</th>
+                          <th className="text-left py-2 text-xs font-medium" style={{ color: "#a1a1aa" }}>Delivered At</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...prRequests].sort((a, b) => {
+                          const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                          const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                          return tb - ta;
+                        }).map((req) => {
+                          const statusColor: Record<string, string> = {
+                            pending: "#fbbf24",
+                            ready: "#60a5fa",
+                            delivered: "#86efac",
+                            failed: "#fca5a5",
+                          };
+                          const statusLabel: Record<string, string> = {
+                            pending: "Pending",
+                            ready: "Ready",
+                            delivered: "Delivered",
+                            failed: "Failed",
+                          };
+                          return (
+                            <tr
+                              key={req.id}
+                              style={{ borderBottom: "1px solid #27272a" }}
+                              data-testid={`row-pr-request-${req.id}`}
+                            >
+                              <td className="py-2 pr-4 font-mono text-xs" style={{ color: "#e4e4e7" }} data-testid={`text-pr-username-${req.id}`}>
+                                {req.username}
+                              </td>
+                              <td className="py-2 pr-4" data-testid={`text-pr-type-${req.id}`}>
+                                <span className="text-xs px-2 py-0.5 rounded-md capitalize" style={{ backgroundColor: "#3f3f46", color: "#d4d4d8", border: "1px solid #52525b" }}>
+                                  {req.requestType === "reset" ? "Reset" : "Retrieve"}
+                                </span>
+                              </td>
+                              <td className="py-2 pr-4" data-testid={`text-pr-status-${req.id}`}>
+                                <span className="text-xs font-medium" style={{ color: statusColor[req.status] || "#a1a1aa" }}>
+                                  {statusLabel[req.status] || req.status}
+                                </span>
+                              </td>
+                              <td className="py-2 pr-4 text-xs" style={{ color: "#a1a1aa" }} data-testid={`text-pr-created-${req.id}`}>
+                                {req.createdAt ? new Date(req.createdAt).toLocaleString() : "—"}
+                              </td>
+                              <td className="py-2 text-xs" style={{ color: "#a1a1aa" }} data-testid={`text-pr-delivered-${req.id}`}>
+                                {req.deliveredAt ? new Date(req.deliveredAt).toLocaleString() : "—"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
 
