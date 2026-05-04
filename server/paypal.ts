@@ -325,7 +325,8 @@ export interface PaypalSubscription {
   start_time?: string;
   billing_info?: {
     next_billing_time?: string;
-    last_payment?: { amount?: { value?: string } };
+    failed_payments_count?: number;
+    last_payment?: { amount?: { value?: string }; time?: string };
   };
   links?: Array<{ rel: string; href: string }>;
 }

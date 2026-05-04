@@ -235,6 +235,22 @@ export default function BillingPage() {
     queryKey: ["/api/billing/transactions"],
   });
 
+  // Fetch live PayPal subscription status (only when merchant has an active PayPal subscription)
+  interface PaypalSubscriptionStatus {
+    status: string;
+    nextBillingTime: string | null;
+    lastPaymentAmount: string | null;
+    lastPaymentStatus: 'succeeded' | 'failed' | 'pending';
+    subscriptionId: string;
+  }
+  const hasPaypalSub = !!(billingStatus?.paypalSubscriptionId && billingStatus.paymentProvider === 'paypal');
+  const { data: paypalSubStatus, isLoading: isLoadingPaypalStatus } = useQuery<PaypalSubscriptionStatus>({
+    queryKey: ["/api/paypal/subscription/status"],
+    enabled: hasPaypalSub,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
   // Fetch addon configs and merchant addons for the Additional Services section
   const { data: addonConfigs = [] } = useQuery<any[]>({
     queryKey: ["/api/addon-configs"],
@@ -2226,13 +2242,65 @@ export default function BillingPage() {
           </CardHeader>
           <CardContent>
             {billingStatus.paypalSubscriptionId ? (
-              <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="space-y-4">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   {billingStatus.paymentProvider === 'paypal'
                     ? <CheckCircle className="w-4 h-4 text-green-500" />
                     : <Loader2 className="w-4 h-4 animate-spin text-yellow-500" />}
                   <span>{billingStatus.paymentProvider === 'paypal' ? 'Auto-renewing monthly via PayPal' : 'Awaiting PayPal activation confirmation...'}</span>
                 </div>
+
+                {billingStatus.paymentProvider === 'paypal' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="paypal-subscription-status-panel">
+                    <div className="rounded-md bg-muted/50 px-3 py-2.5">
+                      <p className="text-xs text-muted-foreground mb-0.5">Next billing date</p>
+                      {isLoadingPaypalStatus ? (
+                        <Skeleton className="h-4 w-24 mt-1" />
+                      ) : paypalSubStatus?.nextBillingTime ? (
+                        <p className="text-sm font-medium" data-testid="text-paypal-next-billing-date">
+                          {format(new Date(paypalSubStatus.nextBillingTime), 'MMM d, yyyy')}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">—</p>
+                      )}
+                    </div>
+                    <div className="rounded-md bg-muted/50 px-3 py-2.5">
+                      <p className="text-xs text-muted-foreground mb-0.5">Last payment amount</p>
+                      {isLoadingPaypalStatus ? (
+                        <Skeleton className="h-4 w-16 mt-1" />
+                      ) : paypalSubStatus?.lastPaymentAmount ? (
+                        <p className="text-sm font-medium" data-testid="text-paypal-last-payment-amount">
+                          ${paypalSubStatus.lastPaymentAmount} USD
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">—</p>
+                      )}
+                    </div>
+                    <div className="rounded-md bg-muted/50 px-3 py-2.5">
+                      <p className="text-xs text-muted-foreground mb-0.5">Last payment</p>
+                      {isLoadingPaypalStatus ? (
+                        <Skeleton className="h-4 w-20 mt-1" />
+                      ) : paypalSubStatus?.lastPaymentStatus ? (
+                        <p
+                          className={`text-sm font-medium capitalize ${
+                            paypalSubStatus.lastPaymentStatus === 'succeeded'
+                              ? 'text-green-600 dark:text-green-400'
+                              : paypalSubStatus.lastPaymentStatus === 'failed'
+                              ? 'text-red-600 dark:text-red-400'
+                              : 'text-yellow-600 dark:text-yellow-400'
+                          }`}
+                          data-testid="text-paypal-last-payment-status"
+                        >
+                          {paypalSubStatus.lastPaymentStatus}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">—</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end">
                 <Button
                   variant="outline"
                   size="sm"
@@ -2258,6 +2326,7 @@ export default function BillingPage() {
                 >
                   {paypalAutoRenewalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Cancel Auto-Renewal'}
                 </Button>
+                </div>
               </div>
             ) : (
               <div className="flex items-start justify-between gap-4 flex-wrap">

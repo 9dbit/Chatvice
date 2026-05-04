@@ -10049,6 +10049,54 @@ Rules:
     }
   });
 
+  // In-process cache for PayPal subscription status (5-minute TTL)
+  const paypalStatusCache = new Map<string, { data: object; expiresAt: number }>();
+
+  app.get("/api/paypal/subscription/status", requireMerchant, async (req, res) => {
+    try {
+      const merchant = await storage.getMerchant(req.session.merchantId!);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+      if (!merchant.paypalSubscriptionId) return res.status(404).json({ error: "No active PayPal subscription" });
+
+      const cacheKey = merchant.paypalSubscriptionId;
+      const now = Date.now();
+      const cached = paypalStatusCache.get(cacheKey);
+      if (cached && cached.expiresAt > now) {
+        return res.json(cached.data);
+      }
+
+      const { getPaypalSubscription } = await import('./paypal');
+      const subscription = await getPaypalSubscription(merchant.paypalSubscriptionId);
+
+      const failedCount = subscription.billing_info?.failed_payments_count ?? 0;
+      const hasLastPayment = !!(subscription.billing_info?.last_payment?.amount?.value);
+      // Derive a human-readable last payment outcome from subscription state + failed-payments count
+      let lastPaymentStatus: 'succeeded' | 'failed' | 'pending';
+      if (failedCount > 0 || subscription.status === 'SUSPENDED') {
+        lastPaymentStatus = 'failed';
+      } else if (hasLastPayment) {
+        lastPaymentStatus = 'succeeded';
+      } else {
+        lastPaymentStatus = 'pending';
+      }
+
+      const result = {
+        status: subscription.status,
+        nextBillingTime: subscription.billing_info?.next_billing_time ?? null,
+        lastPaymentAmount: subscription.billing_info?.last_payment?.amount?.value ?? null,
+        lastPaymentStatus,
+        subscriptionId: subscription.id,
+      };
+
+      paypalStatusCache.set(cacheKey, { data: result, expiresAt: now + 5 * 60 * 1000 });
+      res.json(result);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("PayPal subscription status error:", err);
+      res.status(500).json({ error: msg || "Failed to fetch PayPal subscription status" });
+    }
+  });
+
   // PayPal Subscription Webhook - handles recurring payment events
   app.post("/api/paypal/webhook", async (req, res) => {
     try {
