@@ -279,66 +279,87 @@ export default function IntegrationsPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredIntegrations.map((integration) => (
-          <Card 
-            key={integration.id} 
-            className="hover-elevate transition-all"
-            data-testid={`card-integration-${integration.id}`}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                    <integration.icon className="w-5 h-5 sm:w-6 sm:h-6" />
+        {filteredIntegrations.map((integration) => {
+          const categoryIconBg: Record<string, string> = {
+            notifications: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+            messaging: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+            crm: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+            ecommerce: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
+            helpdesk: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+          };
+          const iconBgClass = categoryIconBg[integration.category] ?? "bg-muted text-muted-foreground";
+          const isConnected = integration.status === "connected";
+
+          return (
+            <Card 
+              key={integration.id} 
+              className={`hover-elevate transition-all ${isConnected ? "ring-1 ring-green-500/30" : ""}`}
+              data-testid={`card-integration-${integration.id}`}
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-start gap-3">
+                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${iconBgClass}`}>
+                    <integration.icon className="w-6 h-6" />
                   </div>
-                  <div className="min-w-0">
-                    <CardTitle className="text-base sm:text-lg flex items-center gap-2 flex-wrap">
-                      {integration.name}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <CardTitle className="text-sm font-semibold">
+                        {integration.name}
+                      </CardTitle>
                       {integration.popular && (
-                        <Badge variant="secondary" className="text-xs">Popular</Badge>
+                        <Badge variant="secondary" className="text-[10px]">Popular</Badge>
                       )}
-                    </CardTitle>
-                    <Badge 
-                      variant={integration.status === "connected" ? "default" : "outline"}
-                      className="mt-1 text-xs"
-                    >
-                      {integration.status === "connected" && <Check className="w-3 h-3 mr-1" />}
-                      {integration.status === "coming_soon" && <Clock className="w-3 h-3 mr-1" />}
-                      {integration.status === "available" && <Plug className="w-3 h-3 mr-1" />}
-                      {integration.status === "connected" ? "Connected" : 
-                       integration.status === "coming_soon" ? "Coming Soon" : "Available"}
-                    </Badge>
+                    </div>
+                    <div className="mt-1">
+                      {isConnected ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-600 dark:text-green-400">
+                          <Check className="w-3 h-3" />
+                          Connected
+                        </span>
+                      ) : integration.status === "coming_soon" ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                          <Clock className="w-3 h-3" />
+                          Coming Soon
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                          <Plug className="w-3 h-3" />
+                          Available
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <CardDescription className="text-sm mb-4 line-clamp-2">
-                {integration.description}
-              </CardDescription>
-              <Button 
-                variant={integration.status === "coming_soon" ? "outline" : "default"}
-                size="sm"
-                className="w-full"
-                disabled={integration.status === "coming_soon"}
-                onClick={() => handleIntegrationClick(integration)}
-                data-testid={`button-connect-${integration.id}`}
-              >
-                {integration.status === "connected" ? (
-                  <>
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Manage
-                  </>
-                ) : integration.status === "coming_soon" ? (
-                  "Coming Soon"
-                ) : (
-                  <>
-                    <Plug className="w-4 h-4 mr-2" />{t("dashboard.integrations.connect")}</>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+              </CardHeader>
+              <CardContent className="pt-0">
+                <CardDescription className="text-xs mb-4 line-clamp-2">
+                  {integration.description}
+                </CardDescription>
+                <Button 
+                  variant={isConnected ? "outline" : integration.status === "coming_soon" ? "outline" : "default"}
+                  size="sm"
+                  className="w-full"
+                  disabled={integration.status === "coming_soon"}
+                  onClick={() => handleIntegrationClick(integration)}
+                  data-testid={`button-connect-${integration.id}`}
+                >
+                  {isConnected ? (
+                    <>
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Manage
+                    </>
+                  ) : integration.status === "coming_soon" ? (
+                    "Coming Soon"
+                  ) : (
+                    <>
+                      <Plug className="w-4 h-4 mr-2" />{t("dashboard.integrations.connect")}
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {filteredIntegrations.length === 0 && (

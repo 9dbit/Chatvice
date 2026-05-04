@@ -263,17 +263,19 @@ export default function AnalyticsPage() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statsCards.map((stat, index) => (
-          <Card key={index} data-testid={`stat-card-${index}`}>
+          <Card key={index} data-testid={`stat-card-${index}`} className="relative overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-xs font-medium text-muted-foreground">
                 {stat.title}
               </CardTitle>
-              <stat.icon className="w-4 h-4 text-muted-foreground" />
+              <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <stat.icon className="w-4 h-4 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{stat.value}</div>
+              <div className="text-3xl font-bold tracking-tight">{stat.value}</div>
               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                <span className={stat.trend === "up" ? "text-green-500" : "text-red-500"}>
+                <span className={`font-medium ${stat.trend === "up" ? "text-green-500" : "text-red-500"}`}>
                   {stat.change}
                 </span>
                 from last week

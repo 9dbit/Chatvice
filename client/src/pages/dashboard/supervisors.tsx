@@ -601,12 +601,15 @@ export default function SupervisorsPage() {
             const assignedAgents = getAgentsForSupervisor(supervisor.id);
             const isEditing = editingId === supervisor.id;
             
+            const hasTelegram = !!(supervisor as any).telegramChatId;
+
             return (
               <Card key={supervisor.id} className="relative" data-testid={`card-supervisor-${supervisor.id}`}>
-                <CardContent className="pt-6">
+                <div className="absolute top-0 left-0 right-0 h-1 rounded-t-lg bg-primary/30" />
+                <CardContent className="pt-7">
                   <div className="flex flex-col items-center text-center mb-4">
                     <div className="relative mb-3">
-                      <Avatar className="w-20 h-20">
+                      <Avatar className="w-20 h-20 ring-2 ring-primary/20">
                         {isEditing ? (
                           <>
                             <AvatarImage src={photoUrl} />
@@ -621,7 +624,7 @@ export default function SupervisorsPage() {
                         ) : (
                           <>
                             <AvatarImage src={supervisor.photoUrl || ""} />
-                            <AvatarFallback className="bg-primary/10 text-primary font-medium text-xl">
+                            <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xl">
                               {getInitials(supervisor.name)}
                             </AvatarFallback>
                           </>
@@ -647,15 +650,28 @@ export default function SupervisorsPage() {
                         data-testid="input-edit-name"
                       />
                     ) : (
-                      <h3 className="font-semibold text-lg">{supervisor.name}</h3>
+                      <h3 className="font-semibold text-base">{supervisor.name}</h3>
                     )}
                     
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
-                      <Mail className="w-3 h-3" />
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2 mt-0.5">
+                      <Mail className="w-3 h-3 flex-shrink-0" />
                       <span className="truncate max-w-[180px]">{supervisor.email}</span>
                     </div>
+
+                    <div className="flex items-center gap-2 flex-wrap justify-center">
+                      <Badge variant="outline" className="text-[10px] font-medium">
+                        Supervisor
+                      </Badge>
+                      {hasTelegram && (
+                        <Badge variant="secondary" className="text-[10px] font-medium text-blue-500">
+                          Telegram Linked
+                        </Badge>
+                      )}
+                    </div>
                     
-                    <ResponseTimeBadge avgResponseTime={mockResponseTime} />
+                    <div className="mt-2">
+                      <ResponseTimeBadge avgResponseTime={mockResponseTime} />
+                    </div>
                   </div>
 
                   <Separator className="my-4" />

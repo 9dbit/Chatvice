@@ -3952,43 +3952,55 @@ export default function KnowledgePage() {
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filteredArticles.map((article) => (
-                  <Card key={article.id} className="hover-elevate cursor-pointer" data-testid={`card-article-${article.id}`}>
-                    <CardHeader className="pb-2">
+                  <Card key={article.id} className="hover-elevate cursor-pointer flex flex-col" data-testid={`card-article-${article.id}`}>
+                    <CardHeader className="pb-2 flex-shrink-0">
                       <div className="flex items-start justify-between gap-2">
-                        <CardTitle className="text-base line-clamp-2">{article.title}</CardTitle>
-                        <Badge variant={article.status === "published" ? "default" : article.status === "archived" ? "secondary" : "outline"}>
+                        <div className="flex items-start gap-2 min-w-0">
+                          <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <BookOpen className="w-4 h-4 text-primary" />
+                          </div>
+                          <CardTitle className="text-sm font-semibold line-clamp-2 leading-snug">{article.title}</CardTitle>
+                        </div>
+                        <Badge
+                          variant={article.status === "published" ? "default" : article.status === "archived" ? "secondary" : "outline"}
+                          className="text-[10px] flex-shrink-0"
+                        >
                           {article.status}
                         </Badge>
                       </div>
                       {article.businessType && (
-                        <p className="text-xs text-muted-foreground">
-                          {getBusinessTypeLabel(article.businessType)} • {getCategoryLabel(article.businessType, article.businessCategory || "")}
+                        <p className="text-[10px] text-muted-foreground mt-1 pl-10">
+                          {getBusinessTypeLabel(article.businessType)}{article.businessCategory ? ` · ${getCategoryLabel(article.businessType, article.businessCategory)}` : ""}
                         </p>
                       )}
                     </CardHeader>
-                    <CardContent className="pb-2">
-                      <p className="text-sm text-muted-foreground line-clamp-3">
-                        {article.content.substring(0, 150)}...
+                    <CardContent className="pb-2 flex-1">
+                      <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
+                        {article.content.substring(0, 200)}
                       </p>
+                      <div className="flex items-center gap-1.5 mt-2 text-[10px] text-muted-foreground/70">
+                        <FileText className="w-3 h-3" />
+                        <span>{article.content.length.toLocaleString()} chars</span>
+                      </div>
                       {article.tags && article.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
                           {article.tags.slice(0, 3).map((tag, i) => (
-                            <Badge key={i} variant="secondary" className="text-xs">
+                            <Badge key={i} variant="secondary" className="text-[10px]">
                               {tag}
                             </Badge>
                           ))}
                           {article.tags.length > 3 && (
-                            <Badge variant="secondary" className="text-xs">+{article.tags.length - 3}</Badge>
+                            <Badge variant="secondary" className="text-[10px]">+{article.tags.length - 3}</Badge>
                           )}
                         </div>
                       )}
                     </CardContent>
-                    <CardFooter className="pt-2 flex justify-between">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <CardFooter className="pt-2 flex justify-between flex-shrink-0 border-t border-border/40 mt-auto">
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                         <Clock className="w-3 h-3" />
                         {formatDate(article.updatedAt || article.createdAt)}
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-0.5">
                         <Button size="icon" variant="ghost" onClick={(e) => {
                           e.stopPropagation();
                           setSelectedArticle(article);

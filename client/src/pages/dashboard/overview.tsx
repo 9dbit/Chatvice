@@ -411,27 +411,34 @@ export default function DashboardOverview() {
         </Card>
       </div>
 
-      {/* Original Stat Cards */}
+      {/* KPI Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {statCards.map((stat, index) => (
-          <Card key={index} data-testid={`card-stat-${index}`}>
-            <CardHeader className="flex flex-row items-center justify-between gap-1 sm:gap-2 pb-2 p-3 sm:p-6 sm:pb-2">
+          <Card key={index} data-testid={`card-stat-${index}`} className="relative overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between gap-1 sm:gap-2 pb-2 p-4 sm:p-5 sm:pb-2">
               <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground truncate">
                 {stat.title}
               </CardTitle>
-              <stat.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+              <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <stat.icon className="w-4 h-4 text-primary" />
+              </div>
             </CardHeader>
-            <CardContent className="p-3 sm:p-6 pt-0">
+            <CardContent className="p-4 sm:p-5 pt-0">
               {isLoading ? (
-                <Skeleton className="h-6 sm:h-8 w-16 sm:w-24" />
+                <Skeleton className="h-8 sm:h-10 w-20 sm:w-28 mb-1" />
               ) : (
                 <>
-                  <p className="text-lg sm:text-2xl font-bold" data-testid={`text-stat-${stat.title.toLowerCase().replace(/\s/g, '-')}`}>
+                  <p className="text-2xl sm:text-3xl font-bold tracking-tight" data-testid={`text-stat-${stat.title.toLowerCase().replace(/\s/g, '-')}`}>
                     {stat.value}
                   </p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate mt-1">
                     {stat.description}
                   </p>
+                  {stat.total !== null && stat.total !== undefined && (
+                    <p className="text-[10px] text-primary/70 font-medium mt-0.5">
+                      {stat.total} total
+                    </p>
+                  )}
                 </>
               )}
             </CardContent>

@@ -1200,11 +1200,16 @@ export default function SessionsPage() {
                                     </span>
                                   )}
                                 </div>
-                                <span className="text-[10px] text-muted-foreground whitespace-nowrap flex-shrink-0">
-                                  {session.lastActivity 
-                                    ? formatDistanceToNow(new Date(session.lastActivity), { addSuffix: false })
-                                    : ""}
-                                </span>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  <span className={`text-[9px] font-semibold px-1 py-0.5 rounded leading-none ${session.mode === "HUMAN" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
+                                    {session.mode === "HUMAN" ? "Human" : "AI"}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                    {session.lastActivity 
+                                      ? formatDistanceToNow(new Date(session.lastActivity), { addSuffix: false })
+                                      : ""}
+                                  </span>
+                                </div>
                               </div>
                               {/* Row 2: City + IP address when customer has a real name; hidden when customerName is IP */}
                               {session.customerName && !isIpAddress(session.customerName) ? (
