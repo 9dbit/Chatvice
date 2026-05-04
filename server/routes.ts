@@ -6829,7 +6829,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                 if (csvText) {
                   const { rows } = parsePRCsv(csvText);
 
-                  // Identity verification: exact normalized match for all three fields (username, bank, phone)
+                  // Identity verification: all three fields required — strict exact normalized match
+                  // (username + bank priority, but phone is always the final gate before disclosure)
+                  // This is intentionally stricter than "phone optional" to prevent credential leakage.
                   const matchRow = rows.find(row => {
                     if (row.username.toLowerCase().trim() !== prUsername.toLowerCase().trim()) return false;
                     // Bank: exact normalized match — no substring tricks

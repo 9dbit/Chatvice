@@ -815,10 +815,6 @@ export default function KnowledgePage() {
   // Sync PR config to local state when fetched (only if user hasn't started editing)
   const [prConfigLoaded, setPrConfigLoaded] = useState(false);
   useEffect(() => {
-    if (!prConfigLoaded) return;
-    // Already loaded for a previous agent — wait for explicit reset via setPrConfigLoaded(false)
-  }, []);
-  useEffect(() => {
     if (prConfigLoaded) return;
     if (prConfig === undefined) return; // Still loading — wait
     if (prConfig) {
