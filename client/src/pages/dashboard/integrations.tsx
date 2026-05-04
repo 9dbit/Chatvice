@@ -27,7 +27,7 @@ import {
   SiHubspot,
   SiIntercom,
 } from "react-icons/si";
-import { Search, ExternalLink, Check, Clock, Plug, Send, Bell, BellRing } from "lucide-react";
+import { Search, ExternalLink, Check, Clock, Plug, Send, Bell, BellRing, Sparkles, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { NotificationSetting } from "@shared/schema";
 
@@ -36,7 +36,7 @@ interface Integration {
   name: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
-  category: "messaging" | "crm" | "ecommerce" | "helpdesk" | "notifications";
+  category: "messaging" | "crm" | "ecommerce" | "helpdesk" | "notifications" | "payment" | "ai";
   status: "available" | "coming_soon" | "connected";
   popular?: boolean;
   configurable?: boolean;
@@ -48,6 +48,8 @@ const categoryLabels: Record<string, string> = {
   crm: "CRM",
   ecommerce: "E-Commerce",
   helpdesk: "Helpdesk",
+  payment: "Payment",
+  ai: "AI & Automation",
 };
 
 export default function IntegrationsPage() {
@@ -175,6 +177,40 @@ export default function IntegrationsPage() {
       status: "available",
       popular: true,
     },
+    {
+      id: "paypal",
+      name: "PayPal",
+      description: "Accept PayPal payments and let customers check order & payment status directly in chat.",
+      icon: Plug,
+      category: "payment",
+      status: "coming_soon",
+      popular: true,
+    },
+    {
+      id: "stripe",
+      name: "Stripe",
+      description: "Process card payments and surface invoice or subscription data in your AI responses.",
+      icon: Plug,
+      category: "payment",
+      status: "coming_soon",
+    },
+    {
+      id: "openai-gpt",
+      name: "OpenAI GPT",
+      description: "Underlying AI engine powering your chatbot responses. Monitor usage and configure model settings.",
+      icon: Sparkles,
+      category: "ai",
+      status: "connected",
+      popular: true,
+    },
+    {
+      id: "google-sheets-ai",
+      name: "Google Sheets AI",
+      description: "Real-time data lookup from Google Sheets — hotel availability, product catalog, and transaction records.",
+      icon: Plug,
+      category: "ai",
+      status: "available",
+    },
   ];
 
   const filteredIntegrations = integrations.filter((integration) => {
@@ -285,6 +321,8 @@ export default function IntegrationsPage() {
           crm: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
           ecommerce: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
           helpdesk: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+          payment: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400",
+          ai: "bg-primary/15 text-primary",
         };
         const categoryAccent: Record<string, string> = {
           notifications: "text-amber-600 dark:text-amber-400",
@@ -292,6 +330,8 @@ export default function IntegrationsPage() {
           crm: "text-emerald-600 dark:text-emerald-400",
           ecommerce: "text-violet-600 dark:text-violet-400",
           helpdesk: "text-rose-600 dark:text-rose-400",
+          payment: "text-cyan-600 dark:text-cyan-400",
+          ai: "text-primary",
         };
         const categoryIcon: Record<string, (props: { className?: string }) => JSX.Element | null> = {
           notifications: Bell,
@@ -299,6 +339,8 @@ export default function IntegrationsPage() {
           crm: ExternalLink,
           ecommerce: Plug,
           helpdesk: Plug,
+          payment: CreditCard,
+          ai: Sparkles,
         };
 
         const renderCard = (integration: Integration) => {

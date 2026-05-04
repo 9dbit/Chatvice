@@ -1244,6 +1244,31 @@ export default function SessionsPage() {
                                   </>
                                 )}
                               </div>
+                              {/* Row 4: Duration + Channel + Rating */}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {session.createdAt && (
+                                  <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
+                                    <Clock className="w-2.5 h-2.5" />
+                                    {(() => {
+                                      const start = new Date(session.createdAt).getTime();
+                                      const end = session.lastActivity ? new Date(session.lastActivity).getTime() : Date.now();
+                                      const mins = Math.floor((end - start) / 60000);
+                                      return mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
+                                    })()}
+                                  </span>
+                                )}
+                                <span className={`inline-flex items-center gap-0.5 text-[10px] ${/android|iphone|ipad|mobile|tablet/i.test(session.userAgent || "") ? "text-muted-foreground/70" : "text-muted-foreground/70"}`}>
+                                  {/android|iphone|ipad|mobile|tablet/i.test(session.userAgent || "")
+                                    ? <Smartphone className="w-2.5 h-2.5" />
+                                    : <Monitor className="w-2.5 h-2.5" />}
+                                  {/android|iphone|ipad|mobile|tablet/i.test(session.userAgent || "") ? "Mobile" : "Web"}
+                                </span>
+                                {session.customerRating && (
+                                  <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-500">
+                                    {"★".repeat(session.customerRating)}
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-xs text-muted-foreground line-clamp-1">
                                 <span className="text-foreground/70">Q:</span> {session.lastQuestion || (session.visitorSession ? "Proactive greeting sent" : "No messages yet")}
                               </p>

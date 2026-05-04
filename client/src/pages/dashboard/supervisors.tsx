@@ -630,6 +630,11 @@ export default function SupervisorsPage() {
                           </>
                         )}
                       </Avatar>
+                      <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-card ${
+                        supervisor.status === "online" ? "bg-green-500" :
+                        supervisor.status === "away" ? "bg-amber-500" :
+                        "bg-gray-400"
+                      }`} title={`Status: ${supervisor.status || "offline"}`} />
                       {isEditing && (
                         <button
                           type="button"
@@ -662,9 +667,19 @@ export default function SupervisorsPage() {
                       <Badge variant="outline" className="text-[10px] font-medium">
                         Supervisor
                       </Badge>
+                      <Badge
+                        variant="secondary"
+                        className={`text-[10px] font-medium ${
+                          supervisor.status === "online" ? "text-green-600 dark:text-green-400" :
+                          supervisor.status === "away" ? "text-amber-600 dark:text-amber-400" :
+                          "text-muted-foreground"
+                        }`}
+                      >
+                        {supervisor.status === "online" ? "Online" : supervisor.status === "away" ? "Away" : "Offline"}
+                      </Badge>
                       {hasTelegram && (
                         <Badge variant="secondary" className="text-[10px] font-medium text-blue-500">
-                          Telegram Linked
+                          Telegram
                         </Badge>
                       )}
                     </div>

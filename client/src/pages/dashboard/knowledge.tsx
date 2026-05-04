@@ -268,6 +268,10 @@ function SortableEntryCard({
                 </div>
                 <div className="flex items-center justify-between gap-1" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-1 flex-wrap">
+                    <Badge variant="outline" className="text-[9px] gap-0.5 px-1.5 py-0 text-primary border-primary/30">
+                      <Database className="w-2.5 h-2.5" />
+                      Training Data
+                    </Badge>
                     {entry.isLinked && (
                       <Badge variant="secondary" className="text-[9px] gap-0.5 px-1.5 py-0">
                         <Link2 className="w-2.5 h-2.5" />
