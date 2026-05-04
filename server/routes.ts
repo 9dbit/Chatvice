@@ -17,7 +17,7 @@ import {
 import OpenAI from "openai";
 import bcrypt from "bcryptjs";
 import session from "express-session";
-import MemoryStore from "memorystore";
+import connectPgSimple from "connect-pg-simple";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -2006,7 +2006,19 @@ export async function cleanupStaleVisitorSessions(): Promise<void> {
 }
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
-  const MemoryStoreSession = MemoryStore(session);
+  const PgSession = connectPgSimple(session);
+  const { pool } = await import("./db");
+
+  // Ensure the session table exists (idempotent — safe to run on every startup)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "session" (
+      "sid" varchar NOT NULL COLLATE "default",
+      "sess" json NOT NULL,
+      "expire" timestamp(6) NOT NULL,
+      CONSTRAINT "session_pkey" PRIMARY KEY ("sid") NOT DEFERRABLE INITIALLY IMMEDIATE
+    ) WITH (OIDS=FALSE);
+    CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+  `);
   
   // Trust proxy for production (required for secure cookies behind load balancer/reverse proxy)
   app.set("trust proxy", true);
@@ -2096,8 +2108,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     resave: false,
     saveUninitialized: false,
     rolling: true, // Refresh session on every request to prevent timeout
-    store: new MemoryStoreSession({
-      checkPeriod: 7 * 24 * 60 * 60 * 1000,
+    store: new PgSession({
+      pool,
+      tableName: "session",
+      ttl: 7 * 24 * 60 * 60, // 7 days in seconds
+      pruneSessionInterval: 60 * 60, // prune expired sessions every hour
     }),
     cookie: {
       secure: isProduction,
