@@ -29,7 +29,7 @@ import { createQRISPayment, createVAPayment, createBankTransferPayment, createPa
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification, sendEmailChangeOtp, sendQuota80Email, sendQuota100Email, sendSubscriptionExpiringEmail } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like } from "drizzle-orm";
 import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts } from "@shared/schema";
 import crypto from "crypto";
@@ -2007,7 +2007,6 @@ export async function cleanupStaleVisitorSessions(): Promise<void> {
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   const PgSession = connectPgSimple(session);
-  const { pool } = await import("./db");
 
   // Ensure the session table exists (idempotent — safe to run on every startup)
   await pool.query(`
@@ -2100,7 +2099,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
   
   // Configure session with proper production settings
-  // Extended session lifetime: 30 days to prevent unexpected logouts
+  // Session lifetime: 7 days (matches store TTL and cookie maxAge)
   // Session persists as long as browser is active with rolling refresh
   const isProduction = process.env.NODE_ENV === "production";
   const sessionConfig: session.SessionOptions = {
