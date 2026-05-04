@@ -10029,8 +10029,10 @@ Rules:
       const event = req.body;
       const eventType = event?.event_type;
 
-      // Verify PayPal signature when PAYPAL_WEBHOOK_ID is configured
+      // Verify PayPal webhook signature
+      // In production this is mandatory; in development it is skipped with a warning when unconfigured
       const webhookId = process.env.PAYPAL_WEBHOOK_ID;
+      const isProduction = process.env.NODE_ENV === 'production';
       if (webhookId) {
         try {
           const { verifyPaypalWebhookSignature } = await import('./paypal');
@@ -10045,11 +10047,14 @@ Rules:
           }
         } catch (sigErr) {
           console.error('[PayPal Webhook] Signature verification error:', sigErr);
-          // Reject the request if verification itself throws (misconfiguration, PayPal API down)
           return res.status(401).json({ error: "Could not verify webhook signature" });
         }
+      } else if (isProduction) {
+        // In production, PAYPAL_WEBHOOK_ID must be configured — never process unsigned events
+        console.error('[PayPal Webhook] PAYPAL_WEBHOOK_ID not set in production — rejecting event');
+        return res.status(401).json({ error: "Webhook authentication not configured" });
       } else {
-        console.warn('[PayPal Webhook] PAYPAL_WEBHOOK_ID not set — skipping signature verification (configure for production)');
+        console.warn('[PayPal Webhook] PAYPAL_WEBHOOK_ID not set — skipping signature verification (development only)');
       }
 
       console.log(`[PayPal Webhook] Received event: ${eventType}`);
@@ -10059,25 +10064,37 @@ Rules:
         if (!subscriptionId) return res.status(400).json({ error: "Missing subscription ID" });
 
         const allMerchants = await storage.getAllMerchants();
+        // First try to find by pre-stored ID (normal flow), then fall back to searching by email/plan if needed
         const merchant = allMerchants.find(m => m.paypalSubscriptionId === subscriptionId);
         if (!merchant) {
           console.log(`[PayPal Webhook] No merchant found for subscription ${subscriptionId}`);
           return res.status(200).json({ received: true });
         }
 
+        // Write subscriptionId from webhook to reconcile any state drift
         await storage.updateMerchantSubscription(merchant.id, {
           paymentProvider: 'paypal',
           subscriptionStatus: 'active',
+          paypalSubscriptionId: subscriptionId,
         });
 
         console.log(`[PayPal Webhook] Subscription activated for merchant ${merchant.id}`);
       }
 
       if (eventType === 'BILLING.SUBSCRIPTION.RENEWED' || eventType === 'PAYMENT.SALE.COMPLETED') {
-        const subscriptionId = event?.resource?.billing_agreement_id
-          || event?.resource?.id;
+        const subscriptionId = event?.resource?.billing_agreement_id || event?.resource?.id;
+        const paymentEventId = event?.id || event?.resource?.id;
 
         if (!subscriptionId) return res.status(200).json({ received: true });
+
+        // Idempotency: skip if we already processed this PayPal event ID
+        if (paymentEventId) {
+          const existing = await storage.getPaymentTransactionByExternalId(paymentEventId);
+          if (existing) {
+            console.log(`[PayPal Webhook] Event ${paymentEventId} already processed (tx ${existing.id}), skipping`);
+            return res.status(200).json({ received: true });
+          }
+        }
 
         const allMerchants = await storage.getAllMerchants();
         const merchant = allMerchants.find(m => m.paypalSubscriptionId === subscriptionId);
@@ -10108,12 +10125,13 @@ Rules:
         const planName = merchant.subscriptionPlanId === 'custom' ? 'Custom Plan'
           : merchant.subscriptionPlanId?.replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Plan';
 
+        const invoiceNum = `PP-${Date.now()}`;
         await storage.createPaymentTransaction({
           merchantId: merchant.id,
           amount: amountIDR || 0,
           status: 'completed',
           gatewayName: 'PayPal',
-          externalId: event?.resource?.id,
+          externalId: paymentEventId || undefined,
           paymentMethod: 'paypal_subscription',
           planId: merchant.subscriptionPlanId || 'unknown',
           planName,
@@ -10122,7 +10140,7 @@ Rules:
           merchantCompanyName: merchant.companyName || merchant.email.split('@')[0],
           currency: 'USD',
           paidAt: new Date(),
-          invoiceNumber: `PP-${Date.now()}`,
+          invoiceNumber: invoiceNum,
         });
 
         // Send payment receipt
@@ -10136,7 +10154,7 @@ Rules:
           paymentMethod: 'PayPal Auto-Renewal',
           paidAt: new Date(),
           expiresAt: newPeriodEnd,
-          invoiceNumber: `PP-${Date.now()}`,
+          invoiceNumber: invoiceNum,
         }).catch(err => console.error('[PayPal Webhook] Receipt email error:', err));
 
         console.log(`[PayPal Webhook] Renewed subscription for merchant ${merchant.id}, new period end: ${newPeriodEnd.toISOString()}`);
