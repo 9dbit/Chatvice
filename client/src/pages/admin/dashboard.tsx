@@ -17,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Table,
   TableBody,
@@ -2752,15 +2753,23 @@ function MerchantsTab({
                   <Edit className="w-4 h-4 mr-2" />
                   Edit Plan
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => sendExpiryReminderMutation.mutate(selectedDetailMerchant.id)}
-                  disabled={sendExpiryReminderMutation.isPending}
-                  data-testid="button-drawer-send-reminder"
-                >
-                  <Mail className="w-4 h-4 mr-2" />
-                  Send Reminder
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      onClick={() => sendExpiryReminderMutation.mutate(selectedDetailMerchant.id)}
+                      disabled={sendExpiryReminderMutation.isPending}
+                      data-testid="button-drawer-send-reminder"
+                    >
+                      <Mail className="w-4 h-4 mr-2" />
+                      Send Reminder
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Send subscription expiry reminder email.</p>
+                    <p>Deduplication flags are reset so the email will always send.</p>
+                  </TooltipContent>
+                </Tooltip>
                 <Button variant="destructive" onClick={() => handleDelete(selectedDetailMerchant)} data-testid="button-drawer-delete">
                   <Trash className="w-4 h-4" />
                 </Button>
