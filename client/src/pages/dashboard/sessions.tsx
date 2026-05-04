@@ -1150,52 +1150,47 @@ export default function SessionsPage() {
                         <button
                           key={session.id}
                           onClick={() => setSelectedSession(session.id)}
-                          className={`w-full px-3 py-2.5 text-left transition-colors hover-elevate ${
+                          className={`w-full text-left transition-colors hover-elevate relative ${
                             isSelected
                               ? "bg-primary/10"
-                              : "hover:bg-muted/80"
+                              : "hover:bg-muted/40"
                           }`}
                           data-testid={`button-session-${session.id}`}
                         >
-                          <div className="flex items-start gap-2.5">
-                            <div className="relative flex-shrink-0">
-                              <Avatar className={`h-9 w-9 ${session.visitorSession ? 'ring-2 ring-primary/40' : ''}`}>
+                          {/* Status color bar on left edge */}
+                          <div className={`absolute left-0 top-0 bottom-0 w-0.5 ${
+                            status === "angry" ? "bg-red-500" :
+                            status === "needs_response" ? "bg-orange-500" :
+                            status === "active" ? "bg-green-500" :
+                            "bg-transparent"
+                          }`} />
+                          <div className="pl-3 pr-3 py-2 flex items-start gap-2.5">
+                            <div className="relative flex-shrink-0 mt-0.5">
+                              <Avatar className={`h-8 w-8 ${session.visitorSession ? 'ring-2 ring-primary/40' : ''}`}>
                                 {session.customerAvatarUrl ? (
                                   <AvatarImage src={session.customerAvatarUrl} alt={getVisitorDisplayName(session.customerName)} />
                                 ) : null}
                                 <AvatarFallback className={`${getAvatarColor(getVisitorDisplayName(session.customerName))} text-white text-xs font-semibold`}>
                                   {session.visitorSession
-                                    ? <Radio className="w-4 h-4 text-white" />
+                                    ? <Radio className="w-3.5 h-3.5 text-white" />
                                     : getInitials(getVisitorDisplayName(session.customerName))}
                                 </AvatarFallback>
                               </Avatar>
-                              <div className="absolute -bottom-0.5 -right-0.5">
-                                <StatusDot status={status} />
-                              </div>
                             </div>
-                            <div className="flex-1 min-w-0 space-y-0.5">
-                              {/* Row 1: Flag + IP/Name + icons + time */}
-                              <div className="flex items-center justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              {/* Row 1: Name + mode badge + time */}
+                              <div className="flex items-center justify-between gap-1.5 mb-0.5">
                                 <div className="flex items-center gap-1.5 min-w-0">
+                                  <StatusDot status={status} />
                                   <CountryFlag code={session.countryCode} name={session.countryName} />
                                   <span className={`text-sm font-semibold truncate${session.customerName && !isIpAddress(session.customerName) ? "" : " font-mono"}`}>
                                     {session.customerName && !isIpAddress(session.customerName)
                                       ? session.customerName
                                       : session.clientIp || getVisitorDisplayName(session.customerName)}
                                   </span>
-                                  <div className="flex items-center gap-1 flex-shrink-0">
-                                    <DeviceIcon userAgent={session.userAgent} />
-                                    <OsIcon userAgent={session.userAgent} />
-                                    <BrowserIcon userAgent={session.userAgent} />
-                                  </div>
                                   {session.sessionCount > 1 && (
                                     <span className="flex-shrink-0 text-[10px] font-semibold bg-muted text-muted-foreground rounded px-1 py-0.5 leading-none">
                                       {session.sessionCount}
-                                    </span>
-                                  )}
-                                  {session.visitorSession && session.proactiveGreetingSent && (
-                                    <span className="flex-shrink-0 text-[9px] font-semibold bg-primary/15 text-primary rounded px-1 py-0.5 leading-none">
-                                      Proactive
                                     </span>
                                   )}
                                 </div>
@@ -1210,69 +1205,40 @@ export default function SessionsPage() {
                                   </span>
                                 </div>
                               </div>
-                              {/* Row 2: City + IP address when customer has a real name; hidden when customerName is IP */}
-                              {session.customerName && !isIpAddress(session.customerName) ? (
-                                (session.cityName || session.clientIp) && (
-                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                    {session.cityName && (
-                                      <span className="truncate">{session.cityName}</span>
-                                    )}
-                                    {session.cityName && session.clientIp && (
-                                      <span className="flex-shrink-0">·</span>
-                                    )}
-                                    {session.clientIp && (
-                                      <span className="truncate font-mono">{session.clientIp}</span>
-                                    )}
-                                  </div>
-                                )
-                              ) : null}
-                              {/* Row 3: Handler */}
-                              <div className="flex items-center gap-1.5 text-xs font-medium">
-                                {session.mode === "HUMAN" ? (
-                                  <>
-                                    <HeadphonesIcon className="h-3 w-3 text-primary flex-shrink-0" />
-                                    <span className="truncate text-primary">
-                                      {getSupervisorName(session.supervisorId, session.agentId) || "Awaiting Supervisor"}
-                                    </span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Bot className="h-3 w-3 text-secondary-foreground flex-shrink-0" />
-                                    <span className="truncate text-secondary-foreground">
-                                      {getAgentName(session.agentId)}
-                                    </span>
-                                  </>
-                                )}
+                              {/* Row 2: Handler + device icons */}
+                              <div className="flex items-center justify-between gap-1.5 mb-0.5">
+                                <div className="flex items-center gap-1 text-xs font-medium min-w-0">
+                                  {session.mode === "HUMAN" ? (
+                                    <>
+                                      <HeadphonesIcon className="h-3 w-3 text-primary flex-shrink-0" />
+                                      <span className="truncate text-primary">
+                                        {getSupervisorName(session.supervisorId, session.agentId) || "Awaiting Supervisor"}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Bot className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                      <span className="truncate text-muted-foreground">
+                                        {getAgentName(session.agentId)}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  <DeviceIcon userAgent={session.userAgent} />
+                                  <OsIcon userAgent={session.userAgent} />
+                                  <BrowserIcon userAgent={session.userAgent} />
+                                </div>
                               </div>
-                              {/* Row 4: Duration + Channel + Rating */}
-                              <div className="flex items-center gap-2 flex-wrap">
-                                {session.createdAt && (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
-                                    <Clock className="w-2.5 h-2.5" />
-                                    {(() => {
-                                      const start = new Date(session.createdAt).getTime();
-                                      const end = session.lastActivity ? new Date(session.lastActivity).getTime() : Date.now();
-                                      const mins = Math.floor((end - start) / 60000);
-                                      return mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
-                                    })()}
-                                  </span>
-                                )}
-                                <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
-                                  <MessageSquare className="w-2.5 h-2.5" />
-                                  {session.visitorSession ? "Proactive" : "Widget"}
-                                </span>
-                                {session.customerRating && (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-500">
-                                    {"★".repeat(session.customerRating)}
-                                  </span>
-                                )}
-                              </div>
+                              {/* Row 3: Last message preview */}
                               <p className="text-xs text-muted-foreground line-clamp-1">
-                                <span className="text-foreground/70">Q:</span> {session.lastQuestion || (session.visitorSession ? "Proactive greeting sent" : "No messages yet")}
+                                {session.lastQuestion || (session.visitorSession ? "Proactive greeting sent" : "No messages yet")}
                               </p>
-                              <p className="text-xs text-muted-foreground line-clamp-1">
-                                <span className="text-primary/70">A:</span> {session.lastMessage || "Awaiting reply..."}
-                              </p>
+                              {session.lastMessage && session.lastMessage !== "Awaiting reply..." && (
+                                <p className="text-xs text-muted-foreground/70 line-clamp-1">
+                                  <span className="text-primary/60">↳</span> {session.lastMessage}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </button>
