@@ -853,7 +853,7 @@ export default function SessionsPage() {
     queryKey: ["/api/merchant/blast/preview", blastFiltersDebounced],
     queryFn: async () => {
       const res = await apiRequest("POST", "/api/merchant/blast/preview", blastFiltersDebounced);
-      return res as BlastPreviewResult;
+      return res.json() as Promise<BlastPreviewResult>;
     },
     enabled: blastDialogOpen && blastTab === "compose",
     staleTime: 5_000,
@@ -864,7 +864,7 @@ export default function SessionsPage() {
     queryKey: ["/api/merchant/blast/history", blastHistoryPage],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/merchant/blast/history?page=${blastHistoryPage}`);
-      return res as BlastHistoryResult;
+      return res.json() as Promise<BlastHistoryResult>;
     },
     enabled: blastDialogOpen && blastTab === "history",
     staleTime: 10_000,
@@ -872,8 +872,9 @@ export default function SessionsPage() {
 
   // Blast: send mutation
   const blastSendMutation = useMutation({
-    mutationFn: async (payload: BlastSendPayload) => {
-      return apiRequest("POST", "/api/merchant/blast/send", payload) as Promise<BlastSendResult>;
+    mutationFn: async (payload: BlastSendPayload): Promise<BlastSendResult> => {
+      const res = await apiRequest("POST", "/api/merchant/blast/send", payload);
+      return res.json();
     },
     onSuccess: (data: BlastSendResult) => {
       setBlastConfirmOpen(false);
