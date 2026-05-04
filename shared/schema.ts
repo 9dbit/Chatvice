@@ -2603,14 +2603,18 @@ export type Appointment = typeof appointments.$inferSelect;
 // ── Password Recovery Config ───────────────────────────────────────────────
 export const passwordRecoveryConfigs = pgTable("password_recovery_configs", {
   id: varchar("id", { length: 32 }).primaryKey(),
-  merchantId: varchar("merchant_id", { length: 32 }).notNull().unique(),
-  googleSheetUrl: text("google_sheet_url").notNull().default(""),
-  isEnabled: boolean("is_enabled").notNull().default(false),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  agentId: varchar("agent_id", { length: 32 }),
+  sheetCsvUrl: text("sheet_csv_url").notNull().default(""),
+  writeBackUrl: text("write_back_url").default(""),
+  isActive: boolean("is_active").notNull().default(false),
   aiInstructions: text("ai_instructions").default(""),
+  lastSyncedAt: timestamp("last_synced_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
   merchantIdx: index("pass_recov_merchant_idx").on(table.merchantId),
+  agentIdx: index("pass_recov_agent_idx").on(table.agentId),
 }));
 export const insertPasswordRecoveryConfigSchema = createInsertSchema(passwordRecoveryConfigs).omit({ createdAt: true, updatedAt: true });
 export type InsertPasswordRecoveryConfig = z.infer<typeof insertPasswordRecoveryConfigSchema>;

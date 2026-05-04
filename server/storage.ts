@@ -607,9 +607,11 @@ export interface IStorage {
   updateHospitalityCache(merchantId: string, cachedData: string): Promise<void>;
 
   // Password Recovery
-  getPasswordRecoveryConfig(merchantId: string): Promise<PasswordRecoveryConfig | undefined>;
-  upsertPasswordRecoveryConfig(merchantId: string, data: Partial<InsertPasswordRecoveryConfig>): Promise<PasswordRecoveryConfig>;
+  getPasswordRecoveryConfig(merchantId: string, agentId?: string): Promise<PasswordRecoveryConfig | undefined>;
+  upsertPasswordRecoveryConfig(merchantId: string, agentId: string | null, data: Partial<InsertPasswordRecoveryConfig>): Promise<PasswordRecoveryConfig>;
+  deletePasswordRecoveryConfig(merchantId: string, agentId?: string): Promise<boolean>;
   getActivePasswordRecoveryConfigs(): Promise<PasswordRecoveryConfig[]>;
+  updatePasswordRecoveryLastSynced(id: string): Promise<void>;
   createPasswordRecoveryRequest(data: InsertPasswordRecoveryRequest & { id: string }): Promise<PasswordRecoveryRequest>;
   getPasswordRecoveryRequestsByMerchant(merchantId: string, status?: string): Promise<PasswordRecoveryRequest[]>;
   updatePasswordRecoveryRequest(id: string, data: Partial<PasswordRecoveryRequest>): Promise<PasswordRecoveryRequest | undefined>;
@@ -4429,28 +4431,43 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ── Password Recovery ──────────────────────────────────────────────────────
-  async getPasswordRecoveryConfig(merchantId: string): Promise<PasswordRecoveryConfig | undefined> {
-    const [row] = await db.select().from(passwordRecoveryConfigs).where(eq(passwordRecoveryConfigs.merchantId, merchantId));
+  async getPasswordRecoveryConfig(merchantId: string, agentId?: string): Promise<PasswordRecoveryConfig | undefined> {
+    const conditions: any[] = [eq(passwordRecoveryConfigs.merchantId, merchantId)];
+    if (agentId) conditions.push(eq(passwordRecoveryConfigs.agentId, agentId));
+    else conditions.push(isNull(passwordRecoveryConfigs.agentId));
+    const [row] = await db.select().from(passwordRecoveryConfigs).where(and(...conditions));
     return row;
   }
 
-  async upsertPasswordRecoveryConfig(merchantId: string, data: Partial<InsertPasswordRecoveryConfig>): Promise<PasswordRecoveryConfig> {
-    const existing = await this.getPasswordRecoveryConfig(merchantId);
+  async upsertPasswordRecoveryConfig(merchantId: string, agentId: string | null, data: Partial<InsertPasswordRecoveryConfig>): Promise<PasswordRecoveryConfig> {
+    const existing = await this.getPasswordRecoveryConfig(merchantId, agentId || undefined);
     if (existing) {
       const [row] = await db.update(passwordRecoveryConfigs)
         .set({ ...data, updatedAt: new Date() })
-        .where(eq(passwordRecoveryConfigs.merchantId, merchantId))
+        .where(eq(passwordRecoveryConfigs.id, existing.id))
         .returning();
       return row;
     }
     const id = "prc_" + randomBytes(8).toString("hex");
-    const [row] = await db.insert(passwordRecoveryConfigs).values({ id, merchantId, ...data }).returning();
+    const [row] = await db.insert(passwordRecoveryConfigs).values({ id, merchantId, agentId: agentId || null, ...data }).returning();
     return row;
+  }
+
+  async deletePasswordRecoveryConfig(merchantId: string, agentId?: string): Promise<boolean> {
+    const conditions: any[] = [eq(passwordRecoveryConfigs.merchantId, merchantId)];
+    if (agentId) conditions.push(eq(passwordRecoveryConfigs.agentId, agentId));
+    else conditions.push(isNull(passwordRecoveryConfigs.agentId));
+    const result = await db.delete(passwordRecoveryConfigs).where(and(...conditions)).returning();
+    return result.length > 0;
   }
 
   async getActivePasswordRecoveryConfigs(): Promise<PasswordRecoveryConfig[]> {
     return db.select().from(passwordRecoveryConfigs)
-      .where(and(eq(passwordRecoveryConfigs.isEnabled, true), isNotNull(passwordRecoveryConfigs.googleSheetUrl)));
+      .where(and(eq(passwordRecoveryConfigs.isActive, true), isNotNull(passwordRecoveryConfigs.sheetCsvUrl)));
+  }
+
+  async updatePasswordRecoveryLastSynced(id: string): Promise<void> {
+    await db.update(passwordRecoveryConfigs).set({ lastSyncedAt: new Date(), updatedAt: new Date() }).where(eq(passwordRecoveryConfigs.id, id));
   }
 
   async createPasswordRecoveryRequest(data: InsertPasswordRecoveryRequest & { id: string }): Promise<PasswordRecoveryRequest> {

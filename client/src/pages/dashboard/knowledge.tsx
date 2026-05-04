@@ -388,11 +388,13 @@ export default function KnowledgePage() {
 
   // Password Recovery state
   const [prSheetUrl, setPrSheetUrl] = useState("");
+  const [prWriteBackUrl, setPrWriteBackUrl] = useState("");
   const [prEnabled, setPrEnabled] = useState(false);
   const [prInstructions, setPrInstructions] = useState("");
   const [prTestResult, setPrTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [prIsTesting, setPrIsTesting] = useState(false);
   const [prIsSaving, setPrIsSaving] = useState(false);
+  const [prIsFetching, setPrIsFetching] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -795,19 +797,22 @@ export default function KnowledgePage() {
   });
 
   // Password Recovery config query
-  const { data: prConfig } = useQuery<{ id: string; googleSheetUrl: string; isEnabled: boolean; aiInstructions?: string } | null>({
+  const { data: prConfig } = useQuery<{ id: string; sheetCsvUrl: string; writeBackUrl?: string; isActive: boolean; aiInstructions?: string; lastSyncedAt?: string } | null>({
     queryKey: ["/api/merchant/password-recovery-config"],
     enabled: !!merchantId,
   });
 
-  // Sync PR config to local state when fetched
+  // Sync PR config to local state when fetched (only if user hasn't started editing)
+  const [prConfigLoaded, setPrConfigLoaded] = useState(false);
   useEffect(() => {
-    if (prConfig) {
-      setPrSheetUrl(prConfig.googleSheetUrl || "");
-      setPrEnabled(prConfig.isEnabled || false);
+    if (prConfig && !prConfigLoaded) {
+      setPrSheetUrl(prConfig.sheetCsvUrl || "");
+      setPrWriteBackUrl(prConfig.writeBackUrl || "");
+      setPrEnabled(prConfig.isActive || false);
       setPrInstructions(prConfig.aiInstructions || "");
+      setPrConfigLoaded(true);
     }
-  }, [prConfig]);
+  }, [prConfig, prConfigLoaded]);
 
   // Help Articles queries
   const { data: articles = [], isLoading: articlesLoading } = useQuery<KnowledgebaseArticle[]>({
@@ -3055,27 +3060,37 @@ export default function KnowledgePage() {
                   <p className="text-xs font-medium" style={{ color: "#a1a1aa" }}>Required Google Sheet Columns</p>
                   <div className="flex flex-wrap gap-1">
                     {[
-                      { col: "username", note: "User identifier" },
-                      { col: "current_password", note: "For retrieve requests" },
-                      { col: "new_password", note: "Filled when reset is ready" },
-                      { col: "status", note: "normal / request / ok / no" },
+                      { col: "username", note: "User identifier (primary key)" },
+                      { col: "bank", note: "Registered bank — used for identity verification" },
+                      { col: "phone", note: "Registered phone — secondary verification" },
+                      { col: "current_password", note: "Returned on lookup requests" },
+                      { col: "new_password", note: "Filled by Apps Script when reset is ready" },
+                      { col: "status", note: "normal → request → ok" },
                     ].map(({ col, note }) => (
                       <span key={col} title={note} className="text-xs px-2 py-0.5 rounded-md" style={{ backgroundColor: "#3f3f46", color: "#e4e4e7", border: "1px solid #52525b" }}>{col}</span>
                     ))}
                   </div>
                   <p className="text-xs" style={{ color: "#71717a" }}>
-                    Workflow: AI collects username → verifies identity → For retrieve: returns <code>current_password</code>. For reset: creates pending request → your team updates the sheet row with a new password and sets Status to <strong style={{ color: "#a1a1aa" }}>ok</strong> → password is delivered automatically.
+                    Reset flow: AI collects username + bank + phone → server verifies row → POSTs to Write-Back URL → polls sheet every 3s for Status=<strong style={{ color: "#a1a1aa" }}>ok</strong> + new_password → delivers via chat automatically.
                   </p>
                 </div>
 
                 <div className="space-y-3">
+                  {/* Sheet CSV URL */}
                   <div className="space-y-1.5">
-                    <Label style={{ color: "#d4d4d8" }}>Google Sheet URL</Label>
+                    <div className="flex items-center justify-between">
+                      <Label style={{ color: "#d4d4d8" }}>Google Sheet CSV URL</Label>
+                      {prConfig?.lastSyncedAt && (
+                        <span className="text-xs" style={{ color: "#71717a" }}>
+                          Last synced: {new Date(prConfig.lastSyncedAt).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex gap-2">
                       <Input
                         value={prSheetUrl}
                         onChange={(e) => { setPrSheetUrl(e.target.value); setPrTestResult(null); }}
-                        placeholder="https://docs.google.com/spreadsheets/d/..."
+                        placeholder="https://docs.google.com/spreadsheets/d/.../export?format=csv"
                         style={{ backgroundColor: "#27272a", borderColor: "#3f3f46", color: "white" }}
                         data-testid="input-password-recovery-sheet-url"
                       />
@@ -3089,7 +3104,7 @@ export default function KnowledgePage() {
                           setPrIsTesting(true);
                           setPrTestResult(null);
                           try {
-                            const res = await apiRequest("POST", "/api/merchant/password-recovery-config/test-sheet", { googleSheetUrl: prSheetUrl });
+                            const res = await apiRequest("POST", "/api/merchant/password-recovery-config/test-sheet", { sheetCsvUrl: prSheetUrl });
                             const data = await res.json();
                             setPrTestResult({ success: data.success, message: data.message || data.error });
                           } catch {
@@ -3109,7 +3124,25 @@ export default function KnowledgePage() {
                         {prTestResult.message}
                       </p>
                     )}
-                    <p className="text-xs" style={{ color: "#71717a" }}>Sheet must be set to <strong style={{ color: "#a1a1aa" }}>Public (Anyone with the link can view)</strong> in Google Sheets sharing settings.</p>
+                    <p className="text-xs" style={{ color: "#71717a" }}>Use the CSV export URL: <strong style={{ color: "#a1a1aa" }}>File → Share → Publish to web → CSV</strong>. Sheet must be publicly accessible.</p>
+                  </div>
+
+                  {/* Write-Back URL */}
+                  <div className="space-y-1.5">
+                    <Label style={{ color: "#d4d4d8" }}>
+                      Apps Script Write-Back URL{" "}
+                      <span style={{ color: "#71717a" }}>(optional — for reset flow)</span>
+                    </Label>
+                    <Input
+                      value={prWriteBackUrl}
+                      onChange={(e) => setPrWriteBackUrl(e.target.value)}
+                      placeholder="https://script.google.com/macros/s/.../exec"
+                      style={{ backgroundColor: "#27272a", borderColor: "#3f3f46", color: "white" }}
+                      data-testid="input-password-recovery-writeback-url"
+                    />
+                    <p className="text-xs" style={{ color: "#71717a" }}>
+                      When a customer requests a reset, the server POSTs <code style={{ color: "#a1a1aa" }}>{"{ username, action: \"request\" }"}</code> to this URL so your Apps Script can generate a new password and write it to the sheet.
+                    </p>
                   </div>
 
                   <div className="space-y-1.5">
@@ -3125,32 +3158,90 @@ export default function KnowledgePage() {
                   </div>
                 </div>
 
-                <Button
-                  variant="outline"
-                  size="default"
-                  disabled={prIsSaving}
-                  style={{ borderColor: "#52525b", color: "white" }}
-                  data-testid="button-save-password-recovery-config"
-                  onClick={async () => {
-                    setPrIsSaving(true);
-                    try {
-                      await apiRequest("PUT", "/api/merchant/password-recovery-config", {
-                        googleSheetUrl: prSheetUrl,
-                        isEnabled: prEnabled,
-                        aiInstructions: prInstructions,
-                      });
-                      queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config"] });
-                      toast({ title: "Password Recovery config saved", description: prEnabled ? "AI will now handle password recovery requests." : "Password Recovery is disabled." });
-                    } catch {
-                      toast({ title: "Failed to save config", variant: "destructive" });
-                    } finally {
-                      setPrIsSaving(false);
-                    }
-                  }}
-                >
-                  {prIsSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Save className="w-4 h-4 mr-1.5" />}
-                  Save Configuration
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="default"
+                    disabled={prIsSaving}
+                    style={{ borderColor: "#52525b", color: "white" }}
+                    data-testid="button-save-password-recovery-config"
+                    onClick={async () => {
+                      setPrIsSaving(true);
+                      try {
+                        await apiRequest("POST", "/api/merchant/password-recovery-config", {
+                          sheetCsvUrl: prSheetUrl,
+                          writeBackUrl: prWriteBackUrl,
+                          isActive: prEnabled,
+                          aiInstructions: prInstructions,
+                        });
+                        setPrConfigLoaded(false);
+                        queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config"] });
+                        toast({ title: "Password Recovery config saved", description: prEnabled ? "AI will now handle password recovery requests." : "Password Recovery is disabled." });
+                      } catch {
+                        toast({ title: "Failed to save config", variant: "destructive" });
+                      } finally {
+                        setPrIsSaving(false);
+                      }
+                    }}
+                  >
+                    {prIsSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Save className="w-4 h-4 mr-1.5" />}
+                    Save Configuration
+                  </Button>
+
+                  {prConfig && (
+                    <Button
+                      variant="outline"
+                      size="default"
+                      disabled={prIsFetching || !prConfig.sheetCsvUrl}
+                      style={{ borderColor: "#52525b", color: "white" }}
+                      data-testid="button-manual-fetch-password-recovery"
+                      onClick={async () => {
+                        setPrIsFetching(true);
+                        try {
+                          const res = await apiRequest("POST", "/api/merchant/password-recovery-config/manual-fetch", {});
+                          const data = await res.json();
+                          setPrConfigLoaded(false);
+                          queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config"] });
+                          toast({ title: "Sheet fetched", description: data.message || `Fetched successfully` });
+                        } catch {
+                          toast({ title: "Failed to fetch sheet", variant: "destructive" });
+                        } finally {
+                          setPrIsFetching(false);
+                        }
+                      }}
+                    >
+                      {prIsFetching ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}
+                      Fetch Now
+                    </Button>
+                  )}
+
+                  {prConfig && (
+                    <Button
+                      variant="outline"
+                      size="default"
+                      style={{ borderColor: "#52525b", color: "#ef4444" }}
+                      data-testid="button-delete-password-recovery-config"
+                      onClick={async () => {
+                        if (!confirm("Delete this password recovery configuration?")) return;
+                        try {
+                          await apiRequest("DELETE", "/api/merchant/password-recovery-config");
+                          setPrSheetUrl("");
+                          setPrWriteBackUrl("");
+                          setPrEnabled(false);
+                          setPrInstructions("");
+                          setPrConfigLoaded(false);
+                          queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config"] });
+                          toast({ title: "Config deleted" });
+                        } catch {
+                          toast({ title: "Failed to delete config", variant: "destructive" });
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4 mr-1.5" />
+                      Delete
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
 
