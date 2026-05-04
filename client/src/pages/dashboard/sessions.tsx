@@ -882,7 +882,7 @@ export default function SessionsPage() {
       if (data.scheduled) {
         toast({ title: "Blast scheduled", description: `Will send to ${data.matchedCount} sessions on ${new Date(data.scheduledFor!).toLocaleString()}.` });
       } else {
-        toast({ title: "Blast sent", description: `Delivered: ${data.delivered} — Failed: ${data.failed}` });
+        toast({ title: "Blast sent", description: `Sent to ${data.matchedCount} sessions — Delivered: ${data.delivered}, Failed: ${data.failed}` });
       }
       setBlastMessage("");
       setBlastMessageTypeVal("text");

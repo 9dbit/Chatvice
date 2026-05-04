@@ -20212,7 +20212,7 @@ ${log.extractedKnowledge}` : ''}
         if (!s.countryName || !f.countries.includes(s.countryName)) return false;
       }
       if (f.cities?.length) {
-        if (!s.cityName || !f.cities.some((c: string) => s.cityName!.toLowerCase().includes(c.toLowerCase()))) return false;
+        if (!s.cityName || !f.cities.some((c: string) => s.cityName!.toLowerCase() === c.toLowerCase())) return false;
       }
       if (f.deviceOs?.length && !f.deviceOs.includes("all")) {
         const os = detectBlastOs(s.userAgent);
@@ -20314,7 +20314,7 @@ ${log.extractedKnowledge}` : ''}
           if (!sp || !periods.includes(sp)) return false;
         }
         if (countries.length && (!s.countryName || !countries.includes(s.countryName))) return false;
-        if (cities.length && (!s.cityName || !cities.some((c: string) => s.cityName!.toLowerCase().includes(c.toLowerCase())))) return false;
+        if (cities.length && (!s.cityName || !cities.some((c: string) => s.cityName!.toLowerCase() === c.toLowerCase()))) return false;
         if (deviceOs.length && !deviceOs.includes("all")) {
           const os = detectBlastOs(s.userAgent);
           if (!deviceOs.includes(os)) return false;
@@ -20374,7 +20374,7 @@ ${log.extractedKnowledge}` : ''}
           if (!sp || !f.periods.includes(sp)) return false;
         }
         if (f.countries?.length && (!s.countryName || !f.countries.includes(s.countryName))) return false;
-        if (f.cities?.length && (!s.cityName || !f.cities.some((c: string) => s.cityName!.toLowerCase().includes(c.toLowerCase())))) return false;
+        if (f.cities?.length && (!s.cityName || !f.cities.some((c: string) => s.cityName!.toLowerCase() === c.toLowerCase()))) return false;
         if (f.deviceOs?.length && !f.deviceOs.includes("all")) {
           const os = detectBlastOs(s.userAgent);
           if (!f.deviceOs.includes(os)) return false;
