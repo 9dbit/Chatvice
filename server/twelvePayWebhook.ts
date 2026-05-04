@@ -575,5 +575,63 @@ export class PaymentWebhookHandler {
 }
 
 export async function checkAndRenewExpiredSubscriptions(): Promise<void> {
-  console.log('Checking for expired subscriptions...');
+  try {
+    console.log('[subscription-expiry] Checking for expired subscriptions...');
+    const allMerchants = await storage.getAllMerchants();
+    const now = new Date();
+    let expiredCount = 0;
+
+    for (const merchant of allMerchants) {
+      if (merchant.subscriptionStatus !== 'active') continue;
+      if (!merchant.currentPeriodEnd) continue;
+
+      const expiresAt = new Date(merchant.currentPeriodEnd);
+      if (expiresAt > now) continue;
+
+      // Skip if they have an active PayPal subscription (PayPal handles renewal)
+      if (merchant.paypalSubscriptionId) {
+        console.log(`[subscription-expiry] Merchant ${merchant.id} has PayPal subscription, skipping`);
+        continue;
+      }
+
+      // Mark as expired
+      await storage.updateMerchantSubscription(merchant.id, {
+        subscriptionStatus: 'expired',
+      });
+      expiredCount++;
+
+      console.log(`[subscription-expiry] Marked merchant ${merchant.id} (${merchant.email}) as expired`);
+
+      // Send expired notification
+      const planName = merchant.subscriptionPlanId === 'custom' ? 'Custom Plan'
+        : merchant.subscriptionPlanId?.replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Plan';
+
+      await storage.createMerchantNotification({
+        merchantId: merchant.id,
+        type: 'subscription_expired',
+        title: 'Subscription Expired',
+        message: `Your ${planName} subscription has expired. Renew now to restore your chatbot.`,
+        metadata: { planName, expiredAt: expiresAt.toISOString() },
+        actionUrl: '/dashboard/billing',
+        actionLabel: 'Renew Now',
+        isRead: false,
+      });
+
+      // Send email (non-blocking)
+      const { sendSubscriptionExpiringEmail } = await import('./resendClient');
+      sendSubscriptionExpiringEmail({
+        merchantEmail: merchant.email,
+        merchantName: merchant.companyName || merchant.email.split('@')[0],
+        planName,
+        expiresAt,
+        daysRemaining: 0,
+      }).catch(err => console.error('[subscription-expiry] Failed to send expired email:', err));
+    }
+
+    if (expiredCount > 0) {
+      console.log(`[subscription-expiry] Expired ${expiredCount} subscription(s)`);
+    }
+  } catch (error) {
+    console.error('[subscription-expiry] Error checking expired subscriptions:', error);
+  }
 }

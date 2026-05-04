@@ -1378,6 +1378,9 @@ export class DatabaseStorage implements IStorage {
     supervisorsLimit?: number | null;
     sourcesLimit?: number | null;
     suggestedQuestionsLimit?: number | null;
+    expiryReminder7dSentAt?: Date | null;
+    expiryReminder3dSentAt?: Date | null;
+    paypalSubscriptionId?: string | null;
   }): Promise<Merchant | undefined> {
     const cycleReset: { quota80EmailSent?: boolean; quota100EmailSent?: boolean } =
       data.conversationsUsed === 0

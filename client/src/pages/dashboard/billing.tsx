@@ -82,6 +82,7 @@ interface BillingStatus {
   isTrialExpired: boolean;
   hasActiveSubscription: boolean;
   pendingTransaction?: PendingTransaction | null;
+  paypalSubscriptionId?: string | null;
 }
 
 interface QRISPaymentResponse {
@@ -323,6 +324,12 @@ export default function BillingPage() {
   
   const [showBillingHistory, setShowBillingHistory] = useState(false);
   const [showCustomRequestDetails, setShowCustomRequestDetails] = useState(false);
+
+  // Expiry warning banner state
+  const [dismissedExpiryBanner, setDismissedExpiryBanner] = useState(false);
+
+  // PayPal auto-renewal state
+  const [paypalAutoRenewalLoading, setPaypalAutoRenewalLoading] = useState(false);
   
   const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 7;
 
@@ -478,6 +485,24 @@ export default function BillingPage() {
       // Clean URL
       const cleanUrl = window.location.pathname;
       window.history.replaceState({}, '', cleanUrl);
+    }
+
+    // Handle PayPal subscription return
+    const paypalSub = urlParams.get('paypal_sub');
+    if (paypalSub === 'success') {
+      toast({
+        title: "PayPal Auto-Renewal Enabled",
+        description: "Your subscription will now renew automatically every month via PayPal.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (paypalSub === 'canceled') {
+      toast({
+        title: "PayPal Setup Canceled",
+        description: "No changes were made to your billing settings.",
+        variant: "destructive",
+      });
+      window.history.replaceState({}, '', window.location.pathname);
     }
   }, [toast]);
 
@@ -1003,6 +1028,54 @@ export default function BillingPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Subscription Expiry Warning Banner */}
+      {!dismissedExpiryBanner && billingStatus?.status === 'active' && billingStatus.currentPeriodEnd && (() => {
+        const daysLeft = Math.ceil((new Date(billingStatus.currentPeriodEnd).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        if (daysLeft > 7 || daysLeft < 0) return null;
+        const isUrgent = daysLeft <= 3;
+        return (
+          <div
+            data-testid="banner-subscription-expiry"
+            className={`flex items-start gap-3 rounded-md border p-4 ${
+              isUrgent
+                ? 'border-red-500/40 bg-red-500/10'
+                : 'border-yellow-500/40 bg-yellow-500/10'
+            }`}
+          >
+            <AlertTriangle className={`w-5 h-5 mt-0.5 shrink-0 ${isUrgent ? 'text-red-500' : 'text-yellow-500'}`} />
+            <div className="flex-1 min-w-0">
+              <p className={`font-semibold text-sm ${isUrgent ? 'text-red-600 dark:text-red-400' : 'text-yellow-700 dark:text-yellow-400'}`}>
+                {isUrgent
+                  ? `Subscription expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}!`
+                  : `Subscription renewal due in ${daysLeft} days`}
+              </p>
+              <p className={`text-sm mt-0.5 ${isUrgent ? 'text-red-600/80 dark:text-red-400/80' : 'text-yellow-600/80 dark:text-yellow-400/80'}`}>
+                Your {billingStatus.planName} plan renews on {format(new Date(billingStatus.currentPeriodEnd), 'MMMM d, yyyy')}.
+                {isUrgent ? ' Renew immediately to avoid service interruption.' : ' Renew early to keep your chatbot running smoothly.'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant={isUrgent ? 'destructive' : 'default'}
+                data-testid="button-expiry-renew-now"
+                onClick={() => navigate('/dashboard/checkout?from=renewal')}
+              >
+                Renew Now
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                data-testid="button-dismiss-expiry-banner"
+                onClick={() => setDismissedExpiryBanner(true)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
@@ -2124,6 +2197,98 @@ export default function BillingPage() {
                 View Details
               </Button>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* PayPal Auto-Renewal Card */}
+      {billingStatus?.hasActiveSubscription && billingStatus.billingInterval !== 'annual' && (
+        <Card data-testid="card-paypal-auto-renewal">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 text-primary" />
+              <CardTitle className="text-base font-semibold">PayPal Auto-Renewal</CardTitle>
+              {billingStatus.paypalSubscriptionId && (
+                <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0">Active</Badge>
+              )}
+            </div>
+            <CardDescription>
+              {billingStatus.paypalSubscriptionId
+                ? 'Your subscription renews automatically every month via PayPal. No manual action needed.'
+                : 'Enable automatic monthly billing via PayPal so your chatbot never goes offline.'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {billingStatus.paypalSubscriptionId ? (
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span>Auto-renewing monthly via PayPal</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-testid="button-cancel-paypal-renewal"
+                  disabled={paypalAutoRenewalLoading}
+                  onClick={async () => {
+                    setPaypalAutoRenewalLoading(true);
+                    try {
+                      const res = await fetch('/api/paypal/subscription/cancel', {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                      });
+                      if (!res.ok) throw new Error('Failed to cancel');
+                      toast({ title: 'Auto-renewal cancelled', description: 'Your subscription will no longer auto-renew.' });
+                      queryClient.invalidateQueries({ queryKey: ['/api/billing/status'] });
+                    } catch {
+                      toast({ title: 'Error', description: 'Failed to cancel auto-renewal. Please try again.', variant: 'destructive' });
+                    } finally {
+                      setPaypalAutoRenewalLoading(false);
+                    }
+                  }}
+                >
+                  {paypalAutoRenewalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Cancel Auto-Renewal'}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-green-500 shrink-0" />Charged automatically before expiry</li>
+                  <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-green-500 shrink-0" />Cancel anytime from this page</li>
+                  <li className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-green-500 shrink-0" />Secure PayPal checkout</li>
+                </ul>
+                <Button
+                  size="sm"
+                  data-testid="button-enable-paypal-renewal"
+                  disabled={paypalAutoRenewalLoading}
+                  onClick={async () => {
+                    setPaypalAutoRenewalLoading(true);
+                    try {
+                      const res = await fetch('/api/paypal/subscription', {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                      });
+                      if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.error || 'Failed');
+                      }
+                      const data = await res.json();
+                      if (data.approveUrl) {
+                        window.location.href = data.approveUrl;
+                      }
+                    } catch (err: any) {
+                      toast({ title: 'Error', description: err.message || 'Failed to set up PayPal auto-renewal.', variant: 'destructive' });
+                      setPaypalAutoRenewalLoading(false);
+                    }
+                  }}
+                >
+                  {paypalAutoRenewalLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Enable PayPal Auto-Renewal
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

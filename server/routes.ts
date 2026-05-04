@@ -8886,6 +8886,7 @@ Rules:
         isTrialExpired,
         hasActiveSubscription: merchant.subscriptionStatus === 'active',
         pendingTransaction,
+        paypalSubscriptionId: merchant.paypalSubscriptionId || null,
       });
     } catch (error: any) {
       console.error("Billing status error:", error?.message || error);
@@ -9944,6 +9945,199 @@ Rules:
     } catch (error: any) {
       console.error("PayPal order creation error:", error);
       res.status(500).json({ error: error.message || "Failed to create PayPal order" });
+    }
+  });
+
+  // PayPal Recurring Subscription endpoints
+  app.post("/api/paypal/subscription", requireMerchant, async (req, res) => {
+    try {
+      const merchant = await storage.getMerchant(req.session.merchantId!);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+      const { createPaypalProduct, createPaypalBillingPlan, createPaypalSubscription } = await import('./paypal');
+      const { getEffectiveSubscriptionPlan: getPlan } = await import('./subscriptionPlanUtils');
+
+      const planId = merchant.subscriptionPlanId || 'starter';
+      const plan = await getPlan(planId);
+      if (!plan) return res.status(400).json({ error: "No active plan found" });
+
+      const amountUsd = plan.monthlyPrice
+        ? (plan.monthlyPrice / 100).toFixed(2)
+        : '9.00';
+
+      const planName = `Chatvice ${plan.name} Monthly`;
+
+      const product = await createPaypalProduct(
+        planName,
+        `Chatvice ${plan.name} subscription — monthly auto-renewal`,
+      );
+
+      const paypalPlan = await createPaypalBillingPlan(product.id, planName, amountUsd);
+
+      const baseUrl = process.env.REPLIT_DEPLOYMENT_ID
+        ? 'https://chatvice.app'
+        : process.env.REPLIT_DEV_DOMAIN
+          ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+          : 'http://localhost:5000';
+
+      const subscription = await createPaypalSubscription(
+        paypalPlan.id,
+        merchant.email,
+        merchant.companyName || merchant.email.split('@')[0],
+        `${baseUrl}/dashboard/billing?paypal_sub=success`,
+        `${baseUrl}/dashboard/billing?paypal_sub=canceled`,
+      );
+
+      const approveLink = subscription.links?.find((l: any) => l.rel === 'approve')?.href;
+      if (!approveLink) return res.status(500).json({ error: "PayPal did not return an approval URL" });
+
+      // Store the subscription ID on the merchant record
+      await storage.updateMerchantSubscription(merchant.id, {
+        paypalSubscriptionId: subscription.id,
+      });
+
+      res.json({ approveUrl: approveLink, subscriptionId: subscription.id });
+    } catch (error: any) {
+      console.error("PayPal subscription creation error:", error);
+      res.status(500).json({ error: error.message || "Failed to create PayPal subscription" });
+    }
+  });
+
+  app.post("/api/paypal/subscription/cancel", requireMerchant, async (req, res) => {
+    try {
+      const merchant = await storage.getMerchant(req.session.merchantId!);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+      if (!merchant.paypalSubscriptionId) return res.status(400).json({ error: "No active PayPal subscription" });
+
+      const { cancelPaypalSubscription } = await import('./paypal');
+      await cancelPaypalSubscription(merchant.paypalSubscriptionId, "Merchant requested cancellation");
+
+      await storage.updateMerchantSubscription(merchant.id, {
+        paypalSubscriptionId: null,
+      });
+
+      res.json({ success: true, message: "PayPal auto-renewal cancelled" });
+    } catch (error: any) {
+      console.error("PayPal subscription cancel error:", error);
+      res.status(500).json({ error: error.message || "Failed to cancel PayPal subscription" });
+    }
+  });
+
+  // PayPal Subscription Webhook - handles recurring payment events
+  app.post("/api/paypal/webhook", async (req, res) => {
+    try {
+      const event = req.body;
+      const eventType = event?.event_type;
+
+      console.log(`[PayPal Webhook] Received event: ${eventType}`);
+
+      if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED') {
+        const subscriptionId = event?.resource?.id;
+        if (!subscriptionId) return res.status(400).json({ error: "Missing subscription ID" });
+
+        const allMerchants = await storage.getAllMerchants();
+        const merchant = allMerchants.find(m => m.paypalSubscriptionId === subscriptionId);
+        if (!merchant) {
+          console.log(`[PayPal Webhook] No merchant found for subscription ${subscriptionId}`);
+          return res.status(200).json({ received: true });
+        }
+
+        await storage.updateMerchantSubscription(merchant.id, {
+          paymentProvider: 'paypal',
+          subscriptionStatus: 'active',
+        });
+
+        console.log(`[PayPal Webhook] Subscription activated for merchant ${merchant.id}`);
+      }
+
+      if (eventType === 'BILLING.SUBSCRIPTION.RENEWED' || eventType === 'PAYMENT.SALE.COMPLETED') {
+        const subscriptionId = event?.resource?.billing_agreement_id
+          || event?.resource?.id;
+
+        if (!subscriptionId) return res.status(200).json({ received: true });
+
+        const allMerchants = await storage.getAllMerchants();
+        const merchant = allMerchants.find(m => m.paypalSubscriptionId === subscriptionId);
+        if (!merchant) {
+          console.log(`[PayPal Webhook] No merchant for subscription ${subscriptionId}, skipping`);
+          return res.status(200).json({ received: true });
+        }
+
+        // Extend subscription 30 days from current period end or now
+        const base = merchant.currentPeriodEnd && new Date(merchant.currentPeriodEnd) > new Date()
+          ? new Date(merchant.currentPeriodEnd)
+          : new Date();
+        const newPeriodEnd = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        await storage.updateMerchantSubscription(merchant.id, {
+          subscriptionStatus: 'active',
+          currentPeriodEnd: newPeriodEnd,
+          expiryReminder7dSentAt: null,
+          expiryReminder3dSentAt: null,
+        });
+
+        // Record billing transaction
+        const amountUsd = parseFloat(event?.resource?.amount?.total || '0');
+        const savedRate = await storage.getPlatformSetting("exchange_rate");
+        const exchangeRate = savedRate ? parseInt(savedRate) : 16500;
+        const amountIDR = Math.round(amountUsd * exchangeRate);
+
+        const planName = merchant.subscriptionPlanId === 'custom' ? 'Custom Plan'
+          : merchant.subscriptionPlanId?.replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Plan';
+
+        await storage.createPaymentTransaction({
+          merchantId: merchant.id,
+          amount: amountIDR || 0,
+          status: 'completed',
+          gatewayName: 'PayPal',
+          externalId: event?.resource?.id,
+          paymentMethod: 'paypal_subscription',
+          planId: merchant.subscriptionPlanId || 'unknown',
+          planName,
+          subscriptionMonths: 1,
+          merchantEmail: merchant.email,
+          merchantCompanyName: merchant.companyName || merchant.email.split('@')[0],
+          amountUsd: amountUsd || undefined,
+          currency: 'USD',
+          description: `${planName} Auto-Renewal via PayPal`,
+          paidAt: new Date(),
+        } as any);
+
+        // Send payment receipt
+        const { sendPaymentReceiptEmail } = await import('./resendClient');
+        sendPaymentReceiptEmail({
+          merchantEmail: merchant.email,
+          merchantName: merchant.companyName || merchant.email.split('@')[0],
+          planName,
+          subscriptionMonths: 1,
+          amount: amountIDR || 0,
+          paymentMethod: 'PayPal Auto-Renewal',
+          paidAt: new Date(),
+          expiresAt: newPeriodEnd,
+          invoiceNumber: `PP-${Date.now()}`,
+        }).catch(err => console.error('[PayPal Webhook] Receipt email error:', err));
+
+        console.log(`[PayPal Webhook] Renewed subscription for merchant ${merchant.id}, new period end: ${newPeriodEnd.toISOString()}`);
+      }
+
+      if (eventType === 'BILLING.SUBSCRIPTION.CANCELLED' || eventType === 'BILLING.SUBSCRIPTION.SUSPENDED') {
+        const subscriptionId = event?.resource?.id;
+        if (!subscriptionId) return res.status(200).json({ received: true });
+
+        const allMerchants = await storage.getAllMerchants();
+        const merchant = allMerchants.find(m => m.paypalSubscriptionId === subscriptionId);
+        if (merchant) {
+          await storage.updateMerchantSubscription(merchant.id, {
+            paypalSubscriptionId: null,
+          });
+          console.log(`[PayPal Webhook] Subscription cancelled/suspended for merchant ${merchant.id}`);
+        }
+      }
+
+      res.status(200).json({ received: true });
+    } catch (error: any) {
+      console.error("[PayPal Webhook] Error:", error);
+      res.status(500).json({ error: "Webhook processing error" });
     }
   });
 

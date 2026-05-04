@@ -147,3 +147,204 @@ export async function loadPaypalDefault(req: Request, res: Response) {
   });
 }
 // <END_EXACT_CODE>
+
+// ============ PayPal Subscriptions (Recurring Billing) ============
+// These functions use the PayPal REST v1 Billing API directly with fetch calls.
+// This is separate from the one-time Orders API above.
+
+async function getPaypalAccessToken(): Promise<string> {
+  const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`).toString('base64');
+  const baseUrl = process.env.NODE_ENV === 'production'
+    ? 'https://api-m.paypal.com'
+    : 'https://api-m.sandbox.paypal.com';
+
+  const resp = await fetch(`${baseUrl}/v1/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${auth}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: 'grant_type=client_credentials',
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`PayPal token error: ${resp.status} ${text}`);
+  }
+
+  const data = await resp.json();
+  return data.access_token as string;
+}
+
+export interface PaypalProductResult {
+  id: string;
+  name: string;
+}
+
+export async function createPaypalProduct(name: string, description: string): Promise<PaypalProductResult> {
+  const token = await getPaypalAccessToken();
+  const baseUrl = process.env.NODE_ENV === 'production'
+    ? 'https://api-m.paypal.com'
+    : 'https://api-m.sandbox.paypal.com';
+
+  const resp = await fetch(`${baseUrl}/v1/catalogs/products`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name,
+      description,
+      type: 'SERVICE',
+      category: 'SOFTWARE',
+    }),
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`PayPal create product error: ${resp.status} ${text}`);
+  }
+
+  return resp.json();
+}
+
+export interface PaypalPlanResult {
+  id: string;
+  status: string;
+}
+
+export async function createPaypalBillingPlan(
+  productId: string,
+  planName: string,
+  amountUsd: string,
+): Promise<PaypalPlanResult> {
+  const token = await getPaypalAccessToken();
+  const baseUrl = process.env.NODE_ENV === 'production'
+    ? 'https://api-m.paypal.com'
+    : 'https://api-m.sandbox.paypal.com';
+
+  const resp = await fetch(`${baseUrl}/v1/billing/plans`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      product_id: productId,
+      name: planName,
+      status: 'ACTIVE',
+      billing_cycles: [
+        {
+          frequency: { interval_unit: 'MONTH', interval_count: 1 },
+          tenure_type: 'REGULAR',
+          sequence: 1,
+          total_cycles: 0, // unlimited
+          pricing_scheme: {
+            fixed_price: { value: amountUsd, currency_code: 'USD' },
+          },
+        },
+      ],
+      payment_preferences: {
+        auto_bill_outstanding: true,
+        setup_fee_failure_action: 'CONTINUE',
+        payment_failure_threshold: 3,
+      },
+    }),
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`PayPal create plan error: ${resp.status} ${text}`);
+  }
+
+  return resp.json();
+}
+
+export interface PaypalSubscriptionResult {
+  id: string;
+  status: string;
+  links: Array<{ rel: string; href: string }>;
+}
+
+export async function createPaypalSubscription(
+  planId: string,
+  merchantEmail: string,
+  merchantName: string,
+  returnUrl: string,
+  cancelUrl: string,
+): Promise<PaypalSubscriptionResult> {
+  const token = await getPaypalAccessToken();
+  const baseUrl = process.env.NODE_ENV === 'production'
+    ? 'https://api-m.paypal.com'
+    : 'https://api-m.sandbox.paypal.com';
+
+  const resp = await fetch(`${baseUrl}/v1/billing/subscriptions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      plan_id: planId,
+      subscriber: {
+        email_address: merchantEmail,
+        name: { given_name: merchantName },
+      },
+      application_context: {
+        brand_name: 'Chatvice',
+        locale: 'en-US',
+        shipping_preference: 'NO_SHIPPING',
+        user_action: 'SUBSCRIBE_NOW',
+        return_url: returnUrl,
+        cancel_url: cancelUrl,
+      },
+    }),
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`PayPal create subscription error: ${resp.status} ${text}`);
+  }
+
+  return resp.json();
+}
+
+export async function getPaypalSubscription(subscriptionId: string): Promise<any> {
+  const token = await getPaypalAccessToken();
+  const baseUrl = process.env.NODE_ENV === 'production'
+    ? 'https://api-m.paypal.com'
+    : 'https://api-m.sandbox.paypal.com';
+
+  const resp = await fetch(`${baseUrl}/v1/billing/subscriptions/${subscriptionId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`PayPal get subscription error: ${resp.status} ${text}`);
+  }
+
+  return resp.json();
+}
+
+export async function cancelPaypalSubscription(subscriptionId: string, reason: string): Promise<void> {
+  const token = await getPaypalAccessToken();
+  const baseUrl = process.env.NODE_ENV === 'production'
+    ? 'https://api-m.paypal.com'
+    : 'https://api-m.sandbox.paypal.com';
+
+  const resp = await fetch(`${baseUrl}/v1/billing/subscriptions/${subscriptionId}/cancel`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ reason }),
+  });
+
+  if (!resp.ok && resp.status !== 204) {
+    const text = await resp.text();
+    throw new Error(`PayPal cancel subscription error: ${resp.status} ${text}`);
+  }
+}

@@ -134,6 +134,11 @@ export const merchants = pgTable("merchants", {
   registrationCountry: text("registration_country"),
   lastLoginIp: text("last_login_ip"),
   lastLoginCountry: text("last_login_country"),
+  // Subscription expiry reminder tracking (prevents duplicate emails per billing period)
+  expiryReminder7dSentAt: timestamp("expiry_reminder_7d_sent_at"),
+  expiryReminder3dSentAt: timestamp("expiry_reminder_3d_sent_at"),
+  // PayPal recurring subscription ID (for auto-debit / auto-renewal)
+  paypalSubscriptionId: text("paypal_subscription_id"),
 });
 
 // Email verification tokens for merchant registration

@@ -698,6 +698,8 @@ interface SubscriptionExpiringData {
   planName: string;
   expiresAt: Date;
   daysRemaining: number;
+  amount?: number;
+  billingInterval?: string;
 }
 
 export async function sendSubscriptionExpiringEmail(data: SubscriptionExpiringData): Promise<boolean> {
@@ -705,7 +707,7 @@ export async function sendSubscriptionExpiringEmail(data: SubscriptionExpiringDa
     const { client, fromEmail } = await getUncachableResendClient();
     
     const formatDate = (date: Date) => {
-      return new Intl.DateTimeFormat('id-ID', { 
+      return new Intl.DateTimeFormat('en-US', { 
         year: 'numeric', month: 'long', day: 'numeric'
       }).format(new Date(date));
     };
@@ -716,15 +718,24 @@ export async function sendSubscriptionExpiringEmail(data: SubscriptionExpiringDa
         ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
         : 'http://localhost:5000';
     const billingUrl = `${baseUrl}/dashboard/billing`;
+
+    const isExpired = data.daysRemaining === 0;
+    const urgencyColor = isExpired ? '#dc2626' : data.daysRemaining <= 3 ? '#ef4444' : '#f59e0b';
+    const subject = isExpired
+      ? `Your ${data.planName} Subscription Has Expired | Chatvice`
+      : data.daysRemaining <= 3
+        ? `URGENT: Your subscription expires in ${data.daysRemaining} day${data.daysRemaining > 1 ? 's' : ''} | Chatvice`
+        : `Renewal Reminder: ${data.planName} subscription expires in ${data.daysRemaining} days | Chatvice`;
+
+    const invoiceDate = new Date();
+    const invoiceNumber = `REM-${invoiceDate.getFullYear()}${String(invoiceDate.getMonth() + 1).padStart(2, '0')}-${Math.floor(Math.random() * 90000) + 10000}`;
     
     console.log('Sending subscription expiring email:', { to: data.merchantEmail, daysRemaining: data.daysRemaining });
-    
-    const urgencyColor = data.daysRemaining <= 3 ? '#ef4444' : '#f59e0b';
     
     const { error } = await client.emails.send({
       from: fromEmail,
       to: data.merchantEmail,
-      subject: `Subscription Expiring in ${data.daysRemaining} Days | Chatvice`,
+      subject,
       html: `
         <!DOCTYPE html>
         <html>
@@ -735,34 +746,78 @@ export async function sendSubscriptionExpiringEmail(data: SubscriptionExpiringDa
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
           <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
             <div style="background-color: #18181b; border-radius: 12px; padding: 40px;">
-              <div style="text-align: center; margin-bottom: 32px;">
-                <div style="width: 64px; height: 64px; background-color: ${urgencyColor}; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
-                  <span style="font-size: 32px; color: #ffffff;">&#9888;</span>
+
+              <!-- Header -->
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; border-bottom: 1px solid #27272a; padding-bottom: 24px;">
+                <div>
+                  <h1 style="color: #ffffff; margin: 0 0 4px 0; font-size: 22px; font-weight: 700;">Chatvice</h1>
+                  <p style="color: #71717a; margin: 0; font-size: 13px;">AI Customer Service Platform</p>
                 </div>
-                <h1 style="color: ${urgencyColor}; margin: 0 0 8px 0; font-size: 24px;">Subscription Expiring Soon</h1>
-                <p style="color: #a1a1aa; margin: 0; font-size: 16px;">Only ${data.daysRemaining} day${data.daysRemaining > 1 ? 's' : ''} remaining</p>
+                <div style="text-align: right;">
+                  <p style="color: #71717a; margin: 0 0 2px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Renewal Notice</p>
+                  <p style="color: #a1a1aa; margin: 0; font-size: 13px;">${invoiceNumber}</p>
+                </div>
               </div>
-              
-              <p style="color: #a1a1aa; margin: 0 0 24px 0; font-size: 16px; line-height: 1.5;">
-                Hi ${data.merchantName},<br><br>
-                Your ${data.planName} subscription will expire on <strong style="color: #ffffff;">${formatDate(data.expiresAt)}</strong>. 
-                Renew now to keep your AI chatbot running and avoid service interruption.
-              </p>
-              
-              <div style="background-color: #27272a; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 24px;">
-                <p style="color: ${urgencyColor}; margin: 0; font-size: 14px; font-weight: 600;">
-                  Your chatbot will stop responding to customers after expiration
+
+              <!-- Urgency Banner -->
+              <div style="background-color: ${urgencyColor}1a; border: 1px solid ${urgencyColor}33; border-radius: 8px; padding: 16px 20px; margin-bottom: 28px; text-align: center;">
+                <p style="color: ${urgencyColor}; margin: 0; font-size: 15px; font-weight: 600;">
+                  ${isExpired
+                    ? 'Your subscription has expired — service is suspended'
+                    : `Your subscription expires in ${data.daysRemaining} day${data.daysRemaining > 1 ? 's' : ''}`}
                 </p>
               </div>
-              
-              <div style="text-align: center;">
-                <a href="${billingUrl}" style="display: inline-block; background-color: #22c55e; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
-                  Renew Subscription
+
+              <!-- Greeting -->
+              <p style="color: #a1a1aa; margin: 0 0 24px 0; font-size: 15px; line-height: 1.6;">
+                Hi <strong style="color: #ffffff;">${data.merchantName}</strong>,
+              </p>
+              <p style="color: #a1a1aa; margin: 0 0 28px 0; font-size: 15px; line-height: 1.6;">
+                ${isExpired
+                  ? `Your <strong style="color: #ffffff;">${data.planName}</strong> subscription expired on <strong style="color: #ffffff;">${formatDate(data.expiresAt)}</strong>. Your AI chatbot is currently suspended. Renew now to restore service immediately.`
+                  : `Your <strong style="color: #ffffff;">${data.planName}</strong> subscription will expire on <strong style="color: #ffffff;">${formatDate(data.expiresAt)}</strong>. Renew before the deadline to avoid any service interruption for your customers.`}
+              </p>
+
+              <!-- Invoice Details Table -->
+              <div style="background-color: #27272a; border-radius: 8px; padding: 24px; margin-bottom: 28px;">
+                <p style="color: #71717a; margin: 0 0 16px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Subscription Details</p>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="color: #71717a; padding: 8px 0; font-size: 14px; border-bottom: 1px solid #3f3f46;">Plan</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right; border-bottom: 1px solid #3f3f46; font-weight: 600;">${data.planName}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #71717a; padding: 8px 0; font-size: 14px; border-bottom: 1px solid #3f3f46;">Billing Cycle</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right; border-bottom: 1px solid #3f3f46;">${data.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #71717a; padding: 8px 0; font-size: 14px;">
+                      ${isExpired ? 'Expired On' : 'Expires On'}
+                    </td>
+                    <td style="color: ${urgencyColor}; padding: 8px 0; font-size: 14px; text-align: right; font-weight: 600;">${formatDate(data.expiresAt)}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- What happens if you don't renew -->
+              <div style="background-color: #1c1c1f; border-radius: 8px; padding: 20px; margin-bottom: 28px;">
+                <p style="color: #a1a1aa; margin: 0 0 10px 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">What happens after expiration</p>
+                <ul style="color: #71717a; margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
+                  <li>Your AI chatbot stops responding to customers</li>
+                  <li>All active conversations are paused</li>
+                  <li>Your data and settings are preserved for 30 days</li>
+                </ul>
+              </div>
+
+              <!-- CTA -->
+              <div style="text-align: center; margin-bottom: 24px;">
+                <a href="${billingUrl}" style="display: inline-block; background-color: #22c55e; color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-weight: 600; font-size: 16px; letter-spacing: 0.01em;">
+                  Renew Subscription Now
                 </a>
               </div>
-              
-              <p style="color: #71717a; margin: 24px 0 0 0; font-size: 14px; text-align: center; line-height: 1.5;">
-                If you have any questions, please contact our support team.
+
+              <p style="color: #52525b; margin: 0; font-size: 13px; text-align: center; line-height: 1.5;">
+                If you have any questions, reply to this email or contact our support team.
               </p>
             </div>
             <p style="text-align: center; color: #71717a; margin: 24px 0 0 0; font-size: 12px;">

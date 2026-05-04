@@ -7,7 +7,7 @@ import { registerRoutes, cleanupStaleVisitorSessions } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { execSync } from "child_process";
-import { PaymentWebhookHandler, type PaymentWebhookPayload } from './twelvePayWebhook';
+import { PaymentWebhookHandler, type PaymentWebhookPayload, checkAndRenewExpiredSubscriptions } from './twelvePayWebhook';
 import { isPaymentGatewayConfigured, getActiveGatewayName } from './twelvePayClient';
 import { storage } from './storage';
 import { extractFAQContent } from './crawler';
@@ -815,6 +815,82 @@ async function deactivateExpiredTrials(): Promise<void> {
   }
 }
 
+async function runSubscriptionExpiryReminders(): Promise<void> {
+  try {
+    const allMerchants = await storage.getAllMerchants();
+    const now = new Date();
+    let reminded = 0;
+
+    const { sendSubscriptionExpiringEmail } = await import('./resendClient');
+
+    for (const merchant of allMerchants) {
+      if (merchant.subscriptionStatus !== 'active') continue;
+      if (!merchant.currentPeriodEnd) continue;
+
+      const expiresAt = new Date(merchant.currentPeriodEnd);
+      const msRemaining = expiresAt.getTime() - now.getTime();
+      const daysRemaining = msRemaining / (1000 * 60 * 60 * 24);
+
+      if (daysRemaining < 0) continue; // Already expired, handled by checkAndRenewExpiredSubscriptions
+
+      const planName = merchant.subscriptionPlanId === 'custom' ? 'Custom Plan'
+        : merchant.subscriptionPlanId?.replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Plan';
+      const merchantName = merchant.companyName || merchant.email.split('@')[0];
+
+      // 7-day reminder: send if 6–8 days remaining and not yet sent for this period
+      if (daysRemaining >= 6 && daysRemaining <= 8) {
+        const alreadySent = merchant.expiryReminder7dSentAt
+          && new Date(merchant.expiryReminder7dSentAt) > new Date(expiresAt.getTime() - 40 * 24 * 60 * 60 * 1000);
+        if (!alreadySent) {
+          await sendSubscriptionExpiringEmail({
+            merchantEmail: merchant.email,
+            merchantName,
+            planName,
+            expiresAt,
+            daysRemaining: Math.ceil(daysRemaining),
+          }).catch(err => console.error('[sub-reminder] 7d email error:', err));
+
+          await storage.updateMerchantSubscription(merchant.id, {
+            expiryReminder7dSentAt: now,
+          });
+          reminded++;
+          console.log(`[sub-reminder] Sent 7-day reminder to ${merchant.email}`);
+        }
+      }
+
+      // 3-day reminder: send if 1–4 days remaining and not yet sent for this period
+      if (daysRemaining >= 1 && daysRemaining <= 4) {
+        const alreadySent = merchant.expiryReminder3dSentAt
+          && new Date(merchant.expiryReminder3dSentAt) > new Date(expiresAt.getTime() - 40 * 24 * 60 * 60 * 1000);
+        if (!alreadySent) {
+          await sendSubscriptionExpiringEmail({
+            merchantEmail: merchant.email,
+            merchantName,
+            planName,
+            expiresAt,
+            daysRemaining: Math.ceil(daysRemaining),
+          }).catch(err => console.error('[sub-reminder] 3d email error:', err));
+
+          await storage.updateMerchantSubscription(merchant.id, {
+            expiryReminder3dSentAt: now,
+          });
+          reminded++;
+          console.log(`[sub-reminder] Sent 3-day reminder to ${merchant.email}`);
+        }
+      }
+    }
+
+    if (reminded > 0) {
+      console.log(`[sub-reminder] Sent ${reminded} subscription expiry reminder(s)`);
+    }
+
+    // Also check and expire overdue subscriptions
+    await checkAndRenewExpiredSubscriptions();
+  } catch (error) {
+    console.error('[sub-reminder] Error running subscription expiry reminders:', error);
+  }
+}
+
 function startBackgroundSync(): void {
   setTimeout(() => migrateLegacyCrawledLinks(), 3000);
   setTimeout(() => runAllBackgroundJobs(), 5 * 60 * 1000);
@@ -833,6 +909,11 @@ function startBackgroundSync(): void {
   setTimeout(() => deactivateExpiredTrials(), 30 * 1000);
   setInterval(() => deactivateExpiredTrials(), 60 * 60 * 1000);
   console.log("[trial-expiry] Trial expiry cleanup started (60 min interval)");
+
+  // Subscription expiry reminders (every 6 hours)
+  setTimeout(() => runSubscriptionExpiryReminders().catch(err => console.error("[sub-reminder] Startup error:", err)), 2 * 60 * 1000);
+  setInterval(() => runSubscriptionExpiryReminders().catch(err => console.error("[sub-reminder] Scheduled error:", err)), 6 * 60 * 60 * 1000);
+  console.log("[sub-reminder] Subscription expiry reminder scheduler started (6 hour interval)");
 
   setTimeout(() => seedBlogPostsFromStaticData().catch(err => console.error("[blog-gen] Seed error:", err)), 8000);
   scheduleDailyBlogGeneration();
