@@ -3258,7 +3258,8 @@ export default function SessionsPage() {
                               setBlastFilters(c.filters || { periods: [], countries: [], cities: [], deviceOs: [] });
                               setBlastMediaUrl(c.mediaUrl ?? null);
                               setBlastMediaType(c.mediaType ?? null);
-                              setBlastMediaPreview(null);
+                              // Restore preview from stored URL so user can see and optionally remove the attachment
+                              setBlastMediaPreview(c.mediaUrl ?? null);
                               setBlastTab("compose");
                             }}
                             data-testid={`button-blast-again-${c.id}`}
