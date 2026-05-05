@@ -5,20 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Bot, Code, MessageSquare, Check, ChevronDown, ChevronUp, X, Rocket, HelpCircle
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { Agent, Merchant } from "@shared/schema";
-
-interface HelpGuide {
-  title: string;
-  steps: string[];
-}
 
 interface ChecklistStep {
   id: string;
@@ -27,7 +17,7 @@ interface ChecklistStep {
   description: string;
   completed: boolean;
   action?: { label: string; onClick: () => void };
-  helpGuide?: HelpGuide;
+  helpHref?: string;
   accentClass: string;
 }
 
@@ -87,17 +77,7 @@ export function GettingStartedChecklist({ merchant, agents, hasReceivedMessage, 
       action: !hasAgent
         ? { label: "Create agent", onClick: () => navigate("/dashboard/agents") }
         : undefined,
-      helpGuide: !hasAgent
-        ? {
-            title: "How to create an AI agent",
-            steps: [
-              "Go to the Agents section in the left sidebar.",
-              'Click "New Agent" and give it a name (e.g. "Support Bot").',
-              "Write a system prompt that describes how the agent should behave and what it knows.",
-              "Save the agent — it will be immediately available for your widget.",
-            ],
-          }
-        : undefined,
+      helpHref: !hasAgent ? "/dashboard/agents" : undefined,
       accentClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
     },
     {
@@ -112,17 +92,7 @@ export function GettingStartedChecklist({ merchant, agents, hasReceivedMessage, 
             onClick: () => widgetInstalledMutation.mutate(),
           }
         : undefined,
-      helpGuide: !widgetInstalled
-        ? {
-            title: "How to install the chat widget",
-            steps: [
-              "Open the Widget section in the sidebar to find your embed snippet.",
-              "Copy the script tag shown on that page.",
-              "Paste it just before the closing body tag in your website's HTML.",
-              'Once the widget appears on your site, click "Mark as done" above.',
-            ],
-          }
-        : undefined,
+      helpHref: !widgetInstalled ? "/dashboard/widget" : undefined,
       accentClass: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
     },
     {
@@ -131,17 +101,7 @@ export function GettingStartedChecklist({ merchant, agents, hasReceivedMessage, 
       title: "Receive your first message",
       description: "Once the widget is live, customers can start a conversation with your agent.",
       completed: hasReceivedMessage,
-      helpGuide: !hasReceivedMessage
-        ? {
-            title: "How to get your first message",
-            steps: [
-              "Make sure the widget is installed and an agent is active.",
-              "Open your website and click the chat bubble — you can test it yourself.",
-              "Send a message; your AI agent will respond automatically.",
-              "This step completes automatically once a message is received.",
-            ],
-          }
-        : undefined,
+      helpHref: !hasReceivedMessage ? "/dashboard/live-preview" : undefined,
       accentClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
     },
   ];
@@ -252,37 +212,15 @@ export function GettingStartedChecklist({ merchant, agents, hasReceivedMessage, 
                     {!step.completed && (
                       <p className="text-xs text-muted-foreground mt-0.5">{step.description}</p>
                     )}
-                    {!step.completed && step.helpGuide && (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            className="inline-flex items-center gap-1 text-xs text-primary mt-1 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
-                            data-testid={`link-help-${step.id}`}
-                          >
-                            <HelpCircle className="w-3 h-3" />
-                            Learn how
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          side="top"
-                          align="start"
-                          className="w-72 p-4"
-                          data-testid={`popover-help-${step.id}`}
-                        >
-                          <p className="text-sm font-semibold mb-2">{step.helpGuide.title}</p>
-                          <ol className="space-y-1.5 list-none">
-                            {step.helpGuide.steps.map((text, i) => (
-                              <li key={i} className="flex gap-2 text-xs text-muted-foreground">
-                                <span className="flex-shrink-0 w-4 h-4 rounded-full bg-primary/10 text-primary flex items-center justify-center font-medium text-[10px] mt-0.5">
-                                  {i + 1}
-                                </span>
-                                <span>{text}</span>
-                              </li>
-                            ))}
-                          </ol>
-                        </PopoverContent>
-                      </Popover>
+                    {!step.completed && step.helpHref && (
+                      <a
+                        href={step.helpHref}
+                        className="inline-flex items-center gap-1 text-xs text-primary mt-1 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
+                        data-testid={`link-help-${step.id}`}
+                      >
+                        <HelpCircle className="w-3 h-3" />
+                        Learn how
+                      </a>
                     )}
                   </div>
                   {step.action && !step.completed && (
