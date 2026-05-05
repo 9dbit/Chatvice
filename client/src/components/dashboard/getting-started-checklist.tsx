@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ interface ChecklistStep {
   description: string;
   completed: boolean;
   action?: { label: string; onClick: () => void };
+  helpLink?: { label: string; href: string };
   accentClass: string;
 }
 
@@ -76,6 +77,9 @@ export function GettingStartedChecklist({ merchant, agents, hasReceivedMessage, 
       action: !hasAgent
         ? { label: "Create agent", onClick: () => navigate("/dashboard/agents") }
         : undefined,
+      helpLink: !hasAgent
+        ? { label: "Learn how", href: "/dashboard/agents" }
+        : undefined,
       accentClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
     },
     {
@@ -90,6 +94,9 @@ export function GettingStartedChecklist({ merchant, agents, hasReceivedMessage, 
             onClick: () => widgetInstalledMutation.mutate(),
           }
         : undefined,
+      helpLink: !widgetInstalled
+        ? { label: "Learn how", href: "/dashboard/widget" }
+        : undefined,
       accentClass: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
     },
     {
@@ -98,6 +105,9 @@ export function GettingStartedChecklist({ merchant, agents, hasReceivedMessage, 
       title: "Receive your first message",
       description: "Once the widget is live, customers can start a conversation with your agent.",
       completed: hasReceivedMessage,
+      helpLink: !hasReceivedMessage
+        ? { label: "Learn how", href: "/dashboard/live-preview" }
+        : undefined,
       accentClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
     },
   ];
@@ -207,6 +217,16 @@ export function GettingStartedChecklist({ merchant, agents, hasReceivedMessage, 
                     </p>
                     {!step.completed && (
                       <p className="text-xs text-muted-foreground mt-0.5">{step.description}</p>
+                    )}
+                    {!step.completed && step.helpLink && (
+                      <Link
+                        href={step.helpLink.href}
+                        className="inline-flex items-center gap-1 text-xs text-primary mt-1 hover:underline"
+                        data-testid={`link-help-${step.id}`}
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        {step.helpLink.label}
+                      </Link>
                     )}
                   </div>
                   {step.action && !step.completed && (
