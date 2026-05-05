@@ -462,15 +462,17 @@ export function AppSidebar() {
 
     let shouldPlay = false;
 
-    // New sessions escalated since last poll
-    if (escalatedCount > prevEscalatedCountRef.current) {
-      shouldPlay = true;
-    }
+    // New sessions escalated since last poll (set-diff to detect even when count stays flat)
+    escalatedSessions.forEach(s => {
+      if (!lastQuestionPerEscalatedRef.current.has(s.id)) {
+        shouldPlay = true;
+      }
+    });
 
     // Already-escalated sessions that received a new customer message
+    // Use has() membership check so undefined -> first-message transitions also retrigger
     escalatedSessions.forEach(s => {
-      const prev = lastQuestionPerEscalatedRef.current.get(s.id);
-      if (prev !== undefined && s.lastQuestion !== prev) {
+      if (lastQuestionPerEscalatedRef.current.has(s.id) && s.lastQuestion !== lastQuestionPerEscalatedRef.current.get(s.id)) {
         shouldPlay = true;
       }
     });
