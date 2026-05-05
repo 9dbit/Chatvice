@@ -71,15 +71,8 @@ interface Session {
   mode: "AI" | "HUMAN";
   merchantId: string;
   needsSupervisorAttention?: boolean;
-}
-
-function BlinkingDot() {
-  return (
-    <span className="relative flex h-3 w-3">
-      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-      <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
-    </span>
-  );
+  lastQuestion?: string;
+  pendingCustomerMessages?: number;
 }
 
 type PermissionKey = keyof typeof rolePermissions.administrator;
@@ -292,6 +285,7 @@ export function AppSidebar() {
   const prevEscalatedCountRef = useRef<number>(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasPlayedInitialRef = useRef(false);
+  const lastQuestionPerEscalatedRef = useRef<Map<string, string | undefined>>(new Map());
   const { resolvedTheme } = useTheme();
   const chatviceLogo = resolvedTheme === "dark" ? chatviceLogoDark : chatviceLogoLight;
   const { t } = useLanguage();
@@ -438,7 +432,9 @@ export function AppSidebar() {
   });
   const unknownDomainCount = unknownDomainCountData?.count ?? 0;
 
-  const escalatedCount = sessions?.filter(s => s.mode === "HUMAN" || s.needsSupervisorAttention === true).length || 0;
+  const escalatedSessions = sessions?.filter(s => s.mode === "HUMAN" || s.needsSupervisorAttention === true) || [];
+  const escalatedCount = escalatedSessions.length;
+  const totalPendingMessages = escalatedSessions.reduce((sum, s) => sum + (s.pendingCustomerMessages ?? 0), 0);
 
   const playAlertSound = useCallback(() => {
     if (!audioRef.current) {
@@ -458,14 +454,44 @@ export function AppSidebar() {
     if (!hasPlayedInitialRef.current && sessions) {
       hasPlayedInitialRef.current = true;
       prevEscalatedCountRef.current = escalatedCount;
+      escalatedSessions.forEach(s => {
+        lastQuestionPerEscalatedRef.current.set(s.id, s.lastQuestion);
+      });
       return;
     }
-    
+
+    let shouldPlay = false;
+
+    // New sessions escalated since last poll
     if (escalatedCount > prevEscalatedCountRef.current) {
+      shouldPlay = true;
+    }
+
+    // Already-escalated sessions that received a new customer message
+    escalatedSessions.forEach(s => {
+      const prev = lastQuestionPerEscalatedRef.current.get(s.id);
+      if (prev !== undefined && s.lastQuestion !== prev) {
+        shouldPlay = true;
+      }
+    });
+
+    if (shouldPlay) {
       playAlertSound();
     }
+
+    // Update tracking refs
     prevEscalatedCountRef.current = escalatedCount;
-  }, [escalatedCount, sessions, playAlertSound]);
+    const currentEscalatedIds = new Set(escalatedSessions.map(s => s.id));
+    // Remove de-escalated sessions from the map
+    lastQuestionPerEscalatedRef.current.forEach((_, id) => {
+      if (!currentEscalatedIds.has(id)) {
+        lastQuestionPerEscalatedRef.current.delete(id);
+      }
+    });
+    escalatedSessions.forEach(s => {
+      lastQuestionPerEscalatedRef.current.set(s.id, s.lastQuestion);
+    });
+  }, [escalatedCount, escalatedSessions, sessions, playAlertSound]);
 
   useEffect(() => {
     const widgetUrls = filteredWidgetItems.map(i => i.url);
@@ -732,19 +758,31 @@ export function AppSidebar() {
             <button 
               type="button"
               className={`flex items-center gap-2.5 p-2.5 w-full rounded-lg transition-all duration-200 ${
-                isChatSessionsActive 
-                  ? "bg-primary text-white" 
-                  : "bg-primary/90 text-white hover:bg-primary hover:scale-[1.02] active:scale-[0.98]"
+                escalatedCount > 0
+                  ? "text-white animate-pulse"
+                  : isChatSessionsActive 
+                    ? "bg-primary text-white" 
+                    : "bg-primary/90 text-white hover:bg-primary hover:scale-[1.02] active:scale-[0.98]"
               }`}
               style={{ 
-                boxShadow: isChatSessionsActive 
-                  ? "inset 0 2px 8px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(107, 92, 246, 0.4)" 
-                  : "0 4px 12px rgba(107, 92, 246, 0.3)"
+                backgroundColor: escalatedCount > 0 ? "rgb(220 38 38)" : undefined,
+                boxShadow: escalatedCount > 0
+                  ? "0 4px 12px rgba(220, 38, 38, 0.5)"
+                  : isChatSessionsActive 
+                    ? "inset 0 2px 8px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(107, 92, 246, 0.4)" 
+                    : "0 4px 12px rgba(107, 92, 246, 0.3)"
               }}
             >
-              <MessageSquare className="w-5 h-5" />
+              <MessageSquare className="w-5 h-5 shrink-0" />
               <span className="font-medium flex-1 text-left">{t("dashboard.chatSessions")}</span>
-              {escalatedCount > 0 && <BlinkingDot />}
+              {escalatedCount > 0 && (
+                <span
+                  data-testid="badge-escalated-count"
+                  className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-white text-red-600 text-xs font-bold leading-none shrink-0"
+                >
+                  {totalPendingMessages > 99 ? "99+" : totalPendingMessages > 0 ? totalPendingMessages : escalatedCount}
+                </span>
+              )}
             </button>
           </Link>
         )}

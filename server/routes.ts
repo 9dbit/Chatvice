@@ -7300,11 +7300,28 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           const aiMessages = messages.filter(m => m.from === "chatvice" || m.from === "bot" || m.from === "ai");
           const lastQuestion = userMessages[userMessages.length - 1]?.content;
           const lastMessage = aiMessages[aiMessages.length - 1]?.content;
+
+          // Count customer messages that have no supervisor reply after them
+          // (i.e. messages from user/customer after the last supervisor message)
+          let pendingCustomerMessages = 0;
+          if (session.needsSupervisorAttention) {
+            const supervisorMessages = messages.filter(m => m.from === "supervisor");
+            if (supervisorMessages.length === 0) {
+              pendingCustomerMessages = userMessages.length;
+            } else {
+              const lastSupervisorMsg = supervisorMessages[supervisorMessages.length - 1];
+              const lastSupervisorIndex = messages.findIndex(m => m.id === lastSupervisorMsg.id);
+              pendingCustomerMessages = messages
+                .slice(lastSupervisorIndex + 1)
+                .filter(m => m.from === "user" || m.from === "customer").length;
+            }
+          }
           
           return {
             ...session,
             lastQuestion: lastQuestion?.slice(0, 100),
             lastMessage: lastMessage?.slice(0, 100),
+            pendingCustomerMessages,
           };
         })
       );

@@ -234,6 +234,7 @@ interface SessionWithPreview extends Omit<Session, 'status' | 'needsSupervisorAt
   lastQuestion?: string;
   status?: string | null;
   needsSupervisorAttention?: boolean | null;
+  pendingCustomerMessages?: number;
 }
 
 interface PreviewContent {
@@ -310,6 +311,7 @@ export default function SessionsPage() {
   const sessionMessageCountsRef = useRef<Map<string, number>>(new Map());
   const lastProcessedMessageIdRef = useRef<string | null>(null);
   const initialLoadRef = useRef(true);
+  const lastQuestionPerEscalatedRef = useRef<Map<string, string | undefined>>(new Map());
   
   // Save sound preference
   useEffect(() => {
@@ -463,6 +465,10 @@ export default function SessionsPage() {
       previousSessionIdsRef.current = currentSessionIds;
       previousAttentionSessionsRef.current = currentAttentionSessions;
       sessions.forEach(s => sessionMessageCountsRef.current.set(s.id, 0));
+      // Seed lastQuestion tracking for escalated sessions on first load
+      sessions.filter(s => s.needsSupervisorAttention).forEach(s => {
+        lastQuestionPerEscalatedRef.current.set(s.id, s.lastQuestion);
+      });
       initialLoadRef.current = false;
       return;
     }
@@ -484,6 +490,15 @@ export default function SessionsPage() {
       s.needsSupervisorAttention &&
       !previousAttentionSessionsRef.current.has(s.id)
     );
+
+    // Check for already-escalated sessions that received a new customer message
+    const retriggeredSessions = sessions.filter(s =>
+      s.needsSupervisorAttention &&
+      previousAttentionSessionsRef.current.has(s.id) &&
+      lastQuestionPerEscalatedRef.current.has(s.id) &&
+      s.lastQuestion !== lastQuestionPerEscalatedRef.current.get(s.id)
+    );
+
     if (newlyEscalatedSessions.length > 0) {
       playAngrySound();
       toast({
@@ -491,8 +506,20 @@ export default function SessionsPage() {
         description: `${newlyEscalatedSessions.length} ${t("dashboard.sessions.escalatedDesc")}`,
         duration: 10000,
       });
+    } else if (retriggeredSessions.length > 0) {
+      playAngrySound();
     }
-    
+
+    // Update lastQuestion tracking: add newly escalated, update existing, remove de-escalated
+    sessions.filter(s => s.needsSupervisorAttention).forEach(s => {
+      lastQuestionPerEscalatedRef.current.set(s.id, s.lastQuestion);
+    });
+    lastQuestionPerEscalatedRef.current.forEach((_, id) => {
+      if (!currentAttentionSessions.has(id)) {
+        lastQuestionPerEscalatedRef.current.delete(id);
+      }
+    });
+
     previousSessionIdsRef.current = currentSessionIds;
     previousAttentionSessionsRef.current = currentAttentionSessions;
   }, [sessions, soundEnabled, toast]);
