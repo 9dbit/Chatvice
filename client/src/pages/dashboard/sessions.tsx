@@ -1623,7 +1623,7 @@ export default function SessionsPage() {
                           <OsIcon userAgent={selectedSessionData?.userAgent} size="md" />
                           <BrowserIcon userAgent={selectedSessionData?.userAgent} size="md" />
                           {selectedSessionData?.lastActivity && (
-                            <span className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground flex-shrink-0">
+                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground flex-shrink-0">
                               <Clock className="w-3 h-3" />
                               {formatDistanceToNow(new Date(selectedSessionData.lastActivity), { addSuffix: true })}
                             </span>
