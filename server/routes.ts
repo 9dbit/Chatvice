@@ -3453,10 +3453,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             email: merchant.email
           });
         }
-        req.session.userId = merchant.id;
-        req.session.userType = "merchant";
-        req.session.merchantId = merchant.id;
-        
         // Check for expiring subscription and send notification if needed (non-blocking)
         checkExpiringSubscription(merchant).catch(err => console.error("Failed to check expiring subscription:", err));
         
@@ -3508,16 +3504,35 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           }).catch((err) => console.error("Failed to log sign-in activity:", err));
         });
 
-        const profileCompleted = merchant.profileStep === 4 || merchant.profileCompleted === true;
-        return res.json({ success: true, merchantId: merchant.id, type: "merchant", profileCompleted });
+        // Regenerate session ID to prevent session fixation attacks
+        req.session.regenerate((err) => {
+          if (err) {
+            console.error("Session regeneration error:", err);
+            return res.status(500).json({ error: "Session error" });
+          }
+          req.session.userId = merchant.id;
+          req.session.userType = "merchant";
+          req.session.merchantId = merchant.id;
+          const profileCompleted = merchant.profileStep === 4 || merchant.profileCompleted === true;
+          res.json({ success: true, merchantId: merchant.id, type: "merchant", profileCompleted });
+        });
+        return;
       }
 
       const supervisor = await storage.getSupervisorByEmail(data.email);
       if (supervisor && await verifyPassword(data.password, supervisor.password)) {
-        req.session.userId = supervisor.id;
-        req.session.userType = "supervisor";
-        req.session.merchantId = supervisor.merchantId;
-        return res.json({ success: true, merchantId: supervisor.merchantId, supervisorUserId: supervisor.id, type: "supervisor" });
+        // Regenerate session ID to prevent session fixation attacks
+        req.session.regenerate((err) => {
+          if (err) {
+            console.error("Session regeneration error:", err);
+            return res.status(500).json({ error: "Session error" });
+          }
+          req.session.userId = supervisor.id;
+          req.session.userType = "supervisor";
+          req.session.merchantId = supervisor.merchantId;
+          res.json({ success: true, merchantId: supervisor.merchantId, supervisorUserId: supervisor.id, type: "supervisor" });
+        });
+        return;
       }
 
       res.status(401).json({ error: "Invalid credentials" });
@@ -3557,12 +3572,20 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       // Log the user in after verification
       const merchant = await storage.getMerchant(tokenRecord.merchantId);
       if (merchant) {
-        req.session.userId = merchant.id;
-        req.session.userType = "merchant";
-        req.session.merchantId = merchant.id;
+        // Regenerate session ID to prevent session fixation attacks
+        req.session.regenerate((err) => {
+          if (err) {
+            console.error("Session regeneration error during email verification:", err);
+            return res.status(500).json({ error: "Session error during login" });
+          }
+          req.session.userId = merchant.id;
+          req.session.userType = "merchant";
+          req.session.merchantId = merchant.id;
+          res.json({ success: true, message: "Email verified successfully" });
+        });
+      } else {
+        res.json({ success: true, message: "Email verified successfully" });
       }
-
-      res.json({ success: true, message: "Email verified successfully" });
     } catch (error: any) {
       console.error("Email verification error:", error);
       res.status(500).json({ error: "Failed to verify email" });
@@ -4030,11 +4053,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         }
       }
 
-      // Create session
-      req.session.userId = merchant.id;
-      req.session.userType = "merchant";
-      req.session.merchantId = merchant.id;
-      
       // Determine if this was a sign up or sign in
       const activityType = isJustCreatedGoogle ? "sign_up" : "sign_in";
       
@@ -4092,16 +4110,24 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       console.log("=== Google OAuth Login Success ===");
       console.log("Merchant ID:", merchant.id);
       console.log("Email:", merchant.email);
-      console.log("Session data set, saving session before redirect...");
       
-      // Explicitly save session before redirect to ensure it persists
-      req.session.save((err) => {
+      // Regenerate session ID to prevent session fixation, then save before redirect
+      req.session.regenerate((err) => {
         if (err) {
-          console.error("Session save error:", err);
+          console.error("Session regeneration error:", err);
           return res.redirect("/login?error=session_error");
         }
-        console.log("Session saved successfully, redirecting to /oauth-callback");
-        res.redirect("/oauth-callback");
+        req.session.userId = merchant.id;
+        req.session.userType = "merchant";
+        req.session.merchantId = merchant.id;
+        req.session.save((err2) => {
+          if (err2) {
+            console.error("Session save error:", err2);
+            return res.redirect("/login?error=session_error");
+          }
+          console.log("Session saved successfully, redirecting to /oauth-callback");
+          res.redirect("/oauth-callback");
+        });
       });
     } catch (error) {
       console.error("Google OAuth callback error:", error);
@@ -4330,11 +4356,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         }
       }
 
-      // Create session
-      req.session.userId = merchant.id;
-      req.session.userType = "merchant";
-      req.session.merchantId = merchant.id;
-      
       // Determine if this was a sign up or sign in
       const activityType = isJustCreatedGithub ? "sign_up" : "sign_in";
       
@@ -4389,13 +4410,22 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         }).catch((err) => console.error(`Failed to log ${activityType} activity:`, err));
       });
 
-      // Explicitly save session before redirect to ensure it persists
-      req.session.save((err) => {
+      // Regenerate session ID to prevent session fixation, then save before redirect
+      req.session.regenerate((err) => {
         if (err) {
-          console.error("GitHub session save error:", err);
+          console.error("GitHub session regeneration error:", err);
           return res.redirect("/login?error=session_error");
         }
-        res.redirect("/oauth-callback");
+        req.session.userId = merchant.id;
+        req.session.userType = "merchant";
+        req.session.merchantId = merchant.id;
+        req.session.save((err2) => {
+          if (err2) {
+            console.error("GitHub session save error:", err2);
+            return res.redirect("/login?error=session_error");
+          }
+          res.redirect("/oauth-callback");
+        });
       });
     } catch (error) {
       console.error("GitHub OAuth callback error:", error);
@@ -8562,17 +8592,23 @@ Rules:
         acceptedAt: new Date(),
       });
       
-      req.session.userId = supervisor.id;
-      req.session.userType = "supervisor";
-      req.session.merchantId = invitation.merchantId;
-      
       const { password: _, ...safeSupervisor } = supervisor;
-      res.json({ 
-        success: true, 
-        supervisor: safeSupervisor,
-        merchantId: invitation.merchantId,
-        supervisorUserId: supervisor.id,
-        message: "Account created successfully"
+      // Regenerate session ID to prevent session fixation attacks
+      req.session.regenerate((err) => {
+        if (err) {
+          console.error("Session regeneration error:", err);
+          return res.status(500).json({ error: "Session error" });
+        }
+        req.session.userId = supervisor.id;
+        req.session.userType = "supervisor";
+        req.session.merchantId = invitation.merchantId;
+        res.json({ 
+          success: true, 
+          supervisor: safeSupervisor,
+          merchantId: invitation.merchantId,
+          supervisorUserId: supervisor.id,
+          message: "Account created successfully"
+        });
       });
     } catch (error) {
       console.error("Error completing invitation:", error);
