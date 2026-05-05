@@ -19661,7 +19661,7 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
         return res.status(403).json({ error: "Unauthorized" });
       }
 
-      const prAgentId: string | undefined = (session as any).agentId || merchant.activeAgentId || undefined;
+      const prAgentId: string | undefined = session.agentId || merchant.activeAgentId || undefined;
       const prConfig = await storage.getPasswordRecoveryConfig(merchant.id, prAgentId);
       if (!prConfig || !prConfig.isActive || !prConfig.sheetCsvUrl) {
         return res.status(400).json({ error: "Password recovery not configured" });

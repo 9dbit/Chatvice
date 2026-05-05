@@ -2114,9 +2114,14 @@ export default function SessionsPage() {
                                     const tp = (msg as any).payload as { ticketId: string; username: string; bankAccount: string };
                                     return (
                                       <div className="rounded-xl border bg-background overflow-hidden max-w-[300px]">
-                                        <div className="flex items-center gap-2 px-3 py-2.5 border-b bg-muted/30">
-                                          <Ticket className="w-3.5 h-3.5 shrink-0 text-primary" />
-                                          <span className="text-xs font-semibold">Reset Password Ticket</span>
+                                        <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b bg-muted/30">
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <Ticket className="w-3.5 h-3.5 shrink-0 text-primary" />
+                                            <span className="text-xs font-semibold">Reset Password Ticket</span>
+                                          </div>
+                                          <Badge variant="outline" className="text-[9px] px-1.5 py-0.5 font-bold uppercase tracking-wide text-yellow-600 border-yellow-300 bg-yellow-50 dark:text-yellow-400 dark:border-yellow-700 dark:bg-yellow-950/30">
+                                            Pending
+                                          </Badge>
                                         </div>
                                         <div className="px-3 py-3 space-y-2">
                                           <div>

@@ -4104,12 +4104,21 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                       >
                         {/* Header */}
                         <div
-                          className="flex items-center gap-2 px-3 py-2.5"
+                          className="flex items-center justify-between gap-2 px-3 py-2.5"
                           style={{ borderBottom: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}` }}
                         >
-                          <TicketCheck className="w-3.5 h-3.5 shrink-0" style={{ color: primaryColor }} />
-                          <span className="text-xs font-semibold" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.9)' : '#111827' }}>
-                            Reset Password Ticket
+                          <div className="flex items-center gap-2 min-w-0">
+                            <TicketCheck className="w-3.5 h-3.5 shrink-0" style={{ color: primaryColor }} />
+                            <span className="text-xs font-semibold" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.9)' : '#111827' }}>
+                              Reset Password Ticket
+                            </span>
+                          </div>
+                          {/* Status badge */}
+                          <span
+                            className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide"
+                            style={{ backgroundColor: 'rgba(234,179,8,0.15)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.3)' }}
+                          >
+                            Pending
                           </span>
                         </div>
 
