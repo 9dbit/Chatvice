@@ -275,6 +275,7 @@ export default function SessionsPage() {
   }, [authData?.merchantId]);
   
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
+  const [unreadEscalatedSessionIds, setUnreadEscalatedSessionIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [agentFilter, setAgentFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -452,15 +453,16 @@ export default function SessionsPage() {
     enabled: !!merchantId,
   });
 
-  // Track new sessions - play incoming sound for first message
+  // Track session escalation state — always runs regardless of sound settings.
+  // This drives both the tab-title badge and (when soundEnabled) audio/toast alerts.
   useEffect(() => {
-    if (!sessions || !soundEnabled) return;
-    
+    if (!sessions) return;
+
     const currentSessionIds = new Set(sessions.map(s => s.id));
     const currentAttentionSessions = new Set(
       sessions.filter(s => s.needsSupervisorAttention).map(s => s.id)
     );
-    
+
     if (initialLoadRef.current) {
       previousSessionIdsRef.current = currentSessionIds;
       previousAttentionSessionsRef.current = currentAttentionSessions;
@@ -472,10 +474,10 @@ export default function SessionsPage() {
       initialLoadRef.current = false;
       return;
     }
-    
+
     // Check for new sessions
     const newSessions = sessions.filter(s => !previousSessionIdsRef.current.has(s.id));
-    if (newSessions.length > 0) {
+    if (newSessions.length > 0 && soundEnabled) {
       playIncomingChatSound();
       toast({
         title: t("dashboard.sessions.newMessage"),
@@ -483,10 +485,10 @@ export default function SessionsPage() {
         duration: 5000,
       });
     }
-    
+
     // Check for sessions that newly require attention (trigger words or anger detected)
     // This includes both new sessions AND existing sessions that just got escalated
-    const newlyEscalatedSessions = sessions.filter(s => 
+    const newlyEscalatedSessions = sessions.filter(s =>
       s.needsSupervisorAttention &&
       !previousAttentionSessionsRef.current.has(s.id)
     );
@@ -499,21 +501,41 @@ export default function SessionsPage() {
       s.lastQuestion !== lastQuestionPerEscalatedRef.current.get(s.id)
     );
 
-    if (newlyEscalatedSessions.length > 0) {
-      playAngrySound();
-      toast({
-        title: t("dashboard.sessions.escalatedAlert"),
-        description: `${newlyEscalatedSessions.length} ${t("dashboard.sessions.escalatedDesc")}`,
-        duration: 10000,
-      });
-    } else if (retriggeredSessions.length > 0) {
-      playAngrySound();
-      toast({
-        title: t("dashboard.sessions.retriggeredAlert"),
-        description: `${retriggeredSessions.length} ${t("dashboard.sessions.retriggeredDesc")}`,
-        duration: 5000,
-      });
+    if (soundEnabled) {
+      if (newlyEscalatedSessions.length > 0) {
+        playAngrySound();
+        toast({
+          title: t("dashboard.sessions.escalatedAlert"),
+          description: `${newlyEscalatedSessions.length} ${t("dashboard.sessions.escalatedDesc")}`,
+          duration: 10000,
+        });
+      } else if (retriggeredSessions.length > 0) {
+        playAngrySound();
+        toast({
+          title: t("dashboard.sessions.retriggeredAlert"),
+          description: `${retriggeredSessions.length} ${t("dashboard.sessions.retriggeredDesc")}`,
+          duration: 5000,
+        });
+      }
     }
+
+    // Update unread escalated badge: add new/retriggered, remove de-escalated.
+    // Always runs — independent of soundEnabled.
+    // Sessions the merchant is currently viewing are never counted as unread.
+    const newlyAlerted = [...newlyEscalatedSessions, ...retriggeredSessions]
+      .map(s => s.id)
+      .filter(id => id !== selectedSession);
+    setUnreadEscalatedSessionIds(prev => {
+      const next = new Set(prev);
+      newlyAlerted.forEach(id => next.add(id));
+      // Remove sessions that are no longer escalated or are currently being viewed
+      prev.forEach(id => {
+        if (!currentAttentionSessions.has(id) || id === selectedSession) {
+          next.delete(id);
+        }
+      });
+      return next;
+    });
 
     // Update lastQuestion tracking: add newly escalated, update existing, remove de-escalated
     sessions.filter(s => s.needsSupervisorAttention).forEach(s => {
@@ -527,7 +549,7 @@ export default function SessionsPage() {
 
     previousSessionIdsRef.current = currentSessionIds;
     previousAttentionSessionsRef.current = currentAttentionSessions;
-  }, [sessions, soundEnabled, toast]);
+  }, [sessions, soundEnabled, selectedSession, toast]);
   
   // Track messages in selected session - play reply sound for new messages
   useEffect(() => {
@@ -546,6 +568,36 @@ export default function SessionsPage() {
     sessionMessageCountsRef.current.set(selectedSession, currentCount);
     lastProcessedMessageIdRef.current = lastMessage.id;
   }, [messages, selectedSession, soundEnabled]);
+
+  // Capture the page title to restore when sessions page unmounts
+  const preMountTitleRef = useRef<string>(document.title);
+  useEffect(() => {
+    const titleOnMount = document.title;
+    preMountTitleRef.current = titleOnMount;
+    return () => {
+      document.title = preMountTitleRef.current;
+    };
+  }, []);
+
+  // Update browser tab title when there are unread escalated sessions
+  const sessionsBaseTitle = "Sessions | Chatvice";
+  useEffect(() => {
+    const count = unreadEscalatedSessionIds.size;
+    document.title = count > 0 ? `(${count}) ${sessionsBaseTitle}` : sessionsBaseTitle;
+  }, [unreadEscalatedSessionIds]);
+
+  // Helper to select a session and mark it as read in the escalated unread set
+  const handleSelectSession = (sessionId: string | null) => {
+    setSelectedSession(sessionId);
+    if (sessionId) {
+      setUnreadEscalatedSessionIds(prev => {
+        if (!prev.has(sessionId)) return prev;
+        const next = new Set(prev);
+        next.delete(sessionId);
+        return next;
+      });
+    }
+  };
 
   // Helper function to check if products should be shown based on message content
   const shouldShowProductsForMessage = (messageContent: string): boolean => {
@@ -1401,7 +1453,7 @@ export default function SessionsPage() {
                       return (
                         <button
                           key={session.id}
-                          onClick={() => setSelectedSession(session.id)}
+                          onClick={() => handleSelectSession(session.id)}
                           className={`w-full text-left transition-colors hover-elevate relative ${
                             isSelected
                               ? "bg-primary/10"
