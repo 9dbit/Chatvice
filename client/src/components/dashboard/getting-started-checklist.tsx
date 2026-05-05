@@ -24,9 +24,10 @@ interface GettingStartedChecklistProps {
   merchant: Merchant | null | undefined;
   agents: Agent[];
   hasReceivedMessage: boolean;
+  disableAutoDismiss?: boolean;
 }
 
-export function GettingStartedChecklist({ merchant, agents, hasReceivedMessage }: GettingStartedChecklistProps) {
+export function GettingStartedChecklist({ merchant, agents, hasReceivedMessage, disableAutoDismiss = false }: GettingStartedChecklistProps) {
   const [, navigate] = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const queryClient = useQueryClient();
@@ -54,14 +55,14 @@ export function GettingStartedChecklist({ merchant, agents, hasReceivedMessage }
   });
 
   useEffect(() => {
-    if (allDone && !dismissed && !autoDismissedRef.current && !dismissMutation.isPending) {
+    if (allDone && !dismissed && !disableAutoDismiss && !autoDismissedRef.current && !dismissMutation.isPending) {
       autoDismissedRef.current = true;
       const timer = setTimeout(() => {
         dismissMutation.mutate();
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [allDone, dismissed]);
+  }, [allDone, dismissed, disableAutoDismiss]);
 
   if (dismissed) return null;
 

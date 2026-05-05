@@ -5203,6 +5203,16 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  app.post("/api/merchant/onboarding/reopen", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      await storage.updateMerchant(merchantId, { onboardingDismissed: false });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // Unlink an auth method (must be before /api/merchant/:merchantId)
   app.post("/api/merchant/auth-methods/unlink", requireMerchant, async (req, res) => {
     try {

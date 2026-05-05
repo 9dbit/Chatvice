@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLanguage } from "@/hooks/use-language";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +12,7 @@ import {
   AlertCircle, Code, Copy, Check, ChevronRight, FileCode, ExternalLink,
   Minus, Crown, Star, Rocket, LayoutDashboard, Sparkles
 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 import { GettingStartedChecklist } from "@/components/dashboard/getting-started-checklist";
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -109,7 +110,21 @@ export default function DashboardOverview() {
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [checklistReopened, setChecklistReopened] = useState(false);
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
+
+  const reopenChecklistMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/merchant/onboarding/reopen"),
+    onSuccess: () => {
+      setChecklistReopened(true);
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/profile"] });
+      toast({ title: "Getting Started checklist is back" });
+    },
+    onError: () => {
+      toast({ title: "Failed to reopen checklist", variant: "destructive" });
+    },
+  });
 
   const { data: sessions, isLoading: sessionsLoading } = useQuery<Session[]>({
     queryKey: ["/api/sessions", merchantId],
@@ -281,6 +296,19 @@ export default function DashboardOverview() {
             {t("dashboard.overview.monitorPerformance")}
           </p>
         </div>
+        {merchant?.onboardingDismissed && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => reopenChecklistMutation.mutate()}
+            disabled={reopenChecklistMutation.isPending}
+            className="flex items-center gap-1.5"
+            data-testid="button-reopen-checklist"
+          >
+            <Rocket className="w-3.5 h-3.5" />
+            Getting Started
+          </Button>
+        )}
       </div>
 
       {/* ── Onboarding Checklist ── */}
@@ -289,6 +317,7 @@ export default function DashboardOverview() {
           merchant={merchant}
           agents={agents}
           hasReceivedMessage={hasReceivedMessage}
+          disableAutoDismiss={checklistReopened}
         />
       )}
 
