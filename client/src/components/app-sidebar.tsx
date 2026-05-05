@@ -432,7 +432,7 @@ export function AppSidebar() {
   });
   const unknownDomainCount = unknownDomainCountData?.count ?? 0;
 
-  const escalatedSessions = sessions?.filter(s => s.mode === "HUMAN" || s.needsSupervisorAttention === true) || [];
+  const escalatedSessions = sessions?.filter(s => s.needsSupervisorAttention === true) || [];
   const escalatedCount = escalatedSessions.length;
   const totalPendingMessages = escalatedSessions.reduce((sum, s) => sum + (s.pendingCustomerMessages ?? 0), 0);
 

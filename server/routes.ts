@@ -7301,18 +7301,19 @@ Sitemap: ${baseUrl}/sitemap.xml`;
           const lastQuestion = userMessages[userMessages.length - 1]?.content;
           const lastMessage = aiMessages[aiMessages.length - 1]?.content;
 
-          // Count customer messages that have no supervisor reply after them
-          // (i.e. messages from user/customer after the last supervisor message)
+          // Count customer messages that have no responder reply after them.
+          // A "responder" is any non-customer sender: supervisor, bot, ai, or chatvice.
           let pendingCustomerMessages = 0;
           if (session.needsSupervisorAttention) {
-            const supervisorMessages = messages.filter(m => m.from === "supervisor");
-            if (supervisorMessages.length === 0) {
+            const responderSenders = new Set(["supervisor", "bot", "ai", "chatvice"]);
+            const responderMessages = messages.filter(m => responderSenders.has(m.from));
+            if (responderMessages.length === 0) {
               pendingCustomerMessages = userMessages.length;
             } else {
-              const lastSupervisorMsg = supervisorMessages[supervisorMessages.length - 1];
-              const lastSupervisorIndex = messages.findIndex(m => m.id === lastSupervisorMsg.id);
+              const lastResponderMsg = responderMessages[responderMessages.length - 1];
+              const lastResponderIndex = messages.findIndex(m => m.id === lastResponderMsg.id);
               pendingCustomerMessages = messages
-                .slice(lastSupervisorIndex + 1)
+                .slice(lastResponderIndex + 1)
                 .filter(m => m.from === "user" || m.from === "customer").length;
             }
           }
