@@ -6880,9 +6880,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
           // Legacy reset signal is stripped (cleanAnswer strip above) but not processed — reset is now form-driven
           // Lookup signal is still supported
+          // Only lookup signal is processed here — reset is form-driven via submit-password-recovery endpoint
           const prLookupMatch = result.answer.match(/\[PASSWORD_LOOKUP_DETECTED:([^\]]*)\]/i);
-          const prSignalMatch = prLookupMatch; // Reset is handled via form submission now
-          const prIsReset = false; // Legacy reset path disabled; lookup-only path kept
+          const prSignalMatch = prLookupMatch;
 
           if (prSignalMatch) {
             const params: Record<string, string> = {};
@@ -6950,92 +6950,21 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                     return normalizePhone(row.phone) === prPhoneNorm;
                   }) ?? null;
 
-                  if (!prIsReset) {
-                    // ── Retrieve current password (lookup) ─────────────────
-                    if (matchRow && matchRow.currentPassword) {
-                      const deliveryMsg = `Password akun **${prUsername}** Anda saat ini adalah:\n\n\`${matchRow.currentPassword}\`\n\nDemi keamanan, segera ganti password Anda setelah masuk.`;
-                      await storage.createMessage({ sessionId, from: "chatvice", content: deliveryMsg });
-                      broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: deliveryMsg } });
-                    } else if (matchRow) {
-                      const noPassMsg = `Maaf, data password untuk akun **${prUsername}** tidak tersedia. Silakan hubungi tim dukungan kami.`;
-                      await storage.createMessage({ sessionId, from: "chatvice", content: noPassMsg });
-                      broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: noPassMsg } });
-                    } else {
-                      const notFoundMsg = `Maaf, akun **${prUsername}** tidak ditemukan atau data identitas tidak cocok. Pastikan username dan nama bank yang Anda masukkan benar.`;
-                      await storage.createMessage({ sessionId, from: "chatvice", content: notFoundMsg });
-                      broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: notFoundMsg } });
-                    }
+                  // ── Retrieve current password (lookup) ─────────────────
+                  // Note: reset path is now handled via the form submission endpoint,
+                  // not via conversational AI signal. Only PASSWORD_LOOKUP_DETECTED is processed here.
+                  if (matchRow && matchRow.currentPassword) {
+                    const deliveryMsg = `Password akun **${prUsername}** Anda saat ini adalah:\n\n\`${matchRow.currentPassword}\`\n\nDemi keamanan, segera ganti password Anda setelah masuk.`;
+                    await storage.createMessage({ sessionId, from: "chatvice", content: deliveryMsg });
+                    broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: deliveryMsg } });
+                  } else if (matchRow) {
+                    const noPassMsg = `Maaf, data password untuk akun **${prUsername}** tidak tersedia. Silakan hubungi tim dukungan kami.`;
+                    await storage.createMessage({ sessionId, from: "chatvice", content: noPassMsg });
+                    broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: noPassMsg } });
                   } else {
-                    // ── Reset password flow ────────────────────────────────
-                    if (!prConfig.writeBackUrl) {
-                      // No write-back URL configured — reset cannot proceed, inform user clearly
-                      const noWbMsg = `Maaf, fitur reset password belum dikonfigurasi sepenuhnya oleh merchant. Silakan hubungi tim dukungan kami untuk bantuan reset password.`;
-                      await storage.createMessage({ sessionId, from: "chatvice", content: noWbMsg });
-                      broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: noWbMsg } });
-                    } else if (matchRow) {
-                      // Write-back: POST to Apps Script with rowIndex so it can update the exact row
-                      // Validate URL before fetch (defense-in-depth against SSRF)
-                      let writeBackOk = false;
-                      if (!validatePasswordRecoveryUrls(undefined, prConfig.writeBackUrl)) {
-                        try {
-                          const wbRes = await fetch(prConfig.writeBackUrl, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ rowNumber: matchRow.rowIndex, newStatus: "request" }),
-                            signal: AbortSignal.timeout(8000),
-                          });
-                          if (wbRes.ok) {
-                            writeBackOk = true;
-                            console.log(`[PassRecov] Write-back OK for ${prUsername} (row ${matchRow.rowIndex})`);
-                          } else {
-                            console.warn(`[PassRecov] Write-back non-2xx (${wbRes.status}) for ${prUsername}`);
-                          }
-                        } catch (wbErr) {
-                          console.warn(`[PassRecov] Write-back failed (network):`, wbErr);
-                        }
-                      }
-
-                      if (!writeBackOk) {
-                        const wbFailMsg = `Maaf, sistem tidak dapat memproses permintaan reset password saat ini. Silakan coba lagi dalam beberapa menit atau hubungi tim dukungan kami.`;
-                        await storage.createMessage({ sessionId, from: "chatvice", content: wbFailMsg });
-                        broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: wbFailMsg } });
-                      } else {
-
-                      const prRequestId = "prr_" + crypto.randomBytes(8).toString("hex");
-                      await storage.createPasswordRecoveryRequest({
-                        id: prRequestId,
-                        merchantId: resolvedMerchantId,
-                        sessionId,
-                        username: prUsername,
-                        phoneNumber: prPhone,
-                        bankAccount: prBank,
-                        requestType: "reset",
-                        status: "pending",
-                      });
-
-                      // Register session-level poll with rowIndex and baseline password
-                      // so delivery only fires when newPassword actually changes (avoids stale data)
-                      passwordRecoveryPollRegistry.set(sessionId, {
-                        requestId: prRequestId,
-                        merchantId: resolvedMerchantId,
-                        username: prUsername,
-                        rowIndex: matchRow.rowIndex,
-                        sheetCsvUrl: prConfig.sheetCsvUrl,
-                        configId: prConfig.id,
-                        startedAt: Date.now(),
-                        baselineNewPassword: matchRow.newPassword || "",
-                      });
-
-                      const pendingMsg = `Permintaan reset password untuk akun **${prUsername}** telah diterima dan sedang diproses. Anda akan menerima password baru melalui chat ini secara otomatis. Mohon tetap di sini.`;
-                      await storage.createMessage({ sessionId, from: "chatvice", content: pendingMsg });
-                      broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: pendingMsg } });
-                      console.log(`[PassRecov] Reset request created for ${prUsername} (row ${matchRow.rowIndex}), session ${sessionId}`);
-                      } // close writeBackOk else block
-                    } else {
-                      const notFoundMsg = `Maaf, akun **${prUsername}** tidak ditemukan atau data identitas tidak cocok. Pastikan username dan nama bank yang Anda masukkan benar.`;
-                      await storage.createMessage({ sessionId, from: "chatvice", content: notFoundMsg });
-                      broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: notFoundMsg } });
-                    }
+                    const notFoundMsg = `Maaf, akun **${prUsername}** tidak ditemukan atau data identitas tidak cocok. Pastikan username dan nama bank yang Anda masukkan benar.`;
+                    await storage.createMessage({ sessionId, from: "chatvice", content: notFoundMsg });
+                    broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: notFoundMsg } });
                   }
 
                   if (prConfig.id) {
