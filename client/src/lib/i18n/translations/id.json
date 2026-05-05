@@ -659,6 +659,7 @@
       "escalatedDesc": "sesi memerlukan perhatian segera",
       "retriggeredAlert": "Pesan baru dari chat yang dieskalasi",
       "retriggeredDesc": "sesi yang dieskalasi mengirim pesan lanjutan",
+      "viewChat": "Lihat",
       "productOffered": "Produk ditawarkan",
       "productOfferedDesc": "Rekomendasi produk telah dikirim ke pelanggan.",
       "productOfferFailed": "Gagal menawarkan produk",

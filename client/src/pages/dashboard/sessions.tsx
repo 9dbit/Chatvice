@@ -31,6 +31,7 @@ import {
 } from "react-icons/si";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { formatDistanceToNow } from "date-fns";
 import type { Session, Message, Supervisor, Agent, QuickReply, ProductCard, ProductCardButton } from "@shared/schema";
 import { playIncomingChatSound, playChatReplySound, playAngrySound } from "@/lib/sounds";
@@ -313,6 +314,7 @@ export default function SessionsPage() {
   const lastProcessedMessageIdRef = useRef<string | null>(null);
   const initialLoadRef = useRef(true);
   const lastQuestionPerEscalatedRef = useRef<Map<string, string | undefined>>(new Map());
+  const sessionRowRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   
   // Save sound preference
   useEffect(() => {
@@ -511,10 +513,20 @@ export default function SessionsPage() {
         });
       } else if (retriggeredSessions.length > 0) {
         playAngrySound();
+        const firstRetriggered = retriggeredSessions[0];
         toast({
           title: t("dashboard.sessions.retriggeredAlert"),
           description: `${retriggeredSessions.length} ${t("dashboard.sessions.retriggeredDesc")}`,
           duration: 5000,
+          action: (
+            <ToastAction
+              altText={t("dashboard.sessions.viewChat")}
+              onClick={() => handleSelectSession(firstRetriggered.id, true)}
+              data-testid="button-toast-view-chat"
+            >
+              {t("dashboard.sessions.viewChat")}
+            </ToastAction>
+          ),
         });
       }
     }
@@ -587,7 +599,7 @@ export default function SessionsPage() {
   }, [unreadEscalatedSessionIds]);
 
   // Helper to select a session and mark it as read in the escalated unread set
-  const handleSelectSession = (sessionId: string | null) => {
+  const handleSelectSession = (sessionId: string | null, scrollIntoView = false) => {
     setSelectedSession(sessionId);
     if (sessionId) {
       setUnreadEscalatedSessionIds(prev => {
@@ -596,6 +608,12 @@ export default function SessionsPage() {
         next.delete(sessionId);
         return next;
       });
+      if (scrollIntoView) {
+        requestAnimationFrame(() => {
+          const el = sessionRowRefs.current.get(sessionId);
+          el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        });
+      }
     }
   };
 
@@ -1453,6 +1471,10 @@ export default function SessionsPage() {
                       return (
                         <button
                           key={session.id}
+                          ref={(el) => {
+                            if (el) sessionRowRefs.current.set(session.id, el);
+                            else sessionRowRefs.current.delete(session.id);
+                          }}
                           onClick={() => handleSelectSession(session.id)}
                           className={`w-full text-left transition-colors hover-elevate relative ${
                             isSelected

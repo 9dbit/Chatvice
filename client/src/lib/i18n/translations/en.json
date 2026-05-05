@@ -682,6 +682,7 @@
       "escalatedDesc": "session(s) need immediate attention",
       "retriggeredAlert": "New message from escalated chat",
       "retriggeredDesc": "escalated session(s) sent a follow-up message",
+      "viewChat": "View",
       "productOffered": "Product offered",
       "productOfferedDesc": "The product recommendation has been sent to the customer.",
       "productOfferFailed": "Failed to offer product",
