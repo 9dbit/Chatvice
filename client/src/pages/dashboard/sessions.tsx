@@ -23,7 +23,7 @@ import {
   CheckCircle2, Circle, XCircle, Filter, ShoppingBag, Plus, ImageIcon, Video, FileText,
   ExternalLink, Maximize2, Minimize2, MapPin, Volume2, VolumeX, Monitor, Globe, Smartphone, Radio,
   Languages, Wand2, Settings2, Info, Copy, Link2, StopCircle, Archive, CalendarDays,
-  Megaphone, Users, ChevronDown, ChevronUp, FileUp, RotateCcw, Ban, TrendingUp
+  Megaphone, Users, ChevronDown, ChevronUp, FileUp, RotateCcw, Ban, TrendingUp, Ticket
 } from "lucide-react";
 import {
   SiAndroid, SiApple, SiLinux,
@@ -1137,7 +1137,9 @@ export default function SessionsPage() {
   const statusFilteredSessions =
     statusFilter === "all"
       ? sortedSessions
-      : sortedSessions?.filter(s => getSessionStatus(s) === statusFilter);
+      : statusFilter === "ticket"
+        ? sortedSessions?.filter(s => (s as any).hasPasswordTicket)
+        : sortedSessions?.filter(s => getSessionStatus(s) === statusFilter);
 
   // Group sessions by deviceFingerprint, but only collapse empty visitor-only sessions.
   // Real chat sessions (those with at least one message) are always shown as separate list entries —
@@ -1319,6 +1321,7 @@ export default function SessionsPage() {
     active: sortedSessions?.filter(s => getSessionStatus(s) === "active").length || 0,
     needsResponse: sortedSessions?.filter(s => getSessionStatus(s) === "needs_response").length || 0,
     ended: sortedSessions?.filter(s => getSessionStatus(s) === "ended").length || 0,
+    ticket: sortedSessions?.filter(s => (s as any).hasPasswordTicket).length || 0,
   };
 
   return (
@@ -1339,46 +1342,70 @@ export default function SessionsPage() {
             </div>
             <p className="text-muted-foreground text-xs sm:text-sm hidden sm:block">{t("dashboard.sessions.subtitle")}</p>
           </div>
-          <div className={`${selectedSession ? 'hidden' : 'flex'} sm:flex items-center gap-2 flex-wrap`}>
+          <div className={`${selectedSession ? 'hidden' : 'flex'} sm:flex items-center gap-1.5 flex-wrap`}>
+            {/* All */}
+            <button
+              onClick={() => setStatusFilter("all")}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "all" ? "bg-primary/10 border-primary/50 text-primary" : "bg-card border-border text-muted-foreground hover:text-foreground"}`}
+              title="Show all sessions"
+              data-testid="button-filter-all"
+            >
+              <span className="text-[11px] font-medium">All</span>
+            </button>
+            {/* Alert */}
             <button
               onClick={() => setStatusFilter(statusFilter === "angry" ? "all" : "angry")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "angry" ? "bg-red-500/20 border-red-500/50 text-red-600 dark:text-red-400" : "bg-card border-border text-muted-foreground hover:border-red-500/40 hover:text-red-600 dark:hover:text-red-400"}`}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "angry" ? "bg-red-500/20 border-red-500/50 text-red-600 dark:text-red-400" : "bg-card border-border text-muted-foreground hover:border-red-500/40 hover:text-red-600 dark:hover:text-red-400"}`}
               title="Filter: Alert"
               data-testid="button-filter-angry"
             >
               <StatusDot status="angry" />
-              <span className="text-xs font-medium">{t("dashboard.sessions.alert")}</span>
-              <span className="text-xs font-bold" data-testid="text-count-angry">{statusCounts.angry}</span>
+              <span className="text-[11px] font-medium">{t("dashboard.sessions.alert")}</span>
+              <span className="text-[11px] font-bold" data-testid="text-count-angry">{statusCounts.angry}</span>
             </button>
+            {/* Active */}
             <button
               onClick={() => setStatusFilter(statusFilter === "active" ? "all" : "active")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "active" ? "bg-green-500/20 border-green-500/50 text-green-600 dark:text-green-400" : "bg-card border-border text-muted-foreground hover:border-green-500/40 hover:text-green-600 dark:hover:text-green-400"}`}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "active" ? "bg-green-500/20 border-green-500/50 text-green-600 dark:text-green-400" : "bg-card border-border text-muted-foreground hover:border-green-500/40 hover:text-green-600 dark:hover:text-green-400"}`}
               title="Filter: Active"
               data-testid="button-filter-active"
             >
               <StatusDot status="active" />
-              <span className="text-xs font-medium">{t("common.active")}</span>
-              <span className="text-xs font-bold" data-testid="text-count-active">{statusCounts.active}</span>
+              <span className="text-[11px] font-medium">{t("common.active")}</span>
+              <span className="text-[11px] font-bold" data-testid="text-count-active">{statusCounts.active}</span>
             </button>
+            {/* Pending */}
             <button
               onClick={() => setStatusFilter(statusFilter === "needs_response" ? "all" : "needs_response")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "needs_response" ? "bg-orange-500/20 border-orange-500/50 text-orange-600 dark:text-orange-400" : "bg-card border-border text-muted-foreground hover:border-orange-500/40 hover:text-orange-600 dark:hover:text-orange-400"}`}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "needs_response" ? "bg-orange-500/20 border-orange-500/50 text-orange-600 dark:text-orange-400" : "bg-card border-border text-muted-foreground hover:border-orange-500/40 hover:text-orange-600 dark:hover:text-orange-400"}`}
               title="Filter: Pending"
               data-testid="button-filter-needs-response"
             >
               <StatusDot status="needs_response" />
-              <span className="text-xs font-medium">{t("dashboard.sessions.pending")}</span>
-              <span className="text-xs font-bold" data-testid="text-count-needs-response">{statusCounts.needsResponse}</span>
+              <span className="text-[11px] font-medium">{t("dashboard.sessions.pending")}</span>
+              <span className="text-[11px] font-bold" data-testid="text-count-needs-response">{statusCounts.needsResponse}</span>
             </button>
+            {/* Finished */}
             <button
               onClick={() => setStatusFilter(statusFilter === "ended" ? "all" : "ended")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "ended" ? "bg-muted border-border/80 text-foreground" : "bg-card border-border text-muted-foreground hover:border-border/80 hover:text-foreground"}`}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "ended" ? "bg-muted border-border/80 text-foreground" : "bg-card border-border text-muted-foreground hover:border-border/80 hover:text-foreground"}`}
               title="Filter: Finished"
               data-testid="button-filter-ended"
             >
               <StatusDot status="ended" />
-              <span className="text-xs font-medium">{t("dashboard.sessions.finished")}</span>
-              <span className="text-xs font-bold" data-testid="text-count-ended">{statusCounts.ended}</span>
+              <span className="text-[11px] font-medium">{t("dashboard.sessions.finished")}</span>
+              <span className="text-[11px] font-bold" data-testid="text-count-ended">{statusCounts.ended}</span>
+            </button>
+            {/* Ticket — sessions with an active password recovery request */}
+            <button
+              onClick={() => setStatusFilter(statusFilter === "ticket" ? "all" : "ticket")}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "ticket" ? "bg-blue-500/20 border-blue-500/50 text-blue-600 dark:text-blue-400" : "bg-card border-border text-muted-foreground hover:border-blue-500/40 hover:text-blue-600 dark:hover:text-blue-400"}`}
+              title="Filter: Password Reset Tickets"
+              data-testid="button-filter-ticket"
+            >
+              <Ticket className="w-3 h-3" />
+              <span className="text-[11px] font-medium">Ticket</span>
+              <span className="text-[11px] font-bold" data-testid="text-count-ticket">{statusCounts.ticket}</span>
             </button>
             <Button
               variant="outline"
@@ -1388,7 +1415,7 @@ export default function SessionsPage() {
               data-testid="button-open-blast"
             >
               <Megaphone className="w-4 h-4" />
-              <span className="hidden sm:inline">Blast Message</span>
+              <span>Blast Message</span>
             </Button>
             <Button
               variant={soundEnabled ? "ghost" : "outline"}

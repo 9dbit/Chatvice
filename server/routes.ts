@@ -7293,6 +7293,10 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       // Visitor sessions with no interaction are cleaned up by the stale-visitor cleanup job (every 60s).
       const sessions = allSessions;
       
+      // Pre-fetch pending password recovery requests to tag sessions with active tickets
+      const pendingPassRecovReqs = await storage.getPasswordRecoveryRequests(req.params.merchantId, "pending");
+      const pendingPassRecovSessionIds = new Set(pendingPassRecovReqs.map(r => r.sessionId));
+
       const sessionsWithPreview = await Promise.all(
         sessions.map(async (session) => {
           const messages = await storage.getMessages(session.id);
@@ -7323,6 +7327,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             lastQuestion: lastQuestion?.slice(0, 100),
             lastMessage: lastMessage?.slice(0, 100),
             pendingCustomerMessages,
+            hasPasswordTicket: pendingPassRecovSessionIds.has(session.id),
           };
         })
       );
