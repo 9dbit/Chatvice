@@ -1582,23 +1582,28 @@ export default function SessionsPage() {
           </Card>
         </div>
 
-        <div className={`lg:col-span-7 xl:col-span-8 flex min-h-0 gap-3 ${selectedSession ? 'flex' : 'hidden lg:flex'}`}>
-          <Card className={`flex flex-col h-full transition-all duration-300 ${previewContent ? 'flex-1' : 'w-full'}`}>
+        <div className={`lg:col-span-7 xl:col-span-8 flex flex-col min-h-0 gap-2 ${selectedSession ? 'flex' : 'hidden lg:flex'}`}>
+          {/* Mobile: back arrow shown above the card */}
+          {selectedSession && (
+            <div className="lg:hidden flex items-center">
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setSelectedSession(null)}
+                data-testid="button-back-to-list"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </div>
+          )}
+          <div className="flex flex-1 min-h-0 gap-3">
+          <Card className={`flex flex-col flex-1 min-h-0 transition-all duration-300 ${!previewContent ? 'w-full' : ''}`}>
             {selectedSession ? (
               <>
                 <CardHeader className="flex-shrink-0 border-b py-2 sm:py-3 px-3 sm:px-4">
                   <div className="flex items-center justify-between gap-2 sm:gap-3">
-                    {/* LEFT: back button + customer avatar + customer name/time */}
+                    {/* LEFT: customer avatar + customer name/time */}
                     <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => setSelectedSession(null)}
-                        className="h-8 w-8 lg:hidden flex-shrink-0"
-                        data-testid="button-back-to-list"
-                      >
-                        <ArrowLeft className="w-4 h-4" />
-                      </Button>
                       {/* Customer avatar with colored initials */}
                       <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
                         {selectedSessionData?.customerAvatarUrl ? (
@@ -1609,10 +1614,14 @@ export default function SessionsPage() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <CardTitle className="text-sm sm:text-base truncate" data-testid="text-selected-customer">
+                        {/* Name row: name + device/OS/browser icons + last-active time */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <CardTitle className="text-base sm:text-lg font-semibold truncate" data-testid="text-selected-customer">
                             {getVisitorDisplayName(selectedSessionData?.customerName)}
                           </CardTitle>
+                          <DeviceIcon userAgent={selectedSessionData?.userAgent} size="md" />
+                          <OsIcon userAgent={selectedSessionData?.userAgent} size="md" />
+                          <BrowserIcon userAgent={selectedSessionData?.userAgent} size="md" />
                           {selectedSessionData?.lastActivity && (
                             <span className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground flex-shrink-0">
                               <Clock className="w-3 h-3" />
@@ -1620,7 +1629,7 @@ export default function SessionsPage() {
                             </span>
                           )}
                         </div>
-                        {/* Client info row: flag + city + country + IP + device + OS + browser */}
+                        {/* Sub-info row: flag + city/country + IP */}
                         <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                           <CountryFlag code={selectedSessionData?.countryCode} name={selectedSessionData?.countryName} />
                           {(selectedSessionData?.cityName || selectedSessionData?.countryName) && selectedSessionData?.countryCode !== "xx" && selectedSessionData?.countryCode !== "XX" && (
@@ -1633,9 +1642,6 @@ export default function SessionsPage() {
                               · {selectedSessionData.clientIp}
                             </span>
                           )}
-                          <DeviceIcon userAgent={selectedSessionData?.userAgent} size="md" />
-                          <OsIcon userAgent={selectedSessionData?.userAgent} size="md" />
-                          <BrowserIcon userAgent={selectedSessionData?.userAgent} size="md" />
                         </div>
                       </div>
                     </div>
@@ -1826,10 +1832,10 @@ export default function SessionsPage() {
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                className="flex sm:hidden h-9 w-9"
+                                className="flex sm:hidden h-10 w-10"
                                 data-testid="button-mobile-settings"
                               >
-                                <Settings2 className="w-5 h-5" />
+                                <Settings2 className="w-6 h-6" />
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent side="bottom" align="end" className="w-72 p-3">
@@ -2895,6 +2901,7 @@ export default function SessionsPage() {
               </CardContent>
             </Card>
           )}
+          </div>
         </div>
       </div>
 
