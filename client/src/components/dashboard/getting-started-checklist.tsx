@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Bot, Code, MessageSquare, Check, ChevronDown, ChevronUp, X, Rocket, HelpCircle
+  Bot, Code, MessageSquare, Check, ChevronDown, ChevronUp, X, Rocket, ArrowRight
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { Agent, Merchant } from "@shared/schema";
@@ -17,7 +17,7 @@ interface ChecklistStep {
   description: string;
   completed: boolean;
   action?: { label: string; onClick: () => void };
-  helpHref?: string;
+  deepLink?: { label: string; href: string };
   accentClass: string;
 }
 
@@ -77,7 +77,7 @@ export function GettingStartedChecklist({ merchant, agents, hasReceivedMessage, 
       action: !hasAgent
         ? { label: "Create agent", onClick: () => navigate("/dashboard/agents") }
         : undefined,
-      helpHref: !hasAgent ? "/dashboard/agents" : undefined,
+      deepLink: !hasAgent ? { label: "Open Agents page", href: "/dashboard/agents" } : undefined,
       accentClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
     },
     {
@@ -92,7 +92,7 @@ export function GettingStartedChecklist({ merchant, agents, hasReceivedMessage, 
             onClick: () => widgetInstalledMutation.mutate(),
           }
         : undefined,
-      helpHref: !widgetInstalled ? "/dashboard/widget" : undefined,
+      deepLink: !widgetInstalled ? { label: "Open Widget page", href: "/dashboard/widget" } : undefined,
       accentClass: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
     },
     {
@@ -101,7 +101,7 @@ export function GettingStartedChecklist({ merchant, agents, hasReceivedMessage, 
       title: "Receive your first message",
       description: "Once the widget is live, customers can start a conversation with your agent.",
       completed: hasReceivedMessage,
-      helpHref: !hasReceivedMessage ? "/dashboard/live-preview" : undefined,
+      deepLink: !hasReceivedMessage ? { label: "Open Live Preview", href: "/dashboard/live-preview" } : undefined,
       accentClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
     },
   ];
@@ -212,15 +212,17 @@ export function GettingStartedChecklist({ merchant, agents, hasReceivedMessage, 
                     {!step.completed && (
                       <p className="text-xs text-muted-foreground mt-0.5">{step.description}</p>
                     )}
-                    {!step.completed && step.helpHref && (
-                      <a
-                        href={step.helpHref}
-                        className="inline-flex items-center gap-1 text-xs text-primary mt-1 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
-                        data-testid={`link-help-${step.id}`}
+                    {!step.completed && step.deepLink && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-auto px-0 py-1 text-xs text-primary gap-1 font-normal"
+                        onClick={() => navigate(step.deepLink!.href)}
+                        data-testid={`button-deeplink-${step.id}`}
                       >
-                        <HelpCircle className="w-3 h-3" />
-                        Learn how
-                      </a>
+                        <ArrowRight className="w-3 h-3" />
+                        {step.deepLink.label}
+                      </Button>
                     )}
                   </div>
                   {step.action && !step.completed && (
@@ -233,16 +235,11 @@ export function GettingStartedChecklist({ merchant, agents, hasReceivedMessage, 
                       data-testid={`button-step-action-${step.id}`}
                     >
                       {step.id === "install-widget" ? (
-                        <>
-                          <Check className="w-3.5 h-3.5" />
-                          {step.action.label}
-                        </>
+                        <Check className="w-3.5 h-3.5" />
                       ) : (
-                        <>
-                          <Bot className="w-3.5 h-3.5" />
-                          {step.action.label}
-                        </>
+                        <Bot className="w-3.5 h-3.5" />
                       )}
+                      {step.action.label}
                     </Button>
                   )}
                 </div>
