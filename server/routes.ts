@@ -19651,19 +19651,15 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
         return res.status(400).json({ error: "All fields required" });
       }
 
-      // Resolve merchant (supports slug or numeric id)
-      let merchant: any = null;
-      const asNum = parseInt(String(merchantId), 10);
-      if (!isNaN(asNum)) {
-        merchant = await storage.getMerchant(asNum);
-      }
-      if (!merchant) {
-        merchant = await storage.getMerchantBySlug(String(merchantId));
-      }
-      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
-
       const session = await storage.getSession(sessionId);
       if (!session) return res.status(404).json({ error: "Session not found" });
+
+      // Security: verify session belongs to the resolved merchant (mirrors closing-statement pattern)
+      const merchant = await resolveMerchant(String(merchantId));
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+      if (session.merchantId !== merchant.id) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
 
       const prAgentId: string | undefined = (session as any).agentId || merchant.activeAgentId || undefined;
       const prConfig = await storage.getPasswordRecoveryConfig(merchant.id, prAgentId);
