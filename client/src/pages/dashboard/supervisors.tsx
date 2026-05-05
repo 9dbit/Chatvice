@@ -22,7 +22,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { PlanLimitPopup } from "@/components/plan-limit-popup";
 import { Users, Plus, Trash2, Mail, User, Camera, Loader2, Edit, Clock, Zap, Timer, AlertCircle, Bot, Check, Crown, ArrowUpRight, Link as LinkIcon, X, ChevronUp, ChevronDown, ArrowUpDown } from "lucide-react";
 import { Link } from "wouter";
-import type { Supervisor, Agent, Merchant, AgentSupervisor } from "@shared/schema";
+import type { SupervisorWithStats, Agent, Merchant, AgentSupervisor } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 
 type ResponseTimeRating = "excellent" | "fast" | "normal" | "slow";
@@ -34,7 +34,15 @@ function getResponseTimeRating(seconds: number): ResponseTimeRating {
   return "slow";
 }
 
-function ResponseTimeBadge({ avgResponseTime }: { avgResponseTime: number }) {
+function ResponseTimeBadge({ avgResponseTime }: { avgResponseTime: number | null }) {
+  if (avgResponseTime === null) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">No data</span>
+      </div>
+    );
+  }
+
   const rating = getResponseTimeRating(avgResponseTime);
   
   const configs = {
@@ -103,7 +111,7 @@ export default function SupervisorsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: supervisors = [], isLoading } = useQuery<Supervisor[]>({
+  const { data: supervisors = [], isLoading } = useQuery<SupervisorWithStats[]>({
     queryKey: ["/api/supervisors", merchantId],
     enabled: !!merchantId,
   });
@@ -695,8 +703,7 @@ export default function SupervisorsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
-                  {sortedSupervisors.map((supervisor, index) => {
-                    const mockResponseTime = 2 + (index * 3.5);
+                  {sortedSupervisors.map((supervisor) => {
                     const assignedAgents = getAgentsForSupervisor(supervisor.id);
                     const hasTelegram = !!supervisor.telegramChatId;
 
@@ -770,7 +777,7 @@ export default function SupervisorsPage() {
 
                         {/* Response Time */}
                         <td className="px-4 py-3 hidden lg:table-cell">
-                          <ResponseTimeBadge avgResponseTime={mockResponseTime} />
+                          <ResponseTimeBadge avgResponseTime={supervisor.avgResponseTime} />
                         </td>
 
                         {/* Agents */}

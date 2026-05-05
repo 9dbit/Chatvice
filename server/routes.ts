@@ -8253,7 +8253,44 @@ Rules:
     try {
       const merchantId = req.session.merchantId!;
       const supervisors = await storage.getSupervisorsByMerchant(merchantId);
-      const safeSupervisors = supervisors.map(({ password, ...s }) => s);
+
+      const sessions = await storage.getSessionsByMerchant(merchantId);
+      const supervisorSessions = sessions.filter(s => s.supervisorId);
+
+      const sessionMessages = await Promise.all(
+        supervisorSessions.map(async (session) => ({
+          supervisorId: session.supervisorId!,
+          messages: await storage.getMessages(session.id),
+        }))
+      );
+
+      const responseTimesBySupervisor: Record<string, number[]> = {};
+      for (const { supervisorId, messages } of sessionMessages) {
+        const sorted = [...messages].sort(
+          (a, b) => new Date(a.timestamp!).getTime() - new Date(b.timestamp!).getTime()
+        );
+        for (let i = 0; i < sorted.length; i++) {
+          if (sorted[i].from === 'customer' || sorted[i].from === 'user') {
+            const nextSup = sorted.slice(i + 1).find(m => m.from === 'supervisor');
+            if (nextSup) {
+              const diffSec = (new Date(nextSup.timestamp!).getTime() - new Date(sorted[i].timestamp!).getTime()) / 1000;
+              if (diffSec > 0 && diffSec < 3600) {
+                if (!responseTimesBySupervisor[supervisorId]) responseTimesBySupervisor[supervisorId] = [];
+                responseTimesBySupervisor[supervisorId].push(diffSec);
+              }
+            }
+          }
+        }
+      }
+
+      const safeSupervisors = supervisors.map(({ password, ...s }) => {
+        const times = responseTimesBySupervisor[s.id];
+        const avgResponseTime = times && times.length > 0
+          ? parseFloat((times.reduce((a, b) => a + b, 0) / times.length).toFixed(1))
+          : null;
+        return { ...s, avgResponseTime };
+      });
+
       res.json(safeSupervisors);
     } catch (error) {
       res.status(500).json({ error: "Server error" });

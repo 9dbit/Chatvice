@@ -206,6 +206,7 @@ export const supervisors = pgTable("supervisors", {
 export const insertSupervisorSchema = createInsertSchema(supervisors).omit({ id: true });
 export type InsertSupervisor = z.infer<typeof insertSupervisorSchema>;
 export type Supervisor = typeof supervisors.$inferSelect;
+export type SupervisorWithStats = Omit<Supervisor, "password"> & { avgResponseTime: number | null };
 
 // Supervisor Invitations - for email-based invitation flow
 export const supervisorInvitations = pgTable("supervisor_invitations", {
