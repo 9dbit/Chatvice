@@ -10,7 +10,7 @@ import {
   MessageSquare, Users, Clock, TrendingUp, TrendingDown, Bot, HeadphonesIcon,
   Activity, BarChart3, Zap, Target, ThumbsUp, UserCheck, MessageCircle,
   AlertCircle, Code, Copy, Check, ChevronRight, FileCode, ExternalLink,
-  Minus, Crown, Star
+  Minus, Crown, Star, Rocket, LayoutDashboard, Sparkles
 } from "lucide-react";
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -241,6 +241,12 @@ export default function DashboardOverview() {
   const displayName = merchant?.companyName || merchant?.username || "Dashboard";
   const planId = merchant?.subscriptionPlanId || "free";
 
+  const isEmptyState =
+    !isLoading &&
+    stats !== undefined &&
+    (stats.totalSessions ?? 0) === 0 &&
+    (stats.messagesToday ?? 0) === 0;
+
   return (
     <div className="space-y-4 sm:space-y-6">
 
@@ -273,7 +279,75 @@ export default function DashboardOverview() {
         </div>
       </div>
 
-      {/* ── KPI Stat Cards ── */}
+      {/* ── Empty State ── */}
+      {isEmptyState && (
+        <Card
+          className="border-dashed"
+          data-testid="card-empty-state"
+        >
+          <CardContent className="flex flex-col items-center justify-center py-14 px-6 text-center">
+            <div className="relative mb-6">
+              <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <LayoutDashboard className="w-10 h-10 text-primary" />
+              </div>
+              <div className="absolute -top-1.5 -right-1.5 w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              </div>
+            </div>
+            <h2 className="text-xl font-semibold tracking-tight mb-2" data-testid="text-empty-state-title">
+              {t("dashboard.overview.emptyStateTitle")}
+            </h2>
+            <p className="text-sm text-muted-foreground max-w-sm mb-8" data-testid="text-empty-state-desc">
+              {t("dashboard.overview.emptyStateDesc")}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-sm">
+              <Button
+                onClick={() => navigate("/dashboard/agents")}
+                variant="default"
+                className="flex items-center gap-2"
+                data-testid="button-empty-create-agent"
+              >
+                <Bot className="w-4 h-4" />
+                {t("dashboard.overview.emptyStateCreateAgent")}
+              </Button>
+              <Button
+                onClick={() => {
+                  document.getElementById("install-widget-section")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                variant="outline"
+                className="flex items-center gap-2"
+                data-testid="button-empty-install-widget"
+              >
+                <Code className="w-4 h-4" />
+                {t("dashboard.overview.emptyStateInstallWidget")}
+              </Button>
+            </div>
+            <div className="mt-8 grid grid-cols-3 gap-6 text-center w-full max-w-xs">
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                  <Rocket className="w-4 h-4 text-blue-500" />
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-tight">{t("dashboard.overview.emptyStateStep1")}</p>
+              </div>
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="w-9 h-9 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                  <Code className="w-4 h-4 text-violet-500" />
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-tight">{t("dashboard.overview.emptyStateStep2")}</p>
+              </div>
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <MessageSquare className="w-4 h-4 text-emerald-500" />
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-tight">{t("dashboard.overview.emptyStateStep3")}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── KPI Stat Cards + Charts (hidden when no data) ── */}
+      {!isEmptyState && (<>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {statCards.map((stat, index) => (
           <Card
@@ -618,9 +692,10 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
       </div>
+      </>)}
 
       {/* ── Install Widget ── */}
-      <Card data-testid="card-install-widget">
+      <Card data-testid="card-install-widget" id="install-widget-section">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <div

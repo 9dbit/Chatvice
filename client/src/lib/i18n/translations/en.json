@@ -586,7 +586,14 @@
       "trendVsYesterday": "vs yesterday",
       "trendVsTarget": "vs 70% target",
       "trendResponseSpeed": "response speed",
-      "noSessionsYet": "No sessions yet"
+      "noSessionsYet": "No sessions yet",
+      "emptyStateTitle": "Welcome — let's get started",
+      "emptyStateDesc": "No sessions or messages yet. Install the chat widget on your site or create your first AI agent and your dashboard will come alive.",
+      "emptyStateCreateAgent": "Create an agent",
+      "emptyStateInstallWidget": "Install the widget",
+      "emptyStateStep1": "Set up an agent",
+      "emptyStateStep2": "Install the widget",
+      "emptyStateStep3": "Start chatting"
     },
     "agents": {
       "title": "AI Agents",
