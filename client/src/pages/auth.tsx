@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Eye, EyeOff, Mail, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -177,6 +177,7 @@ export function LoginPage() {
       return responseData;
     },
     onSuccess: (data: { success: boolean; merchantId: string; type: string; profileCompleted?: boolean; supervisorUserId?: string }) => {
+      queryClient.clear();
       localStorage.setItem("merchantId", data.merchantId);
       localStorage.setItem("userType", data.type || "merchant");
       if (data.supervisorUserId) {
@@ -486,6 +487,7 @@ export function RegisterPage() {
         setRegistrationSuccess(true);
         setRegisteredEmail(form.getValues("email"));
       } else {
+        queryClient.clear();
         localStorage.setItem("merchantId", data.merchantId);
         localStorage.setItem("userType", "merchant");
         toast({

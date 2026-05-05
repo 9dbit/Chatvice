@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle2, XCircle, Shield, Eye, EyeOff } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface VerificationData {
   valid: boolean;
@@ -37,6 +37,7 @@ export default function VerifySupervisorPage() {
       return response.json();
     },
     onSuccess: (data) => {
+      queryClient.clear();
       localStorage.setItem("merchantId", data.merchantId);
       localStorage.setItem("userType", "supervisor");
       if (data.supervisorUserId) {

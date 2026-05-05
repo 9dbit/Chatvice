@@ -685,6 +685,7 @@ export default function SupervisorPanel() {
   };
 
   const handleLogout = () => {
+    queryClient.clear();
     localStorage.removeItem("merchantId");
     localStorage.removeItem("userType");
     localStorage.removeItem("supervisorUserId");

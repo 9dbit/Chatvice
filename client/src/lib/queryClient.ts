@@ -13,10 +13,12 @@ let sessionExpiredHandled = false;
 export function handleSessionExpired() {
   if (sessionExpiredHandled) return;
   sessionExpiredHandled = true;
+  queryClient.clear();
   localStorage.removeItem("merchantId");
   localStorage.removeItem("userType");
   window.dispatchEvent(new CustomEvent("session-expired"));
   setTimeout(() => {
+    sessionExpiredHandled = false;
     window.location.href = getLoginRedirectUrl();
   }, 2500);
 }

@@ -501,6 +501,7 @@ export function AppSidebar() {
   };
 
   const handleLogout = () => {
+    queryClient.clear();
     localStorage.removeItem("merchantId");
     localStorage.removeItem("userType");
     setLocation("/");

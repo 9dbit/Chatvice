@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
+import { queryClient } from "@/lib/queryClient";
 
 export default function OAuthCallback() {
   const [, setLocation] = useLocation();
@@ -20,6 +21,7 @@ export default function OAuthCallback() {
         const data = await response.json();
 
         if (data.authenticated && data.merchantId) {
+          queryClient.clear();
           localStorage.setItem("merchantId", data.merchantId);
           localStorage.setItem("userType", data.userType || "merchant");
           
