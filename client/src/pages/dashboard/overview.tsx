@@ -12,6 +12,7 @@ import {
   AlertCircle, Code, Copy, Check, ChevronRight, FileCode, ExternalLink,
   Minus, Crown, Star, Rocket, LayoutDashboard, Sparkles
 } from "lucide-react";
+import { GettingStartedChecklist } from "@/components/dashboard/getting-started-checklist";
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar,
@@ -247,6 +248,9 @@ export default function DashboardOverview() {
     (stats.totalSessions ?? 0) === 0 &&
     (stats.messagesToday ?? 0) === 0;
 
+  const hasReceivedMessage = (stats?.totalSessions ?? 0) > 0;
+  const showChecklist = !isLoading && merchant !== undefined && !merchant?.onboardingDismissed;
+
   return (
     <div className="space-y-4 sm:space-y-6">
 
@@ -278,6 +282,15 @@ export default function DashboardOverview() {
           </p>
         </div>
       </div>
+
+      {/* ── Onboarding Checklist ── */}
+      {showChecklist && (
+        <GettingStartedChecklist
+          merchant={merchant}
+          agents={agents}
+          hasReceivedMessage={hasReceivedMessage}
+        />
+      )}
 
       {/* ── Empty State ── */}
       {isEmptyState && (

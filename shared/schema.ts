@@ -139,6 +139,9 @@ export const merchants = pgTable("merchants", {
   expiryReminder3dSentAt: timestamp("expiry_reminder_3d_sent_at"),
   // PayPal recurring subscription ID (for auto-debit / auto-renewal)
   paypalSubscriptionId: text("paypal_subscription_id"),
+  // Onboarding checklist
+  onboardingDismissed: boolean("onboarding_dismissed").default(false),
+  onboardingWidgetInstalled: boolean("onboarding_widget_installed").default(false),
 });
 
 // Email verification tokens for merchant registration

@@ -5168,6 +5168,41 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // NOTE: /api/merchant/profile and onboarding routes must be BEFORE /api/merchant/:merchantId to avoid wildcard capture
+  app.get("/api/merchant/profile", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) {
+        return res.status(404).json({ error: "Merchant not found" });
+      }
+      const { password, ...safeData } = merchant;
+      res.json(safeData);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/merchant/onboarding/dismiss", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      await storage.updateMerchant(merchantId, { onboardingDismissed: true });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/merchant/onboarding/widget-installed", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      await storage.updateMerchant(merchantId, { onboardingWidgetInstalled: true });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // Unlink an auth method (must be before /api/merchant/:merchantId)
   app.post("/api/merchant/auth-methods/unlink", requireMerchant, async (req, res) => {
     try {
