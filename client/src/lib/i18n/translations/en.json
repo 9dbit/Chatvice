@@ -680,6 +680,8 @@
       "newSessions": "new sessions started",
       "escalatedAlert": "Escalated session!",
       "escalatedDesc": "session(s) need immediate attention",
+      "retriggeredAlert": "New message from escalated chat",
+      "retriggeredDesc": "escalated session(s) sent a follow-up message",
       "productOffered": "Product offered",
       "productOfferedDesc": "The product recommendation has been sent to the customer.",
       "productOfferFailed": "Failed to offer product",

@@ -508,6 +508,11 @@ export default function SessionsPage() {
       });
     } else if (retriggeredSessions.length > 0) {
       playAngrySound();
+      toast({
+        title: t("dashboard.sessions.retriggeredAlert"),
+        description: `${retriggeredSessions.length} ${t("dashboard.sessions.retriggeredDesc")}`,
+        duration: 5000,
+      });
     }
 
     // Update lastQuestion tracking: add newly escalated, update existing, remove de-escalated
