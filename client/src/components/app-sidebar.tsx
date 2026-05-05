@@ -51,6 +51,7 @@ import {
   Sparkles,
   Calendar,
   Hotel,
+  Rocket,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -58,6 +59,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useTheme } from "@/components/theme-provider";
+import { useToast } from "@/hooks/use-toast";
 import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 import { useLanguage } from "@/hooks/use-language";
@@ -293,6 +295,7 @@ export function AppSidebar() {
   const { resolvedTheme } = useTheme();
   const chatviceLogo = resolvedTheme === "dark" ? chatviceLogoDark : chatviceLogoLight;
   const { t } = useLanguage();
+  const { toast } = useToast();
 
   const isAdmin = userType === "merchant";
   const permissions = isAdmin ? rolePermissions.administrator : rolePermissions.supervisor;
@@ -388,6 +391,23 @@ export function AppSidebar() {
   const { data: merchant } = useQuery<{ online?: boolean; companyName?: string }>({
     queryKey: ["/api/merchant", merchantId],
     enabled: !!merchantId,
+  });
+
+  const { data: merchantProfile } = useQuery<{ onboardingDismissed?: boolean }>({
+    queryKey: ["/api/merchant/profile"],
+    enabled: !!merchantId && isAdmin,
+  });
+
+  const reopenChecklistMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/merchant/onboarding/reopen"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/profile"] });
+      toast({ title: "Getting Started checklist is back" });
+      setLocation("/dashboard");
+    },
+    onError: () => {
+      toast({ title: "Failed to reopen checklist", variant: "destructive" });
+    },
   });
 
   const { data: billingStatus } = useQuery<BillingStatus>({
@@ -895,6 +915,19 @@ export function AppSidebar() {
             </div>
           </Collapsible>
         )}
+        {isAdmin && merchantProfile?.onboardingDismissed && (
+          <button
+            type="button"
+            onClick={() => reopenChecklistMutation.mutate()}
+            disabled={reopenChecklistMutation.isPending}
+            className="flex items-center gap-2 px-2.5 py-1.5 w-full rounded-lg text-sm text-muted-foreground hover-elevate transition-colors"
+            data-testid="button-getting-started-sidebar"
+          >
+            <Rocket className="w-4 h-4 shrink-0 text-primary" />
+            <span className="flex-1 text-left">Getting Started</span>
+          </button>
+        )}
+
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"

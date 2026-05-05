@@ -36,17 +36,19 @@ import {
   Settings, Save, Key, Copy, Check, Camera, User, Moon, Sun, Monitor, 
   Shield, Globe, Clock, MessageSquare, AlertCircle, Sparkles, Lock,
   CheckCircle2, XCircle, Loader2, ExternalLink, Mail, Eye, EyeOff, Trash2,
-  Download, Server, RefreshCw, Bell, Volume2, Upload, Play, AlertTriangle, UserPlus, Square
+  Download, Server, RefreshCw, Bell, Volume2, Upload, Play, AlertTriangle, UserPlus, Square, Rocket
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import type { NotificationSetting } from "@shared/schema";
 import { useTheme } from "@/components/theme-provider";
 import type { Merchant } from "@shared/schema";
+import { useLocation } from "wouter";
 
 export default function SettingsPage() {
   const { t } = useLanguage();
   const merchantId = localStorage.getItem("merchantId") || "";
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const { theme, setTheme } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
@@ -105,6 +107,21 @@ export default function SettingsPage() {
   });
 
   const isPro = merchant?.subscriptionPlanId === "pro" || merchant?.subscriptionPlanId === "enterprise" || merchant?.subscriptionPlanId === "custom";
+
+  const isAdmin = localStorage.getItem("userType") !== "supervisor";
+
+  const reopenChecklistMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/merchant/onboarding/reopen"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/profile"] });
+      toast({ title: "Getting Started checklist is back" });
+      navigate("/dashboard");
+    },
+    onError: () => {
+      toast({ title: "Failed to reopen checklist", variant: "destructive" });
+    },
+  });
 
   const { data: notificationSettings, isLoading: isLoadingNotifications } = useQuery<NotificationSetting>({
     queryKey: ["/api/notification-settings"],
@@ -727,6 +744,35 @@ export default function SettingsPage() {
               </Card>
             </div>
           </div>
+
+          {isAdmin && merchant?.onboardingDismissed && (
+            <Card data-testid="card-getting-started-settings">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Rocket className="w-5 h-5 text-primary" />
+                  <CardTitle>Getting Started</CardTitle>
+                </div>
+                <CardDescription>
+                  Revisit the onboarding checklist to review setup steps or explore features you may have missed.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  variant="outline"
+                  onClick={() => reopenChecklistMutation.mutate()}
+                  disabled={reopenChecklistMutation.isPending}
+                  data-testid="button-reopen-checklist-settings"
+                >
+                  {reopenChecklistMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Rocket className="w-4 h-4 mr-2" />
+                  )}
+                  Reopen Getting Started Checklist
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="chat" className="space-y-6">
