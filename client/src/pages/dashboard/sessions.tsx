@@ -236,6 +236,7 @@ interface SessionWithPreview extends Omit<Session, 'status' | 'needsSupervisorAt
   status?: string | null;
   needsSupervisorAttention?: boolean | null;
   pendingCustomerMessages?: number;
+  hasPasswordTicket?: boolean;
 }
 
 interface PreviewContent {
@@ -1138,7 +1139,7 @@ export default function SessionsPage() {
     statusFilter === "all"
       ? sortedSessions
       : statusFilter === "ticket"
-        ? sortedSessions?.filter(s => (s as any).hasPasswordTicket)
+        ? sortedSessions?.filter(s => s.hasPasswordTicket)
         : sortedSessions?.filter(s => getSessionStatus(s) === statusFilter);
 
   // Group sessions by deviceFingerprint, but only collapse empty visitor-only sessions.
@@ -1321,7 +1322,7 @@ export default function SessionsPage() {
     active: sortedSessions?.filter(s => getSessionStatus(s) === "active").length || 0,
     needsResponse: sortedSessions?.filter(s => getSessionStatus(s) === "needs_response").length || 0,
     ended: sortedSessions?.filter(s => getSessionStatus(s) === "ended").length || 0,
-    ticket: sortedSessions?.filter(s => (s as any).hasPasswordTicket).length || 0,
+    ticket: sortedSessions?.filter(s => s.hasPasswordTicket).length || 0,
   };
 
   return (
