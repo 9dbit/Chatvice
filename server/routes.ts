@@ -638,6 +638,8 @@ interface PassRecovPollEntry {
   startedAt: number;
   /** Snapshot of newPassword at request creation — delivery only fires when this changes */
   baselineNewPassword: string;
+  /** Ticket ID generated at form submission — included in delivery message */
+  ticketId?: string;
 }
 const passwordRecoveryPollRegistry = new Map<string, PassRecovPollEntry>();
 
@@ -666,7 +668,8 @@ function startPasswordRecoverySessionPoller() {
         // Trigger when newPassword is non-empty AND different from the baseline
         // captured at request creation — guards against delivering stale/pre-existing values.
         if (matchRow && matchRow.newPassword && matchRow.newPassword !== entry.baselineNewPassword) {
-          const deliveryMsg = `Password baru akun **${entry.username}** Anda telah disiapkan:\n\n\`${matchRow.newPassword}\`\n\nSilakan segera login dan ubah ke password baru yang lebih aman.`;
+          const ticketLabel = entry.ticketId ? ` (Ticket ID: **${entry.ticketId}**)` : "";
+          const deliveryMsg = `Password baru akun **${entry.username}**${ticketLabel} telah disiapkan:\n\n\`${matchRow.newPassword}\`\n\nSilakan segera login menggunakan username **${entry.username}** dan segera ubah ke password yang lebih aman.`;
           await storage.createMessage({ sessionId, from: "chatvice", content: deliveryMsg });
           broadcastToSessionExternal(sessionId, { type: "message", message: { from: "chatvice", content: deliveryMsg } });
           await storage.updatePasswordRecoveryRequest(entry.requestId, { status: "delivered", deliveredAt: new Date(), newPassword: matchRow.newPassword });
@@ -1577,20 +1580,19 @@ PASSWORD RECOVERY FEATURE:
 Merchant ini menggunakan fitur Password Recovery via Google Sheet.
 
 SINYAL YANG TERSEDIA:
-[PASSWORD_RECOVERY_DETECTED:username=X,bank=Y,phone=Z] → customer minta RESET password baru
-[PASSWORD_LOOKUP_DETECTED:username=X,bank=Y,phone=Z] → customer minta LIHAT password saat ini
+[SHOW_PASSWORD_RECOVERY_FORM] → tampilkan form reset password kepada customer
+[PASSWORD_LOOKUP_DETECTED:username=X,bank=Y,phone=Z] → customer minta LIHAT password saat ini (kumpulkan 3 data dulu)
 
-ALUR WAJIB (jangan emit sinyal sebelum SEMUA TIGA info terkumpul):
-1. Tanya username akun
-2. Tanya nama bank terdaftar (wajib — verifikasi identitas primer)
-3. Tanya nomor HP terdaftar (WAJIB — verifikasi identitas sekunder, tidak boleh dilewati)
-4. Setelah ketiga info terkumpul, emit sinyal yang sesuai
+ALUR RESET PASSWORD (jangan kumpulkan data lewat chat):
+1. Jika customer minta reset / lupa password → langsung emit [SHOW_PASSWORD_RECOVERY_FORM]
+2. Form akan muncul otomatis di widget — customer isi sendiri di form
+3. Jangan minta username/bank/phone lewat chat untuk reset
 
-CONTOH:
-- "lupa password" / "minta reset" → kumpulkan info → emit [PASSWORD_RECOVERY_DETECTED:username=budi123,bank=BCA,phone=08123456789]
-- "mau lihat password" / "cek password" → kumpulkan info → emit [PASSWORD_LOOKUP_DETECTED:username=budi123,bank=BCA,phone=08123456789]
+ALUR LOOKUP PASSWORD (lihat password saat ini):
+1. Tanya username, bank terdaftar, nomor HP
+2. Setelah semua terkumpul → emit [PASSWORD_LOOKUP_DETECTED:username=X,bank=Y,phone=Z]
 
-PENTING: JANGAN emit sinyal sebelum username, bank, DAN nomor HP terkumpul. JANGAN tampilkan tag sinyal kepada customer.${extraInstr}`;
+PENTING: JANGAN tampilkan tag sinyal kepada customer.${extraInstr}`;
     }
   } catch (_err) {
     // Password recovery signals are optional
@@ -6463,6 +6465,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         .replace(/\[CANCEL_APPOINTMENT:[^\]]*\]/gi, "")
         .replace(/\[GET_MY_APPOINTMENTS\]/gi, "")
         .replace(/\[HOTEL_QUERY_DETECTED\]/gi, "")
+        .replace(/\[SHOW_PASSWORD_RECOVERY_FORM\]/gi, "")
         .replace(/\[PASSWORD_RECOVERY_DETECTED:[^\]]*\]/gi, "")
         .replace(/\[PASSWORD_LOOKUP_DETECTED:[^\]]*\]/gi, "")
         .trim();
@@ -6861,10 +6864,25 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
         // ── Password Recovery Signal ──────────────────────────────────────────
         try {
-          const prResetMatch = result.answer.match(/\[PASSWORD_RECOVERY_DETECTED:([^\]]*)\]/i);
+          // New form-driven reset: show the inline form card
+          const prShowFormMatch = result.answer.match(/\[SHOW_PASSWORD_RECOVERY_FORM\]/i);
+          if (prShowFormMatch) {
+            const prFormSession = await storage.getSession(sessionId);
+            const prFormAgentId = prFormSession?.agentId || existingSession?.agentId || merchant.activeAgentId || undefined;
+            const prFormConfig = await storage.getPasswordRecoveryConfig(resolvedMerchantId, prFormAgentId);
+            if (prFormConfig && prFormConfig.isActive) {
+              const formPayload = { type: "password_recovery_form" };
+              await storage.createMessage({ sessionId, from: "chatvice", content: "", messageType: "password_recovery_form", payload: formPayload });
+              broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "", messageType: "password_recovery_form", payload: formPayload } });
+              console.log(`[PassRecov] Showed form card for session ${sessionId}`);
+            }
+          }
+
+          // Legacy reset signal is stripped (cleanAnswer strip above) but not processed — reset is now form-driven
+          // Lookup signal is still supported
           const prLookupMatch = result.answer.match(/\[PASSWORD_LOOKUP_DETECTED:([^\]]*)\]/i);
-          const prSignalMatch = prResetMatch || prLookupMatch;
-          const prIsReset = !!prResetMatch;
+          const prSignalMatch = prLookupMatch; // Reset is handled via form submission now
+          const prIsReset = false; // Legacy reset path disabled; lookup-only path kept
 
           if (prSignalMatch) {
             const params: Record<string, string> = {};
@@ -19622,6 +19640,133 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
       console.error("Error starting chat:", error);
       // Return 200 with success:false to prevent widget from showing generic error
       res.json({ success: false, error: "Unable to start chat. Please try again." });
+    }
+  });
+
+  // Public endpoint: submit password recovery form data from widget
+  app.post("/api/widget/submit-password-recovery", async (req, res) => {
+    try {
+      const { sessionId, merchantId, username, bankAccount, phoneNumber } = req.body;
+      if (!sessionId || !merchantId || !username || !bankAccount || !phoneNumber) {
+        return res.status(400).json({ error: "All fields required" });
+      }
+
+      // Resolve merchant (supports slug or numeric id)
+      let merchant: any = null;
+      const asNum = parseInt(String(merchantId), 10);
+      if (!isNaN(asNum)) {
+        merchant = await storage.getMerchant(asNum);
+      }
+      if (!merchant) {
+        merchant = await storage.getMerchantBySlug(String(merchantId));
+      }
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+      const session = await storage.getSession(sessionId);
+      if (!session) return res.status(404).json({ error: "Session not found" });
+
+      const prAgentId: string | undefined = (session as any).agentId || merchant.activeAgentId || undefined;
+      const prConfig = await storage.getPasswordRecoveryConfig(merchant.id, prAgentId);
+      if (!prConfig || !prConfig.isActive || !prConfig.sheetCsvUrl) {
+        return res.status(400).json({ error: "Password recovery not configured" });
+      }
+
+      const csvText = await fetchPasswordRecoveryRawCSV(prConfig.sheetCsvUrl);
+      if (!csvText) return res.status(503).json({ error: "Sheet unavailable" });
+
+      const { rows } = parsePRCsv(csvText);
+
+      const normalizeBank = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+      const normalizePhone = (v: string) => {
+        let d = v.replace(/\D/g, "");
+        if (d.startsWith("62")) d = d.slice(2);
+        if (d.startsWith("0")) d = d.slice(1);
+        return d;
+      };
+
+      const bankNorm = normalizeBank(bankAccount);
+      const phoneNorm = normalizePhone(phoneNumber);
+
+      if (bankNorm.length < 2) {
+        return res.status(422).json({ error: "Nama bank terlalu pendek. Masukkan nama bank lengkap (contoh: BCA, Mandiri)." });
+      }
+      if (phoneNorm.length < 8) {
+        return res.status(422).json({ error: "Nomor HP tidak valid. Masukkan minimal 8 digit." });
+      }
+
+      const matchRow = rows.find(row => {
+        if (row.username.toLowerCase().trim() !== username.toLowerCase().trim()) return false;
+        if (normalizeBank(row.bank) !== bankNorm) return false;
+        if (!row.phone) return false;
+        return normalizePhone(row.phone) === phoneNorm;
+      }) ?? null;
+
+      if (!matchRow) {
+        return res.status(422).json({ error: "Data tidak ditemukan. Periksa kembali username, nama bank, dan nomor HP Anda." });
+      }
+
+      // Generate ticket ID
+      const ticketId = "TKT-" + crypto.randomBytes(4).toString("hex").toUpperCase();
+
+      // Write-back to Google Sheet if configured — POST ticket data, new_password stays empty
+      if (prConfig.writeBackUrl && !validatePasswordRecoveryUrls(undefined, prConfig.writeBackUrl)) {
+        try {
+          await fetch(prConfig.writeBackUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              rowNumber: matchRow.rowIndex,
+              newStatus: "request",
+              ticketId,
+              username,
+              bankAccount,
+              phoneNumber,
+            }),
+            signal: AbortSignal.timeout(8000),
+          });
+          console.log(`[PassRecov Form] Write-back OK for ${username} (row ${matchRow.rowIndex}), ticket ${ticketId}`);
+        } catch (wbErr) {
+          console.warn("[PassRecov Form] Write-back failed:", wbErr);
+        }
+      }
+
+      // Create DB record
+      const prRequestId = "prr_" + crypto.randomBytes(8).toString("hex");
+      await storage.createPasswordRecoveryRequest({
+        id: prRequestId,
+        merchantId: merchant.id,
+        sessionId,
+        username,
+        phoneNumber,
+        bankAccount,
+        requestType: "reset",
+        status: "pending",
+      });
+
+      // Broadcast ticket card message to chat
+      const ticketPayload = { ticketId, username, bankAccount };
+      await storage.createMessage({ sessionId, from: "chatvice", content: "", messageType: "password_recovery_ticket", payload: ticketPayload });
+      broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "", messageType: "password_recovery_ticket", payload: ticketPayload } });
+
+      // Register in poller — waits for new_password to appear in Sheet
+      passwordRecoveryPollRegistry.set(sessionId, {
+        requestId: prRequestId,
+        merchantId: merchant.id,
+        username,
+        rowIndex: matchRow.rowIndex,
+        sheetCsvUrl: prConfig.sheetCsvUrl,
+        configId: prConfig.id,
+        startedAt: Date.now(),
+        baselineNewPassword: matchRow.newPassword || "",
+        ticketId,
+      });
+
+      await storage.updatePasswordRecoveryLastSynced(prConfig.id).catch(() => {});
+      console.log(`[PassRecov Form] Ticket ${ticketId} created for ${username} (row ${matchRow.rowIndex}), session ${sessionId}`);
+      return res.json({ success: true, ticketId });
+    } catch (err) {
+      console.error("[PassRecov Form] Submit error:", err);
+      return res.status(500).json({ error: "Server error" });
     }
   });
 

@@ -2099,9 +2099,45 @@ export default function SessionsPage() {
                                     </div>
                                   )}
                                   {!((msg as any).messageType === "media" && ((msg as any).payload?.url || (msg as any).payload?.mediaUrl)) && 
-                                   !((msg as any).messageType === "product_offer" && (msg as any).payload?.productCard) && (
+                                   !((msg as any).messageType === "product_offer" && (msg as any).payload?.productCard) &&
+                                   !((msg as any).messageType === "password_recovery_form") &&
+                                   !((msg as any).messageType === "password_recovery_ticket" && (msg as any).payload?.ticketId) && (
                                     <p className="text-sm whitespace-pre-wrap leading-relaxed">{renderMessageWithLinks(msg.content)}</p>
                                   )}
+                                  {(msg as any).messageType === "password_recovery_form" && (
+                                    <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 max-w-[260px]">
+                                      <Ticket className="w-4 h-4 shrink-0 text-muted-foreground" />
+                                      <span className="text-xs text-muted-foreground italic">Form reset password ditampilkan ke customer</span>
+                                    </div>
+                                  )}
+                                  {(msg as any).messageType === "password_recovery_ticket" && (msg as any).payload?.ticketId && (() => {
+                                    const tp = (msg as any).payload as { ticketId: string; username: string; bankAccount: string };
+                                    return (
+                                      <div className="rounded-xl border bg-background overflow-hidden max-w-[300px]">
+                                        <div className="flex items-center gap-2 px-3 py-2.5 border-b bg-muted/30">
+                                          <Ticket className="w-3.5 h-3.5 shrink-0 text-primary" />
+                                          <span className="text-xs font-semibold">Reset Password Ticket</span>
+                                        </div>
+                                        <div className="px-3 py-3 space-y-2">
+                                          <div>
+                                            <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Ticket ID</p>
+                                            <p className="text-[11px] font-mono font-semibold text-foreground">{tp.ticketId}</p>
+                                          </div>
+                                          <div className="h-px bg-border" />
+                                          <div>
+                                            <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Username</p>
+                                            <p className="text-xs text-foreground">{tp.username}</p>
+                                          </div>
+                                          <div>
+                                            <p className="text-[9px] font-medium uppercase tracking-wide text-muted-foreground">Bank Terdaftar</p>
+                                            <p className="text-xs text-foreground">{tp.bankAccount}</p>
+                                          </div>
+                                          <div className="h-px bg-border" />
+                                          <p className="text-[10px] text-muted-foreground">Menunggu password baru dari admin</p>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
                                   {(msg as any).messageType === "product_offer" && (msg as any).payload?.productCard && (
                                     <div className="mt-2 bg-background rounded-xl border shadow-sm overflow-hidden max-w-[300px]">
                                       {(msg as any).payload.productCard.imageUrl ? (

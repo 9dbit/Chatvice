@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Bot, Send, X, Shrink, Square, Minimize2, Maximize2, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ExternalLink, ShoppingBag, EyeOff, GripVertical, MapPin, Phone, Mail, Minus } from "lucide-react";
+import { Bot, Send, X, Shrink, Square, Minimize2, Maximize2, HeadphonesIcon, User, ImageIcon, Video, FileText, Plus, Loader2, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ExternalLink, ShoppingBag, EyeOff, GripVertical, MapPin, Phone, Mail, Minus, Lock, TicketCheck, Copy, CheckCheck } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -99,6 +99,29 @@ function isHotelOptions(msg: Message): msg is HotelOptionsMessage {
   return (msg as HotelOptionsMessage).messageType === "hotelOptions"
     && !!(msg as HotelOptionsMessage).payload
     && "options" in (msg as HotelOptionsMessage).payload;
+}
+
+// ── Password Recovery Form / Ticket Types ──────────────────────────────────
+type PasswordRecoveryFormMessage = Message & {
+  messageType: "password_recovery_form";
+  payload: { type: "password_recovery_form" };
+};
+function isPasswordRecoveryForm(msg: Message): msg is PasswordRecoveryFormMessage {
+  return (msg as any).messageType === "password_recovery_form";
+}
+
+interface PasswordRecoveryTicketPayload {
+  ticketId: string;
+  username: string;
+  bankAccount: string;
+}
+type PasswordRecoveryTicketMessage = Message & {
+  messageType: "password_recovery_ticket";
+  payload: PasswordRecoveryTicketPayload;
+};
+function isPasswordRecoveryTicket(msg: Message): msg is PasswordRecoveryTicketMessage {
+  return (msg as any).messageType === "password_recovery_ticket"
+    && !!(msg as any).payload?.ticketId;
 }
 
 interface MerchantConfig {
@@ -621,6 +644,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const [emailValue, setEmailValue] = useState("");
   const [emailError, setEmailError] = useState("");
   const [submittedUsernameInputs, setSubmittedUsernameInputs] = useState<Record<string, string>>({});
+  const [passwordFormValues, setPasswordFormValues] = useState<Record<string, { username: string; bankAccount: string; phoneNumber: string }>>({});
+  const [passwordFormStates, setPasswordFormStates] = useState<Record<string, { submitting: boolean; submitted: boolean; ticketId?: string; error?: string; copied?: boolean }>>({});
+  const [copiedTicketIds, setCopiedTicketIds] = useState<Record<string, boolean>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Reactions state
@@ -3584,6 +3610,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                    !isAppointmentBooked(msg) &&
                    !isAppointmentList(msg) &&
                    !isHotelOptions(msg) &&
+                   !isPasswordRecoveryForm(msg) &&
+                   !isPasswordRecoveryTicket(msg) &&
                    !msg.mediaUrl && (() => {
                     const parsed = parseMessageContent(msg.content);
                     const hasButtons = parsed.some(p => p.type === "button");
@@ -3902,6 +3930,241 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                             Pesan Sekarang di Website
                           </a>
                         )}
+                      </div>
+                    );
+                  })()}
+                  {isPasswordRecoveryForm(msg) && (() => {
+                    const formKey = (msg as any).id || String(index);
+                    const formVals = passwordFormValues[formKey] || { username: "", bankAccount: "", phoneNumber: "" };
+                    const formState = passwordFormStates[formKey] || { submitting: false, submitted: false };
+
+                    const inputStyle = {
+                      backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                      border: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)'}`,
+                      color: widgetIsDark ? 'rgba(255,255,255,0.9)' : '#1f2937',
+                      borderRadius: '8px',
+                      padding: '8px 10px',
+                      fontSize: '12px',
+                      width: '100%',
+                      outline: 'none',
+                    } as React.CSSProperties;
+
+                    const handleSubmit = async () => {
+                      if (!formVals.username.trim() || !formVals.bankAccount.trim() || !formVals.phoneNumber.trim()) {
+                        setPasswordFormStates(prev => ({ ...prev, [formKey]: { ...formState, error: "Semua field wajib diisi." } }));
+                        return;
+                      }
+                      setPasswordFormStates(prev => ({ ...prev, [formKey]: { submitting: true, submitted: false, error: undefined } }));
+                      try {
+                        const res = await fetch("/api/widget/submit-password-recovery", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ sessionId, merchantId, username: formVals.username.trim(), bankAccount: formVals.bankAccount.trim(), phoneNumber: formVals.phoneNumber.trim() }),
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.success) {
+                          setPasswordFormStates(prev => ({ ...prev, [formKey]: { submitting: false, submitted: true, ticketId: data.ticketId } }));
+                        } else {
+                          setPasswordFormStates(prev => ({ ...prev, [formKey]: { submitting: false, submitted: false, error: data.error || "Terjadi kesalahan. Silakan coba lagi." } }));
+                        }
+                      } catch {
+                        setPasswordFormStates(prev => ({ ...prev, [formKey]: { submitting: false, submitted: false, error: "Koneksi gagal. Silakan coba lagi." } }));
+                      }
+                    };
+
+                    return (
+                      <div
+                        className="rounded-xl overflow-hidden"
+                        style={{
+                          backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                          border: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                          maxWidth: '280px',
+                        }}
+                        data-testid="card-password-recovery-form"
+                      >
+                        {/* Header */}
+                        <div
+                          className="flex items-center gap-2 px-3 py-2.5"
+                          style={{ borderBottom: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}` }}
+                        >
+                          <Lock className="w-3.5 h-3.5 shrink-0" style={{ color: primaryColor }} />
+                          <span className="text-xs font-semibold" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.9)' : '#111827' }}>
+                            Form Reset Password
+                          </span>
+                        </div>
+
+                        {formState.submitted ? (
+                          <div className="px-3 py-4 flex flex-col items-center gap-2 text-center">
+                            <TicketCheck className="w-7 h-7" style={{ color: primaryColor }} />
+                            <p className="text-xs font-medium" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.85)' : '#111827' }}>
+                              Permintaan terkirim
+                            </p>
+                            <p className="text-[11px]" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.55)' : '#6b7280' }}>
+                              Ticket ID akan muncul di bawah.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="px-3 py-3 space-y-2.5">
+                            <p className="text-[11px]" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.6)' : '#6b7280' }}>
+                              Isi form berikut untuk mengajukan reset password:
+                            </p>
+
+                            {/* Username */}
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-medium" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.65)' : '#4b5563' }}>
+                                Username Akun
+                              </label>
+                              <input
+                                type="text"
+                                style={inputStyle}
+                                value={formVals.username}
+                                onChange={e => setPasswordFormValues(prev => ({ ...prev, [formKey]: { ...formVals, username: e.target.value } }))}
+                                placeholder="Masukkan username"
+                                disabled={formState.submitting}
+                                data-testid="input-pr-username"
+                              />
+                            </div>
+
+                            {/* Bank Account */}
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-medium" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.65)' : '#4b5563' }}>
+                                Nama Bank Terdaftar
+                              </label>
+                              <input
+                                type="text"
+                                style={inputStyle}
+                                value={formVals.bankAccount}
+                                onChange={e => setPasswordFormValues(prev => ({ ...prev, [formKey]: { ...formVals, bankAccount: e.target.value } }))}
+                                placeholder="Contoh: BCA, Mandiri, BRI"
+                                disabled={formState.submitting}
+                                data-testid="input-pr-bank"
+                              />
+                            </div>
+
+                            {/* Phone Number */}
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-medium" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.65)' : '#4b5563' }}>
+                                Nomor HP Terdaftar
+                              </label>
+                              <input
+                                type="tel"
+                                style={inputStyle}
+                                value={formVals.phoneNumber}
+                                onChange={e => setPasswordFormValues(prev => ({ ...prev, [formKey]: { ...formVals, phoneNumber: e.target.value } }))}
+                                placeholder="Contoh: 081234567890"
+                                disabled={formState.submitting}
+                                data-testid="input-pr-phone"
+                              />
+                            </div>
+
+                            {/* Error message */}
+                            {formState.error && (
+                              <p className="text-[10px] font-medium text-red-500">{formState.error}</p>
+                            )}
+
+                            {/* Submit button */}
+                            <button
+                              onClick={handleSubmit}
+                              disabled={formState.submitting}
+                              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-semibold text-white transition-opacity"
+                              style={{ backgroundColor: primaryColor, opacity: formState.submitting ? 0.7 : 1 }}
+                              data-testid="button-pr-submit"
+                            >
+                              {formState.submitting ? (
+                                <><Loader2 className="w-3 h-3 animate-spin" /> Memproses...</>
+                              ) : (
+                                <><Lock className="w-3 h-3" /> Ajukan Reset Password</>
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  {isPasswordRecoveryTicket(msg) && (() => {
+                    const p = (msg as PasswordRecoveryTicketMessage).payload;
+                    const ticketKey = p.ticketId;
+                    const copied = copiedTicketIds[ticketKey];
+
+                    const copyTicketId = () => {
+                      navigator.clipboard.writeText(p.ticketId).catch(() => {});
+                      setCopiedTicketIds(prev => ({ ...prev, [ticketKey]: true }));
+                      setTimeout(() => setCopiedTicketIds(prev => ({ ...prev, [ticketKey]: false })), 2000);
+                    };
+
+                    return (
+                      <div
+                        className="rounded-xl overflow-hidden"
+                        style={{
+                          backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                          border: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                          maxWidth: '280px',
+                        }}
+                        data-testid="card-password-recovery-ticket"
+                      >
+                        {/* Header */}
+                        <div
+                          className="flex items-center gap-2 px-3 py-2.5"
+                          style={{ borderBottom: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}` }}
+                        >
+                          <TicketCheck className="w-3.5 h-3.5 shrink-0" style={{ color: primaryColor }} />
+                          <span className="text-xs font-semibold" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.9)' : '#111827' }}>
+                            Reset Password Ticket
+                          </span>
+                        </div>
+
+                        {/* Fields */}
+                        <div className="px-3 py-3 space-y-2">
+                          {/* Ticket ID */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-[9px] font-medium uppercase tracking-wide" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.45)' : '#9ca3af' }}>
+                                Ticket ID
+                              </p>
+                              <p className="text-[11px] font-mono font-semibold" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.9)' : '#111827' }}>
+                                {p.ticketId}
+                              </p>
+                            </div>
+                            <button
+                              onClick={copyTicketId}
+                              className="shrink-0 p-1 rounded-md transition-colors"
+                              style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }}
+                              title="Copy Ticket ID"
+                              data-testid="button-copy-ticket-id"
+                            >
+                              {copied ? <CheckCheck className="w-3 h-3" style={{ color: primaryColor }} /> : <Copy className="w-3 h-3" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.5)' : '#6b7280' }} />}
+                            </button>
+                          </div>
+
+                          <div style={{ height: '1px', backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }} />
+
+                          {/* Username */}
+                          <div>
+                            <p className="text-[9px] font-medium uppercase tracking-wide" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.45)' : '#9ca3af' }}>
+                              Username
+                            </p>
+                            <p className="text-xs" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.85)' : '#374151' }}>
+                              {p.username}
+                            </p>
+                          </div>
+
+                          {/* Bank Account */}
+                          <div>
+                            <p className="text-[9px] font-medium uppercase tracking-wide" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.45)' : '#9ca3af' }}>
+                              Bank Terdaftar
+                            </p>
+                            <p className="text-xs" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.85)' : '#374151' }}>
+                              {p.bankAccount}
+                            </p>
+                          </div>
+
+                          <div style={{ height: '1px', backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }} />
+
+                          {/* Footer note */}
+                          <p className="text-[10px]" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.45)' : '#9ca3af' }}>
+                            Sedang diproses — password baru akan dikirim ke chat ini.
+                          </p>
+                        </div>
                       </div>
                     );
                   })()}
