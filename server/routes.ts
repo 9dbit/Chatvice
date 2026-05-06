@@ -9415,6 +9415,34 @@ Rules:
       // Count knowledge sources for this merchant
       const allSources = await storage.getSources(merchant.id);
       const totalSources = allSources.length;
+
+      // Count actual sessions from DB for the current billing period
+      // Period start = currentPeriodEnd minus billing interval (monthly/yearly)
+      let conversationsUsed = 0;
+      {
+        const allMerchantSessions = await storage.getSessionsByMerchant(merchant.id);
+        if (merchant.currentPeriodEnd) {
+          const periodEnd = new Date(merchant.currentPeriodEnd);
+          const periodStart = new Date(periodEnd);
+          if (merchant.billingInterval === "yearly") {
+            periodStart.setFullYear(periodStart.getFullYear() - 1);
+          } else {
+            // monthly (default)
+            periodStart.setMonth(periodStart.getMonth() - 1);
+          }
+          conversationsUsed = allMerchantSessions.filter(s => {
+            if (!s.createdAt) return true; // include if no timestamp
+            return new Date(s.createdAt) >= periodStart;
+          }).length;
+        } else {
+          // No billing period info — use all-time count
+          conversationsUsed = allMerchantSessions.length;
+        }
+        // Also sync the stored counter so it stays in sync
+        if (conversationsUsed !== (merchant.conversationsUsed || 0)) {
+          storage.updateMerchant(merchant.id, { conversationsUsed }).catch(() => {});
+        }
+      }
       
       res.json({
         status: merchant.subscriptionStatus,
@@ -9423,7 +9451,7 @@ Rules:
         billingInterval: merchant.billingInterval,
         trialEndsAt: merchant.trialEndsAt,
         currentPeriodEnd: merchant.currentPeriodEnd,
-        conversationsUsed: merchant.conversationsUsed || 0,
+        conversationsUsed,
         conversationsLimit: plan.conversationsLimit,
         agentsUsed: agents.length,
         agentsLimit: plan.agentsLimit,
@@ -21104,12 +21132,15 @@ ${log.extractedKnowledge}` : ''}
       const merchantSessions = await storage.getSessionsByMerchant(merchantId);
       const sessionIds = merchantSessions.map(s => s.id);
 
-      // Load all messages for real analytics
+      // Load all messages for real analytics (safe inArray query)
       const allMessages = sessionIds.length > 0
-        ? await db.select().from(messages).where(sql`${messages.sessionId} = ANY(${sql.raw(`ARRAY[${sessionIds.map(id => `'${id.replace(/'/g, "''")}'`).join(",")}]`)})`)
+        ? await db.select().from(messages).where(
+            sql`${messages.sessionId} = ANY(ARRAY[${sql.join(sessionIds.map(id => sql`${id}`), sql`, `)}]::text[])`
+          )
         : [];
 
-      const customerMessages = allMessages.filter(m => m.from === "customer");
+      // Customer messages: from === "customer" OR from === "user" (both exist in the data)
+      const customerMessages = allMessages.filter(m => m.from === "customer" || m.from === "user");
       const hasConversations = customerMessages.length > 0;
 
       // ── Real popular keywords extracted from actual customer messages ──
