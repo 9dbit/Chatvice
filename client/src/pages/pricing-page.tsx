@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { SchemaMarkup } from "@/components/seo/schema-markup";
 import {
   Check,
   X,
@@ -263,47 +264,32 @@ export default function PricingPage() {
     },
   ];
 
-  useEffect(() => {
+  const pricingSchema = useMemo(() => {
     const paidPlans = plans.filter(p => p.monthlyPrice !== null);
-    const pricingSchema = {
+    return {
       "@context": "https://schema.org",
-      "@type": "ItemList",
-      "name": "Chatvice Pricing Plans",
-      "itemListElement": paidPlans.map((plan, index) => ({
-        "@type": "ListItem",
-        "position": index + 1,
-        "item": {
-          "@type": "Product",
-          "name": `Chatvice ${plan.name}`,
-          "description": plan.description,
-          "offers": {
-            "@type": "Offer",
-            "price": plan.monthlyPrice,
-            "priceCurrency": "USD",
-            "priceSpecification": {
-              "@type": "UnitPriceSpecification",
-              "price": plan.monthlyPrice,
-              "priceCurrency": "USD",
-              "unitText": "MONTH"
-            },
-            "availability": "https://schema.org/InStock",
-            "url": "https://chatvice.app/pricing"
-          }
-        }
-      }))
-    };
-    const scriptId = "pricing-page-jsonld";
-    let el = document.getElementById(scriptId);
-    if (!el) {
-      el = document.createElement("script");
-      el.id = scriptId;
-      (el as HTMLScriptElement).type = "application/ld+json";
-      document.head.appendChild(el);
-    }
-    el.textContent = JSON.stringify(pricingSchema);
-    return () => {
-      const toRemove = document.getElementById(scriptId);
-      if (toRemove) toRemove.remove();
+      "@type": "SoftwareApplication",
+      "name": "Chatvice",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "url": "https://chatvice.app",
+      "description": "AI-powered customer service chatbot platform with human escalation, real-time chat, and customizable widget for businesses.",
+      "offers": paidPlans.map(plan => ({
+        "@type": "Offer",
+        "name": `Chatvice ${plan.name}`,
+        "description": plan.description,
+        "price": String(plan.monthlyPrice),
+        "priceCurrency": "USD",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "price": String(plan.monthlyPrice),
+          "priceCurrency": "USD",
+          "unitText": "MONTH",
+          "billingDuration": "P1M"
+        },
+        "availability": "https://schema.org/InStock",
+        "url": "https://chatvice.app/pricing"
+      })),
     };
   }, [plans]);
 
@@ -312,6 +298,7 @@ export default function PricingPage() {
       title="Pricing - Plans & Pricing | Chatvice"
       description="Choose the perfect Chatvice plan for your business. Start free with our 14-day trial. Flexible monthly and annual pricing for startups to enterprises."
     >
+      <SchemaMarkup id="pricing-software-application" schema={pricingSchema} />
       {/* Promotional Banner - Desktop: 1200x300px (4:1), Mobile: 426x182px */}
       {applicablePromo && (() => {
         const bannerMode = applicablePromo.bannerMode || "color";
