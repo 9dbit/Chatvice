@@ -43,6 +43,10 @@ const STATIC_PAGES: StaticPage[] = [
   { url: "/chatbot-jakarta", priority: "0.9", changefreq: "weekly" },
   { url: "/chatbot-surabaya", priority: "0.9", changefreq: "weekly" },
   { url: "/chatbot-bandung", priority: "0.9", changefreq: "weekly" },
+  { url: "/chatbot-medan", priority: "0.9", changefreq: "weekly" },
+  { url: "/chatbot-makassar", priority: "0.9", changefreq: "weekly" },
+  { url: "/chatbot-bali", priority: "0.9", changefreq: "weekly" },
+  { url: "/chatbot-yogyakarta", priority: "0.9", changefreq: "weekly" },
   // Industry-targeted solution pages
   { url: "/chatbot-restoran", priority: "0.9", changefreq: "weekly" },
   { url: "/chatbot-klinik", priority: "0.9", changefreq: "weekly" },

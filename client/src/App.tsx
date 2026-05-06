@@ -146,6 +146,10 @@ function GlobalHelpBubble() {
     '/chatbot-jakarta',
     '/chatbot-surabaya',
     '/chatbot-bandung',
+    '/chatbot-medan',
+    '/chatbot-makassar',
+    '/chatbot-bali',
+    '/chatbot-yogyakarta',
     '/chatbot-restoran',
     '/chatbot-klinik',
     '/chatbot-properti',
@@ -321,6 +325,18 @@ function MainRouter() {
       </Route>
       <Route path="/chatbot-bandung">
         {() => <SolutionPage solution={solutionsBySlug["chatbot-bandung"]} />}
+      </Route>
+      <Route path="/chatbot-medan">
+        {() => <SolutionPage solution={solutionsBySlug["chatbot-medan"]} />}
+      </Route>
+      <Route path="/chatbot-makassar">
+        {() => <SolutionPage solution={solutionsBySlug["chatbot-makassar"]} />}
+      </Route>
+      <Route path="/chatbot-bali">
+        {() => <SolutionPage solution={solutionsBySlug["chatbot-bali"]} />}
+      </Route>
+      <Route path="/chatbot-yogyakarta">
+        {() => <SolutionPage solution={solutionsBySlug["chatbot-yogyakarta"]} />}
       </Route>
       <Route path="/chatbot-restoran">
         {() => <SolutionPage solution={solutionsBySlug["chatbot-restoran"]} />}

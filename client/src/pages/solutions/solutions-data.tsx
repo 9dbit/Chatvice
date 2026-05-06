@@ -507,6 +507,218 @@ export const cityPagesData: SolutionPageData[] = [
     ctaSubtext: "Mulai gratis sekarang. Tidak perlu kartu kredit.",
     relatedSlugs: ["chatbot-jakarta", "chatbot-surabaya", "chatbot-toko-online", "ai-chatbot-gratis"],
   },
+  {
+    slug: "chatbot-medan",
+    metaTitle: "Chatbot Customer Service Medan — AI untuk Bisnis Sumatera Utara | Chatvice",
+    metaDescription: "Chatbot AI customer service untuk bisnis Medan. Otomasi layanan pelanggan untuk perdagangan, kuliner, dan UMKM Sumatera Utara. Mulai gratis.",
+    h1: "Chatbot Customer Service Medan — AI untuk Bisnis Sumatera Utara",
+    subtitle: "Medan adalah gerbang ekonomi Sumatera. Berikan pengalaman customer service kelas Jakarta dengan chatbot AI Chatvice — tanpa menambah tim.",
+    introParagraphs: [
+      <>
+        Medan adalah kota terbesar ketiga di Indonesia dan pusat perdagangan utama di Pulau Sumatera. Dengan populasi lebih dari 2,5 juta jiwa di area kota dan lebih dari 4 juta di area metropolitan Mebidangro, Medan adalah pasar yang sangat dinamis untuk berbagai jenis bisnis — mulai dari grosir dan distributor, kuliner khas seperti durian dan bika ambon, hingga jasa perjalanan menuju Danau Toba dan Berastagi. Pelanggan Medan dikenal komunikatif dan terbiasa bertanya detail sebelum membeli — ini berarti volume chat masuk untuk bisnis Medan cenderung tinggi setiap harinya.
+      </>,
+      <>
+        Chatvice menghadirkan <Link href="/chatbot-customer-service" className="text-purple-600 hover:underline">chatbot customer service</Link> bertenaga <Link href="/features" className="text-purple-600 hover:underline">LEXA1 AI Engine</Link> yang siap menjawab pertanyaan pelanggan Medan dalam bahasa natural — termasuk campuran Bahasa Indonesia dengan istilah lokal yang umum digunakan masyarakat Sumatera Utara. Dengan mengisi knowledge base menggunakan informasi spesifik bisnis Anda — mulai dari katalog produk, harga grosir, jam operasional, hingga prosedur pengiriman ke kota-kota di Sumatera — AI Anda dapat melayani pertanyaan rutin secara akurat 24 jam sehari, tanpa pernah istirahat.
+      </>,
+      <>
+        Untuk bisnis perdagangan dan distribusi Medan yang melayani pelanggan dari seluruh Sumatera, fitur <Link href="/features" className="text-purple-600 hover:underline">Google Sheet Transaction Lookup</Link> Chatvice memungkinkan pelanggan menanyakan status pesanan atau ketersediaan stok langsung di chat — AI mengambil data real-time dari Google Sheet bisnis Anda dan menjawab dengan informasi yang akurat. Ini sangat berguna untuk grosir Medan yang masih mengelola katalog dan inventory di spreadsheet. Sistem <Link href="/features" className="text-purple-600 hover:underline">eskalasi otomatis</Link> juga memastikan permintaan negosiasi harga grosir atau keluhan pengiriman langsung dialihkan ke staff yang berwenang.
+      </>,
+      <>
+        Bisnis kuliner dan oleh-oleh Medan yang menerima pesanan dari seluruh Indonesia akan sangat terbantu dengan widget <Link href="/live-chat-website" className="text-purple-600 hover:underline">live chat</Link> Chatvice yang dipasang di website mereka. Calon pembeli yang mencari informasi tentang ketahanan produk, biaya pengiriman ke kota mereka, atau cara pemesanan akan mendapat jawaban instan — bahkan saat tim Anda sedang sibuk menerima orderan. Dengan <Link href="/pricing" className="text-purple-600 hover:underline">paket fleksibel</Link> mulai dari gratis, Chatvice adalah investasi cerdas untuk bisnis Medan yang ingin tumbuh tanpa kewalahan.
+      </>,
+    ],
+    features: [
+      { icon: Store, title: "Cocok untuk Perdagangan & Grosir", description: "Otomasi pertanyaan harga, stok, minimum order, dan pengiriman untuk bisnis perdagangan Medan." },
+      { icon: Brain, title: "AI Memahami Bahasa Lokal", description: "LEXA1 memahami variasi Bahasa Indonesia dan istilah lokal yang umum di Sumatera Utara." },
+      { icon: Globe, title: "Layani Pelanggan Lintas Pulau", description: "Jawab pertanyaan ongkos kirim ke seluruh Indonesia secara otomatis tanpa repot manual." },
+      { icon: MessageCircle, title: "Integrasi WhatsApp", description: "Widget menampilkan tombol WhatsApp untuk eskalasi mudah ke percakapan personal dengan sales." },
+      { icon: Clock, title: "Respons Tanpa Jeda", description: "Pelanggan dari Aceh hingga Lampung mendapat jawaban instan kapan pun mereka bertanya." },
+      { icon: HeadphonesIcon, title: "Eskalasi ke Tim Sales", description: "Kasus negosiasi atau order besar otomatis dialihkan ke staff yang siap closing." },
+    ],
+    useCases: [
+      "Grosir dan distributor yang melayani toko-toko di seluruh Sumatera",
+      "Bisnis kuliner dan oleh-oleh Medan yang menerima pesanan online",
+      "Jasa perjalanan ke Danau Toba, Berastagi, dan destinasi wisata Sumatera Utara",
+      "UMKM kuliner khas Medan yang mulai melayani pasar nasional",
+      "Toko fashion dan retail yang melayani pembeli online dari berbagai kota",
+      "Klinik dan jasa kesehatan yang menerima pertanyaan jadwal dokter",
+    ],
+    whyChatvice: [
+      "Dukungan Bahasa Indonesia yang akurat termasuk istilah lokal Sumatera",
+      "Setup tanpa coding — semua konfigurasi dari dashboard yang intuitif",
+      "Integrasi Google Sheet untuk update stok dan harga real-time",
+      "Plan gratis tersedia — mulai tanpa investasi awal",
+      "Skalabel dari UMKM hingga bisnis distribusi besar Sumatera",
+    ],
+    stats: [
+      { value: "2,5 juta+", label: "Penduduk kota Medan" },
+      { value: "4 juta+", label: "Penduduk area metropolitan Mebidangro" },
+      { value: "70%", label: "Pertanyaan dijawab AI tanpa agen manusia" },
+      { value: "24/7", label: "Layanan aktif tanpa biaya operasional tambahan" },
+    ],
+    ctaHeading: "Modernisasi Layanan Pelanggan Bisnis Medan Anda",
+    ctaSubtext: "Mulai gratis hari ini. Setup dalam 5 menit, tidak perlu kartu kredit.",
+    relatedSlugs: ["chatbot-jakarta", "chatbot-makassar", "chatbot-customer-service", "chatbot-toko-online"],
+  },
+  {
+    slug: "chatbot-makassar",
+    metaTitle: "Chatbot Customer Service Makassar — AI untuk Bisnis Sulawesi | Chatvice",
+    metaDescription: "Chatbot AI customer service untuk bisnis Makassar. Otomasi layanan pelanggan untuk pelabuhan, kuliner, dan distribusi Indonesia Timur. Mulai gratis.",
+    h1: "Chatbot Customer Service Makassar — AI untuk Bisnis Indonesia Timur",
+    subtitle: "Makassar adalah hub ekonomi Indonesia Timur. Saatnya bisnis Anda melayani pelanggan dari Sulawesi hingga Papua dengan AI yang aktif 24 jam.",
+    introParagraphs: [
+      <>
+        Makassar adalah pusat ekonomi, perdagangan, dan transportasi terbesar di Indonesia Timur. Dengan populasi lebih dari 1,4 juta jiwa di kota dan lebih dari 2,7 juta di area metropolitan Mamminasata, Makassar menjadi gerbang utama bagi distribusi barang ke seluruh Sulawesi, Maluku, Nusa Tenggara, dan Papua. Bisnis Makassar yang ingin tumbuh tidak hanya melayani pelanggan lokal — mereka harus siap melayani pertanyaan dari pelanggan yang tersebar di ribuan pulau Indonesia Timur, dengan zona waktu dan kebiasaan komunikasi yang beragam.
+      </>,
+      <>
+        Chatvice memungkinkan bisnis Makassar memberikan <Link href="/chatbot-customer-service" className="text-purple-600 hover:underline">layanan pelanggan kelas enterprise</Link> tanpa harus membangun tim CS yang besar di setiap zona waktu. <Link href="/features" className="text-purple-600 hover:underline">LEXA1 AI Engine</Link> menjawab pertanyaan pelanggan dalam bahasa natural — termasuk Bahasa Indonesia dengan logat lokal Bugis-Makassar yang sering muncul. Pelanggan dari Manado, Ambon, Kupang, hingga Jayapura yang mengirim pertanyaan di luar jam kerja Makassar tetap mendapat respons instan dan akurat berdasarkan knowledge base yang Anda isi.
+      </>,
+      <>
+        Untuk bisnis perdagangan dan distribusi Makassar yang menjadi tulang punggung logistik Indonesia Timur, fitur <Link href="/features" className="text-purple-600 hover:underline">Google Sheet Transaction Lookup</Link> sangat berharga — pelanggan dapat menanyakan status pengiriman atau ketersediaan stok dan AI mengambil data real-time dari spreadsheet Anda. Bisnis kuliner Makassar yang menjual coto, konro, dan pisang ijo via pengiriman ke seluruh Indonesia juga dapat memanfaatkan AI untuk menjawab pertanyaan ketahanan produk, biaya kirim, dan cara pemesanan secara otomatis. Sistem <Link href="/features" className="text-purple-600 hover:underline">eskalasi pintar</Link> memastikan kasus penting tetap mendapat sentuhan manusia.
+      </>,
+      <>
+        Widget <Link href="/live-chat-website" className="text-purple-600 hover:underline">live chat</Link> Chatvice dapat dipasang di website bisnis Makassar dengan satu baris kode — kompatibel dengan WordPress, Shopify, Wix, dan platform lainnya. Untuk UMKM yang baru memulai digitalisasi, <Link href="/ai-chatbot-gratis" className="text-purple-600 hover:underline">plan gratis Chatvice</Link> sudah cukup lengkap untuk menangani pertanyaan dasar pelanggan. Dengan harga yang terjangkau dan dukungan tim berbasis Indonesia, Chatvice adalah pilihan terbaik untuk bisnis Makassar yang ingin tumbuh efisien dan profesional.
+      </>,
+    ],
+    features: [
+      { icon: Globe, title: "Layani Pelanggan Lintas Zona Waktu", description: "AI aktif 24/7 melayani pelanggan dari WIB hingga WIT tanpa kebutuhan staff malam." },
+      { icon: Brain, title: "Memahami Logat Lokal", description: "LEXA1 memahami variasi Bahasa Indonesia dengan logat Bugis-Makassar dan dialek Sulawesi." },
+      { icon: Store, title: "Cocok untuk Distribusi & Logistik", description: "Otomasi pertanyaan stok, harga, dan status pengiriman ke seluruh Indonesia Timur." },
+      { icon: Zap, title: "Respons Instan", description: "Pelanggan dari Manado hingga Jayapura mendapat jawaban dalam hitungan detik." },
+      { icon: HeadphonesIcon, title: "Eskalasi ke Sales", description: "Kasus negosiasi atau order besar otomatis dialihkan ke tim sales Anda." },
+      { icon: BarChart3, title: "Analitik Pertanyaan Pelanggan", description: "Pantau pertanyaan terbanyak untuk mengoptimalkan layanan dan katalog produk." },
+    ],
+    useCases: [
+      "Distributor dan grosir yang melayani pasar Sulawesi, Maluku, dan Papua",
+      "Bisnis kuliner Makassar yang menerima pesanan oleh-oleh online",
+      "Jasa pengiriman dan logistik yang melayani Indonesia Timur",
+      "UMKM kerajinan dan fashion yang melayani pembeli online lintas pulau",
+      "Toko hasil laut dan rempah yang melayani pembeli dari kota lain",
+      "Klinik dan jasa kesehatan yang menerima pertanyaan jadwal dan layanan",
+    ],
+    whyChatvice: [
+      "AI aktif 24/7 — penting untuk melayani pelanggan dari WIB hingga WIT",
+      "Dukungan Bahasa Indonesia dengan pemahaman logat lokal Sulawesi",
+      "Integrasi Google Sheet — solusi praktis untuk distributor dan grosir",
+      "Plan gratis untuk UMKM yang baru memulai otomasi customer service",
+      "Tidak perlu programmer — semua konfigurasi dari dashboard intuitif",
+    ],
+    stats: [
+      { value: "1,4 juta+", label: "Penduduk kota Makassar" },
+      { value: "2,7 juta+", label: "Penduduk area metropolitan Mamminasata" },
+      { value: "3 zona waktu", label: "WIB, WITA, WIT — semua dilayani 24/7" },
+      { value: "5 menit", label: "Waktu setup chatbot pertama" },
+    ],
+    ctaHeading: "Layani Indonesia Timur dengan Chatbot AI",
+    ctaSubtext: "Mulai gratis sekarang. Tidak perlu kartu kredit, tidak perlu coding.",
+    relatedSlugs: ["chatbot-medan", "chatbot-jakarta", "chatbot-customer-service", "chatbot-toko-online"],
+  },
+  {
+    slug: "chatbot-bali",
+    metaTitle: "Chatbot Customer Service Bali — AI untuk Hospitality & Pariwisata | Chatvice",
+    metaDescription: "Chatbot AI multi-bahasa untuk bisnis pariwisata Bali — hotel, villa, restoran, tur. Layani tamu domestik dan internasional 24/7. Mulai gratis.",
+    h1: "Chatbot Customer Service Bali — AI untuk Bisnis Hospitality & Pariwisata",
+    subtitle: "Bali adalah destinasi wisata kelas dunia. Layani tamu dari seluruh dunia dengan AI multi-bahasa yang aktif 24 jam, tanpa kewalahan di musim ramai.",
+    introParagraphs: [
+      <>
+        Bali adalah ikon pariwisata Indonesia yang dikenal di seluruh dunia. Dengan jutaan kunjungan wisatawan setiap tahun — dari turis domestik hingga turis internasional dari Australia, Eropa, Amerika, dan Asia — bisnis hospitality di Bali menghadapi volume pertanyaan yang sangat tinggi dan beragam. Tamu menanyakan ketersediaan kamar, paket spa, jadwal kelas yoga, rute tur, restoran terbaik, hingga pertanyaan praktis seperti transportasi dari bandara dan biaya visa. Yang lebih kompleks: pertanyaan ini datang dalam berbagai bahasa, di berbagai zona waktu, dan sering kali butuh respons cepat sebelum tamu beralih ke kompetitor.
+      </>,
+      <>
+        Chatvice menghadirkan solusi <Link href="/chatbot-customer-service" className="text-purple-600 hover:underline">chatbot customer service</Link> dengan dukungan multi-bahasa yang sangat cocok untuk industri hospitality Bali. <Link href="/features" className="text-purple-600 hover:underline">LEXA1 AI Engine</Link> dapat menjawab pertanyaan tamu dalam Bahasa Indonesia, Inggris, dan 50+ bahasa lain — secara otomatis mendeteksi bahasa pertanyaan dan merespons dalam bahasa yang sama. Tamu dari Sydney yang bertanya dalam Bahasa Inggris mendapat jawaban dalam Bahasa Inggris yang natural; tamu dari Jepang yang bertanya dalam Bahasa Jepang mendapat jawaban dalam Bahasa Jepang. Tidak perlu lagi staff multi-lingual untuk setiap shift.
+      </>,
+      <>
+        Untuk hotel, villa, dan resort Bali, fitur <Link href="/features" className="text-purple-600 hover:underline">Hospitality Add-on</Link> Chatvice menyediakan AI Hotel Availability Checker yang terintegrasi dengan Google Sheet — tamu dapat menanyakan ketersediaan kamar untuk tanggal tertentu dan AI menampilkan kartu kamar dengan harga, gambar, dan tombol "Pesan Sekarang" langsung di chat. Ini mengeliminasi back-and-forth panjang dan meningkatkan konversi booking secara signifikan. Untuk restoran, tur, dan layanan wisata, knowledge base Chatvice dapat diisi dengan menu, paket tur, harga, kebijakan, dan FAQ — siap menjawab pertanyaan tamu kapan pun.
+      </>,
+      <>
+        Widget <Link href="/live-chat-website" className="text-purple-600 hover:underline">live chat</Link> Chatvice dapat dipasang di website bisnis hospitality Bali dengan kustomisasi penuh — warna brand, foto property sebagai avatar, pesan sambutan dalam bahasa target tamu Anda. Fitur <Link href="/features" className="text-purple-600 hover:underline">Live Visitor Tracking</Link> memungkinkan tim Anda melihat tamu yang sedang menjelajahi halaman tertentu (misalnya halaman villa premium) dan mengirim pesan proaktif sebelum mereka pergi. Dengan <Link href="/pricing" className="text-purple-600 hover:underline">paket yang skalabel</Link>, Chatvice cocok untuk villa boutique hingga grup hotel besar di Bali.
+      </>,
+    ],
+    features: [
+      { icon: Globe, title: "Multi-Bahasa Otomatis", description: "AI mendeteksi dan merespons dalam Bahasa Indonesia, Inggris, dan 50+ bahasa lain secara otomatis." },
+      { icon: Store, title: "Hotel Availability Checker", description: "Tamu cek ketersediaan kamar real-time dari Google Sheet, dengan kartu produk dan tombol pesan." },
+      { icon: Brain, title: "AI yang Memahami Hospitality", description: "Latih AI dengan informasi property, paket, kebijakan, dan FAQ — siap menjawab tamu profesional." },
+      { icon: Sparkles, title: "Widget Premium Customizable", description: "Sesuaikan tampilan widget dengan estetika luxury property Bali Anda — warna, foto, dan gaya." },
+      { icon: Zap, title: "Aktif 24/7 di Semua Zona Waktu", description: "Tamu dari seluruh dunia mendapat jawaban instan kapan pun — tanpa staff malam tambahan." },
+      { icon: HeadphonesIcon, title: "Eskalasi ke Concierge", description: "Permintaan kustom atau VIP otomatis dialihkan ke staff concierge yang siap membantu." },
+    ],
+    useCases: [
+      "Hotel, villa, dan resort yang menerima pertanyaan ketersediaan dan booking",
+      "Restoran dan beach club yang menjawab pertanyaan menu dan reservasi",
+      "Tour operator dan diving center yang melayani booking aktivitas wisata",
+      "Spa, yoga retreat, dan wellness center yang menerima booking sesi",
+      "Sewa motor, mobil, dan transport yang menjawab pertanyaan rate dan ketersediaan",
+      "Property manager Airbnb yang melayani tamu sebelum dan selama menginap",
+    ],
+    whyChatvice: [
+      "Dukungan multi-bahasa native — Inggris, Mandarin, Jepang, Rusia, dan lebih banyak lagi",
+      "Hospitality Add-on khusus untuk industri hotel dan akomodasi",
+      "Live Visitor Tracking untuk konversi prospek booking yang lebih tinggi",
+      "Widget premium yang dapat disesuaikan dengan brand luxury property",
+      "Skalabel dari villa boutique hingga grup hotel internasional",
+    ],
+    stats: [
+      { value: "50+", label: "Bahasa yang didukung AI untuk tamu internasional" },
+      { value: "24/7", label: "Aktif tanpa staff multi-lingual tambahan" },
+      { value: "3x", label: "Peningkatan konversi booking dengan widget chat" },
+      { value: "5 menit", label: "Setup widget di website hospitality Anda" },
+    ],
+    ctaHeading: "Layani Tamu Bali dari Seluruh Dunia dengan AI",
+    ctaSubtext: "Mulai gratis. Aktifkan add-on hospitality saat siap upgrade.",
+    relatedSlugs: ["chatbot-yogyakarta", "chatbot-restoran", "chatbot-customer-service", "live-chat-website"],
+  },
+  {
+    slug: "chatbot-yogyakarta",
+    metaTitle: "Chatbot Customer Service Yogyakarta — AI untuk Pendidikan, UMKM & Wisata | Chatvice",
+    metaDescription: "Chatbot AI customer service untuk bisnis Yogyakarta. Cocok untuk lembaga pendidikan, UMKM kreatif, kuliner, dan pariwisata budaya. Mulai gratis.",
+    h1: "Chatbot Customer Service Yogyakarta — AI untuk Pendidikan, UMKM Kreatif & Pariwisata",
+    subtitle: "Yogyakarta adalah kota pelajar, budaya, dan UMKM kreatif. Otomasi customer service Anda dengan AI yang ramah, sopan, dan aktif 24 jam.",
+    introParagraphs: [
+      <>
+        Yogyakarta dikenal sebagai kota pelajar Indonesia, sekaligus pusat budaya dan UMKM kreatif yang sangat aktif. Dengan ratusan ribu mahasiswa yang datang dari seluruh Indonesia, jutaan wisatawan setiap tahun yang berkunjung ke Borobudur, Prambanan, Malioboro, dan Pantai Parangtritis, serta ribuan UMKM kuliner, batik, dan kerajinan, Yogyakarta adalah ekosistem bisnis yang unik — di mana kualitas pelayanan dan keramahan menjadi nilai utama. Bisnis Yogyakarta yang sukses adalah yang mampu memberikan respons cepat dan informatif kepada calon pelanggan, baik mahasiswa, wisatawan, maupun pembeli online dari kota lain.
+      </>,
+      <>
+        Chatvice menghadirkan <Link href="/chatbot-customer-service" className="text-purple-600 hover:underline">chatbot customer service</Link> bertenaga <Link href="/features" className="text-purple-600 hover:underline">LEXA1 AI Engine</Link> yang dapat dikonfigurasi dengan brand voice yang ramah dan sopan — sangat cocok dengan karakter komunikasi khas Yogyakarta. AI dapat menjawab pertanyaan calon mahasiswa tentang biaya kos, fasilitas kampus, dan jadwal pendaftaran; menjawab pertanyaan wisatawan tentang paket tur dan rekomendasi tempat wisata; serta menjawab pertanyaan pembeli online tentang produk batik, kuliner gudeg, atau kerajinan perak Kotagede. Semua dilakukan dalam Bahasa Indonesia yang natural — bahkan dengan sentuhan Bahasa Jawa krama jika diperlukan.
+      </>,
+      <>
+        Untuk lembaga pendidikan dan bimbingan belajar di Yogyakarta — dari universitas, sekolah swasta, hingga bimbel persiapan UTBK — chatbot Chatvice adalah solusi ideal untuk menangani lonjakan pertanyaan di musim pendaftaran. Lihat juga halaman <Link href="/chatbot-pendidikan" className="text-purple-600 hover:underline">chatbot pendidikan</Link> kami untuk fitur khusus industri pendidikan. Untuk UMKM kreatif Yogyakarta, fitur <Link href="/features" className="text-purple-600 hover:underline">AI Product Catalog Crawler</Link> dapat mengekstrak katalog produk Anda secara otomatis dari website — tidak perlu input manual yang memakan waktu.
+      </>,
+      <>
+        Widget <Link href="/live-chat-website" className="text-purple-600 hover:underline">live chat</Link> Chatvice dapat dipasang di website bisnis Yogyakarta Anda dalam 5 menit — kompatibel dengan WordPress, Shopify, Wix, dan platform lainnya. Untuk UMKM yang baru mulai digitalisasi, <Link href="/ai-chatbot-gratis" className="text-purple-600 hover:underline">plan gratis Chatvice</Link> sudah mencakup AI chatbot, widget yang bisa dikustomisasi, dan dashboard analitik dasar — cukup lengkap untuk menangani volume awal. Saat bisnis berkembang, upgrade ke plan berbayar tersedia dengan satu klik.
+      </>,
+    ],
+    features: [
+      { icon: Brain, title: "Brand Voice Ramah & Sopan", description: "Konfigurasi AI dengan gaya komunikasi khas Yogyakarta yang ramah, sopan, dan informatif." },
+      { icon: Sparkles, title: "Cocok untuk UMKM Kreatif", description: "Widget yang dapat dikustomisasi sesuai estetika brand batik, kerajinan, atau kuliner Yogyakarta." },
+      { icon: Globe, title: "Multi-Bahasa untuk Wisatawan", description: "AI menjawab dalam Bahasa Indonesia, Inggris, dan bahasa lain untuk melayani wisatawan internasional." },
+      { icon: Clock, title: "Aktif 24/7 untuk Mahasiswa", description: "Calon mahasiswa yang menanyakan info pendaftaran di malam hari tetap mendapat jawaban instan." },
+      { icon: Store, title: "AI Product Crawler", description: "Ekstrak katalog produk UMKM kreatif Anda secara otomatis dari website tanpa input manual." },
+      { icon: HeadphonesIcon, title: "Eskalasi ke Tim", description: "Pertanyaan kompleks dialihkan ke staff yang tepat — admin kampus, sales, atau owner UMKM." },
+    ],
+    useCases: [
+      "Universitas, sekolah, dan bimbel yang menerima pertanyaan pendaftaran calon siswa",
+      "Bisnis kos-kosan dan apartemen mahasiswa yang melayani pertanyaan kamar",
+      "UMKM batik, kerajinan, dan fashion lokal yang menjual ke pasar nasional",
+      "Bisnis kuliner gudeg, bakpia, dan oleh-oleh yang menerima pesanan online",
+      "Tour operator, homestay, dan jasa wisata budaya Yogyakarta",
+      "Klinik, spa, dan layanan kesehatan tradisional Jogja",
+    ],
+    whyChatvice: [
+      "AI dengan brand voice yang dapat disesuaikan — ramah dan sopan khas Yogyakarta",
+      "Plan gratis lengkap untuk UMKM kreatif yang baru memulai digitalisasi",
+      "Multi-bahasa untuk melayani wisatawan domestik dan internasional",
+      "AI Product Crawler untuk update katalog otomatis tanpa input manual",
+      "Tidak perlu programmer — konfigurasi semua dari dashboard yang intuitif",
+    ],
+    stats: [
+      { value: "300.000+", label: "Mahasiswa aktif di Yogyakarta setiap tahun" },
+      { value: "5 juta+", label: "Wisatawan yang berkunjung ke DIY per tahun" },
+      { value: "50+", label: "Bahasa yang didukung untuk wisatawan internasional" },
+      { value: "Rp 0", label: "Biaya untuk memulai dengan plan gratis" },
+    ],
+    ctaHeading: "Layani Mahasiswa, Wisatawan, dan Pembeli UMKM Anda dengan AI",
+    ctaSubtext: "Mulai gratis sekarang. Setup dalam 5 menit, tanpa coding.",
+    relatedSlugs: ["chatbot-bali", "chatbot-pendidikan", "chatbot-bandung", "ai-chatbot-gratis"],
+  },
 ];
 
 // ─── Industry-specific pages ──────────────────────────────────────────────────
