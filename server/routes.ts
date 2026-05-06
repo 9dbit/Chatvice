@@ -1577,23 +1577,23 @@ PENTING: Sertakan tag [HOTEL_QUERY_DETECTED] di akhir respons saat customer mena
       const extraInstr = prConfig.aiInstructions ? `\nInstruksi Tambahan: ${prConfig.aiInstructions}` : "";
       passwordRecoverySignals = `
 PASSWORD RECOVERY FEATURE:
-Merchant ini menggunakan fitur Password Recovery via Google Sheet.
+This merchant uses the Password Recovery via Google Sheet feature.
 
-SINYAL YANG TERSEDIA:
-[SHOW_PASSWORD_RECOVERY_FORM] → tampilkan form reset password kepada customer
-[PASSWORD_LOOKUP_DETECTED:username=X,bank=Y,phone=Z] → customer minta LIHAT password saat ini (kumpulkan 3 data dulu)
+AVAILABLE SIGNALS:
+[SHOW_PASSWORD_RECOVERY_FORM] → show the password reset form to the customer
+[PASSWORD_LOOKUP_DETECTED:username=X,bank=Y,phone=Z] → customer wants to VIEW their current password (collect all 3 data points first)
 
-ALUR RESET PASSWORD (jangan kumpulkan data lewat chat):
-1. Jika customer minta reset / lupa password → balas dengan kalimat pengantar singkat (contoh: "Silakan isi form berikut untuk mengajukan reset password:") lalu langsung emit [SHOW_PASSWORD_RECOVERY_FORM] di baris yang sama atau setelahnya
-2. Form akan muncul otomatis di widget — customer isi sendiri di form
-3. Jangan minta username/bank/phone lewat chat untuk reset
-4. WAJIB: selalu sertakan kalimat pengantar sebelum sinyal [SHOW_PASSWORD_RECOVERY_FORM] agar customer tahu apa yang akan muncul
+RESET PASSWORD FLOW (do not collect data via chat):
+1. If the customer asks to reset / forgot their password → reply with a short introductory sentence explaining that a form will appear (e.g. in English: "Please fill in the form below to submit your password reset request:" — IMPORTANT: write this intro sentence in the same language the customer used in their last message), then immediately emit [SHOW_PASSWORD_RECOVERY_FORM] on the same or next line
+2. The form will appear automatically in the widget — the customer fills it in themselves
+3. Do not ask for username/bank/phone via chat for a reset
+4. REQUIRED: always include an introductory sentence before [SHOW_PASSWORD_RECOVERY_FORM] so the customer knows what is about to appear — and write that sentence in the customer's language
 
-ALUR LOOKUP PASSWORD (lihat password saat ini):
-1. Tanya username, bank terdaftar, nomor HP
-2. Setelah semua terkumpul → emit [PASSWORD_LOOKUP_DETECTED:username=X,bank=Y,phone=Z]
+PASSWORD LOOKUP FLOW (view current password):
+1. Ask for username, registered bank, and phone number
+2. Once all are collected → emit [PASSWORD_LOOKUP_DETECTED:username=X,bank=Y,phone=Z]
 
-PENTING: JANGAN tampilkan tag sinyal kepada customer.${extraInstr}`;
+IMPORTANT: NEVER display the signal tags to the customer.${extraInstr}`;
     }
   } catch (_err) {
     // Password recovery signals are optional
@@ -6877,10 +6877,18 @@ Sitemap: ${baseUrl}/sitemap.xml`;
               //   1. cleanAnswer is empty — AI emitted only the bare signal.
               //   2. cleanAnswer is too generic and doesn't mention the form/reset context
               //      (e.g. AI said "baik" or "oke" without explaining what's coming).
-              const formKeywords = /form|reset|password|isi|pengajuan|permintaan/i;
+              const formKeywords = /form|reset|password|isi|pengajuan|permintaan|fill|submit|request/i;
               const needsFallback = !cleanAnswer || (cleanAnswer.length < 60 && !formKeywords.test(cleanAnswer));
               if (needsFallback) {
-                const fallbackText = "Silakan isi form berikut untuk mengajukan reset password:";
+                // Detect the customer's language from their last message so the fallback
+                // matches the language they wrote in rather than being hardcoded to one locale.
+                // Only include unambiguously Indonesian words — avoid universal loanwords
+                // like "password", "reset", "ok" which appear in English messages too.
+                const idPattern = /\b(saya|aku|lupa|kata\s*sandi|tolong|gimana|bisa|mau|mohon|kak|mas|mbak|dong|yang|dengan|untuk|tidak|iya|bantu|silakan|bagaimana|kami|anda|apakah|boleh|sudah|belum|butuh|perlu|coba|ingat)\b/i;
+                const isIndonesian = idPattern.test(message);
+                const fallbackText = isIndonesian
+                  ? "Silakan isi form berikut untuk mengajukan reset password:"
+                  : "Please fill in the form below to submit your password reset request:";
                 // If cleanAnswer has some minor text, prepend the fallback to it so
                 // both the AI acknowledgment and the context are visible.
                 const combinedText = cleanAnswer ? `${fallbackText}\n${cleanAnswer}` : fallbackText;
