@@ -432,6 +432,13 @@ export function AppSidebar() {
   });
   const unknownDomainCount = unknownDomainCountData?.count ?? 0;
 
+  const { data: pendingPrCountData } = useQuery<{ count: number }>({
+    queryKey: ["/api/merchant/password-recovery-requests/pending-count"],
+    enabled: !!merchantId && isAdmin,
+    refetchInterval: 30000,
+  });
+  const pendingPrCount = pendingPrCountData?.count ?? 0;
+
   const escalatedSessions = sessions?.filter(s => s.needsSupervisorAttention === true) || [];
   const escalatedCount = escalatedSessions.length;
   const totalPendingMessages = escalatedSessions.reduce((sum, s) => sum + (s.pendingCustomerMessages ?? 0), 0);
@@ -678,6 +685,11 @@ export function AppSidebar() {
                       <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
                         <item.icon className="w-4 h-4" />
                         <span className="flex-1">{label}</span>
+                        {item.id === "knowledge-base" && pendingPrCount > 0 && (
+                          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold leading-none" data-testid="badge-sidebar-pending-pr">
+                            {pendingPrCount > 9 ? "9+" : pendingPrCount}
+                          </span>
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

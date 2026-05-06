@@ -818,9 +818,9 @@ export default function KnowledgePage() {
 
   // Password Recovery request history — auto-refreshes every 10s while on the sources tab
   const { data: prRequests = [], isLoading: prRequestsLoading, isError: prRequestsError } = useQuery<PasswordRecoveryRequest[]>({
-    queryKey: ["/api/merchant/password-recovery-requests"],
+    queryKey: ["/api/merchant/password-recovery-requests/list"],
     queryFn: async () => {
-      const res = await fetch("/api/merchant/password-recovery-requests", { credentials: "include" });
+      const res = await fetch("/api/merchant/password-recovery-requests/list", { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch password recovery requests");
       return res.json();
     },
@@ -3332,7 +3332,9 @@ export default function KnowledgePage() {
                     <table className="w-full text-sm" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
                       <thead>
                         <tr style={{ borderBottom: "1px solid #3f3f46" }}>
+                          <th className="text-left py-2 pr-4 text-xs font-medium" style={{ color: "#a1a1aa" }}>Ticket ID</th>
                           <th className="text-left py-2 pr-4 text-xs font-medium" style={{ color: "#a1a1aa" }}>Username</th>
+                          <th className="text-left py-2 pr-4 text-xs font-medium" style={{ color: "#a1a1aa" }}>Bank Account</th>
                           <th className="text-left py-2 pr-4 text-xs font-medium" style={{ color: "#a1a1aa" }}>Request Type</th>
                           <th className="text-left py-2 pr-4 text-xs font-medium" style={{ color: "#a1a1aa" }}>Status</th>
                           <th className="text-left py-2 pr-4 text-xs font-medium" style={{ color: "#a1a1aa" }}>Created At</th>
@@ -3363,8 +3365,14 @@ export default function KnowledgePage() {
                               style={{ borderBottom: "1px solid #27272a" }}
                               data-testid={`row-pr-request-${req.id}`}
                             >
+                              <td className="py-2 pr-4 font-mono text-xs" style={{ color: "#71717a" }} data-testid={`text-pr-id-${req.id}`} title={req.id}>
+                                {req.id.slice(0, 8)}…
+                              </td>
                               <td className="py-2 pr-4 font-mono text-xs" style={{ color: "#e4e4e7" }} data-testid={`text-pr-username-${req.id}`}>
                                 {req.username}
+                              </td>
+                              <td className="py-2 pr-4 text-xs" style={{ color: "#d4d4d8" }} data-testid={`text-pr-bank-${req.id}`}>
+                                {req.bankAccount || <span style={{ color: "#52525b" }}>—</span>}
                               </td>
                               <td className="py-2 pr-4" data-testid={`text-pr-type-${req.id}`}>
                                 <span className="text-xs px-2 py-0.5 rounded-md capitalize" style={{ backgroundColor: "#3f3f46", color: "#d4d4d8", border: "1px solid #52525b" }}>

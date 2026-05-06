@@ -27299,6 +27299,27 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  app.get("/api/merchant/password-recovery-requests/pending-count", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const pending = await storage.getPasswordRecoveryRequestsByMerchant(merchantId, "pending");
+      res.json({ count: pending.length });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch pending count" });
+    }
+  });
+
+  app.get("/api/merchant/password-recovery-requests/list", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { status } = req.query;
+      const requests = await storage.getPasswordRecoveryRequestsByMerchant(merchantId, status as string | undefined);
+      res.json(requests);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch password recovery requests" });
+    }
+  });
+
   // Helper to enforce active hospitality addon
   const requireAppointmentAddon = async (req: any, res: any, next: any) => {
     const merchantId = req.session?.merchantId;
