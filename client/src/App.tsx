@@ -40,6 +40,8 @@ import PressPage from "@/pages/company/press";
 import PartnersPage from "@/pages/company/partners";
 import AffiliatePage from "@/pages/company/affiliate";
 
+import ComparisonPage from "@/pages/comparison/comparison-page";
+import { competitorsData } from "@/pages/comparison/competitors-data";
 import MarketingToolsPage from "@/pages/marketing/marketing-tools";
 import ContactPage from "@/pages/resources/contact";
 import StatusPage from "@/pages/resources/status";
@@ -130,6 +132,7 @@ function GlobalHelpBubble() {
     '/docs',
     '/help',
     '/marketing-tools',
+    '/vs',
   ];
   
   const shouldShow = allowedPaths.some(path => 
@@ -246,6 +249,14 @@ function MainRouter() {
       <Route path="/affiliate" component={AffiliatePage} />
 
       <Route path="/marketing-tools" component={MarketingToolsPage} />
+
+      <Route path="/vs/:competitor">
+        {(params) => {
+          const data = competitorsData[params.competitor as string];
+          if (!data) return <NotFound />;
+          return <ComparisonPage competitor={data} />;
+        }}
+      </Route>
 
       <Route path="/contact" component={ContactPage} />
       <Route path="/status" component={StatusPage} />

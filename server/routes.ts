@@ -2495,6 +2495,55 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       subtitle: "Top Up & Pembayaran",
       color: "#f59e0b",
     },
+    "/vs/tawkto": {
+      title: "Chatvice vs Tawk.to (2025)",
+      description: "Chatvice vs Tawk.to comparison 2025. AI-powered automation vs free live chat.",
+      emoji: "VS",
+      subtitle: "Chatvice vs Tawk.to",
+      color: "#7c3aed",
+    },
+    "/vs/intercom": {
+      title: "Chatvice vs Intercom (2025)",
+      description: "Chatvice vs Intercom 2025. Affordable AI customer service vs $74+/seat pricing.",
+      emoji: "VS",
+      subtitle: "Chatvice vs Intercom",
+      color: "#7c3aed",
+    },
+    "/vs/tidio": {
+      title: "Chatvice vs Tidio (2025)",
+      description: "Chatvice vs Tidio 2025. Full AI platform vs limited Lyro AI chatbot.",
+      emoji: "VS",
+      subtitle: "Chatvice vs Tidio",
+      color: "#7c3aed",
+    },
+    "/vs/zendesk": {
+      title: "Chatvice vs Zendesk (2025)",
+      description: "Chatvice vs Zendesk 2025. AI-first chat vs legacy help desk ticketing.",
+      emoji: "VS",
+      subtitle: "Chatvice vs Zendesk",
+      color: "#7c3aed",
+    },
+    "/vs/freshdesk": {
+      title: "Chatvice vs Freshdesk (2025)",
+      description: "Chatvice vs Freshdesk 2025. AI customer service vs help desk platform.",
+      emoji: "VS",
+      subtitle: "Chatvice vs Freshdesk",
+      color: "#7c3aed",
+    },
+    "/vs/livechat": {
+      title: "Chatvice vs LiveChat (2025)",
+      description: "Chatvice vs LiveChat 2025. AI automation vs human-first live chat platform.",
+      emoji: "VS",
+      subtitle: "Chatvice vs LiveChat",
+      color: "#7c3aed",
+    },
+    "/vs/drift": {
+      title: "Chatvice vs Drift (2025)",
+      description: "Chatvice vs Drift 2025. Affordable AI customer service vs $2,500+/month B2B chat.",
+      emoji: "VS",
+      subtitle: "Chatvice vs Drift",
+      color: "#7c3aed",
+    },
   };
 
   function generateOgSvg(config: { title: string; subtitle: string; emoji: string; color: string }): string {
@@ -2560,6 +2609,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         emoji: "D",
         subtitle: "Dokumentasi Chatvice",
         color: "#0891b2",
+      };
+    }
+    if (pagePath.startsWith("/vs/")) {
+      const competitorSlug = pagePath.replace("/vs/", "");
+      const nameMap: Record<string, string> = {
+        tawkto: "Tawk.to", intercom: "Intercom", tidio: "Tidio",
+        zendesk: "Zendesk", freshdesk: "Freshdesk", livechat: "LiveChat", drift: "Drift",
+      };
+      const name = nameMap[competitorSlug] || competitorSlug;
+      return {
+        title: `Chatvice vs ${name} (2025)`,
+        description: `Compare Chatvice vs ${name}. See why businesses choose Chatvice for AI-powered customer service automation.`,
+        emoji: "VS",
+        subtitle: `Chatvice vs ${name}`,
+        color: "#7c3aed",
       };
     }
     return undefined;
@@ -2904,6 +2968,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         { url: "/affiliate", priority: "0.6", changefreq: "monthly" },
         // Demo
         { url: "/demo", priority: "0.7", changefreq: "monthly" },
+        // Competitor comparison pages
+        { url: "/vs/tawkto", priority: "0.8", changefreq: "monthly" },
+        { url: "/vs/intercom", priority: "0.8", changefreq: "monthly" },
+        { url: "/vs/tidio", priority: "0.8", changefreq: "monthly" },
+        { url: "/vs/zendesk", priority: "0.8", changefreq: "monthly" },
+        { url: "/vs/freshdesk", priority: "0.8", changefreq: "monthly" },
+        { url: "/vs/livechat", priority: "0.8", changefreq: "monthly" },
+        { url: "/vs/drift", priority: "0.8", changefreq: "monthly" },
       ];
 
       const today = new Date().toISOString().split("T")[0];

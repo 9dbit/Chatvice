@@ -116,6 +116,34 @@ const pageOgConfig: Record<string, { title: string; description: string }> = {
     title: "Top Up Coin | Chatvice",
     description: "Top up coin Chatvice untuk layanan premium. Berbagai metode pembayaran tersedia.",
   },
+  "/vs/tawkto": {
+    title: "Chatvice vs Tawk.to: AI Customer Service vs Free Live Chat (2025)",
+    description: "Chatvice vs Tawk.to comparison 2025. See why businesses switch from Tawk.to's basic live chat to Chatvice's AI-powered automation with knowledge base, human escalation, and analytics.",
+  },
+  "/vs/intercom": {
+    title: "Chatvice vs Intercom: Affordable AI Customer Service Alternative (2025)",
+    description: "Chatvice vs Intercom 2025. Why fast-growing businesses choose Chatvice over Intercom. Compare AI features, pricing, and ease of use. Save up to 80% vs Intercom's $74+/seat pricing.",
+  },
+  "/vs/tidio": {
+    title: "Chatvice vs Tidio: Full AI Platform vs Limited Chatbot (2025)",
+    description: "Chatvice vs Tidio comparison 2025. Compare LEXA1 AI vs Lyro AI, knowledge base quality, human escalation, pricing, and Indonesian market support.",
+  },
+  "/vs/zendesk": {
+    title: "Chatvice vs Zendesk: AI Chat vs Legacy Help Desk (2025)",
+    description: "Chatvice vs Zendesk 2025 comparison. Why businesses choose Chatvice's AI-first approach over Zendesk's complex ticketing system. Compare AI capabilities, pricing, and setup time.",
+  },
+  "/vs/freshdesk": {
+    title: "Chatvice vs Freshdesk: AI Customer Service vs Help Desk Platform (2025)",
+    description: "Chatvice vs Freshdesk comparison 2025. Compare AI chat automation, pricing, setup complexity, and features. See why businesses choose Chatvice for real-time AI customer service.",
+  },
+  "/vs/livechat": {
+    title: "Chatvice vs LiveChat: AI Automation vs Human-First Chat (2025)",
+    description: "Chatvice vs LiveChat comparison 2025. Compare AI automation vs live agent chat, pricing per seat vs flat pricing, knowledge base quality, and ease of setup.",
+  },
+  "/vs/drift": {
+    title: "Chatvice vs Drift: Affordable AI Customer Service vs Expensive B2B Chat (2025)",
+    description: "Chatvice vs Drift 2025. Why growing businesses choose Chatvice over Drift's $2,500+/month pricing. Compare AI features, ease of use, and value.",
+  },
 };
 
 function updateOrCreateMeta(property: string, content: string, isName: boolean = false) {
