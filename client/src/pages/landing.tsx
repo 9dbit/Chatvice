@@ -83,14 +83,7 @@ const landingSoftwareAppSchema = {
     { "@type": "Offer", "name": "Starter", "price": "29", "priceCurrency": "USD", "description": "1 agent, 1,000 messages/month, basic features" },
     { "@type": "Offer", "name": "Pro", "price": "99", "priceCurrency": "USD", "description": "5 agents, 10,000 messages/month, human escalation, analytics" },
     { "@type": "Offer", "name": "Enterprise", "description": "Unlimited agents and messages, SLA, dedicated support" }
-  ],
-  "aggregateRating": {
-    "@type": "AggregateRating",
-    "ratingValue": "4.8",
-    "ratingCount": "240",
-    "bestRating": "5",
-    "worstRating": "1"
-  }
+  ]
 };
 
 interface LandingPageSettings {
