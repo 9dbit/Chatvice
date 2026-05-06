@@ -2935,105 +2935,33 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Dynamic sitemap.xml route
   app.get("/sitemap.xml", async (req, res) => {
     try {
-      const baseUrl = `https://${req.get("host")}`;
-      
-      // Static pages - only public indexable pages (no login/register/dashboard)
-      const staticPages = [
-        // Main pages
-        { url: "/", priority: "1.0", changefreq: "weekly" },
-        { url: "/features", priority: "0.9", changefreq: "monthly" },
-        { url: "/pricing", priority: "0.9", changefreq: "monthly" },
-        { url: "/faq", priority: "0.8", changefreq: "monthly" },
-        // Resources
-        { url: "/docs", priority: "0.8", changefreq: "weekly" },
-        { url: "/blog", priority: "0.8", changefreq: "weekly" },
-        { url: "/help", priority: "0.7", changefreq: "monthly" },
-        { url: "/api-docs", priority: "0.6", changefreq: "monthly" },
-        { url: "/changelog", priority: "0.6", changefreq: "weekly" },
-        { url: "/integrations", priority: "0.7", changefreq: "monthly" },
-        // Company
-        { url: "/about", priority: "0.7", changefreq: "monthly" },
-        { url: "/contact", priority: "0.7", changefreq: "monthly" },
-        { url: "/careers", priority: "0.6", changefreq: "monthly" },
-        { url: "/press", priority: "0.5", changefreq: "monthly" },
-        { url: "/partners", priority: "0.6", changefreq: "monthly" },
-        { url: "/status", priority: "0.5", changefreq: "daily" },
-        // Legal
-        { url: "/privacy", priority: "0.4", changefreq: "yearly" },
-        { url: "/terms", priority: "0.4", changefreq: "yearly" },
-        { url: "/cookies", priority: "0.3", changefreq: "yearly" },
-        { url: "/gdpr", priority: "0.3", changefreq: "yearly" },
-        { url: "/security", priority: "0.4", changefreq: "yearly" },
-        // Community & Affiliate
-        { url: "/affiliate", priority: "0.6", changefreq: "monthly" },
-        // Demo
-        { url: "/demo", priority: "0.7", changefreq: "monthly" },
-        // Competitor comparison pages
-        { url: "/vs/tawkto", priority: "0.8", changefreq: "monthly" },
-        { url: "/vs/intercom", priority: "0.8", changefreq: "monthly" },
-        { url: "/vs/tidio", priority: "0.8", changefreq: "monthly" },
-        { url: "/vs/zendesk", priority: "0.8", changefreq: "monthly" },
-        { url: "/vs/freshdesk", priority: "0.8", changefreq: "monthly" },
-        { url: "/vs/livechat", priority: "0.8", changefreq: "monthly" },
-        { url: "/vs/drift", priority: "0.8", changefreq: "monthly" },
-      ];
+      const { generateSitemap, getCachedSitemap, setCachedSitemap, DEFAULT_BASE_URL } = await import("./sitemap");
 
-      const today = new Date().toISOString().split("T")[0];
-
-      let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-`;
-
-      for (const page of staticPages) {
-        xml += `  <url>
-    <loc>${baseUrl}${page.url}</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>${page.changefreq}</changefreq>
-    <priority>${page.priority}</priority>
-  </url>
-`;
+      const cached = getCachedSitemap();
+      if (cached) {
+        res.setHeader("Content-Type", "application/xml");
+        res.setHeader("Cache-Control", "public, max-age=600");
+        return res.send(cached);
       }
 
-      // Add blog posts with actual publish dates from DB
+      // Resolve base URL from landing settings canonical_url, fall back to default
+      let baseUrl = DEFAULT_BASE_URL;
       try {
-        const blogPosts = await storage.getBlogPosts({ publishedOnly: true, limit: 1000 });
-        for (const post of blogPosts) {
-          const lastmod = post.publishedAt
-            ? new Date(post.publishedAt).toISOString().split("T")[0]
-            : ((post as any).generatedAt ? new Date((post as any).generatedAt).toISOString().split("T")[0] : today);
-          xml += `  <url>
-    <loc>${baseUrl}/blog/${post.slug}</loc>
-    <lastmod>${lastmod}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-`;
+        const settings = await storage.getLandingPageSettings();
+        if (settings?.canonicalUrl && settings.canonicalUrl.trim() !== "") {
+          baseUrl = settings.canonicalUrl.trim().replace(/\/$/, "");
         }
       } catch (_e) {
-        // If DB fails, add known static blog slugs
-        const staticBlogSlugs = [
-          { slug: "introducing-lexa1-ai-engine", date: "2025-12-09" },
-          { slug: "ai-transforming-customer-service-indonesia", date: "2025-12-05" },
-          { slug: "best-practices-training-ai-agent", date: "2025-11-28" },
-          { slug: "human-ai-collaboration-customer-support", date: "2025-11-20" },
-          { slug: "multi-language-support-strategy", date: "2025-11-15" },
-          { slug: "chatvice-vs-livechat-zendesk-intercom", date: "2025-11-10" },
-        ];
-        for (const b of staticBlogSlugs) {
-          xml += `  <url>
-    <loc>${baseUrl}/blog/${b.slug}</loc>
-    <lastmod>${b.date}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-`;
-        }
+        // keep default
       }
 
-      xml += `</urlset>`;
+      const blogPosts = await storage.getBlogPosts({ publishedOnly: true, limit: 1000 });
+      const xml = generateSitemap(baseUrl, blogPosts);
+
+      setCachedSitemap(xml);
 
       res.setHeader("Content-Type", "application/xml");
-      res.setHeader("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
+      res.setHeader("Cache-Control", "public, max-age=600");
       res.send(xml);
     } catch (error) {
       console.error("Error generating sitemap:", error);
@@ -3045,7 +2973,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/robots.txt", async (req, res) => {
     try {
       const settings = await storage.getLandingPageSettings();
-      const baseUrl = `https://${req.get("host")}`;
+      const { DEFAULT_BASE_URL } = await import("./sitemap");
+      const sitemapBaseUrl = (settings?.canonicalUrl && settings.canonicalUrl.trim() !== "")
+        ? settings.canonicalUrl.trim().replace(/\/$/, "")
+        : DEFAULT_BASE_URL;
       
       // Use custom robots.txt from settings if available, otherwise use default
       let robotsTxt = settings?.robotsTxt;
@@ -3076,11 +3007,11 @@ Disallow: /profile-wizard
 Disallow: /oauth-callback
 Disallow: /api/
 
-Sitemap: ${baseUrl}/sitemap.xml`;
+Sitemap: ${sitemapBaseUrl}/sitemap.xml`;
       } else {
         // Replace placeholder sitemap URL if needed
         if (!robotsTxt.includes("Sitemap:")) {
-          robotsTxt += `\n\nSitemap: ${baseUrl}/sitemap.xml`;
+          robotsTxt += `\n\nSitemap: ${sitemapBaseUrl}/sitemap.xml`;
         }
       }
 

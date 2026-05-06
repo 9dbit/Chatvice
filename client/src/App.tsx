@@ -243,6 +243,7 @@ function MainRouter() {
 
       <Route path="/blog" component={BlogPage} />
       <Route path="/blog/:slug" component={BlogArticlePage} />
+      <Route path="/vs/:slug" component={BlogArticlePage} />
       <Route path="/careers" component={CareersPage} />
       <Route path="/press" component={PressPage} />
       <Route path="/partners" component={PartnersPage} />
