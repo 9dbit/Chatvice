@@ -2512,7 +2512,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     const loadingBorder = loadingIsDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)";
     const loadingTrack = loadingIsDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)";
     const loadingTextColor = loadingIsDark ? "rgba(255,255,255,0.30)" : "rgba(0,0,0,0.28)";
-    const loadingRadius = "28px";
+    const _rawRadius = urlParams.get("radius");
+    const _parsedRadius = _rawRadius !== null ? parseInt(_rawRadius, 10) : NaN;
+    const loadingRadius = !isNaN(_parsedRadius) && _parsedRadius >= 0 ? `${_parsedRadius}px` : "28px";
     return (
       <div
         className="chatvice-widget-loading-enter"

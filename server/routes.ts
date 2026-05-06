@@ -16235,10 +16235,15 @@ Rules:
     if (!isOpen) {
       var encColor = encodeURIComponent(config.primaryColor || '#6b5dfc');
       var encTheme = encodeURIComponent(config.widgetTheme || 'light');
-      // Replace existing color/theme params (stale from cache) or append if absent.
+      var wsD = getWS();
+      var pnl = wsD ? wsD.panel : null;
+      var cornerRadiusPx = pnl && typeof pnl.cornerRadiusPx === 'number' ? pnl.cornerRadiusPx : null;
+      // Replace existing color/theme/radius params (stale from cache) or append if absent.
       var src = iframe.src;
-      src = src.replace(/&color=[^&]*/g, '').replace(/&theme=[^&]*/g, '');
-      iframe.src = src + '&color=' + encColor + '&theme=' + encTheme;
+      src = src.replace(/&color=[^&]*/g, '').replace(/&theme=[^&]*/g, '').replace(/&radius=[^&]*/g, '');
+      src = src + '&color=' + encColor + '&theme=' + encTheme;
+      if (cornerRadiusPx !== null) src = src + '&radius=' + cornerRadiusPx;
+      iframe.src = src;
     }
     updateButtonStyles(config);
     applyAnimations(config);
