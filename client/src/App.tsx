@@ -88,9 +88,10 @@ function SessionExpiredListener() {
   useEffect(() => {
     const handler = () => {
       toast({
-        title: "Sesi berakhir",
-        description: "Sesi Anda telah berakhir. Silakan login kembali.",
-        variant: "destructive",
+        title: "Sesi Anda telah berakhir",
+        description:
+          "Demi keamanan, silakan login kembali untuk melanjutkan. Anda akan diarahkan ke halaman login sebentar lagi.",
+        duration: 6000,
       });
     };
     window.addEventListener("session-expired", handler);

@@ -143,12 +143,21 @@ export default function DashboardLayout() {
   const [location] = useLocation();
   const merchantId = localStorage.getItem("merchantId");
 
-  const { data: merchant, isLoading } = useQuery<Merchant>({
+  const { data: merchant, isLoading, isFetched } = useQuery<Merchant | null>({
     queryKey: ["/api/merchant", merchantId],
     enabled: !!merchantId,
   });
 
   if (!merchantId) {
+    return <Redirect to="/login" />;
+  }
+
+  // If the server returned 401 (returnNull), our auth cookie is gone.
+  // Clear stale localStorage and bounce to login so users don't sit on a
+  // broken dashboard.
+  if (isFetched && merchant === null) {
+    localStorage.removeItem("merchantId");
+    localStorage.removeItem("userType");
     return <Redirect to="/login" />;
   }
 

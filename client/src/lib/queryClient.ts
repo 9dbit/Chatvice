@@ -12,15 +12,28 @@ let sessionExpiredHandled = false;
 
 export function handleSessionExpired() {
   if (sessionExpiredHandled) return;
+  // Only treat as a real session expiry if the user actually had a logged-in
+  // session. Otherwise a 401 from a background query on a public page would
+  // incorrectly trigger a "session expired" notification + redirect.
+  const wasLoggedIn =
+    typeof window !== "undefined" &&
+    (localStorage.getItem("userType") ||
+      localStorage.getItem("merchantId") ||
+      localStorage.getItem("adminId") ||
+      localStorage.getItem("supervisorUserId"));
+  if (!wasLoggedIn) return;
+
   sessionExpiredHandled = true;
   queryClient.clear();
   localStorage.removeItem("merchantId");
   localStorage.removeItem("userType");
   window.dispatchEvent(new CustomEvent("session-expired"));
+  // Give the user time to read the friendly notice (and to click "Login
+  // kembali") before auto-redirecting. They can also navigate manually.
   setTimeout(() => {
     sessionExpiredHandled = false;
     window.location.href = getLoginRedirectUrl();
-  }, 2500);
+  }, 6000);
 }
 
 async function throwIfResNotOk(res: Response) {
@@ -89,7 +102,12 @@ export const getQueryFn: <T>(options: {
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: getQueryFn({ on401: "redirect" }),
+      // Default to "returnNull" so a 401 from any background query does NOT
+      // immediately log the user out. Auth-protected pages have their own
+      // route guards (via /api/auth/me) that redirect to login when needed.
+      // This prevents spurious logouts caused by race conditions, optional
+      // endpoints, or queries firing on public pages.
+      queryFn: getQueryFn({ on401: "returnNull" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
       staleTime: Infinity,

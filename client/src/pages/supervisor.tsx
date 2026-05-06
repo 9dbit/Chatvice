@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Redirect, Link } from "wouter";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
 import { MessageReactions, type Reaction } from "@/components/message-reactions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -423,6 +423,9 @@ export default function SupervisorPanel() {
     queryKey: ["/api/supervisor/notifications", supervisorUserId],
     enabled: supervisorIdReady,
     refetchInterval: 3000,
+    // Primary supervisor auth-validating query: trigger session-expired flow
+    // when the server rejects with 401, instead of polling forever silently.
+    queryFn: getQueryFn({ on401: "redirect" }),
   });
 
   const { data: escalatedSessions, isLoading: sessionsLoading } = useQuery<Session[]>({

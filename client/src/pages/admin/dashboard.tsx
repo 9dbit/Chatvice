@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { AdditionalServicesTab } from "@/components/admin/AdditionalServicesTab";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Redirect, Link } from "wouter";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
 import { MetricTooltip } from "@/components/analytics/MetricTooltip";
 import { RealtimeSparkline, GrowthAreaChart, MiniSparkline, SubscriptionBarChart, MultiSeriesBarChart } from "@/components/analytics/RealtimeChart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -259,6 +259,9 @@ export default function AdminDashboard() {
   const { data: stats, isLoading: statsLoading } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats"],
     enabled: !!adminId,
+    // Primary admin auth-validating query: if the cookie is gone, trigger
+    // the friendly session-expired flow instead of showing an empty page.
+    queryFn: getQueryFn({ on401: "redirect" }),
   });
 
   const { data: merchants, isLoading: merchantsLoading, refetch: refetchMerchants } = useQuery<MerchantWithPlan[]>({
