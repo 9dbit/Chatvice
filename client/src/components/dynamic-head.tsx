@@ -166,6 +166,30 @@ const pageOgConfig: Record<string, { title: string; description: string }> = {
     title: "Chatvice vs Drift: Affordable AI Customer Service vs Expensive B2B Chat (2025)",
     description: "Chatvice vs Drift 2025. Why growing businesses choose Chatvice over Drift's $2,500+/month pricing. Compare AI features, ease of use, and value.",
   },
+  "/chatbot-customer-service": {
+    title: "Chatbot Customer Service Indonesia Terbaik | Chatvice",
+    description: "Chatbot customer service AI untuk bisnis Indonesia. Otomasi jawaban, eskalasi ke manusia, knowledge base pintar. Coba gratis sekarang.",
+  },
+  "/ai-chatbot-whatsapp": {
+    title: "AI Chatbot WhatsApp Bisnis Otomatis | Chatvice",
+    description: "Chatbot WhatsApp bisnis dengan AI. Otomasi pesan WhatsApp, integrasi widget chat, dan eskalasi ke supervisor. Solusi terbaik untuk bisnis Indonesia.",
+  },
+  "/live-chat-website": {
+    title: "Live Chat untuk Website Indonesia — Pasang dalam 5 Menit | Chatvice",
+    description: "Pasang live chat di website Anda dalam 5 menit. Widget AI chat yang bisa dikustomisasi, gratis, dan mendukung Bahasa Indonesia.",
+  },
+  "/chatbot-toko-online": {
+    title: "Chatbot untuk Toko Online & E-Commerce Indonesia | Chatvice",
+    description: "Chatbot AI untuk toko online dan e-commerce Indonesia. Otomasi CS, rekomendasi produk, cek stok otomatis. Tingkatkan penjualan 24/7.",
+  },
+  "/ai-chatbot-gratis": {
+    title: "Chatbot Gratis untuk Website & Live Chat Gratis Indonesia | Chatvice",
+    description: "Chatbot AI gratis untuk website bisnis Anda. Live chat gratis dengan AI, tidak perlu kartu kredit. Mulai sekarang dan tingkatkan layanan pelanggan.",
+  },
+  "/alternatif-tawkto": {
+    title: "Alternatif Tawk.to Terbaik di Indonesia — Chatvice vs Tawk.to | Chatvice",
+    description: "Cari alternatif Tawk.to? Chatvice hadir dengan AI chatbot, knowledge base, dan eskalasi manusia yang tidak dimiliki Tawk.to. Coba gratis sekarang.",
+  },
 };
 
 function updateOrCreateMeta(property: string, content: string, isName: boolean = false) {

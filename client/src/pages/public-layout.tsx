@@ -167,6 +167,14 @@ export function PublicFooter() {
       { label: "Status", href: "/status" },
       { label: "Marketing Tools", href: "/marketing-tools" },
     ],
+    solutions: [
+      { label: "Chatbot Customer Service", href: "/chatbot-customer-service" },
+      { label: "AI Chatbot WhatsApp", href: "/ai-chatbot-whatsapp" },
+      { label: "Live Chat Website", href: "/live-chat-website" },
+      { label: "Chatbot Toko Online", href: "/chatbot-toko-online" },
+      { label: "Chatbot Gratis", href: "/ai-chatbot-gratis" },
+      { label: "Alternatif Tawk.to", href: "/alternatif-tawkto" },
+    ],
     compare: [
       { label: "vs Tawk.to", href: "/vs/tawkto" },
       { label: "vs Intercom", href: "/vs/intercom" },
@@ -191,7 +199,7 @@ export function PublicFooter() {
   return (
     <footer className="bg-card border-t border-border">
       <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-8 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-8 mb-12">
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="inline-block mb-4">
               <img src={chatviceLogo} alt="Chatvice" className="h-8" />
@@ -251,6 +259,19 @@ export function PublicFooter() {
                       {link.label}
                     </Link>
                   )}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-semibold mb-4">Solutions</h4>
+            <ul className="space-y-2">
+              {footerLinks.solutions.map((link) => (
+                <li key={link.href}>
+                  <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    {link.label}
+                  </Link>
                 </li>
               ))}
             </ul>

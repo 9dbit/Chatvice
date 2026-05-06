@@ -42,6 +42,8 @@ import AffiliatePage from "@/pages/company/affiliate";
 
 import ComparisonPage from "@/pages/comparison/comparison-page";
 import { competitorsData } from "@/pages/comparison/competitors-data";
+import SolutionPage from "@/pages/solutions/solution-page";
+import { solutionsBySlug } from "@/pages/solutions/solutions-data";
 import MarketingToolsPage from "@/pages/marketing/marketing-tools";
 import ContactPage from "@/pages/resources/contact";
 import StatusPage from "@/pages/resources/status";
@@ -133,6 +135,12 @@ function GlobalHelpBubble() {
     '/help',
     '/marketing-tools',
     '/vs',
+    '/chatbot-customer-service',
+    '/ai-chatbot-whatsapp',
+    '/live-chat-website',
+    '/chatbot-toko-online',
+    '/ai-chatbot-gratis',
+    '/alternatif-tawkto',
   ];
   
   const shouldShow = allowedPaths.some(path => 
@@ -256,6 +264,43 @@ function MainRouter() {
           const data = competitorsData[params.competitor as string];
           if (!data) return <NotFound />;
           return <ComparisonPage competitor={data} />;
+        }}
+      </Route>
+
+      <Route path="/chatbot-customer-service">
+        {() => {
+          const data = solutionsBySlug["chatbot-customer-service"];
+          return <SolutionPage solution={data} />;
+        }}
+      </Route>
+      <Route path="/ai-chatbot-whatsapp">
+        {() => {
+          const data = solutionsBySlug["ai-chatbot-whatsapp"];
+          return <SolutionPage solution={data} />;
+        }}
+      </Route>
+      <Route path="/live-chat-website">
+        {() => {
+          const data = solutionsBySlug["live-chat-website"];
+          return <SolutionPage solution={data} />;
+        }}
+      </Route>
+      <Route path="/chatbot-toko-online">
+        {() => {
+          const data = solutionsBySlug["chatbot-toko-online"];
+          return <SolutionPage solution={data} />;
+        }}
+      </Route>
+      <Route path="/ai-chatbot-gratis">
+        {() => {
+          const data = solutionsBySlug["ai-chatbot-gratis"];
+          return <SolutionPage solution={data} />;
+        }}
+      </Route>
+      <Route path="/alternatif-tawkto">
+        {() => {
+          const data = solutionsBySlug["alternatif-tawkto"];
+          return <SolutionPage solution={data} />;
         }}
       </Route>
 
