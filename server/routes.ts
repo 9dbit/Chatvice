@@ -7265,7 +7265,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       const sessions = allSessions;
       
       // Pre-fetch pending password recovery requests to tag sessions with active tickets
-      const pendingPassRecovReqs = await storage.getPasswordRecoveryRequests(req.params.merchantId, "pending");
+      const pendingPassRecovReqs = await storage.getPasswordRecoveryRequestsByMerchant(req.params.merchantId, "pending");
       const pendingPassRecovSessionIds = new Set(pendingPassRecovReqs.map(r => r.sessionId));
 
       const sessionsWithPreview = await Promise.all(
