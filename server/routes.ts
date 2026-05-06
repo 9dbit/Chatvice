@@ -2105,25 +2105,27 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
   
   // Configure session with proper production settings
-  // Session lifetime: 7 days (matches store TTL and cookie maxAge)
-  // Session persists as long as browser is active with rolling refresh
+  // Session lifetime: 1 year — sessions persist across redeploys (PostgreSQL store)
+  // rolling: true refreshes the cookie on every request so active users never get logged out
   const isProduction = process.env.NODE_ENV === "production";
+  const SESSION_TTL_SECONDS = 365 * 24 * 60 * 60; // 1 year in seconds
+  const SESSION_TTL_MS = SESSION_TTL_SECONDS * 1000;
   const sessionConfig: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "chatvice-secret-key-change-in-production",
     resave: false,
     saveUninitialized: false,
-    rolling: true, // Refresh session on every request to prevent timeout
+    rolling: true, // Refresh cookie on every request — active users never expire
     store: new PgSession({
       pool,
       tableName: "session",
-      ttl: 7 * 24 * 60 * 60, // 7 days in seconds
+      ttl: SESSION_TTL_SECONDS,
       pruneSessionInterval: 60 * 60, // prune expired sessions every hour
     }),
     cookie: {
       secure: isProduction,
       httpOnly: true,
       sameSite: isProduction ? "none" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms — matches store TTL
+      maxAge: SESSION_TTL_MS,
     },
   };
   
