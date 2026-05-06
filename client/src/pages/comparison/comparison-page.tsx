@@ -56,10 +56,10 @@ export default function ComparisonPage({ competitor }: ComparisonPageProps) {
   }, [competitor.slug, competitor.faqs]);
 
   const chatviceFeatureCount = competitor.features.filter(
-    (f) => f.chatvice === true || (typeof f.chatvice === "string" && f.chatvice !== "false")
+    (f) => f.chatvice === true || (typeof f.chatvice === "string" && f.chatvice.length > 0)
   ).length;
   const competitorFeatureCount = competitor.features.filter(
-    (f) => f.competitor === true
+    (f) => f.competitor === true || (typeof f.competitor === "string" && f.competitor.length > 0)
   ).length;
 
   return (
