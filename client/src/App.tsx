@@ -154,6 +154,9 @@ function GlobalHelpBubble() {
     '/chatbot-klinik',
     '/chatbot-properti',
     '/chatbot-pendidikan',
+    '/chatbot-ecommerce',
+    '/chatbot-logistik',
+    '/chatbot-perbankan',
   ];
   
   const shouldShow = allowedPaths.some(path => 
@@ -349,6 +352,15 @@ function MainRouter() {
       </Route>
       <Route path="/chatbot-pendidikan">
         {() => <SolutionPage solution={solutionsBySlug["chatbot-pendidikan"]} />}
+      </Route>
+      <Route path="/chatbot-ecommerce">
+        {() => <SolutionPage solution={solutionsBySlug["chatbot-ecommerce"]} />}
+      </Route>
+      <Route path="/chatbot-logistik">
+        {() => <SolutionPage solution={solutionsBySlug["chatbot-logistik"]} />}
+      </Route>
+      <Route path="/chatbot-perbankan">
+        {() => <SolutionPage solution={solutionsBySlug["chatbot-perbankan"]} />}
       </Route>
 
       <Route path="/contact" component={ContactPage} />

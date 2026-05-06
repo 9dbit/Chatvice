@@ -52,6 +52,9 @@ const STATIC_PAGES: StaticPage[] = [
   { url: "/chatbot-klinik", priority: "0.9", changefreq: "weekly" },
   { url: "/chatbot-properti", priority: "0.9", changefreq: "weekly" },
   { url: "/chatbot-pendidikan", priority: "0.9", changefreq: "weekly" },
+  { url: "/chatbot-ecommerce", priority: "0.9", changefreq: "weekly" },
+  { url: "/chatbot-logistik", priority: "0.9", changefreq: "weekly" },
+  { url: "/chatbot-perbankan", priority: "0.9", changefreq: "weekly" },
   // Competitor comparison overview + individual pages
   { url: "/compare", priority: "0.90", changefreq: "weekly" },
   { url: "/vs/livechat", priority: "0.85", changefreq: "weekly" },

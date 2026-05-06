@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import type { LucideIcon } from "lucide-react";
-import { MessageCircle, Globe, Zap, Brain, HeadphonesIcon, BarChart3, Shield, Clock, CheckCircle2, Users, Database, Sparkles, Store } from "lucide-react";
+import { MessageCircle, Globe, Zap, Brain, HeadphonesIcon, BarChart3, Shield, Clock, CheckCircle2, Users, Database, Sparkles, Store, ShoppingCart, Truck, CreditCard, Package, MapPin, Lock } from "lucide-react";
 
 export interface SolutionFeature {
   icon: LucideIcon;
@@ -935,6 +935,165 @@ export const industryPagesData: SolutionPageData[] = [
     ctaHeading: "Otomasi Layanan Informasi Lembaga Pendidikan Anda",
     ctaSubtext: "Mulai gratis sekarang. Tidak perlu kartu kredit atau developer.",
     relatedSlugs: ["chatbot-properti", "chatbot-klinik", "chatbot-customer-service", "ai-chatbot-gratis"],
+  },
+  {
+    slug: "chatbot-ecommerce",
+    metaTitle: "Chatbot untuk E-Commerce & Marketplace Indonesia — Otomasi CS Toko Online | Chatvice",
+    metaDescription: "Chatbot AI untuk seller marketplace, toko online, dan brand D2C Indonesia. Otomasi pertanyaan stok, ongkir, retur, dan tracking pesanan 24/7.",
+    h1: "Chatbot AI untuk E-Commerce & Marketplace — Otomasi Pertanyaan Pesanan dan Produk",
+    subtitle: "Pembeli online tidak menunggu. Chatbot AI Chatvice menjawab pertanyaan stok, ongkir, dan status pesanan secara instan — 24 jam sehari.",
+    introParagraphs: [
+      <>
+        Industri e-commerce Indonesia adalah salah satu yang tumbuh paling cepat di Asia Tenggara. Seller marketplace di Tokopedia, Shopee, TikTok Shop, dan Lazada — bersama brand D2C yang berjualan di website sendiri — menghadapi volume pertanyaan pelanggan yang luar biasa setiap hari. Pertanyaan tentang ketersediaan stok, perbedaan varian, ongkos kirim, estimasi pengiriman, kebijakan retur, dan status pesanan datang nonstop. Pembeli online modern mengharapkan respons dalam hitungan menit — bukan jam — dan keterlambatan respons sering berarti pembeli batal checkout dan beralih ke kompetitor.
+      </>,
+      <>
+        Chatvice memberikan solusi <Link href="/chatbot-toko-online" className="text-purple-600 hover:underline">chatbot khusus toko online</Link> yang dirancang untuk menangani volume pertanyaan e-commerce. Dengan mengisi knowledge base menggunakan katalog produk lengkap (varian, harga, stok, deskripsi), tabel ongkir per ekspedisi, kebijakan retur dan refund, panduan ukuran, serta FAQ produk, <Link href="/features" className="text-purple-600 hover:underline">LEXA1 AI Engine</Link> dapat menjawab pertanyaan pembeli secara akurat tanpa intervensi manusia. Pertanyaan "Ada ukuran L stok?" atau "Berapa ongkir ke Surabaya?" dijawab dalam hitungan detik — bahkan saat tim CS sedang offline.
+      </>,
+      <>
+        Salah satu fitur paling berharga untuk seller e-commerce adalah <Link href="/features" className="text-purple-600 hover:underline">AI Product Catalog Crawler</Link> Chatvice. Tidak perlu input manual ratusan SKU — AI memindai website toko Anda dan mengekstrak katalog produk secara otomatis menggunakan computer vision. Untuk seller marketplace yang juga punya website sendiri, ini menghemat berhari-hari pekerjaan setup. Selain itu, fitur <Link href="/features" className="text-purple-600 hover:underline">Product Cards</Link> memungkinkan AI menampilkan rekomendasi produk dengan gambar, harga, dan tombol "Lihat" langsung di chat — meningkatkan konversi secara signifikan.
+      </>,
+      <>
+        Widget <Link href="/live-chat-website" className="text-purple-600 hover:underline">live chat</Link> Chatvice dapat dipasang di website e-commerce Anda dengan satu baris kode — kompatibel dengan Shopify, WooCommerce, Wix, dan platform e-commerce populer lainnya. Untuk pertanyaan rumit seperti komplain produk rusak atau permintaan refund khusus, fitur eskalasi otomatis meneruskan percakapan ke tim CS Anda dengan context lengkap. Mulai dengan <Link href="/ai-chatbot-gratis" className="text-purple-600 hover:underline">plan gratis</Link> dan upgrade saat volume tumbuh — Chatvice cocok untuk seller pemula hingga brand dengan ribuan order per hari.
+      </>,
+    ],
+    features: [
+      { icon: ShoppingCart, title: "Katalog Produk Otomatis", description: "AI Product Catalog Crawler memindai website Anda dan mengekstrak ratusan SKU tanpa input manual." },
+      { icon: Package, title: "Cek Stok & Varian Real-Time", description: "AI menjawab pertanyaan ketersediaan ukuran, warna, dan varian produk secara akurat." },
+      { icon: Truck, title: "Info Ongkir & Estimasi Pengiriman", description: "AI menjelaskan tarif pengiriman per ekspedisi dan estimasi waktu sampai ke kota tujuan." },
+      { icon: Sparkles, title: "Rekomendasi Produk dengan Card", description: "Tampilkan kartu produk lengkap dengan gambar, harga, dan tombol checkout langsung di chat." },
+      { icon: MessageCircle, title: "Status Pesanan & Tracking", description: "Pembeli dapat menanyakan status order dan AI memberikan informasi resi serta status pengiriman." },
+      { icon: HeadphonesIcon, title: "Eskalasi Komplain Otomatis", description: "Komplain produk rusak atau retur diteruskan ke tim CS dengan context lengkap percakapan." },
+    ],
+    useCases: [
+      "Menjawab pertanyaan stok, ukuran, dan varian produk secara instan",
+      "Memberikan informasi ongkir dan estimasi pengiriman per ekspedisi",
+      "Menjelaskan kebijakan retur, refund, dan garansi produk",
+      "Menampilkan rekomendasi produk dengan kartu interaktif",
+      "Menangani pertanyaan tracking dan status pesanan",
+      "Mengarahkan pembeli ke link checkout produk yang ditanyakan",
+    ],
+    whyChatvice: [
+      "AI Product Catalog Crawler menghemat hari kerja untuk setup katalog awal",
+      "Product Cards meningkatkan konversi dengan visual produk langsung di chat",
+      "Knowledge base mendukung tabel ongkir kompleks dan kebijakan retur detail",
+      "Integrasi WhatsApp untuk follow-up pembeli setelah obrolan AI",
+      "Plan gratis cukup untuk seller pemula — upgrade saat order tumbuh",
+    ],
+    stats: [
+      { value: "85%", label: "Pertanyaan pre-sales dijawab tanpa staff CS" },
+      { value: "24/7", label: "Toko online Anda tetap menjawab saat tutup" },
+      { value: "3x", label: "Lebih banyak pembeli yang lanjut checkout" },
+      { value: "5 menit", label: "Setup chatbot toko online pertama Anda" },
+    ],
+    ctaHeading: "Tingkatkan Konversi Toko Online Anda dengan AI",
+    ctaSubtext: "Mulai gratis. Tidak perlu kartu kredit, tidak perlu developer.",
+    relatedSlugs: ["chatbot-toko-online", "chatbot-logistik", "chatbot-customer-service", "live-chat-website"],
+  },
+  {
+    slug: "chatbot-logistik",
+    metaTitle: "Chatbot untuk Logistik & Ekspedisi Indonesia — Otomasi Tracking & Tarif | Chatvice",
+    metaDescription: "Chatbot AI untuk perusahaan ekspedisi, kargo, dan jasa logistik Indonesia. Otomasi cek tarif, tracking resi, dan informasi layanan pengiriman 24/7.",
+    h1: "Chatbot AI untuk Logistik & Ekspedisi — Otomasi Tracking dan Cek Tarif Pengiriman",
+    subtitle: "Pengirim dan penerima butuh kepastian — kapan paket sampai, berapa biayanya. Chatbot AI Chatvice menjawab semuanya secara instan.",
+    introParagraphs: [
+      <>
+        Industri logistik dan ekspedisi Indonesia menangani jutaan paket setiap hari — dari pengiriman dokumen, kargo retail, hingga pengiriman antar pulau. Setiap pengiriman menghasilkan rentetan pertanyaan: berapa tarif ke kota tujuan, layanan apa saja yang tersedia (regular, express, same-day), berapa lama estimasi sampai, dan yang paling sering — di mana posisi paket saya sekarang. Tim customer service ekspedisi seringkali kewalahan menangani volume pertanyaan tracking yang masif, sementara penanya yang sebenarnya butuh bantuan kompleks (paket hilang, salah alamat, klaim asuransi) terjebak di antrean panjang.
+      </>,
+      <>
+        Chatvice memungkinkan perusahaan logistik mengotomasi pertanyaan rutin yang membentuk 80%+ dari beban CS. Dengan mengisi knowledge base menggunakan tabel tarif lengkap per zona, daftar layanan dan SLA, daftar agen dan drop point, kebijakan packing dan barang terlarang, serta panduan klaim asuransi, <Link href="/features" className="text-purple-600 hover:underline">LEXA1 AI Engine</Link> dapat menjawab pertanyaan pengirim dan penerima 24 jam sehari. Untuk integrasi tracking real-time, fitur <Link href="/features" className="text-purple-600 hover:underline">Google Sheet Lookup</Link> memungkinkan AI mengambil status resi langsung dari sistem internal Anda — pengirim cukup memberikan nomor resi dan AI menampilkan status terkini.
+      </>,
+      <>
+        Untuk perusahaan ekspedisi yang melayani UMKM seller marketplace, chatbot Chatvice dapat dikonfigurasi sebagai layanan B2B — membantu seller menghitung ongkir untuk berbagai berat dan dimensi, menjelaskan layanan COD, dan memandu pembuatan resi. Fitur <Link href="/features" className="text-purple-600 hover:underline">multi-agent</Link> memungkinkan Anda membuat AI agent terpisah untuk segmen B2C (penerima paket umum) dan B2B (seller dan kurir mitra) — dengan tone, knowledge base, dan eskalasi yang berbeda sesuai kebutuhan masing-masing audiens.
+      </>,
+      <>
+        Widget <Link href="/live-chat-website" className="text-purple-600 hover:underline">live chat</Link> Chatvice dapat dipasang di website ekspedisi Anda — dari halaman tracking, halaman tarif, hingga halaman utama — dengan satu baris kode. Untuk kasus kompleks seperti paket hilang, klaim kerusakan, atau dispute pengiriman, eskalasi otomatis ke tim CS memastikan penanganan cepat dan terdokumentasi. Pelajari juga halaman <Link href="/chatbot-ecommerce" className="text-purple-600 hover:underline">chatbot e-commerce</Link> untuk integrasi yang lebih erat dengan seller mitra Anda.
+      </>,
+    ],
+    features: [
+      { icon: Truck, title: "Cek Tarif Pengiriman Otomatis", description: "AI menghitung estimasi tarif berdasarkan kota asal, tujuan, berat, dan jenis layanan." },
+      { icon: MapPin, title: "Tracking Resi Real-Time", description: "Integrasi Google Sheet memungkinkan AI mengambil status resi langsung dari sistem internal." },
+      { icon: Clock, title: "Estimasi Waktu Pengiriman", description: "AI memberikan SLA pengiriman per layanan ke kota tujuan secara akurat." },
+      { icon: Database, title: "Daftar Drop Point & Agen", description: "Pengirim dapat menemukan lokasi drop point terdekat dan agen mitra di kotanya." },
+      { icon: Shield, title: "Panduan Klaim Asuransi", description: "AI menjelaskan prosedur klaim, dokumen yang diperlukan, dan estimasi waktu penanganan." },
+      { icon: HeadphonesIcon, title: "Eskalasi Kasus Kompleks", description: "Paket hilang, salah alamat, dan dispute langsung diteruskan ke tim CS dengan context penuh." },
+    ],
+    useCases: [
+      "Menjawab pertanyaan tarif pengiriman antar kota dan antar pulau",
+      "Memberikan status tracking resi secara real-time dari sistem internal",
+      "Menjelaskan jenis layanan: regular, express, same-day, kargo",
+      "Memandu pengirim menemukan drop point dan agen mitra terdekat",
+      "Menjelaskan kebijakan packing, barang terlarang, dan asuransi",
+      "Membantu seller marketplace menghitung ongkir massal",
+    ],
+    whyChatvice: [
+      "Google Sheet Lookup untuk integrasi tracking tanpa custom development",
+      "Multi-agent untuk memisahkan layanan B2C penerima dan B2B seller mitra",
+      "Knowledge base mendukung tabel tarif kompleks dengan zona dan kategori",
+      "Plan skalabel — dari ekspedisi lokal hingga perusahaan logistik nasional",
+      "Eskalasi cerdas memastikan kasus klaim dan paket hilang ditangani dengan benar",
+    ],
+    stats: [
+      { value: "80%", label: "Pertanyaan tracking & tarif dijawab tanpa CS" },
+      { value: "24/7", label: "Pengirim & penerima dapat info kapan pun" },
+      { value: "< 1 detik", label: "Waktu respons untuk cek tarif dan resi" },
+      { value: "5 menit", label: "Setup chatbot ekspedisi pertama Anda" },
+    ],
+    ctaHeading: "Otomasi Customer Service Logistik Anda",
+    ctaSubtext: "Mulai gratis. Tidak perlu integrasi rumit untuk memulai.",
+    relatedSlugs: ["chatbot-ecommerce", "chatbot-perbankan", "chatbot-customer-service", "live-chat-website"],
+  },
+  {
+    slug: "chatbot-perbankan",
+    metaTitle: "Chatbot untuk Perbankan & Fintech Indonesia — Otomasi FAQ Nasabah | Chatvice",
+    metaDescription: "Chatbot AI untuk bank, BPR, koperasi, dan fintech Indonesia. Otomasi FAQ produk, simulasi kredit, dan informasi layanan nasabah 24/7 dengan keamanan tinggi.",
+    h1: "Chatbot AI untuk Perbankan & Fintech — Otomasi Layanan Informasi Nasabah",
+    subtitle: "Nasabah butuh informasi cepat dan akurat tentang produk keuangan. Chatbot AI Chatvice menjawab dengan aman, kapan pun mereka bertanya.",
+    introParagraphs: [
+      <>
+        Industri perbankan dan fintech Indonesia berkembang pesat — dari bank konvensional, BPR, koperasi simpan pinjam, hingga fintech lending dan e-wallet. Nasabah dan calon nasabah memiliki ribuan pertanyaan: simulasi kredit dan cicilan KPR, syarat pengajuan pinjaman, suku bunga deposito terbaru, biaya transfer antar bank, prosedur pembukaan rekening, dan FAQ produk keuangan lainnya. Call center bank seringkali padat dengan pertanyaan rutin yang sebenarnya bisa dijawab tanpa intervensi manusia — sementara nasabah yang butuh bantuan kompleks terjebak menunggu giliran.
+      </>,
+      <>
+        Chatvice memberikan solusi <Link href="/chatbot-customer-service" className="text-purple-600 hover:underline">chatbot customer service</Link> yang dirancang untuk industri keuangan dengan tingkat kepatuhan dan keamanan tinggi. Dengan mengisi knowledge base menggunakan informasi produk (tabungan, deposito, kredit, kartu), suku bunga terkini, syarat dan ketentuan, daftar biaya, FAQ keamanan, dan prosedur klaim, <Link href="/features" className="text-purple-600 hover:underline">LEXA1 AI Engine</Link> dapat melayani nasabah 24/7. AI dapat dikonfigurasi dengan ketat untuk tidak memberikan saran investasi spesifik atau informasi sensitif — selalu mengarahkan ke staff bank untuk transaksi dan keputusan finansial penting.
+      </>,
+      <>
+        Keamanan dan privasi data adalah prioritas mutlak di industri perbankan. Chatvice menggunakan enkripsi end-to-end untuk semua percakapan dan mendukung <Link href="/features" className="text-purple-600 hover:underline">Widget Domain Security</Link> — memastikan widget hanya berjalan di domain resmi bank Anda dan menolak akses dari domain yang tidak terverifikasi (mencegah phishing). Fitur <Link href="/features" className="text-purple-600 hover:underline">Chat Security Monitoring</Link> berbasis Gemini memantau aktivitas mencurigakan secara real-time dan memberi peringatan ke supervisor — penting untuk lembaga keuangan yang menjadi target rekayasa sosial.
+      </>,
+      <>
+        Untuk fintech lending dan koperasi yang melayani nasabah baru setiap hari, fitur eskalasi otomatis memastikan pertanyaan kompleks (verifikasi identitas, masalah pencairan, sengketa transaksi) langsung diteruskan ke staff yang berwenang dengan context lengkap. Widget <Link href="/live-chat-website" className="text-purple-600 hover:underline">live chat</Link> Chatvice dapat dipasang di website lembaga keuangan Anda dengan satu baris kode dan dikonfigurasi dengan pesan sambutan formal yang sesuai dengan brand bank atau fintech. Lihat <Link href="/pricing" className="text-purple-600 hover:underline">paket enterprise</Link> untuk kebutuhan lembaga keuangan berskala besar.
+      </>,
+    ],
+    features: [
+      { icon: CreditCard, title: "FAQ Produk Keuangan", description: "AI menjelaskan produk tabungan, deposito, kredit, dan kartu beserta syarat ketentuannya." },
+      { icon: BarChart3, title: "Simulasi Kredit & Cicilan", description: "AI memberikan simulasi cicilan KPR, KKB, dan pinjaman berdasarkan tenor dan suku bunga terkini." },
+      { icon: Lock, title: "Keamanan & Enkripsi End-to-End", description: "Semua percakapan terenkripsi dan widget terkunci ke domain resmi untuk mencegah phishing." },
+      { icon: Shield, title: "Chat Security Monitoring", description: "AI Gemini memantau aktivitas mencurigakan secara real-time dan memberi peringatan supervisor." },
+      { icon: Clock, title: "Layanan Informasi 24/7", description: "Nasabah dapat menanyakan biaya, jam operasional cabang, dan FAQ produk kapan pun." },
+      { icon: HeadphonesIcon, title: "Eskalasi Aman ke Staff Bank", description: "Pertanyaan transaksi atau verifikasi langsung diteruskan ke staff dengan context terdokumentasi." },
+    ],
+    useCases: [
+      "Menjawab FAQ produk tabungan, deposito, kredit, dan kartu",
+      "Memberikan simulasi cicilan KPR, KKB, dan pinjaman fintech",
+      "Menjelaskan suku bunga deposito dan kredit terkini",
+      "Menjelaskan biaya admin, transfer, dan layanan tambahan",
+      "Memberikan informasi lokasi cabang, ATM, dan jam operasional",
+      "Memandu nasabah baru melalui prosedur pembukaan rekening",
+    ],
+    whyChatvice: [
+      "Enkripsi end-to-end untuk privasi percakapan nasabah yang terjamin",
+      "Widget Domain Security mencegah penyalahgunaan widget di situs phishing",
+      "Chat Security Monitoring berbasis AI mendeteksi rekayasa sosial",
+      "AI dapat dikonfigurasi untuk menolak memberi saran investasi spesifik",
+      "Cocok untuk bank konvensional, BPR, koperasi, e-wallet, dan fintech lending",
+    ],
+    stats: [
+      { value: "75%", label: "Pengurangan beban call center untuk FAQ rutin" },
+      { value: "100%", label: "Enkripsi data percakapan nasabah" },
+      { value: "24/7", label: "Layanan informasi tersedia kapan pun" },
+      { value: "5 menit", label: "Setup chatbot lembaga keuangan pertama Anda" },
+    ],
+    ctaHeading: "Modernisasi Layanan Nasabah Lembaga Keuangan Anda",
+    ctaSubtext: "Mulai gratis. Setup dalam 5 menit, dengan keamanan kelas enterprise.",
+    relatedSlugs: ["chatbot-logistik", "chatbot-ecommerce", "chatbot-customer-service", "live-chat-website"],
   },
 ];
 

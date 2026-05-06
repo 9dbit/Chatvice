@@ -252,6 +252,9 @@ export function PublicFooter() {
       { label: "Chatbot Klinik", href: "/chatbot-klinik" },
       { label: "Chatbot Properti", href: "/chatbot-properti" },
       { label: "Chatbot Pendidikan", href: "/chatbot-pendidikan" },
+      { label: "Chatbot E-Commerce", href: "/chatbot-ecommerce" },
+      { label: "Chatbot Logistik", href: "/chatbot-logistik" },
+      { label: "Chatbot Perbankan", href: "/chatbot-perbankan" },
     ],
     compare: [
       { label: "Compare All", href: "/compare" },
