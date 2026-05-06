@@ -2615,7 +2615,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // Middleware to inject page-specific OG tags into HTML responses
   // Intercepts HTML being sent and replaces default OG tags with page-specific ones
-  app.use((req: Request, res: Response, next: NextFunction) => {
+  app.use(async (req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith("/api/") || 
         req.path.startsWith("/uploads/") || 
         req.path.startsWith("/db-files/") ||
@@ -2630,16 +2630,132 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
     
     const pagePath = req.path === "/" ? "/" : req.path.replace(/\/$/, "");
+    const baseUrl = getBaseUrl(req);
+    const pageUrl = `${baseUrl}${pagePath}`;
+
+    // Static blog article metadata for server-side injection fallback
+    const staticBlogMeta: Record<string, { title: string; description: string; author: string; date: string; category: string }> = {
+      "introducing-lexa1-ai-engine": { title: "Introducing LEXA1: The AI Engine Behind Chatvice", description: "Discover LEXA1, Chatvice's proprietary AI engine for customer service. Learn how it outperforms LiveChat, Zendesk, and Intercom alternatives with advanced NLP.", author: "Chatvice Team", date: "2025-12-09T00:00:00.000Z", category: "Product" },
+      "ai-transforming-customer-service-indonesia": { title: "How AI is Transforming Customer Service in Indonesia", description: "Explore how Indonesian businesses use AI chatbots like Chatvice for customer service. Compare with LiveChat, Zendesk alternatives for the local market.", author: "Chatvice Team", date: "2025-12-05T00:00:00.000Z", category: "Industry" },
+      "best-practices-training-ai-agent": { title: "Best Practices for Training Your AI Customer Service Agent", description: "Learn the best practices for training AI agents on Chatvice. Optimize your knowledge base and system prompt for better customer service automation.", author: "Chatvice Team", date: "2025-12-01T00:00:00.000Z", category: "Tutorial" },
+      "human-ai-collaboration-customer-support": { title: "Human-AI Collaboration in Modern Customer Support", description: "Discover how Chatvice enables seamless human-AI collaboration for customer support. Best practices for AI-to-human escalation and team coordination.", author: "Chatvice Team", date: "2025-11-25T00:00:00.000Z", category: "Industry" },
+      "multi-language-support-strategy": { title: "Building a Multi-Language Customer Support Strategy", description: "How to build a multi-language customer support strategy using AI. Chatvice supports Bahasa Indonesia, English, and 50+ languages automatically.", author: "Chatvice Team", date: "2025-11-20T00:00:00.000Z", category: "Tutorial" },
+      "chatvice-vs-livechat-zendesk-intercom": { title: "Chatvice vs LiveChat vs Zendesk vs Intercom: Full Comparison", description: "A detailed comparison of Chatvice against LiveChat, Zendesk, and Intercom. Which AI customer service platform is right for your business in 2025?", author: "Chatvice Team", date: "2025-11-10T00:00:00.000Z", category: "Comparison" },
+    };
+
+    // Special handling for blog article pages — fetch from DB for accurate per-post meta + JSON-LD
+    const blogSlugMatch = pagePath.match(/^\/blog\/([^/]+)$/);
+    if (blogSlugMatch) {
+      const slug = blogSlugMatch[1];
+      let blogTitle = "Blog & Artikel | Chatvice";
+      let blogDescription = "Baca artikel terbaru seputar AI customer service, chatbot, dan strategi bisnis digital di Chatvice.";
+      let blogAuthor = "Chatvice Team";
+      let blogDatePublished = "";
+      let blogDateModified = "";
+      let blogHeadline = "";
+      let blogCategory = "Blog";
+      const ogImageUrl = `${baseUrl}/og/blog-${slug}.png`;
+
+      try {
+        const post = await storage.getBlogPost(slug);
+        if (post) {
+          blogTitle = `${post.title} | Chatvice Blog`;
+          blogDescription = (post as any).metaDescription || post.excerpt || blogDescription;
+          blogAuthor = post.author || "Chatvice Team";
+          blogDatePublished = post.publishedAt ? new Date(post.publishedAt).toISOString() : "";
+          blogDateModified = (post as any).generatedAt ? new Date((post as any).generatedAt).toISOString() : blogDatePublished;
+          blogHeadline = post.title;
+          blogCategory = post.category || "Blog";
+        } else if (staticBlogMeta[slug]) {
+          // Fallback to static article metadata
+          const meta = staticBlogMeta[slug];
+          blogTitle = `${meta.title} | Chatvice Blog`;
+          blogDescription = meta.description;
+          blogAuthor = meta.author;
+          blogDatePublished = meta.date;
+          blogDateModified = meta.date;
+          blogHeadline = meta.title;
+          blogCategory = meta.category;
+        }
+      } catch (_e) {
+        // fall back to generic blog defaults set above
+        if (staticBlogMeta[slug]) {
+          const meta = staticBlogMeta[slug];
+          blogTitle = `${meta.title} | Chatvice Blog`;
+          blogDescription = meta.description;
+          blogAuthor = meta.author;
+          blogDatePublished = meta.date;
+          blogDateModified = meta.date;
+          blogHeadline = meta.title;
+          blogCategory = meta.category;
+        }
+      }
+
+      const escTitle = blogTitle.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      const escDesc = blogDescription.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+      const articleJsonLd = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": blogHeadline || blogTitle,
+        "description": blogDescription,
+        "image": ogImageUrl,
+        "author": { "@type": "Organization", "name": blogAuthor },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Chatvice",
+          "logo": { "@type": "ImageObject", "url": `${baseUrl}/favicon.png` }
+        },
+        ...(blogDatePublished ? { "datePublished": blogDatePublished } : {}),
+        ...(blogDateModified ? { "dateModified": blogDateModified } : {}),
+        "url": pageUrl,
+        "articleSection": blogCategory,
+        "mainEntityOfPage": { "@type": "WebPage", "@id": pageUrl }
+      });
+
+      const breadcrumbJsonLd = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": baseUrl },
+          { "@type": "ListItem", "position": 2, "name": "Blog", "item": `${baseUrl}/blog` },
+          { "@type": "ListItem", "position": 3, "name": blogHeadline || slug, "item": pageUrl }
+        ]
+      });
+
+      const originalEnd = res.end.bind(res);
+      res.end = function(chunk?: any, ...args: any[]) {
+        const contentType = res.getHeader("content-type");
+        if (contentType && typeof contentType === "string" && contentType.includes("text/html") && chunk) {
+          let html = typeof chunk === "string" ? chunk : chunk.toString("utf-8");
+          html = html.replace(/<meta property="og:title" content="[^"]*"\s*\/?>/, `<meta property="og:title" content="${escTitle}" />`);
+          html = html.replace(/<meta property="og:description" content="[^"]*"\s*\/?>/, `<meta property="og:description" content="${escDesc}" />`);
+          html = html.replace(/<meta property="og:image" content="[^"]*"\s*\/?>/, `<meta property="og:image" content="${ogImageUrl}" />`);
+          html = html.replace(/<meta property="og:url" content="[^"]*"\s*\/?>/, `<meta property="og:url" content="${pageUrl}" />`);
+          html = html.replace(/<meta name="twitter:title" content="[^"]*"\s*\/?>/, `<meta name="twitter:title" content="${escTitle}" />`);
+          html = html.replace(/<meta name="twitter:description" content="[^"]*"\s*\/?>/, `<meta name="twitter:description" content="${escDesc}" />`);
+          html = html.replace(/<meta name="twitter:image" content="[^"]*"\s*\/?>/, `<meta name="twitter:image" content="${ogImageUrl}" />`);
+          html = html.replace(/<meta name="description" content="[^"]*"\s*\/?>/, `<meta name="description" content="${escDesc}" />`);
+          html = html.replace(/<title>[^<]*<\/title>/, `<title>${escTitle}</title>`);
+          html = html.replace(/<link rel="canonical" href="[^"]*"\s*\/?>/, `<link rel="canonical" href="${pageUrl}" />`);
+          // Inject Article + BreadcrumbList JSON-LD before </head> (use regex to handle any whitespace)
+          html = html.replace(/<\/head>/, `  <script type="application/ld+json">${articleJsonLd}</script>\n  <script type="application/ld+json">${breadcrumbJsonLd}</script>\n</head>`);
+          return originalEnd.call(this, html, ...args);
+        }
+        return originalEnd.call(this, chunk, ...args);
+      } as any;
+
+      return next();
+    }
+
     const config = getOgConfigForPath(pagePath);
     
     if (!config) {
       return next();
     }
 
-    const baseUrl = getBaseUrl(req);
     const pageSlug = pagePath === "/" ? "home" : pagePath.replace(/^\//, "").replace(/\//g, "-");
     const ogImageUrl = `${baseUrl}/og/${pageSlug}.png`;
-    const pageUrl = `${baseUrl}${pagePath}`;
 
     const originalEnd = res.end.bind(res);
     
@@ -2763,6 +2879,42 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     <priority>${page.priority}</priority>
   </url>
 `;
+      }
+
+      // Add blog posts with actual publish dates from DB
+      try {
+        const blogPosts = await storage.getBlogPosts({ publishedOnly: true, limit: 1000 });
+        for (const post of blogPosts) {
+          const lastmod = post.publishedAt
+            ? new Date(post.publishedAt).toISOString().split("T")[0]
+            : ((post as any).generatedAt ? new Date((post as any).generatedAt).toISOString().split("T")[0] : today);
+          xml += `  <url>
+    <loc>${baseUrl}/blog/${post.slug}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+`;
+        }
+      } catch (_e) {
+        // If DB fails, add known static blog slugs
+        const staticBlogSlugs = [
+          { slug: "introducing-lexa1-ai-engine", date: "2025-12-09" },
+          { slug: "ai-transforming-customer-service-indonesia", date: "2025-12-05" },
+          { slug: "best-practices-training-ai-agent", date: "2025-11-28" },
+          { slug: "human-ai-collaboration-customer-support", date: "2025-11-20" },
+          { slug: "multi-language-support-strategy", date: "2025-11-15" },
+          { slug: "chatvice-vs-livechat-zendesk-intercom", date: "2025-11-10" },
+        ];
+        for (const b of staticBlogSlugs) {
+          xml += `  <url>
+    <loc>${baseUrl}/blog/${b.slug}</loc>
+    <lastmod>${b.date}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+`;
+        }
       }
 
       xml += `</urlset>`;

@@ -347,6 +347,35 @@ export default function FAQPage() {
   
   const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 14;
 
+  useEffect(() => {
+    const allQuestions = faqCategories.flatMap(cat => cat.questions);
+    const faqSchema = {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": allQuestions.map(faq => ({
+        "@type": "Question",
+        "name": faq.q,
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": faq.a
+        }
+      }))
+    };
+    const scriptId = "faq-page-jsonld";
+    let el = document.getElementById(scriptId);
+    if (!el) {
+      el = document.createElement("script");
+      el.id = scriptId;
+      (el as HTMLScriptElement).type = "application/ld+json";
+      document.head.appendChild(el);
+    }
+    el.textContent = JSON.stringify(faqSchema);
+    return () => {
+      const toRemove = document.getElementById(scriptId);
+      if (toRemove) toRemove.remove();
+    };
+  }, []);
+
   const filteredCategories = faqCategories.map(category => ({
     ...category,
     questions: category.questions.map(q => ({

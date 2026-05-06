@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Check,
@@ -262,6 +262,50 @@ export default function PricingPage() {
       a: "Yes! Annual billing saves you 20% compared to monthly billing."
     },
   ];
+
+  useEffect(() => {
+    const paidPlans = plans.filter(p => p.monthlyPrice !== null);
+    const pricingSchema = {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": "Chatvice Pricing Plans",
+      "itemListElement": paidPlans.map((plan, index) => ({
+        "@type": "ListItem",
+        "position": index + 1,
+        "item": {
+          "@type": "Product",
+          "name": `Chatvice ${plan.name}`,
+          "description": plan.description,
+          "offers": {
+            "@type": "Offer",
+            "price": plan.monthlyPrice,
+            "priceCurrency": "USD",
+            "priceSpecification": {
+              "@type": "UnitPriceSpecification",
+              "price": plan.monthlyPrice,
+              "priceCurrency": "USD",
+              "unitText": "MONTH"
+            },
+            "availability": "https://schema.org/InStock",
+            "url": "https://chatvice.app/pricing"
+          }
+        }
+      }))
+    };
+    const scriptId = "pricing-page-jsonld";
+    let el = document.getElementById(scriptId);
+    if (!el) {
+      el = document.createElement("script");
+      el.id = scriptId;
+      (el as HTMLScriptElement).type = "application/ld+json";
+      document.head.appendChild(el);
+    }
+    el.textContent = JSON.stringify(pricingSchema);
+    return () => {
+      const toRemove = document.getElementById(scriptId);
+      if (toRemove) toRemove.remove();
+    };
+  }, [plans]);
 
   return (
     <PublicPageLayout
