@@ -264,4 +264,4 @@ export function invalidateSitemapCache(): void {
   caches.blog = null;
 }
 
-export { DEFAULT_BASE_URL };
+export { DEFAULT_BASE_URL, STATIC_PAGES };
