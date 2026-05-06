@@ -16208,6 +16208,38 @@ Rules:
   var configLoaded = false;
   var chatWorkflow = "click_to_open";
   var proactiveDingEnabled = false;
+  var JS_CACHE_KEY = "chatvice_js_cfg_" + merchantId;
+
+  // Apply a config object (from cache or network) to the launcher button and state.
+  function applyConfig(config, ws) {
+    if (ws) wsSettings = ws;
+    widgetTheme = config.widgetTheme || "light";
+    chatWorkflow = config.chatWorkflow || "click_to_open";
+    proactiveDingEnabled = config.proactiveChatDingEnabled === true;
+    configLoaded = true;
+    if (!isOpen) {
+      var encColor = encodeURIComponent(config.primaryColor || '#6b5dfc');
+      var encTheme = encodeURIComponent(config.widgetTheme || 'light');
+      // Replace existing color/theme params (stale from cache) or append if absent.
+      var src = iframe.src;
+      src = src.replace(/&color=[^&]*/g, '').replace(/&theme=[^&]*/g, '');
+      iframe.src = src + '&color=' + encColor + '&theme=' + encTheme;
+    }
+    updateButtonStyles(config);
+    applyAnimations(config);
+  }
+
+  // On repeat visits: apply cached config immediately (zero network wait).
+  try {
+    var _cachedJs = localStorage.getItem(JS_CACHE_KEY);
+    if (_cachedJs) {
+      var _parsed = JSON.parse(_cachedJs);
+      if (_parsed && _parsed.config) {
+        applyConfig(_parsed.config, _parsed.ws || null);
+      }
+    }
+  } catch(e) {}
+
   function fetchConfig(retryCount) {
     retryCount = retryCount || 0;
     // Fetch both merchant config and widget style settings in parallel
@@ -16216,21 +16248,10 @@ Rules:
       fetch(baseUrl + "/api/widget-style?t=" + Date.now()).then(function(r) { return r.ok ? r.json() : null; }).catch(function() { return null; })
     ]).then(function(results) {
         var config = results[0];
-        if (results[1]) wsSettings = results[1];
-        widgetTheme = config.widgetTheme || "light";
-        chatWorkflow = config.chatWorkflow || "click_to_open";
-        proactiveDingEnabled = config.proactiveChatDingEnabled === true;
-        configLoaded = true;
-        // Layer 3: Inject style params into iframe src before the user ever opens the widget.
-        // The iframe is still display:none here, so the reload is invisible.
-        // This lets chat-widget.tsx read the correct colors on its very first paint.
-        if (!isOpen && iframe.src.indexOf('&color=') === -1) {
-          var encColor = encodeURIComponent(config.primaryColor || '#6b5dfc');
-          var encTheme = encodeURIComponent(config.widgetTheme || 'light');
-          iframe.src = iframe.src + '&color=' + encColor + '&theme=' + encTheme;
-        }
-        updateButtonStyles(config);
-        applyAnimations(config);
+        var ws = results[1] || null;
+        // Persist full config to localStorage for instant rendering on next visit.
+        try { localStorage.setItem(JS_CACHE_KEY, JSON.stringify({ config: config, ws: ws })); } catch(e) {}
+        applyConfig(config, ws);
       })
       .catch(function(err) { 
         if (retryCount < 2) {

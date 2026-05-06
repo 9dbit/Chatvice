@@ -944,39 +944,43 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     }
   };
 
+  // Layer 2: Cache the full merchantConfig in localStorage so repeat visitors get
+  // the complete widget content on the very first paint (no network wait).
+  // previewMode always skips cache and fetches fresh.
+  const WIDGET_CACHE_KEY = `chatvice_cfg_${merchantId}`;
+  const cachedConfig = useMemo<MerchantConfig | undefined>(() => {
+    if (previewMode || !merchantId) return undefined;
+    try {
+      const raw = localStorage.getItem(WIDGET_CACHE_KEY);
+      return raw ? (JSON.parse(raw) as MerchantConfig) : undefined;
+    } catch { return undefined; }
+  }, [previewMode, merchantId, WIDGET_CACHE_KEY]);
+
   const { data: merchantConfig } = useQuery<MerchantConfig>({
     queryKey: ["/api/merchant/status", merchantId],
     enabled: !!merchantId,
+    initialData: cachedConfig,
+    staleTime: 0,
   });
 
-  // Layer 2: Persist style-critical fields to localStorage so repeat visitors get
-  // correct colors on the very first paint (before the API call finishes).
-  const WIDGET_CACHE_KEY = `chatvice_cfg_${merchantId}`;
-  const [cachedWidgetStyle] = useState<{
-    primaryColor: string;
-    widgetTheme: string;
-    iconUrl?: string;
-    agentName?: string;
-    agentPhotoUrl?: string;
-  } | null>(() => {
-    if (previewMode || !merchantId) return null;
-    try {
-      const raw = localStorage.getItem(`chatvice_cfg_${merchantId}`);
-      return raw ? JSON.parse(raw) : null;
-    } catch { return null; }
-  });
+  // Keep the full config cache refreshed after every successful API fetch.
+  // We compare a stable field to avoid writing on the initialData reference itself.
+  const merchantConfigJson = merchantConfig ? JSON.stringify(merchantConfig) : null;
   useEffect(() => {
     if (!merchantConfig || previewMode) return;
     try {
-      localStorage.setItem(WIDGET_CACHE_KEY, JSON.stringify({
-        primaryColor: merchantConfig.primaryColor || "#6b5dfc",
-        widgetTheme: merchantConfig.widgetTheme || "light",
-        iconUrl: merchantConfig.iconUrl || "",
-        agentName: merchantConfig.agentName || "",
-        agentPhotoUrl: merchantConfig.agentPhotoUrl || "",
-      }));
+      localStorage.setItem(WIDGET_CACHE_KEY, JSON.stringify(merchantConfig));
     } catch {}
-  }, [merchantConfig, previewMode, WIDGET_CACHE_KEY]);
+  }, [merchantConfigJson, previewMode, WIDGET_CACHE_KEY]);
+
+  // Derive the style fields used below from merchantConfig (was cachedWidgetStyle).
+  const cachedWidgetStyle = merchantConfig ? {
+    primaryColor: merchantConfig.primaryColor,
+    widgetTheme: merchantConfig.widgetTheme,
+    iconUrl: merchantConfig.iconUrl,
+    agentName: merchantConfig.agentName,
+    agentPhotoUrl: merchantConfig.agentPhotoUrl,
+  } : null;
 
   const { data: widgetStyleSettings } = useQuery<any>({
     queryKey: ["/api/widget-style"],
