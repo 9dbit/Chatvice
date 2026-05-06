@@ -141,6 +141,13 @@ function GlobalHelpBubble() {
     '/chatbot-toko-online',
     '/ai-chatbot-gratis',
     '/alternatif-tawkto',
+    '/chatbot-jakarta',
+    '/chatbot-surabaya',
+    '/chatbot-bandung',
+    '/chatbot-restoran',
+    '/chatbot-klinik',
+    '/chatbot-properti',
+    '/chatbot-pendidikan',
   ];
   
   const shouldShow = allowedPaths.some(path => 
@@ -302,6 +309,27 @@ function MainRouter() {
           const data = solutionsBySlug["alternatif-tawkto"];
           return <SolutionPage solution={data} />;
         }}
+      </Route>
+      <Route path="/chatbot-jakarta">
+        {() => <SolutionPage solution={solutionsBySlug["chatbot-jakarta"]} />}
+      </Route>
+      <Route path="/chatbot-surabaya">
+        {() => <SolutionPage solution={solutionsBySlug["chatbot-surabaya"]} />}
+      </Route>
+      <Route path="/chatbot-bandung">
+        {() => <SolutionPage solution={solutionsBySlug["chatbot-bandung"]} />}
+      </Route>
+      <Route path="/chatbot-restoran">
+        {() => <SolutionPage solution={solutionsBySlug["chatbot-restoran"]} />}
+      </Route>
+      <Route path="/chatbot-klinik">
+        {() => <SolutionPage solution={solutionsBySlug["chatbot-klinik"]} />}
+      </Route>
+      <Route path="/chatbot-properti">
+        {() => <SolutionPage solution={solutionsBySlug["chatbot-properti"]} />}
+      </Route>
+      <Route path="/chatbot-pendidikan">
+        {() => <SolutionPage solution={solutionsBySlug["chatbot-pendidikan"]} />}
       </Route>
 
       <Route path="/contact" component={ContactPage} />

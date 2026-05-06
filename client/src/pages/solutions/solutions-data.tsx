@@ -76,7 +76,7 @@ export const solutionsData: SolutionPageData[] = [
     ],
     ctaHeading: "Mulai Otomasi Customer Service Bisnis Anda",
     ctaSubtext: "Coba Chatvice gratis selama 14 hari. Tidak perlu kartu kredit.",
-    relatedSlugs: ["ai-chatbot-whatsapp", "live-chat-website", "chatbot-toko-online"],
+    relatedSlugs: ["ai-chatbot-whatsapp", "live-chat-website", "chatbot-toko-online", "chatbot-jakarta", "chatbot-restoran", "chatbot-klinik"],
   },
   {
     slug: "ai-chatbot-whatsapp",
@@ -129,7 +129,7 @@ export const solutionsData: SolutionPageData[] = [
     ],
     ctaHeading: "Siap Otomasi Pesan Bisnis Anda?",
     ctaSubtext: "Mulai gratis dan lihat perbedaannya dalam 24 jam pertama.",
-    relatedSlugs: ["chatbot-customer-service", "live-chat-website", "chatbot-toko-online"],
+    relatedSlugs: ["chatbot-customer-service", "live-chat-website", "chatbot-toko-online", "chatbot-jakarta", "chatbot-restoran"],
   },
   {
     slug: "live-chat-website",
@@ -182,7 +182,7 @@ export const solutionsData: SolutionPageData[] = [
     ],
     ctaHeading: "Pasang Live Chat di Website Anda Sekarang",
     ctaSubtext: "Gratis untuk memulai. Setup dalam 5 menit.",
-    relatedSlugs: ["chatbot-customer-service", "ai-chatbot-whatsapp", "chatbot-toko-online"],
+    relatedSlugs: ["chatbot-customer-service", "ai-chatbot-whatsapp", "chatbot-toko-online", "chatbot-properti", "chatbot-pendidikan"],
   },
   {
     slug: "chatbot-toko-online",
@@ -235,7 +235,7 @@ export const solutionsData: SolutionPageData[] = [
     ],
     ctaHeading: "Tingkatkan Penjualan Toko Online Anda dengan AI",
     ctaSubtext: "Mulai gratis dan rasakan perbedaannya dalam hari pertama.",
-    relatedSlugs: ["chatbot-customer-service", "live-chat-website", "ai-chatbot-gratis"],
+    relatedSlugs: ["chatbot-customer-service", "live-chat-website", "ai-chatbot-gratis", "chatbot-jakarta", "chatbot-surabaya"],
   },
   {
     slug: "ai-chatbot-gratis",
@@ -288,7 +288,7 @@ export const solutionsData: SolutionPageData[] = [
     ],
     ctaHeading: "Mulai Gratis Sekarang — Tidak Perlu Kartu Kredit",
     ctaSubtext: "Daftar dalam 30 detik dan chatbot AI Anda langsung aktif.",
-    relatedSlugs: ["chatbot-customer-service", "live-chat-website", "alternatif-tawkto"],
+    relatedSlugs: ["chatbot-customer-service", "live-chat-website", "alternatif-tawkto", "chatbot-pendidikan", "chatbot-restoran"],
   },
   {
     slug: "alternatif-tawkto",
@@ -341,10 +341,391 @@ export const solutionsData: SolutionPageData[] = [
     ],
     ctaHeading: "Beralih dari Tawk.to ke Chatvice — Gratis",
     ctaSubtext: "Migrasi mudah dalam 5 menit. Tidak perlu kartu kredit.",
-    relatedSlugs: ["ai-chatbot-gratis", "chatbot-customer-service", "live-chat-website"],
+    relatedSlugs: ["ai-chatbot-gratis", "chatbot-customer-service", "live-chat-website", "chatbot-jakarta", "chatbot-klinik"],
+  },
+];
+
+// ─── City-specific pages ───────────────────────────────────────────────────
+
+export const cityPagesData: SolutionPageData[] = [
+  {
+    slug: "chatbot-jakarta",
+    metaTitle: "Chatbot Customer Service Jakarta — AI untuk Bisnis Ibukota | Chatvice",
+    metaDescription: "Chatbot AI customer service terbaik untuk bisnis Jakarta. Otomasi layanan pelanggan 24/7, hemat biaya CS, tingkatkan kepuasan pelanggan. Coba gratis.",
+    h1: "Chatbot Customer Service Jakarta — Solusi AI untuk Bisnis Ibukota",
+    subtitle: "Ribuan bisnis di Jakarta sudah beralih ke AI untuk layanan pelanggan. Giliran bisnis Anda memimpin dengan chatbot yang benar-benar cerdas.",
+    introParagraphs: [
+      <>
+        Jakarta adalah pusat ekonomi Indonesia dengan lebih dari 30 juta penduduk di area Jabodetabek. Di kota ini, persaingan bisnis sangat ketat — pelanggan memiliki banyak pilihan dan ekspektasi mereka terhadap kualitas layanan sangat tinggi. Studi pasar menunjukkan bahwa konsumen Jakarta adalah yang paling digital-savvy di Indonesia: mereka terbiasa berbelanja online, membandingkan produk via WhatsApp, dan mengharapkan respons dalam hitungan menit, bukan jam. Bisnis yang tidak bisa memenuhi standar ini kehilangan pelanggan ke kompetitor yang lebih responsif.
+      </>,
+      <>
+        Chatvice hadir sebagai solusi <Link href="/chatbot-customer-service" className="text-purple-600 hover:underline">chatbot customer service</Link> yang dirancang untuk kecepatan dan kecerdasan yang dibutuhkan bisnis Jakarta. Dengan <Link href="/features" className="text-purple-600 hover:underline">LEXA1 AI Engine</Link>, chatbot Anda merespons pertanyaan pelanggan dalam kurang dari satu detik — kapan pun, termasuk tengah malam saat tim CS Anda sedang offline. Tidak ada lagi pesan yang dibiarkan tidak terbalas selama berjam-jam. Bagi bisnis Jakarta yang melayani pelanggan dari Senin sampai Minggu tanpa henti, ini adalah keunggulan kompetitif yang nyata.
+      </>,
+      <>
+        Bisnis Jakarta dari berbagai sektor — mulai dari startup teknologi di Sudirman, toko fashion di Kemang, restoran di PIK, hingga klinik kecantikan di Kelapa Gading — sudah membuktikan bahwa chatbot AI dapat memangkas biaya operasional CS hingga 60% sambil meningkatkan kepuasan pelanggan. Dengan knowledge base yang diisi informasi spesifik bisnis Anda — jam buka, lokasi, menu atau katalog, SOP layanan — AI dapat menjawab hampir semua pertanyaan umum secara akurat tanpa perlu agen manusia. Dan ketika ada kasus yang memerlukan keputusan manusia, sistem eskalasi otomatis Chatvice memastikan percakapan dialihkan ke agen yang tepat di <Link href="/features" className="text-purple-600 hover:underline">supervisor panel</Link> real-time.
+      </>,
+      <>
+        Bagi bisnis Jakarta yang ingin memantau pengunjung website secara proaktif, fitur <Link href="/features" className="text-purple-600 hover:underline">Live Visitor Tracking</Link> Chatvice memungkinkan supervisor melihat pengunjung aktif secara real-time — termasuk halaman yang sedang dibuka — dan mengirim pesan proaktif sebelum mereka pergi tanpa bertanya. Ini sangat berguna untuk bisnis B2B Jakarta yang ingin mengkonversi prospek korporat dari situs web. Dengan <Link href="/pricing" className="text-purple-600 hover:underline">harga mulai dari gratis</Link>, tidak ada alasan untuk menunda digitalisasi customer service bisnis Anda di Jakarta.
+      </>,
+    ],
+    features: [
+      { icon: Zap, title: "Respons Instan 24/7", description: "Melayani pelanggan Jakarta kapan pun tanpa jeda — termasuk weekend dan hari libur nasional." },
+      { icon: Brain, title: "Memahami Bahasa Indonesia", description: "AI memahami bahasa informal, singkatan, dan campuran Indonesia-Inggris yang umum di Jakarta." },
+      { icon: Users, title: "Skalabel untuk Volume Tinggi", description: "Tangani ratusan percakapan serentak tanpa menambah tim CS — cocok untuk bisnis dengan traffic tinggi." },
+      { icon: HeadphonesIcon, title: "Eskalasi ke Agen Manusia", description: "Kasus kompleks otomatis dialihkan ke agen manusia dengan konteks percakapan yang lengkap." },
+      { icon: Globe, title: "Pantau Pengunjung Real-Time", description: "Lihat siapa yang ada di website Anda sekarang dan kirim pesan proaktif ke prospek potensial." },
+      { icon: BarChart3, title: "Analitik Performa CS", description: "Dashboard analitik untuk memantau volume chat, tingkat resolusi, dan kepuasan pelanggan." },
+    ],
+    useCases: [
+      "Startup teknologi dan SaaS yang melayani pelanggan korporat di Jakarta",
+      "Toko retail dan fashion yang ingin menjawab pertanyaan produk otomatis",
+      "Restoran dan F&B yang menerima reservasi dan pertanyaan menu",
+      "Klinik kecantikan dan kesehatan yang membutuhkan booking otomatis",
+      "Properti dan developer yang menjawab pertanyaan unit dan KPR",
+      "Jasa pengiriman dan logistik yang melacak status paket pelanggan",
+    ],
+    whyChatvice: [
+      "Satu-satunya chatbot AI dengan dukungan Bahasa Indonesia yang benar-benar akurat",
+      "Setup dalam 5 menit — tidak perlu developer atau coding",
+      "Dukungan teknis dari tim yang memahami kebutuhan bisnis Indonesia",
+      "Harga kompetitif dengan ROI yang terukur sejak bulan pertama",
+      "Terintegrasi dengan WhatsApp, Telegram, dan platform komunikasi populer",
+    ],
+    stats: [
+      { value: "30 juta+", label: "Penduduk area Jabodetabek yang bisa dijangkau" },
+      { value: "60%", label: "Penghematan biaya CS dengan otomasi AI" },
+      { value: "<1 detik", label: "Waktu respons chatbot" },
+      { value: "24/7", label: "Aktif tanpa biaya tambahan" },
+    ],
+    ctaHeading: "Tingkatkan Layanan Pelanggan Bisnis Jakarta Anda",
+    ctaSubtext: "Mulai gratis hari ini. Setup dalam 5 menit, tidak perlu kartu kredit.",
+    relatedSlugs: ["chatbot-surabaya", "chatbot-bandung", "chatbot-customer-service", "chatbot-restoran"],
+  },
+  {
+    slug: "chatbot-surabaya",
+    metaTitle: "Chatbot Customer Service Surabaya — AI untuk Bisnis Surabaya | Chatvice",
+    metaDescription: "Chatbot AI customer service untuk bisnis Surabaya. Otomasi CS, respons 24/7, hemat biaya layanan pelanggan. Platform terbaik untuk bisnis Jawa Timur.",
+    h1: "Chatbot Customer Service Surabaya — AI untuk Bisnis Jawa Timur",
+    subtitle: "Bisnis Surabaya yang responsif menang persaingan. Chatbot AI Chatvice memastikan tidak ada satu pun pertanyaan pelanggan yang tidak terjawab.",
+    introParagraphs: [
+      <>
+        Surabaya adalah kota bisnis terbesar kedua di Indonesia dan pusat ekonomi Jawa Timur. Dengan populasi lebih dari 3 juta jiwa dan ekosistem bisnis yang sangat aktif — mulai dari perdagangan, manufaktur, kuliner, hingga startup digital — Surabaya menjadi salah satu kota dengan pertumbuhan e-commerce dan digitalisasi bisnis tercepat di Indonesia. Pelanggan Surabaya dikenal loyal, tapi juga tidak segan berpindah ke kompetitor jika layanan dinilai lambat atau tidak memuaskan. Di sinilah chatbot AI menjadi diferensiasi yang nyata.
+      </>,
+      <>
+        Chatvice memungkinkan bisnis Surabaya memberikan pengalaman <Link href="/chatbot-customer-service" className="text-purple-600 hover:underline">customer service</Link> kelas enterprise tanpa harus membangun tim CS yang besar. Dengan mengisi knowledge base menggunakan informasi produk, kebijakan layanan, dan FAQ spesifik bisnis Anda, <Link href="/features" className="text-purple-600 hover:underline">LEXA1 AI Engine</Link> siap menjawab pertanyaan pelanggan dalam bahasa yang natural — termasuk campuran Bahasa Indonesia dan logat Jawa Timur yang sering muncul dalam percakapan sehari-hari. Tidak ada pertanyaan yang terlewat, tidak ada pelanggan yang menunggu terlalu lama.
+      </>,
+      <>
+        Untuk bisnis Surabaya yang beroperasi di sektor perdagangan dan retail — yang merupakan tulang punggung ekonomi kota ini — chatbot AI Chatvice mampu menjawab pertanyaan tentang ketersediaan stok, harga grosir, cara pemesanan, dan status pengiriman secara otomatis. Fitur <Link href="/features" className="text-purple-600 hover:underline">Google Sheet Transaction Lookup</Link> memungkinkan pelanggan menanyakan status transaksi mereka langsung di chat, dan AI mengambil data real-time dari spreadsheet Anda. Ini sangat berguna untuk bisnis perdagangan Surabaya yang masih mengelola data di Google Sheet.
+      </>,
+      <>
+        Fitur supervisor panel real-time Chatvice memungkinkan tim CS Surabaya memantau semua percakapan aktif dari satu dashboard, mengambil alih chat dari AI kapan saja, dan berkolaborasi dalam menangani pelanggan. Supervisor bahkan dapat menerima notifikasi eskalasi langsung di Telegram — tanpa harus selalu membuka dashboard. Dengan <Link href="/pricing" className="text-purple-600 hover:underline">harga yang terjangkau</Link> dan plan gratis untuk memulai, Chatvice adalah investasi terbaik untuk bisnis Surabaya yang ingin tumbuh efisien.
+      </>,
+    ],
+    features: [
+      { icon: MessageCircle, title: "Bahasa Lokal Dipahami", description: "AI memahami variasi bahasa dan logat yang digunakan pelanggan Surabaya dan Jawa Timur." },
+      { icon: Store, title: "Cocok untuk Bisnis Perdagangan", description: "Otomasi pertanyaan stok, harga, pemesanan, dan pengiriman untuk bisnis perdagangan Surabaya." },
+      { icon: Brain, title: "Knowledge Base Cerdas", description: "Isi AI dengan katalog produk, SOP, dan FAQ bisnis Anda — AI menjawab berdasarkan data nyata." },
+      { icon: Zap, title: "Respons Tanpa Jeda", description: "Pelanggan mendapat jawaban instan kapan pun — termasuk saat jam sibuk dan di luar jam kerja." },
+      { icon: HeadphonesIcon, title: "Supervisor Panel Real-Time", description: "Tim CS Surabaya bisa memantau dan mengambil alih percakapan dari dashboard terpusat." },
+      { icon: Shield, title: "Keamanan Data Terjamin", description: "Data pelanggan dienkripsi dan aman — penting untuk bisnis yang menangani data sensitif." },
+    ],
+    useCases: [
+      "Bisnis perdagangan dan distribusi yang menerima banyak pertanyaan harga dan stok",
+      "UMKM Surabaya yang ingin mulai otomasi CS tanpa biaya besar",
+      "Kuliner dan F&B yang menerima reservasi dan pertanyaan menu",
+      "Bisnis retail fashion dan aksesori yang melayani pembeli online",
+      "Jasa ekspedisi dan logistik Jawa Timur yang melacak paket pelanggan",
+      "Klinik dan layanan kesehatan yang membutuhkan booking otomatis",
+    ],
+    whyChatvice: [
+      "Dukungan Bahasa Indonesia termasuk variasi bahasa lokal Jawa Timur",
+      "Tidak perlu programmer — konfigurasi lengkap dari dashboard",
+      "Skalabel dari UMKM hingga perusahaan besar tanpa ganti platform",
+      "Integrasi WhatsApp untuk eskalasi ke percakapan personal",
+      "Plan gratis tersedia — mulai tanpa risiko finansial",
+    ],
+    stats: [
+      { value: "3 juta+", label: "Penduduk kota Surabaya" },
+      { value: "85%", label: "Pertanyaan diselesaikan AI tanpa agen manusia" },
+      { value: "5 menit", label: "Waktu setup chatbot pertama" },
+      { value: "24/7", label: "Layanan aktif tanpa biaya operasional tambahan" },
+    ],
+    ctaHeading: "Jadikan Bisnis Surabaya Anda Lebih Responsif",
+    ctaSubtext: "Mulai gratis hari ini. Tidak perlu kartu kredit.",
+    relatedSlugs: ["chatbot-jakarta", "chatbot-bandung", "chatbot-customer-service", "chatbot-toko-online"],
+  },
+  {
+    slug: "chatbot-bandung",
+    metaTitle: "Chatbot Customer Service Bandung — AI untuk Bisnis Bandung | Chatvice",
+    metaDescription: "Chatbot AI customer service untuk bisnis Bandung. Ideal untuk fashion, kuliner, wisata, dan UMKM. Otomasi CS 24/7 mulai gratis.",
+    h1: "Chatbot Customer Service Bandung — AI untuk Bisnis Kreatif dan UMKM",
+    subtitle: "Bandung adalah kota kreatif Indonesia. Biarkan AI menangani customer service sehingga Anda bisa fokus pada inovasi dan produk.",
+    introParagraphs: [
+      <>
+        Bandung dikenal sebagai kota kreatif Indonesia — pusat fashion, kuliner, wisata, dan ekonomi kreatif yang terus berkembang. Dari distro lokal di Dago, kafe aesthetic di Setiabudi, hingga brand fashion lokal yang sudah menembus pasar nasional — bisnis Bandung identik dengan kreativitas dan kualitas. Namun di balik produk yang inovatif, satu tantangan yang selalu ada adalah: bagaimana melayani pelanggan yang semakin banyak dan semakin demanding, tanpa kehilangan sentuhan personal yang menjadi ciri khas bisnis Bandung.
+      </>,
+      <>
+        Chatvice hadir sebagai solusi yang memungkinkan bisnis Bandung tetap personal sekaligus efisien. <Link href="/features" className="text-purple-600 hover:underline">LEXA1 AI Engine</Link> dilatih dengan informasi spesifik bisnis Anda — koleksi produk, kebijakan pengiriman, jadwal toko, atau menu kafe — dan siap menjawab pertanyaan pelanggan dengan gaya komunikasi yang bisa disesuaikan dengan brand voice Anda. Widget <Link href="/live-chat-website" className="text-purple-600 hover:underline">live chat</Link> Chatvice dapat dikustomisasi penuh: warna, avatar AI, pesan sambutan, hingga pertanyaan yang disarankan — semuanya mencerminkan identitas brand Anda.
+      </>,
+      <>
+        Untuk bisnis fashion dan retail Bandung yang aktif di media sosial dan marketplace, chatbot Chatvice menjadi jembatan antara traffic online dengan konversi penjualan. Widget chat yang dipasang di website toko Anda memungkinkan calon pembeli bertanya tentang ketersediaan ukuran, bahan, warna, dan cara perawatan produk secara instan — tanpa harus mengirim DM Instagram yang antrinya bisa panjang. Fitur <Link href="/features" className="text-purple-600 hover:underline">AI Product Catalog Crawler</Link> bahkan bisa mengekstrak informasi produk dari website Anda secara otomatis, sehingga knowledge base selalu up-to-date tanpa input manual.
+      </>,
+      <>
+        UMKM Bandung yang baru memulai digitalisasi dapat memulai dengan <Link href="/ai-chatbot-gratis" className="text-purple-600 hover:underline">plan gratis Chatvice</Link> — yang sudah mencakup AI chatbot bertenaga LEXA1, widget chat yang bisa dipasang di website, dan dashboard analitik dasar. Ketika bisnis berkembang, upgrade ke plan Starter atau Pro cukup satu klik, tanpa kehilangan konfigurasi atau data yang sudah dibangun. Ini adalah fondasi teknologi customer service yang akan tumbuh bersama bisnis Bandung Anda.
+      </>,
+    ],
+    features: [
+      { icon: Sparkles, title: "Widget Bisa Dikustomisasi Penuh", description: "Sesuaikan tampilan widget dengan brand bisnis Bandung Anda — warna, avatar, pesan, dan lebih banyak lagi." },
+      { icon: Store, title: "Cocok untuk Fashion & Retail", description: "Jawab pertanyaan ukuran, bahan, ketersediaan, dan pengiriman produk secara otomatis 24/7." },
+      { icon: Brain, title: "AI yang Memahami Konteks", description: "LEXA1 memahami variasi pertanyaan dan menjawab berdasarkan knowledge base bisnis Anda." },
+      { icon: MessageCircle, title: "Integrasi WhatsApp", description: "Widget menampilkan tombol WhatsApp untuk eskalasi mudah ke percakapan personal." },
+      { icon: Zap, title: "Setup Mudah untuk UMKM", description: "Tidak perlu developer — pasang widget dan isi knowledge base dari dashboard yang intuitif." },
+      { icon: BarChart3, title: "Analitik Penjualan & CS", description: "Pantau pertanyaan terbanyak untuk mengidentifikasi peluang peningkatan produk dan layanan." },
+    ],
+    useCases: [
+      "Brand fashion lokal Bandung yang ingin menjawab pertanyaan produk otomatis",
+      "Kafe dan restoran yang menerima reservasi dan pertanyaan menu",
+      "Bisnis wisata Bandung yang melayani pemesanan paket perjalanan",
+      "UMKM kreatif yang baru memulai digitalisasi customer service",
+      "Distro dan brand streetwear yang melayani pelanggan dari seluruh Indonesia",
+      "Jasa laundry, salon, dan kecantikan yang butuh booking otomatis",
+    ],
+    whyChatvice: [
+      "Widget yang dapat dikustomisasi penuh sesuai estetika brand kreatif Bandung",
+      "Plan gratis yang benar-benar lengkap untuk UMKM yang baru mulai",
+      "AI Product Crawler untuk update katalog produk otomatis",
+      "Dukungan gambar dan media dalam chat — bagus untuk bisnis visual seperti fashion",
+      "Tidak ada kontrak jangka panjang — fleksibel sesuai musim bisnis",
+    ],
+    stats: [
+      { value: "2,5 juta+", label: "Penduduk kota Bandung" },
+      { value: "40%", label: "Peningkatan konversi website dengan live chat" },
+      { value: "Rp 0", label: "Biaya untuk memulai dengan plan gratis" },
+      { value: "5 menit", label: "Waktu pemasangan widget di website" },
+    ],
+    ctaHeading: "Biarkan AI Menangani CS, Anda Fokus Berkreasi",
+    ctaSubtext: "Mulai gratis sekarang. Tidak perlu kartu kredit.",
+    relatedSlugs: ["chatbot-jakarta", "chatbot-surabaya", "chatbot-toko-online", "ai-chatbot-gratis"],
+  },
+];
+
+// ─── Industry-specific pages ──────────────────────────────────────────────────
+
+export const industryPagesData: SolutionPageData[] = [
+  {
+    slug: "chatbot-restoran",
+    metaTitle: "Chatbot untuk Restoran & F&B Indonesia — Otomasi Reservasi & Menu | Chatvice",
+    metaDescription: "Chatbot AI untuk restoran, kafe, dan bisnis F&B Indonesia. Otomasi reservasi, jawab pertanyaan menu, dan layani pelanggan 24/7 tanpa staff tambahan.",
+    h1: "Chatbot AI untuk Restoran & F&B — Otomasi Reservasi dan Layanan Pelanggan",
+    subtitle: "Dari reservasi meja hingga pertanyaan menu alergi — biarkan AI menanganinya sehingga tim Anda bisa fokus menyajikan makanan terbaik.",
+    introParagraphs: [
+      <>
+        Industri F&B (Food & Beverage) Indonesia adalah salah satu yang paling kompetitif di dunia usaha. Restoran dan kafe bermunculan setiap hari, dan pelanggan memiliki ekspektasi tinggi — bukan hanya dari kualitas makanan, tetapi juga dari kecepatan dan kemudahan layanan. Di era digital ini, pelanggan tidak lagi hanya datang langsung ke restoran; mereka memesan meja via WhatsApp, menanyakan menu melalui Instagram DM, dan mengecek ketersediaan via website. Menangani semua saluran komunikasi ini secara manual sambil tetap fokus pada operasional dapur dan layanan meja adalah tantangan nyata yang dihadapi hampir setiap bisnis F&B.
+      </>,
+      <>
+        Chatvice hadir sebagai solusi <Link href="/chatbot-customer-service" className="text-purple-600 hover:underline">chatbot customer service</Link> yang dirancang untuk kebutuhan spesifik industri F&B. Dengan mengisi knowledge base menggunakan menu lengkap (termasuk bahan, alergen, opsi vegetarian/vegan), jam operasional, prosedur reservasi, kebijakan pembatalan, dan informasi lokasi, <Link href="/features" className="text-purple-600 hover:underline">LEXA1 AI Engine</Link> dapat menjawab hampir semua pertanyaan pelanggan secara otomatis. Pelanggan yang menanyakan "Apakah ada pilihan halal?" atau "Bisa reservasi untuk 10 orang Sabtu malam?" mendapat jawaban instan — tanpa harus menunggu staff yang mungkin sedang sibuk melayani meja lain.
+      </>,
+      <>
+        Salah satu fitur paling berharga untuk restoran adalah kemampuan chatbot mengumpulkan informasi reservasi secara terstruktur. AI dapat menanyakan tanggal, waktu, jumlah tamu, dan kebutuhan khusus (high chair, wheelchair access, birthday decoration) kepada pelanggan, lalu menampilkan ringkasan untuk dikonfirmasi oleh staff. Ini jauh lebih efisien dibanding bolak-balik chat manual yang sering menimbulkan miskomunikasi. Fitur <Link href="/features" className="text-purple-600 hover:underline">quick replies</Link> juga memungkinkan staff restoran merespons pertanyaan berulang dengan satu klik — menghemat waktu yang signifikan di jam sibuk.
+      </>,
+      <>
+        Widget <Link href="/live-chat-website" className="text-purple-600 hover:underline">live chat</Link> Chatvice dapat dipasang di website restoran Anda dengan satu baris kode — kompatibel dengan WordPress, Wix, dan semua platform website populer. Widget dapat dikustomisasi dengan warna brand restoran Anda, foto restoran atau makanan sebagai avatar, dan pesan sambutan yang mencerminkan karakter brand. Untuk restoran yang ingin memulai tanpa biaya, <Link href="/ai-chatbot-gratis" className="text-purple-600 hover:underline">plan gratis Chatvice</Link> sudah cukup untuk menangani pertanyaan menu dan jam buka secara otomatis. Upgrade ke plan berbayar tersedia ketika volume meningkat.
+      </>,
+    ],
+    features: [
+      { icon: MessageCircle, title: "Jawab Pertanyaan Menu Otomatis", description: "AI menjawab pertanyaan tentang menu, bahan, alergen, dan opsi diet khusus secara instan." },
+      { icon: Clock, title: "Otomasi Pengumpulan Reservasi", description: "AI mengumpulkan informasi reservasi secara terstruktur — tanggal, waktu, jumlah tamu, kebutuhan khusus." },
+      { icon: Zap, title: "Respons Instan 24/7", description: "Pelanggan mendapat jawaban bahkan saat restoran tutup — tentang jam buka, lokasi, dan informasi umum." },
+      { icon: Users, title: "Multi-Agen untuk Jam Sibuk", description: "Tangani banyak percakapan serentak tanpa antrean — sempurna untuk jam makan siang dan malam." },
+      { icon: Globe, title: "Informasi Lokasi & Petunjuk Arah", description: "AI memberikan alamat lengkap, link Google Maps, dan petunjuk parkir kepada pelanggan baru." },
+      { icon: HeadphonesIcon, title: "Eskalasi ke Staff Restoran", description: "Pertanyaan kompleks atau kasus khusus langsung diteruskan ke staff yang bisa membantu lebih lanjut." },
+    ],
+    useCases: [
+      "Menjawab pertanyaan menu, harga, dan ketersediaan secara otomatis",
+      "Mengumpulkan informasi reservasi meja dari pelanggan",
+      "Memberikan informasi jam buka, lokasi, dan cara parkir",
+      "Menjelaskan opsi halal, vegetarian, vegan, dan alergen",
+      "Menangani pertanyaan tentang paket gathering dan private dining",
+      "Menerima dan meneruskan order delivery ke sistem POS",
+    ],
+    whyChatvice: [
+      "Knowledge base yang fleksibel — isi dengan menu PDF, foto produk, dan SOP layanan",
+      "Widget dapat dikustomisasi sesuai estetika restoran Anda",
+      "Tidak perlu staff standby di chat — AI menangani 80%+ pertanyaan sendiri",
+      "Analitik menunjukkan pertanyaan terbanyak untuk mengoptimalkan menu dan layanan",
+      "Plan gratis tersedia — mulai tanpa investasi awal",
+    ],
+    stats: [
+      { value: "80%", label: "Pertanyaan menu dijawab otomatis tanpa staff" },
+      { value: "3x", label: "Lebih cepat dalam menangani pertanyaan reservasi" },
+      { value: "24/7", label: "Informasi restoran tersedia kapan pun" },
+      { value: "5 menit", label: "Setup chatbot restoran pertama Anda" },
+    ],
+    ctaHeading: "Otomasi Layanan Pelanggan Restoran Anda",
+    ctaSubtext: "Mulai gratis. Tidak perlu kartu kredit, tidak perlu developer.",
+    relatedSlugs: ["chatbot-klinik", "chatbot-customer-service", "live-chat-website", "chatbot-jakarta"],
+  },
+  {
+    slug: "chatbot-klinik",
+    metaTitle: "Chatbot untuk Klinik & Layanan Kesehatan Indonesia | Chatvice",
+    metaDescription: "Chatbot AI untuk klinik, rumah sakit, dan layanan kesehatan Indonesia. Otomasi booking konsultasi, FAQ medis, dan layanan informasi pasien 24/7.",
+    h1: "Chatbot AI untuk Klinik & Layanan Kesehatan — Otomasi Booking dan Informasi Pasien",
+    subtitle: "Pasien butuh informasi cepat dan akurat. Chatbot AI Chatvice memastikan setiap pertanyaan kesehatan mendapat respons instan, kapan pun.",
+    introParagraphs: [
+      <>
+        Layanan kesehatan adalah industri yang paling sensitif terhadap kecepatan dan akurasi informasi. Pasien yang ingin berkonsultasi dengan dokter atau membutuhkan informasi tentang layanan klinik tidak bisa menunggu berjam-jam untuk mendapat respons. Sayangnya, banyak klinik dan fasilitas kesehatan di Indonesia masih mengandalkan telepon atau WhatsApp manual untuk menerima pertanyaan — yang berarti staff administrasi kewalahan, waktu tunggu panjang, dan pasien frustrasi ketika tidak ada yang mengangkat telepon di luar jam kerja.
+      </>,
+      <>
+        Chatvice memungkinkan klinik dan layanan kesehatan memberikan <Link href="/chatbot-customer-service" className="text-purple-600 hover:underline">layanan informasi pasien</Link> yang responsif dan andal, tanpa harus menambah staff administrasi. Dengan mengisi knowledge base menggunakan informasi layanan, daftar dokter dan spesialis, jam praktik, prosedur pendaftaran, biaya konsultasi umum, dan FAQ kesehatan yang relevan, <Link href="/features" className="text-purple-600 hover:underline">LEXA1 AI Engine</Link> dapat menjawab pertanyaan umum pasien secara akurat — 24 jam sehari, 7 hari seminggu. Pertanyaan "Apakah ada dokter kandungan Senin pagi?" atau "Berapa biaya konsultasi umum?" dijawab instan tanpa harus menghubungi resepsionis.
+      </>,
+      <>
+        Untuk layanan pembuatan janji temu, chatbot Chatvice dapat mengumpulkan informasi yang diperlukan dari pasien secara terstruktur — nama, keluhan, pilihan dokter, dan waktu yang diinginkan — kemudian meneruskan ke sistem booking klinik Anda. Ini secara signifikan mengurangi beban kerja staff resepsionis untuk pertanyaan dan pendaftaran rutin. Fitur eskalasi otomatis memastikan bahwa pertanyaan yang memerlukan konfirmasi medis atau penanganan khusus langsung diteruskan ke staff yang berwenang, sehingga tidak ada informasi medis yang salah diberikan oleh AI.
+      </>,
+      <>
+        Privasi dan keamanan data pasien adalah prioritas utama. Chatvice menggunakan enkripsi end-to-end untuk semua percakapan dan mendukung kontrol akses domain yang ketat — memastikan hanya website resmi klinik yang dapat menggunakan widget Anda. Klinik dapat mengonfigurasi AI untuk tidak memberikan saran medis spesifik, melainkan selalu mengarahkan ke tenaga medis untuk keputusan klinis. Dengan <Link href="/pricing" className="text-purple-600 hover:underline">paket yang skalabel</Link>, Chatvice cocok untuk klinik umum kecil hingga rumah sakit dengan banyak spesialis.
+      </>,
+    ],
+    features: [
+      { icon: Clock, title: "Informasi Jadwal Dokter 24/7", description: "Pasien dapat menanyakan jadwal praktik dokter dan ketersediaan kapan pun, termasuk malam hari." },
+      { icon: Brain, title: "FAQ Layanan Kesehatan", description: "AI menjawab pertanyaan umum tentang layanan, biaya, prosedur pendaftaran, dan persyaratan asuransi." },
+      { icon: MessageCircle, title: "Pengumpulan Data Pendaftaran", description: "AI mengumpulkan informasi pendaftaran pasien secara terstruktur sebelum diteruskan ke staff." },
+      { icon: Shield, title: "Keamanan & Privasi Data Pasien", description: "Enkripsi end-to-end dan kontrol akses domain ketat untuk perlindungan data sensitif pasien." },
+      { icon: HeadphonesIcon, title: "Eskalasi ke Staff Medis", description: "Pertanyaan yang memerlukan konfirmasi medis langsung diteruskan ke staff yang berwenang." },
+      { icon: Globe, title: "Informasi Lokasi & Asuransi", description: "AI memberikan informasi lokasi, arah, parkir, dan daftar asuransi yang diterima klinik." },
+    ],
+    useCases: [
+      "Menjawab pertanyaan jadwal dokter dan spesialis yang tersedia",
+      "Memberikan informasi biaya konsultasi dan prosedur",
+      "Mengumpulkan data awal pasien untuk proses pendaftaran",
+      "Menjelaskan layanan klinik — dari poli umum hingga spesialis",
+      "Memberikan informasi asuransi yang diterima dan prosedur klaim",
+      "Menangani pertanyaan lokasi, jam buka, dan cara ke klinik",
+    ],
+    whyChatvice: [
+      "Enkripsi end-to-end untuk privasi data pasien yang terjamin",
+      "AI dapat dikonfigurasi untuk menghindari saran medis — hanya informasi layanan",
+      "Integrasi mudah dengan website klinik yang sudah ada",
+      "Analitik menunjukkan pertanyaan terbanyak untuk mengoptimalkan layanan",
+      "Eskalasi otomatis ke staff memastikan tidak ada kasus yang terlewat",
+    ],
+    stats: [
+      { value: "70%", label: "Pengurangan pertanyaan rutin ke resepsionis" },
+      { value: "24/7", label: "Informasi layanan tersedia kapan pun" },
+      { value: "< 1 detik", label: "Waktu respons untuk pertanyaan pasien" },
+      { value: "100%", label: "Enkripsi data percakapan pasien" },
+    ],
+    ctaHeading: "Tingkatkan Layanan Informasi Pasien Klinik Anda",
+    ctaSubtext: "Mulai gratis. Setup dalam 5 menit, tanpa coding.",
+    relatedSlugs: ["chatbot-restoran", "chatbot-properti", "chatbot-customer-service", "live-chat-website"],
+  },
+  {
+    slug: "chatbot-properti",
+    metaTitle: "Chatbot untuk Agen Properti & Developer Real Estate Indonesia | Chatvice",
+    metaDescription: "Chatbot AI untuk agen properti, developer, dan real estate Indonesia. Otomasi pertanyaan unit, KPR, dan jadwal survei. Tingkatkan konversi prospek.",
+    h1: "Chatbot AI untuk Properti & Real Estate — Otomasi Prospek dan Informasi Unit",
+    subtitle: "Prospek properti tidak menunggu. Chatbot AI Chatvice memastikan setiap calon pembeli mendapat respons instan tentang unit, harga, dan jadwal survei.",
+    introParagraphs: [
+      <>
+        Industri properti Indonesia terus tumbuh, namun proses penjualan masih sangat bergantung pada interaksi manusia yang intensif. Agen properti dan developer menghabiskan banyak waktu menjawab pertanyaan yang berulang — tentang spesifikasi unit, harga, down payment, simulasi KPR, lokasi, dan fasilitas kawasan. Di sisi lain, calon pembeli properti — yang mungkin sudah melakukan riset panjang sebelum menghubungi agen — mengharapkan informasi yang akurat dan cepat. Ketidaksesuaian antara ekspektasi kecepatan respons prospek dan kapasitas tim agen seringkali menjadi penyebab kehilangan calon pembeli potensial.
+      </>,
+      <>
+        Chatvice memungkinkan agen properti dan developer menjawab pertanyaan prospek secara instan menggunakan <Link href="/features" className="text-purple-600 hover:underline">LEXA1 AI Engine</Link>. Dengan mengisi knowledge base menggunakan informasi unit (tipe, luas, harga, stok tersedia), spesifikasi bangunan, fasilitas kawasan, kemudahan aksesibilitas, dan panduan KPR, AI dapat melayani calon pembeli 24 jam sehari — termasuk saat agen sedang menemani survei klien lain. Prospek yang mencari informasi di malam hari atau akhir pekan tidak lagi harus menunggu hari kerja berikutnya.
+      </>,
+      <>
+        Salah satu fitur paling berharga untuk industri properti adalah kemampuan chatbot mengumpulkan data prospek secara terstruktur. Ketika calon pembeli menanyakan sebuah unit, AI dapat secara natural menanyakan preferensi (tipe unit, budget, kebutuhan KKB vs cash), mengumpulkan data kontak, dan menjadwalkan janji survei — semua dalam satu percakapan yang mulus. Data prospek yang terkumpul dapat langsung diteruskan ke agen untuk follow-up. Fitur <Link href="/features" className="text-purple-600 hover:underline">Live Visitor Tracking</Link> Chatvice juga memungkinkan agen melihat siapa yang sedang menjelajahi halaman unit tertentu di website dan mengirim pesan proaktif — meningkatkan peluang konversi secara signifikan.
+      </>,
+      <>
+        Widget <Link href="/live-chat-website" className="text-purple-600 hover:underline">live chat</Link> Chatvice dapat dipasang di website properti Anda — dari situs developer besar hingga halaman landing iklan properti — dengan satu baris kode. Widget dapat dikonfigurasi untuk langsung menampilkan pertanyaan yang relevan seperti "Ingin tahu simulasi KPR?" atau "Jadwalkan survei unit sekarang" — mendorong calon pembeli untuk memulai percakapan. Dengan <Link href="/pricing" className="text-purple-600 hover:underline">paket yang fleksibel</Link>, Chatvice cocok untuk agen individual hingga developer dengan ratusan unit.
+      </>,
+    ],
+    features: [
+      { icon: Brain, title: "Informasi Unit & Stok Real-Time", description: "AI menjawab pertanyaan tentang tipe unit, harga, stok tersedia, dan spesifikasi bangunan secara akurat." },
+      { icon: Users, title: "Kumpulkan Data Prospek", description: "AI mengumpulkan preferensi dan kontak calon pembeli secara natural dalam satu percakapan." },
+      { icon: Globe, title: "Pantau Prospek Website", description: "Lihat calon pembeli yang sedang menjelajahi halaman unit tertentu dan kirim pesan proaktif." },
+      { icon: MessageCircle, title: "Panduan Simulasi KPR", description: "AI menjelaskan skema cicilan, down payment, dan persyaratan KPR berdasarkan data dari bank mitra." },
+      { icon: Clock, title: "Jadwalkan Survei Otomatis", description: "AI mengumpulkan pilihan waktu survei dan meneruskan ke agen untuk konfirmasi." },
+      { icon: Zap, title: "Respons 24/7 untuk Prospek", description: "Calon pembeli mendapat informasi instan kapan pun — termasuk malam hari dan akhir pekan." },
+    ],
+    useCases: [
+      "Menjawab pertanyaan tipe unit, luas, harga, dan stok tersedia",
+      "Memberikan simulasi KPR dan informasi skema pembayaran",
+      "Mengumpulkan data dan preferensi prospek secara terstruktur",
+      "Menjadwalkan kunjungan survei unit dengan calon pembeli",
+      "Menjelaskan fasilitas kawasan, aksesibilitas, dan infrastruktur sekitar",
+      "Mengirim pesan proaktif ke pengunjung website yang melihat unit tertentu",
+    ],
+    whyChatvice: [
+      "Live Visitor Tracking untuk melihat dan menghubungi prospek aktif di website",
+      "Knowledge base dapat diisi dengan brosur PDF dan data unit dari spreadsheet",
+      "AI mengumpulkan data prospek secara natural — tidak terasa seperti form",
+      "Integrasi WhatsApp untuk follow-up langsung oleh agen setelah obrolan AI",
+      "Analitik menunjukkan unit mana yang paling banyak ditanyakan",
+    ],
+    stats: [
+      { value: "3x", label: "Lebih banyak prospek yang dikonversi ke janji survei" },
+      { value: "24/7", label: "Informasi unit tersedia bahkan di luar jam kerja" },
+      { value: "60%", label: "Pengurangan waktu agen untuk pertanyaan berulang" },
+      { value: "5 menit", label: "Setup chatbot properti pertama Anda" },
+    ],
+    ctaHeading: "Jangan Biarkan Prospek Properti Anda Pergi Tanpa Jawaban",
+    ctaSubtext: "Mulai gratis sekarang. Tidak perlu kartu kredit.",
+    relatedSlugs: ["chatbot-klinik", "chatbot-restoran", "chatbot-customer-service", "live-chat-website"],
+  },
+  {
+    slug: "chatbot-pendidikan",
+    metaTitle: "Chatbot untuk Lembaga Pendidikan & Kursus Online Indonesia | Chatvice",
+    metaDescription: "Chatbot AI untuk sekolah, universitas, bimbingan belajar, dan kursus online Indonesia. Otomasi pertanyaan pendaftaran, jadwal, dan informasi program.",
+    h1: "Chatbot AI untuk Lembaga Pendidikan — Otomasi Informasi Program dan Pendaftaran",
+    subtitle: "Ribuan calon siswa dan orang tua menanyakan hal yang sama setiap tahun. Chatbot AI Chatvice menjawab semuanya secara instan, 24/7.",
+    introParagraphs: [
+      <>
+        Lembaga pendidikan — dari sekolah swasta, universitas, bimbingan belajar (bimbel), hingga platform kursus online — menghadapi lonjakan pertanyaan yang sangat tinggi di musim pendaftaran. Calon siswa dan orang tua menanyakan persyaratan pendaftaran, biaya SPP, jadwal ujian masuk, kurikulum, fasilitas, beasiswa, dan puluhan pertanyaan lainnya. Staff administrasi pendidikan yang terbatas seringkali kewalahan, dan pertanyaan yang tidak terjawab cepat bisa berarti kehilangan calon siswa ke sekolah atau kursus lain yang lebih responsif.
+      </>,
+      <>
+        Chatvice memungkinkan lembaga pendidikan memberikan informasi yang akurat dan cepat kepada calon siswa dan orang tua — kapan pun mereka bertanya. Dengan mengisi knowledge base menggunakan prospektus, brosur program, persyaratan pendaftaran, jadwal akademik, dan FAQ yang sering ditanyakan, <Link href="/features" className="text-purple-600 hover:underline">LEXA1 AI Engine</Link> siap menjawab pertanyaan dalam bahasa yang natural dan informatif. "Apakah ada beasiswa untuk siswa berprestasi?" atau "Kapan batas pendaftaran semester ini?" — semuanya dijawab instan tanpa harus menunggu jam kerja administrasi.
+      </>,
+      <>
+        Untuk platform kursus online yang melayani ribuan peserta dari seluruh Indonesia, chatbot Chatvice adalah solusi yang skalabel tanpa menambah tim support. AI dapat menjelaskan kurikulum, metode pembelajaran, sertifikat yang diberikan, akses materi, dan prosedur pembayaran — dalam satu percakapan yang mulus. Fitur <Link href="/live-chat-website" className="text-purple-600 hover:underline">live chat</Link> yang selalu aktif memastikan calon peserta yang tertarik di tengah malam pun bisa mendapatkan informasi dan terdorong untuk mendaftar saat itu juga, bukan menunda hingga keesokan hari.
+      </>,
+      <>
+        Widget Chatvice dapat dipasang di website lembaga pendidikan Anda dan dikonfigurasi dengan pertanyaan yang disarankan seperti "Lihat program yang tersedia", "Cek persyaratan pendaftaran", atau "Simulasi biaya studi" — memandu calon siswa ke informasi yang paling mereka butuhkan. Untuk lembaga pendidikan yang ingin mulai tanpa anggaran besar, <Link href="/ai-chatbot-gratis" className="text-purple-600 hover:underline">plan gratis Chatvice</Link> sudah mencakup semua yang diperlukan untuk memulai otomasi informasi dasar. Lihat juga <Link href="/pricing" className="text-purple-600 hover:underline">perbandingan paket lengkap</Link> untuk memilih yang paling sesuai dengan skala lembaga Anda.
+      </>,
+    ],
+    features: [
+      { icon: Brain, title: "Informasi Program & Kurikulum", description: "AI menjawab pertanyaan tentang program studi, kurikulum, metode pembelajaran, dan sertifikasi." },
+      { icon: Clock, title: "Jadwal & Kalender Akademik", description: "Informasi jadwal pendaftaran, ujian masuk, dan kalender akademik tersedia kapan pun dibutuhkan." },
+      { icon: Database, title: "Persyaratan Pendaftaran", description: "AI menjelaskan dokumen yang diperlukan, prosedur pendaftaran, dan tenggat waktu penerimaan." },
+      { icon: MessageCircle, title: "Informasi Biaya & Beasiswa", description: "AI memberikan gambaran umum biaya pendidikan dan informasi beasiswa yang tersedia." },
+      { icon: Zap, title: "Panduan Pendaftaran Otomatis", description: "AI memandu calon siswa langkah demi langkah melalui proses pendaftaran online." },
+      { icon: Users, title: "Layani Ribuan Pertanyaan Serentak", description: "Di musim pendaftaran, AI tangani semua pertanyaan masuk tanpa antrian dan tanpa delay." },
+    ],
+    useCases: [
+      "Menjawab pertanyaan program studi, kurikulum, dan sertifikasi yang tersedia",
+      "Menjelaskan persyaratan pendaftaran dan dokumen yang diperlukan",
+      "Memberikan informasi biaya dan pilihan beasiswa",
+      "Memandu calon siswa melalui proses pendaftaran online",
+      "Menjawab pertanyaan tentang fasilitas kampus dan asrama",
+      "Menangani pertanyaan tentang metode pembayaran SPP dan cicilan",
+    ],
+    whyChatvice: [
+      "AI dapat menangani lonjakan pertanyaan di musim pendaftaran tanpa kewalahan",
+      "Knowledge base bisa diisi dengan PDF brosur dan prospektus program",
+      "Widget dapat dikonfigurasi dengan pertanyaan yang mengarahkan calon siswa",
+      "Analitik menunjukkan program dan pertanyaan yang paling banyak diminati",
+      "Plan gratis tersedia untuk sekolah dan lembaga dengan anggaran terbatas",
+    ],
+    stats: [
+      { value: "90%", label: "Pertanyaan pendaftaran dijawab tanpa staff administrasi" },
+      { value: "24/7", label: "Informasi tersedia kapan pun calon siswa bertanya" },
+      { value: "3x", label: "Lebih banyak leads yang dikonversi saat musim pendaftaran" },
+      { value: "5 menit", label: "Setup chatbot lembaga pendidikan pertama Anda" },
+    ],
+    ctaHeading: "Otomasi Layanan Informasi Lembaga Pendidikan Anda",
+    ctaSubtext: "Mulai gratis sekarang. Tidak perlu kartu kredit atau developer.",
+    relatedSlugs: ["chatbot-properti", "chatbot-klinik", "chatbot-customer-service", "ai-chatbot-gratis"],
   },
 ];
 
 export const solutionsBySlug: Record<string, SolutionPageData> = Object.fromEntries(
-  solutionsData.map((s) => [s.slug, s])
+  [...solutionsData, ...cityPagesData, ...industryPagesData].map((s) => [s.slug, s])
 );

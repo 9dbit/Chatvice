@@ -7,7 +7,7 @@ import { ArrowRight, Check, CheckCircle2, Copy, CheckCheck, Share2 } from "lucid
 import { SiWhatsapp, SiX, SiLinkedin } from "react-icons/si";
 import PublicPageLayout from "@/pages/public-layout";
 import type { SolutionPageData } from "./solutions-data";
-import { solutionsData } from "./solutions-data";
+import { solutionsBySlug } from "./solutions-data";
 
 function buildShareUrl(slug: string): string {
   const base = `${window.location.origin}/${slug}`;
@@ -91,7 +91,8 @@ interface SolutionPageProps {
 }
 
 export default function SolutionPage({ solution }: SolutionPageProps) {
-  const relatedPages = solutionsData.filter((s) => solution.relatedSlugs.includes(s.slug));
+  const allPages = Object.values(solutionsBySlug);
+  const relatedPages = allPages.filter((s) => solution.relatedSlugs.includes(s.slug));
 
   const slugToLabel: Record<string, string> = {
     "chatbot-customer-service": "Chatbot Customer Service",
@@ -100,6 +101,13 @@ export default function SolutionPage({ solution }: SolutionPageProps) {
     "chatbot-toko-online": "Chatbot Toko Online",
     "ai-chatbot-gratis": "Chatbot Gratis",
     "alternatif-tawkto": "Alternatif Tawk.to",
+    "chatbot-jakarta": "Chatbot Jakarta",
+    "chatbot-surabaya": "Chatbot Surabaya",
+    "chatbot-bandung": "Chatbot Bandung",
+    "chatbot-restoran": "Chatbot Restoran",
+    "chatbot-klinik": "Chatbot Klinik",
+    "chatbot-properti": "Chatbot Properti",
+    "chatbot-pendidikan": "Chatbot Pendidikan",
   };
 
   return (

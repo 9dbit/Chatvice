@@ -228,6 +228,13 @@ export function PublicFooter() {
       { label: "Chatbot Toko Online", href: "/chatbot-toko-online" },
       { label: "Chatbot Gratis", href: "/ai-chatbot-gratis" },
       { label: "Alternatif Tawk.to", href: "/alternatif-tawkto" },
+      { label: "Chatbot Jakarta", href: "/chatbot-jakarta" },
+      { label: "Chatbot Surabaya", href: "/chatbot-surabaya" },
+      { label: "Chatbot Bandung", href: "/chatbot-bandung" },
+      { label: "Chatbot Restoran", href: "/chatbot-restoran" },
+      { label: "Chatbot Klinik", href: "/chatbot-klinik" },
+      { label: "Chatbot Properti", href: "/chatbot-properti" },
+      { label: "Chatbot Pendidikan", href: "/chatbot-pendidikan" },
     ],
     compare: [
       { label: "vs Tawk.to", href: "/vs/tawkto" },
