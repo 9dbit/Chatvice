@@ -1,8 +1,113 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Loader2, FileText, Check } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Download, Loader2, FileText, Check, Share2, Copy, CheckCheck, ExternalLink } from "lucide-react";
+import { SiWhatsapp, SiX, SiLinkedin } from "react-icons/si";
 import PublicPageLayout from "../public-layout";
+import { solutionsData } from "../solutions/solutions-data";
+
+const slugToLabel: Record<string, string> = {
+  "chatbot-customer-service": "Chatbot Customer Service",
+  "ai-chatbot-whatsapp": "AI Chatbot WhatsApp",
+  "live-chat-website": "Live Chat Website",
+  "chatbot-toko-online": "Chatbot Toko Online",
+  "ai-chatbot-gratis": "Chatbot Gratis",
+  "alternatif-tawkto": "Alternatif Tawk.to",
+};
+
+function buildShareUrl(slug: string): string {
+  const base = `${window.location.origin}/${slug}`;
+  const merchantId = localStorage.getItem("merchantId");
+  const params = new URLSearchParams({
+    utm_source: "chatvice",
+    utm_medium: "merchant-share",
+    utm_campaign: "solution-page",
+    ...(merchantId ? { utm_content: merchantId } : {}),
+  });
+  return `${base}?${params.toString()}`;
+}
+
+function SolutionShareRow({ slug, h1, subtitle }: { slug: string; h1: string; subtitle: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const url = buildShareUrl(slug);
+  const text = `${h1} — ${subtitle}`;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const waUrl = `https://wa.me/?text=${encodeURIComponent(`${text}\n\n${url}`)}`;
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+  const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
+
+  return (
+    <Card data-testid={`card-solution-share-${slug}`}>
+      <CardHeader className="pb-2">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-2">
+              {slugToLabel[slug] || slug}
+            </Badge>
+            <CardTitle className="text-base leading-snug">{h1}</CardTitle>
+          </div>
+          <Link href={`/${slug}`}>
+            <Button size="sm" variant="ghost" className="gap-1 text-muted-foreground shrink-0" data-testid={`link-solution-open-${slug}`}>
+              <ExternalLink className="w-3 h-3" />
+              Buka
+            </Button>
+          </Link>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{subtitle}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleCopy}
+            data-testid={`button-copy-link-${slug}`}
+            className="gap-2"
+          >
+            {copied ? <CheckCheck className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
+            {copied ? "Copied!" : "Copy Link"}
+          </Button>
+          <a href={waUrl} target="_blank" rel="noopener noreferrer" data-testid={`link-whatsapp-${slug}`}>
+            <Button size="sm" variant="outline" className="gap-2">
+              <SiWhatsapp className="w-3 h-3 text-green-500" />
+              WhatsApp
+            </Button>
+          </a>
+          <a href={twitterUrl} target="_blank" rel="noopener noreferrer" data-testid={`link-twitter-${slug}`}>
+            <Button size="sm" variant="outline" className="gap-2">
+              <SiX className="w-3 h-3" />
+              X
+            </Button>
+          </a>
+          <a href={linkedinUrl} target="_blank" rel="noopener noreferrer" data-testid={`link-linkedin-${slug}`}>
+            <Button size="sm" variant="outline" className="gap-2">
+              <SiLinkedin className="w-3 h-3 text-blue-600" />
+              LinkedIn
+            </Button>
+          </a>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 async function generateProposalPDF() {
   const { default: jsPDF } = await import("jspdf");
@@ -772,6 +877,29 @@ export default function MarketingToolsPage() {
                 </li>
               ))}
             </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* Solution Pages as Shareable Resources */}
+      <section className="py-20 bg-muted/30">
+        <div className="max-w-3xl mx-auto px-6 sm:px-8">
+          <div className="mb-10 text-center">
+            <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mb-4">
+              <Share2 className="w-3 h-3 mr-1" />
+              Shareable Pages
+            </Badge>
+            <h2 className="text-2xl md:text-3xl font-bold mb-3">
+              Share Solution Pages with Prospects
+            </h2>
+            <p className="text-muted-foreground text-base max-w-xl mx-auto">
+              Each page targets a specific buyer intent and is optimised for Indonesian search. Share them directly with leads — your referral is automatically tracked via UTM parameters.
+            </p>
+          </div>
+          <div className="grid gap-4" data-testid="solution-pages-list">
+            {solutionsData.map((s) => (
+              <SolutionShareRow key={s.slug} slug={s.slug} h1={s.h1} subtitle={s.subtitle} />
+            ))}
           </div>
         </div>
       </section>

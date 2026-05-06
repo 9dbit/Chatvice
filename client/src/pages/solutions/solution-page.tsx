@@ -1,11 +1,90 @@
+import { useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Check, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Check, CheckCircle2, Copy, CheckCheck, Share2 } from "lucide-react";
+import { SiWhatsapp, SiX, SiLinkedin } from "react-icons/si";
 import PublicPageLayout from "@/pages/public-layout";
 import type { SolutionPageData } from "./solutions-data";
 import { solutionsData } from "./solutions-data";
+
+function buildShareUrl(slug: string): string {
+  const base = `${window.location.origin}/${slug}`;
+  const merchantId = localStorage.getItem("merchantId");
+  const params = new URLSearchParams({
+    utm_source: "chatvice",
+    utm_medium: "merchant-share",
+    utm_campaign: "solution-page",
+    ...(merchantId ? { utm_content: merchantId } : {}),
+  });
+  return `${base}?${params.toString()}`;
+}
+
+function buildShareText(h1: string, subtitle: string): string {
+  return `${h1} — ${subtitle}`;
+}
+
+function ShareButtons({ slug, h1, subtitle }: { slug: string; h1: string; subtitle: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const url = buildShareUrl(slug);
+  const text = buildShareText(h1, subtitle);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const waUrl = `https://wa.me/?text=${encodeURIComponent(`${text}\n\n${url}`)}`;
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+  const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={handleCopy}
+        data-testid="button-share-copy-link"
+        className="gap-2"
+      >
+        {copied ? <CheckCheck className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+        {copied ? "Copied!" : "Copy Link"}
+      </Button>
+      <a href={waUrl} target="_blank" rel="noopener noreferrer" data-testid="link-share-whatsapp">
+        <Button size="sm" variant="outline" className="gap-2">
+          <SiWhatsapp className="w-4 h-4 text-green-500" />
+          WhatsApp
+        </Button>
+      </a>
+      <a href={twitterUrl} target="_blank" rel="noopener noreferrer" data-testid="link-share-twitter">
+        <Button size="sm" variant="outline" className="gap-2">
+          <SiX className="w-4 h-4" />
+          X
+        </Button>
+      </a>
+      <a href={linkedinUrl} target="_blank" rel="noopener noreferrer" data-testid="link-share-linkedin">
+        <Button size="sm" variant="outline" className="gap-2">
+          <SiLinkedin className="w-4 h-4 text-blue-600" />
+          LinkedIn
+        </Button>
+      </a>
+    </div>
+  );
+}
 
 interface SolutionPageProps {
   solution: SolutionPageData;
@@ -175,6 +254,18 @@ export default function SolutionPage({ solution }: SolutionPageProps) {
           </div>
         </section>
       )}
+
+      <section className="py-12 border-t border-border">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-center gap-2 shrink-0">
+              <Share2 className="w-4 h-4 text-purple-600" />
+              <span className="text-sm font-semibold text-foreground">Bagikan halaman ini:</span>
+            </div>
+            <ShareButtons slug={solution.slug} h1={solution.h1} subtitle={solution.subtitle} />
+          </div>
+        </div>
+      </section>
 
       <section className="py-20 bg-purple-600 text-white">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 text-center">
