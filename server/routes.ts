@@ -1584,9 +1584,10 @@ SINYAL YANG TERSEDIA:
 [PASSWORD_LOOKUP_DETECTED:username=X,bank=Y,phone=Z] → customer minta LIHAT password saat ini (kumpulkan 3 data dulu)
 
 ALUR RESET PASSWORD (jangan kumpulkan data lewat chat):
-1. Jika customer minta reset / lupa password → langsung emit [SHOW_PASSWORD_RECOVERY_FORM]
+1. Jika customer minta reset / lupa password → balas dengan kalimat pengantar singkat (contoh: "Silakan isi form berikut untuk mengajukan reset password:") lalu langsung emit [SHOW_PASSWORD_RECOVERY_FORM] di baris yang sama atau setelahnya
 2. Form akan muncul otomatis di widget — customer isi sendiri di form
 3. Jangan minta username/bank/phone lewat chat untuk reset
+4. WAJIB: selalu sertakan kalimat pengantar sebelum sinyal [SHOW_PASSWORD_RECOVERY_FORM] agar customer tahu apa yang akan muncul
 
 ALUR LOOKUP PASSWORD (lihat password saat ini):
 1. Tanya username, bank terdaftar, nomor HP
@@ -6871,6 +6872,29 @@ Sitemap: ${baseUrl}/sitemap.xml`;
             const prFormAgentId = prFormSession?.agentId || existingSession?.agentId || merchant.activeAgentId || undefined;
             const prFormConfig = await storage.getPasswordRecoveryConfig(resolvedMerchantId, prFormAgentId);
             if (prFormConfig && prFormConfig.isActive) {
+              // Ensure a contextual explanatory message always precedes the form card.
+              // Two cases require the fallback:
+              //   1. cleanAnswer is empty — AI emitted only the bare signal.
+              //   2. cleanAnswer is too generic and doesn't mention the form/reset context
+              //      (e.g. AI said "baik" or "oke" without explaining what's coming).
+              const formKeywords = /form|reset|password|isi|pengajuan|permintaan/i;
+              const needsFallback = !cleanAnswer || (cleanAnswer.length < 60 && !formKeywords.test(cleanAnswer));
+              if (needsFallback) {
+                const fallbackText = "Silakan isi form berikut untuk mengajukan reset password:";
+                // If cleanAnswer has some minor text, prepend the fallback to it so
+                // both the AI acknowledgment and the context are visible.
+                const combinedText = cleanAnswer ? `${fallbackText}\n${cleanAnswer}` : fallbackText;
+                if (!cleanAnswer) {
+                  await storage.createMessage({ sessionId, from: "chatvice", content: combinedText });
+                  broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: combinedText } });
+                }
+                // If cleanAnswer was already sent (non-empty path), broadcast a separate
+                // short prompt so it appears right before the form card.
+                else {
+                  await storage.createMessage({ sessionId, from: "chatvice", content: fallbackText });
+                  broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: fallbackText } });
+                }
+              }
               const formPayload = { type: "password_recovery_form" };
               await storage.createMessage({ sessionId, from: "chatvice", content: "", messageType: "password_recovery_form", payload: formPayload });
               broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "", messageType: "password_recovery_form", payload: formPayload } });
