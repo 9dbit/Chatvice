@@ -16221,6 +16221,14 @@ Rules:
         chatWorkflow = config.chatWorkflow || "click_to_open";
         proactiveDingEnabled = config.proactiveChatDingEnabled === true;
         configLoaded = true;
+        // Layer 3: Inject style params into iframe src before the user ever opens the widget.
+        // The iframe is still display:none here, so the reload is invisible.
+        // This lets chat-widget.tsx read the correct colors on its very first paint.
+        if (!isOpen && iframe.src.indexOf('&color=') === -1) {
+          var encColor = encodeURIComponent(config.primaryColor || '#6b5dfc');
+          var encTheme = encodeURIComponent(config.widgetTheme || 'light');
+          iframe.src = iframe.src + '&color=' + encColor + '&theme=' + encTheme;
+        }
         updateButtonStyles(config);
         applyAnimations(config);
       })

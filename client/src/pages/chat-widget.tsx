@@ -587,6 +587,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const urlSessionId = urlParams.get("session") || null;
   // Widget is externally embedded when showClose=true (external widget shows close button)
   const isExternalEmbed = showCloseButton;
+  // Style hint params injected by chatvice.js after it fetches config — available on first paint
+  const urlParamColor = urlParams.get("color") || null;
+  const urlParamTheme = (urlParams.get("theme") || null) as "light" | "dark" | null;
   
   const [isOpen, setIsOpen] = useState(embedded);
   
@@ -943,6 +946,26 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     queryKey: ["/api/merchant/status", merchantId],
     enabled: !!merchantId,
   });
+
+  // Layer 2: Persist style-critical fields to localStorage so repeat visitors get
+  // correct colors on the very first paint (before the API call finishes).
+  const WIDGET_CACHE_KEY = `chatvice_cfg_${merchantId}`;
+  const [cachedWidgetStyle] = useState<{ primaryColor: string; widgetTheme: string } | null>(() => {
+    if (previewMode || !merchantId) return null;
+    try {
+      const raw = localStorage.getItem(`chatvice_cfg_${merchantId}`);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
+  useEffect(() => {
+    if (!merchantConfig || previewMode) return;
+    try {
+      localStorage.setItem(WIDGET_CACHE_KEY, JSON.stringify({
+        primaryColor: merchantConfig.primaryColor || "#6b5dfc",
+        widgetTheme: merchantConfig.widgetTheme || "light",
+      }));
+    } catch {}
+  }, [merchantConfig, previewMode, WIDGET_CACHE_KEY]);
 
   const { data: widgetStyleSettings } = useQuery<any>({
     queryKey: ["/api/widget-style"],
@@ -1697,7 +1720,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     }
   };
 
-  const primaryColor = merchantConfig?.primaryColor || "#6b5dfc";
+  // Layer 2+3: primaryColor resolved from: live config → URL param (from chatvice.js) → localStorage cache → hardcoded default
+  const primaryColor = merchantConfig?.primaryColor || urlParamColor || cachedWidgetStyle?.primaryColor || "#6b5dfc";
   const iconSize = merchantConfig?.iconSize || 70;
   const isMobileView = typeof window !== 'undefined' && window.innerWidth < 768;
   const desktopIconWidth = merchantConfig?.iconWidth || iconSize;
@@ -2264,8 +2288,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   );
 
   // Frosted glass styling - use merchant's widget theme setting, not document dark class
-  // This ensures the widget respects the merchant's configured theme
-  const widgetIsDark = merchantConfig?.widgetTheme === "dark" || document.documentElement.classList.contains('dark');
+  // Layer 2+3: theme resolved from: live config → URL param → localStorage cache → light
+  const effectiveTheme = merchantConfig?.widgetTheme || urlParamTheme || cachedWidgetStyle?.widgetTheme || "light";
+  const widgetIsDark = effectiveTheme === "dark" || document.documentElement.classList.contains('dark');
   
   // Styles apply to external embed, embedded mode, AND preview mode (for sync)
   const applyEmbedStyles = isExternalEmbed || embedded || previewMode;
@@ -2419,6 +2444,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         ...footerWidthStyle,
       }
     : {};
+
+  // Layer 1: For external embeds, if none of the style sources are ready yet, render an
+  // invisible placeholder so the user never sees the flash of default purple/light styles.
+  // "Config known" = live config loaded, OR chatvice.js passed URL params, OR localStorage cache hit.
+  // previewMode is excluded — it always renders immediately with whatever colors are set in the editor.
+  const configKnown = !!merchantConfig || !!(urlParamColor && urlParamTheme) || !!cachedWidgetStyle;
+  if (isExternalEmbed && !configKnown) {
+    return <div style={{ position: "absolute", inset: 0, opacity: 0, pointerEvents: "none" }} />;
+  }
 
   return (
     <div
