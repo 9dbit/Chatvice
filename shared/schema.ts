@@ -2613,6 +2613,7 @@ export const passwordRecoveryConfigs = pgTable("password_recovery_configs", {
   writeBackUrl: text("write_back_url").default(""),
   isActive: boolean("is_active").notNull().default(false),
   aiInstructions: text("ai_instructions").default(""),
+  formIntroText: text("form_intro_text").default(""),
   lastSyncedAt: timestamp("last_synced_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

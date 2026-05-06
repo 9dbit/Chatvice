@@ -1575,6 +1575,9 @@ PENTING: Sertakan tag [HOTEL_QUERY_DETECTED] di akhir respons saat customer mena
     const prConfig = await storage.getPasswordRecoveryConfig(merchantId, assignedAgentId);
     if (prConfig && prConfig.isActive && prConfig.sheetCsvUrl) {
       const extraInstr = prConfig.aiInstructions ? `\nInstruksi Tambahan: ${prConfig.aiInstructions}` : "";
+      const introExample = prConfig.formIntroText && prConfig.formIntroText.trim()
+        ? prConfig.formIntroText.trim()
+        : "Please fill in the form below to submit your password reset request:";
       passwordRecoverySignals = `
 PASSWORD RECOVERY FEATURE:
 This merchant uses the Password Recovery via Google Sheet feature.
@@ -1584,7 +1587,7 @@ AVAILABLE SIGNALS:
 [PASSWORD_LOOKUP_DETECTED:username=X,bank=Y,phone=Z] → customer wants to VIEW their current password (collect all 3 data points first)
 
 RESET PASSWORD FLOW (do not collect data via chat):
-1. If the customer asks to reset / forgot their password → reply with a short introductory sentence explaining that a form will appear (e.g. in English: "Please fill in the form below to submit your password reset request:" — IMPORTANT: write this intro sentence in the same language the customer used in their last message), then immediately emit [SHOW_PASSWORD_RECOVERY_FORM] on the same or next line
+1. If the customer asks to reset / forgot their password → reply with a short introductory sentence explaining that a form will appear (example phrase configured by merchant: "${introExample}" — IMPORTANT: write this intro sentence in the same language the customer used in their last message), then immediately emit [SHOW_PASSWORD_RECOVERY_FORM] on the same or next line
 2. The form will appear automatically in the widget — the customer fills it in themselves
 3. Do not ask for username/bank/phone via chat for a reset
 4. REQUIRED: always include an introductory sentence before [SHOW_PASSWORD_RECOVERY_FORM] so the customer knows what is about to appear — and write that sentence in the customer's language
@@ -6880,15 +6883,21 @@ Sitemap: ${baseUrl}/sitemap.xml`;
               const formKeywords = /form|reset|password|isi|pengajuan|permintaan|fill|submit|request/i;
               const needsFallback = !cleanAnswer || (cleanAnswer.length < 60 && !formKeywords.test(cleanAnswer));
               if (needsFallback) {
-                // Detect the customer's language from their last message so the fallback
-                // matches the language they wrote in rather than being hardcoded to one locale.
-                // Only include unambiguously Indonesian words — avoid universal loanwords
-                // like "password", "reset", "ok" which appear in English messages too.
-                const idPattern = /\b(saya|aku|lupa|kata\s*sandi|tolong|gimana|bisa|mau|mohon|kak|mas|mbak|dong|yang|dengan|untuk|tidak|iya|bantu|silakan|bagaimana|kami|anda|apakah|boleh|sudah|belum|butuh|perlu|coba|ingat)\b/i;
-                const isIndonesian = idPattern.test(message);
-                const fallbackText = isIndonesian
-                  ? "Silakan isi form berikut untuk mengajukan reset password:"
-                  : "Please fill in the form below to submit your password reset request:";
+                // Use merchant-configured intro text if set, otherwise detect the customer's
+                // language from their last message so the fallback matches the language they
+                // wrote in rather than being hardcoded to one locale.
+                let fallbackText: string;
+                if (prFormConfig.formIntroText && prFormConfig.formIntroText.trim()) {
+                  fallbackText = prFormConfig.formIntroText.trim();
+                } else {
+                  // Only include unambiguously Indonesian words — avoid universal loanwords
+                  // like "password", "reset", "ok" which appear in English messages too.
+                  const idPattern = /\b(saya|aku|lupa|kata\s*sandi|tolong|gimana|bisa|mau|mohon|kak|mas|mbak|dong|yang|dengan|untuk|tidak|iya|bantu|silakan|bagaimana|kami|anda|apakah|boleh|sudah|belum|butuh|perlu|coba|ingat)\b/i;
+                  const isIndonesian = idPattern.test(message);
+                  fallbackText = isIndonesian
+                    ? "Silakan isi form berikut untuk mengajukan reset password:"
+                    : "Please fill in the form below to submit your password reset request:";
+                }
                 // If cleanAnswer has some minor text, prepend the fallback to it so
                 // both the AI acknowledgment and the context are visible.
                 const combinedText = cleanAnswer ? `${fallbackText}\n${cleanAnswer}` : fallbackText;
@@ -27258,7 +27267,7 @@ Please create a comprehensive help center article that would be useful for custo
   app.post("/api/merchant/password-recovery-config", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
-      const { sheetCsvUrl, writeBackUrl, isActive, aiInstructions, agentId } = req.body;
+      const { sheetCsvUrl, writeBackUrl, isActive, aiInstructions, formIntroText, agentId } = req.body;
       const urlValidErr = validatePasswordRecoveryUrls(sheetCsvUrl || undefined, writeBackUrl || undefined);
       if (urlValidErr) return res.status(400).json({ error: urlValidErr });
       const config = await storage.upsertPasswordRecoveryConfig(merchantId, agentId || null, {
@@ -27266,6 +27275,7 @@ Please create a comprehensive help center article that would be useful for custo
         writeBackUrl: writeBackUrl ?? "",
         isActive: isActive ?? false,
         aiInstructions: aiInstructions ?? "",
+        formIntroText: formIntroText ?? "",
       });
       res.json(config);
     } catch (err) {

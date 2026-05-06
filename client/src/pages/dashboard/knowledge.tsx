@@ -395,6 +395,7 @@ export default function KnowledgePage() {
   const [prWriteBackUrl, setPrWriteBackUrl] = useState("");
   const [prEnabled, setPrEnabled] = useState(false);
   const [prInstructions, setPrInstructions] = useState("");
+  const [prFormIntroText, setPrFormIntroText] = useState("");
   const [prTestResult, setPrTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [prIsTesting, setPrIsTesting] = useState(false);
   const [prIsSaving, setPrIsSaving] = useState(false);
@@ -806,7 +807,7 @@ export default function KnowledgePage() {
   const prConfigUrl = selectedAgentId
     ? `/api/merchant/password-recovery-config?agentId=${selectedAgentId}`
     : `/api/merchant/password-recovery-config`;
-  const { data: prConfig } = useQuery<{ id: string; sheetCsvUrl: string; writeBackUrl?: string; isActive: boolean; aiInstructions?: string; lastSyncedAt?: string } | null>({
+  const { data: prConfig } = useQuery<{ id: string; sheetCsvUrl: string; writeBackUrl?: string; isActive: boolean; aiInstructions?: string; formIntroText?: string; lastSyncedAt?: string } | null>({
     queryKey: ["/api/merchant/password-recovery-config", selectedAgentId],
     queryFn: async () => {
       const res = await fetch(prConfigUrl, { credentials: "include" });
@@ -838,12 +839,14 @@ export default function KnowledgePage() {
       setPrWriteBackUrl(prConfig.writeBackUrl || "");
       setPrEnabled(prConfig.isActive || false);
       setPrInstructions(prConfig.aiInstructions || "");
+      setPrFormIntroText(prConfig.formIntroText || "");
     } else {
       // Agent has no config — clear fields so previous agent's values don't persist
       setPrSheetUrl("");
       setPrWriteBackUrl("");
       setPrEnabled(false);
       setPrInstructions("");
+      setPrFormIntroText("");
     }
     setPrConfigLoaded(true);
   }, [prConfig, prConfigLoaded]);
@@ -3192,6 +3195,21 @@ export default function KnowledgePage() {
                   </div>
 
                   <div className="space-y-1.5">
+                    <Label style={{ color: "#d4d4d8" }}>Form Intro Message <span style={{ color: "#71717a" }}>(optional)</span></Label>
+                    <Textarea
+                      value={prFormIntroText}
+                      onChange={(e) => setPrFormIntroText(e.target.value)}
+                      placeholder="e.g. Please fill in the form below to submit your password reset request:"
+                      rows={2}
+                      style={{ backgroundColor: "#27272a", borderColor: "#3f3f46", color: "white", resize: "none" }}
+                      data-testid="input-password-recovery-form-intro"
+                    />
+                    <p className="text-xs" style={{ color: "#71717a" }}>
+                      Shown to customers just before the reset form appears. If left blank, the AI will generate its own phrase (or a default based on language detection will be used as a fallback).
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
                     <Label style={{ color: "#d4d4d8" }}>Additional AI Instructions <span style={{ color: "#71717a" }}>(optional)</span></Label>
                     <Textarea
                       value={prInstructions}
@@ -3219,6 +3237,7 @@ export default function KnowledgePage() {
                           writeBackUrl: prWriteBackUrl,
                           isActive: prEnabled,
                           aiInstructions: prInstructions,
+                          formIntroText: prFormIntroText,
                           agentId: selectedAgentId || null,
                         });
                         setPrConfigLoaded(false);
@@ -3279,6 +3298,7 @@ export default function KnowledgePage() {
                           setPrWriteBackUrl("");
                           setPrEnabled(false);
                           setPrInstructions("");
+                          setPrFormIntroText("");
                           setPrConfigLoaded(false);
                           queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config", selectedAgentId] });
                           toast({ title: "Config deleted" });
