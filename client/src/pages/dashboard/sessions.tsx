@@ -341,7 +341,7 @@ export default function SessionsPage() {
   const [showMobileSettings, setShowMobileSettings] = useState(false);
 
   // Visitor info panel state
-  const [showVisitorInfo, setShowVisitorInfo] = useState(false);
+  const [showVisitorInfo, setShowVisitorInfo] = useState(true);
 
   // End Session dialog state
   const [endSessionDialogOpen, setEndSessionDialogOpen] = useState(false);
@@ -1447,8 +1447,8 @@ export default function SessionsPage() {
         </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
-        <div className={`lg:col-span-4 xl:col-span-3 flex flex-col min-h-0 ${selectedSession ? 'hidden lg:flex' : 'flex'}`}>
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 xl:grid-cols-[30%_1fr] gap-4 min-h-0">
+        <div className={`lg:col-span-4 xl:col-span-1 flex flex-col min-h-0 min-w-0 ${selectedSession ? 'hidden lg:flex' : 'flex'}`}>
           <Card className="flex flex-col h-full">
             <CardHeader className="flex-shrink-0 py-3 px-4">
               <div className="flex items-center gap-2">
@@ -1610,7 +1610,7 @@ export default function SessionsPage() {
           </Card>
         </div>
 
-        <div className={`lg:col-span-8 xl:col-span-9 flex flex-col min-h-0 gap-2 ${selectedSession ? 'flex' : 'hidden lg:flex'}`}>
+        <div className={`lg:col-span-8 xl:col-span-1 flex flex-col min-h-0 min-w-0 gap-2 ${selectedSession ? 'flex' : 'hidden lg:flex'}`}>
           {/* Mobile: back arrow shown above the card */}
           {selectedSession && (
             <div className="lg:hidden flex items-center">
@@ -2748,7 +2748,7 @@ export default function SessionsPage() {
           
           {/* Visitor Info Panel */}
           {showVisitorInfo && selectedSessionData && (
-            <Card className="flex flex-col h-full w-80 flex-shrink-0" data-testid="card-visitor-info-panel">
+            <Card className="flex flex-col h-full w-72 flex-shrink-0" data-testid="card-visitor-info-panel">
               <CardHeader className="flex-shrink-0 border-b py-2 px-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
