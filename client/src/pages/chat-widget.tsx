@@ -4639,13 +4639,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             </div>
           );
           })}
-          {sendMessageMutation.isPending && (
+          {(sendMessageMutation.isPending || useSuggestedQuestionMutation.isPending) && (
             <div className="flex gap-2 justify-start">
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 overflow-hidden"
                 style={{ backgroundColor: `${primaryColor}20` }}
               >
-                {/* Use same logic as header - show supervisor when HUMAN mode, otherwise session's assigned agent */}
                 {sessionInfo?.mode === "HUMAN" && sessionInfo?.supervisorInfo?.photoUrl ? (
                   <img src={sessionInfo.supervisorInfo.photoUrl} alt="Supervisor" className="w-full h-full object-cover" />
                 ) : sessionInfo?.agentInfo?.photoUrl ? (
@@ -4666,10 +4665,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   border: '1px solid rgba(0, 0, 0, 0.06)',
                 }) : { backgroundColor: 'hsl(var(--muted))' }}
               >
-                <div className="flex gap-1">
-                  <span className={`w-2 h-2 rounded-full animate-bounce ${applyEmbedStyles ? 'bg-white/50' : 'bg-muted-foreground/50'}`} style={{ animationDelay: "0ms" }} />
-                  <span className={`w-2 h-2 rounded-full animate-bounce ${applyEmbedStyles ? 'bg-white/50' : 'bg-muted-foreground/50'}`} style={{ animationDelay: "150ms" }} />
-                  <span className={`w-2 h-2 rounded-full animate-bounce ${applyEmbedStyles ? 'bg-white/50' : 'bg-muted-foreground/50'}`} style={{ animationDelay: "300ms" }} />
+                <div className="flex items-center gap-1" style={{ height: '12px' }}>
+                  <span
+                    className="typing-dot w-2 h-2 rounded-full"
+                    style={{ backgroundColor: applyEmbedStyles ? (widgetIsDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.35)') : 'hsl(var(--muted-foreground) / 0.5)' }}
+                  />
+                  <span
+                    className="typing-dot w-2 h-2 rounded-full"
+                    style={{ backgroundColor: applyEmbedStyles ? (widgetIsDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.35)') : 'hsl(var(--muted-foreground) / 0.5)' }}
+                  />
+                  <span
+                    className="typing-dot w-2 h-2 rounded-full"
+                    style={{ backgroundColor: applyEmbedStyles ? (widgetIsDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.35)') : 'hsl(var(--muted-foreground) / 0.5)' }}
+                  />
                 </div>
               </div>
             </div>
