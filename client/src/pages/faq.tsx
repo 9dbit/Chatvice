@@ -357,7 +357,7 @@ export default function FAQPage() {
         "name": faq.q,
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": faq.a
+          "text": faq.a.replace(/14-day/g, `${trialDays}-day`)
         }
       }))
     };
@@ -374,7 +374,7 @@ export default function FAQPage() {
       const toRemove = document.getElementById(scriptId);
       if (toRemove) toRemove.remove();
     };
-  }, []);
+  }, [trialDays]);
 
   const filteredCategories = faqCategories.map(category => ({
     ...category,

@@ -2748,6 +2748,56 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       return next();
     }
 
+    // Special handling for doc article pages — inject BreadcrumbList JSON-LD server-side
+    const docsSlugMatch = pagePath.match(/^\/docs\/([^/]+)$/);
+    if (docsSlugMatch) {
+      const slug = docsSlugMatch[1];
+      const docTitle = slug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const ogImageUrl = `${baseUrl}/og/docs-${slug}.png`;
+      const config = getOgConfigForPath(pagePath) || {
+        title: `${docTitle} | Chatvice Docs`,
+        description: "Panduan lengkap dan dokumentasi teknis untuk integrasi Chatvice ke website Anda.",
+        emoji: "D",
+        subtitle: "Dokumentasi Chatvice",
+        color: "#0891b2",
+      };
+      const escTitle = config.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      const escDesc = config.description.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+      const breadcrumbJsonLd = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": baseUrl },
+          { "@type": "ListItem", "position": 2, "name": "Docs", "item": `${baseUrl}/docs` },
+          { "@type": "ListItem", "position": 3, "name": docTitle, "item": pageUrl }
+        ]
+      });
+
+      const originalEnd = res.end.bind(res);
+      res.end = function(chunk?: any, ...args: any[]) {
+        const contentType = res.getHeader("content-type");
+        if (contentType && typeof contentType === "string" && contentType.includes("text/html") && chunk) {
+          let html = typeof chunk === "string" ? chunk : chunk.toString("utf-8");
+          html = html.replace(/<meta property="og:title" content="[^"]*"\s*\/?>/, `<meta property="og:title" content="${escTitle}" />`);
+          html = html.replace(/<meta property="og:description" content="[^"]*"\s*\/?>/, `<meta property="og:description" content="${escDesc}" />`);
+          html = html.replace(/<meta property="og:image" content="[^"]*"\s*\/?>/, `<meta property="og:image" content="${ogImageUrl}" />`);
+          html = html.replace(/<meta property="og:url" content="[^"]*"\s*\/?>/, `<meta property="og:url" content="${pageUrl}" />`);
+          html = html.replace(/<meta name="twitter:title" content="[^"]*"\s*\/?>/, `<meta name="twitter:title" content="${escTitle}" />`);
+          html = html.replace(/<meta name="twitter:description" content="[^"]*"\s*\/?>/, `<meta name="twitter:description" content="${escDesc}" />`);
+          html = html.replace(/<meta name="twitter:image" content="[^"]*"\s*\/?>/, `<meta name="twitter:image" content="${ogImageUrl}" />`);
+          html = html.replace(/<meta name="description" content="[^"]*"\s*\/?>/, `<meta name="description" content="${escDesc}" />`);
+          html = html.replace(/<title>[^<]*<\/title>/, `<title>${escTitle}</title>`);
+          html = html.replace(/<link rel="canonical" href="[^"]*"\s*\/?>/, `<link rel="canonical" href="${pageUrl}" />`);
+          html = html.replace(/<\/head>/, `  <script type="application/ld+json">${breadcrumbJsonLd}</script>\n</head>`);
+          return originalEnd.call(this, html, ...args);
+        }
+        return originalEnd.call(this, chunk, ...args);
+      } as any;
+
+      return next();
+    }
+
     const config = getOgConfigForPath(pagePath);
     
     if (!config) {
