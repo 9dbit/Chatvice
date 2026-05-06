@@ -2932,39 +2932,120 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.redirect(301, "/login");
   });
 
-  // Dynamic sitemap.xml route
-  app.get("/sitemap.xml", async (req, res) => {
+  // Helper: resolve canonical base URL from landing settings
+  async function resolveSitemapBaseUrl(defaultBaseUrl: string): Promise<string> {
     try {
-      const { generateSitemap, getCachedSitemap, setCachedSitemap, DEFAULT_BASE_URL } = await import("./sitemap");
+      const settings = await storage.getLandingPageSettings();
+      if (settings?.canonicalUrl && settings.canonicalUrl.trim() !== "") {
+        return settings.canonicalUrl.trim().replace(/\/$/, "");
+      }
+    } catch (_e) {
+      // keep default
+    }
+    return defaultBaseUrl;
+  }
 
-      const cached = getCachedSitemap();
+  // Sitemap index — lists child sitemaps for search engines
+  app.get(["/sitemap.xml", "/sitemap-index.xml"], async (req, res) => {
+    try {
+      const {
+        generateSitemapIndex,
+        getCachedSitemapIndex,
+        setCachedSitemapIndex,
+        DEFAULT_BASE_URL,
+      } = await import("./sitemap");
+
+      const cached = getCachedSitemapIndex();
       if (cached) {
         res.setHeader("Content-Type", "application/xml");
         res.setHeader("Cache-Control", "public, max-age=600");
         return res.send(cached);
       }
 
-      // Resolve base URL from landing settings canonical_url, fall back to default
-      let baseUrl = DEFAULT_BASE_URL;
+      const baseUrl = await resolveSitemapBaseUrl(DEFAULT_BASE_URL);
+
+      // Use the most-recent blog post timestamp as the blog sitemap lastmod
+      let blogLastmod: string | undefined;
       try {
-        const settings = await storage.getLandingPageSettings();
-        if (settings?.canonicalUrl && settings.canonicalUrl.trim() !== "") {
-          baseUrl = settings.canonicalUrl.trim().replace(/\/$/, "");
+        const recent = await storage.getBlogPosts({ publishedOnly: true, limit: 1 });
+        const newest = recent[0];
+        if (newest) {
+          const ts = newest.publishedAt || newest.generatedAt;
+          if (ts) blogLastmod = new Date(ts).toISOString().split("T")[0];
         }
       } catch (_e) {
-        // keep default
+        // fall back to today inside generator
       }
 
-      const blogPosts = await storage.getBlogPosts({ publishedOnly: true, limit: 1000 });
-      const xml = generateSitemap(baseUrl, blogPosts);
-
-      setCachedSitemap(xml);
+      const xml = generateSitemapIndex(baseUrl, blogLastmod);
+      setCachedSitemapIndex(xml);
 
       res.setHeader("Content-Type", "application/xml");
       res.setHeader("Cache-Control", "public, max-age=600");
       res.send(xml);
     } catch (error) {
-      console.error("Error generating sitemap:", error);
+      console.error("Error generating sitemap index:", error);
+      res.status(500).send("Error generating sitemap");
+    }
+  });
+
+  // Static + solution + comparison pages sitemap
+  app.get("/sitemap-static.xml", async (req, res) => {
+    try {
+      const {
+        generateStaticSitemap,
+        getCachedStaticSitemap,
+        setCachedStaticSitemap,
+        DEFAULT_BASE_URL,
+      } = await import("./sitemap");
+
+      const cached = getCachedStaticSitemap();
+      if (cached) {
+        res.setHeader("Content-Type", "application/xml");
+        res.setHeader("Cache-Control", "public, max-age=600");
+        return res.send(cached);
+      }
+
+      const baseUrl = await resolveSitemapBaseUrl(DEFAULT_BASE_URL);
+      const xml = generateStaticSitemap(baseUrl);
+      setCachedStaticSitemap(xml);
+
+      res.setHeader("Content-Type", "application/xml");
+      res.setHeader("Cache-Control", "public, max-age=600");
+      res.send(xml);
+    } catch (error) {
+      console.error("Error generating static sitemap:", error);
+      res.status(500).send("Error generating sitemap");
+    }
+  });
+
+  // Blog posts sitemap
+  app.get("/sitemap-blog.xml", async (req, res) => {
+    try {
+      const {
+        generateBlogSitemap,
+        getCachedBlogSitemap,
+        setCachedBlogSitemap,
+        DEFAULT_BASE_URL,
+      } = await import("./sitemap");
+
+      const cached = getCachedBlogSitemap();
+      if (cached) {
+        res.setHeader("Content-Type", "application/xml");
+        res.setHeader("Cache-Control", "public, max-age=600");
+        return res.send(cached);
+      }
+
+      const baseUrl = await resolveSitemapBaseUrl(DEFAULT_BASE_URL);
+      const blogPosts = await storage.getBlogPosts({ publishedOnly: true, limit: 1000 });
+      const xml = generateBlogSitemap(baseUrl, blogPosts);
+      setCachedBlogSitemap(xml);
+
+      res.setHeader("Content-Type", "application/xml");
+      res.setHeader("Cache-Control", "public, max-age=600");
+      res.send(xml);
+    } catch (error) {
+      console.error("Error generating blog sitemap:", error);
       res.status(500).send("Error generating sitemap");
     }
   });
@@ -3007,11 +3088,11 @@ Disallow: /profile-wizard
 Disallow: /oauth-callback
 Disallow: /api/
 
-Sitemap: ${sitemapBaseUrl}/sitemap.xml`;
+Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       } else {
         // Replace placeholder sitemap URL if needed
         if (!robotsTxt.includes("Sitemap:")) {
-          robotsTxt += `\n\nSitemap: ${sitemapBaseUrl}/sitemap.xml`;
+          robotsTxt += `\n\nSitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         }
       }
 

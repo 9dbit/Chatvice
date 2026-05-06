@@ -39,6 +39,15 @@ const STATIC_PAGES: StaticPage[] = [
   { url: "/chatbot-toko-online", priority: "0.9", changefreq: "weekly" },
   { url: "/ai-chatbot-gratis", priority: "0.9", changefreq: "weekly" },
   { url: "/alternatif-tawkto", priority: "0.9", changefreq: "weekly" },
+  // City-targeted solution pages
+  { url: "/chatbot-jakarta", priority: "0.9", changefreq: "weekly" },
+  { url: "/chatbot-surabaya", priority: "0.9", changefreq: "weekly" },
+  { url: "/chatbot-bandung", priority: "0.9", changefreq: "weekly" },
+  // Industry-targeted solution pages
+  { url: "/chatbot-restoran", priority: "0.9", changefreq: "weekly" },
+  { url: "/chatbot-klinik", priority: "0.9", changefreq: "weekly" },
+  { url: "/chatbot-properti", priority: "0.9", changefreq: "weekly" },
+  { url: "/chatbot-pendidikan", priority: "0.9", changefreq: "weekly" },
   // Competitor comparison overview + individual pages
   { url: "/compare", priority: "0.90", changefreq: "weekly" },
   { url: "/vs/livechat", priority: "0.85", changefreq: "weekly" },
@@ -60,9 +69,95 @@ function escapeXml(str: string): string {
     .replace(/'/g, "&apos;");
 }
 
+function todayIso(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
+function cleanBase(baseUrl: string): string {
+  return (baseUrl || DEFAULT_BASE_URL).replace(/\/$/, "");
+}
+
+export function generateStaticSitemap(baseUrl: string): string {
+  const cleanBaseUrl = cleanBase(baseUrl);
+  const today = todayIso();
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+  for (const page of STATIC_PAGES) {
+    xml += `  <url>\n`;
+    xml += `    <loc>${escapeXml(cleanBaseUrl + page.url)}</loc>\n`;
+    xml += `    <lastmod>${today}</lastmod>\n`;
+    xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
+    xml += `    <priority>${page.priority}</priority>\n`;
+    xml += `  </url>\n`;
+  }
+
+  xml += `</urlset>`;
+  return xml;
+}
+
+export function generateBlogSitemap(baseUrl: string, blogPosts: BlogPost[]): string {
+  const cleanBaseUrl = cleanBase(baseUrl);
+  const today = todayIso();
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+  for (const post of blogPosts) {
+    const lastmod = post.publishedAt
+      ? new Date(post.publishedAt).toISOString().split("T")[0]
+      : (post.generatedAt ? new Date(post.generatedAt).toISOString().split("T")[0] : today);
+
+    const isComparison = post.category?.toLowerCase() === "comparison";
+
+    if (isComparison) {
+      xml += `  <url>\n`;
+      xml += `    <loc>${escapeXml(cleanBaseUrl + "/vs/" + post.slug)}</loc>\n`;
+      xml += `    <lastmod>${lastmod}</lastmod>\n`;
+      xml += `    <changefreq>weekly</changefreq>\n`;
+      xml += `    <priority>0.85</priority>\n`;
+      xml += `  </url>\n`;
+    } else {
+      xml += `  <url>\n`;
+      xml += `    <loc>${escapeXml(cleanBaseUrl + "/blog/" + post.slug)}</loc>\n`;
+      xml += `    <lastmod>${lastmod}</lastmod>\n`;
+      xml += `    <changefreq>monthly</changefreq>\n`;
+      xml += `    <priority>0.8</priority>\n`;
+      xml += `  </url>\n`;
+    }
+  }
+
+  xml += `</urlset>`;
+  return xml;
+}
+
+export function generateSitemapIndex(baseUrl: string, blogLastmod?: string): string {
+  const cleanBaseUrl = cleanBase(baseUrl);
+  const today = todayIso();
+  const blogMod = blogLastmod || today;
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  xml += `<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+  xml += `  <sitemap>\n`;
+  xml += `    <loc>${escapeXml(cleanBaseUrl + "/sitemap-static.xml")}</loc>\n`;
+  xml += `    <lastmod>${today}</lastmod>\n`;
+  xml += `  </sitemap>\n`;
+  xml += `  <sitemap>\n`;
+  xml += `    <loc>${escapeXml(cleanBaseUrl + "/sitemap-blog.xml")}</loc>\n`;
+  xml += `    <lastmod>${blogMod}</lastmod>\n`;
+  xml += `  </sitemap>\n`;
+  xml += `</sitemapindex>`;
+  return xml;
+}
+
+/**
+ * @deprecated Kept for backward compatibility. Combines static and blog sitemaps
+ * into one urlset. New code should serve the sitemap index instead.
+ */
 export function generateSitemap(baseUrl: string, blogPosts: BlogPost[]): string {
-  const cleanBaseUrl = (baseUrl || DEFAULT_BASE_URL).replace(/\/$/, "");
-  const today = new Date().toISOString().split("T")[0];
+  const cleanBaseUrl = cleanBase(baseUrl);
+  const today = todayIso();
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
   xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
@@ -104,27 +199,69 @@ export function generateSitemap(baseUrl: string, blogPosts: BlogPost[]): string 
   return xml;
 }
 
-interface SitemapCache {
+interface SitemapCacheEntry {
   xml: string;
   generatedAt: number;
 }
 
-let sitemapCache: SitemapCache | null = null;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
-export function getCachedSitemap(): string | null {
-  if (sitemapCache && Date.now() - sitemapCache.generatedAt < CACHE_TTL_MS) {
-    return sitemapCache.xml;
+const caches: Record<string, SitemapCacheEntry | null> = {
+  legacy: null,
+  index: null,
+  static: null,
+  blog: null,
+};
+
+function getCached(key: string): string | null {
+  const entry = caches[key];
+  if (entry && Date.now() - entry.generatedAt < CACHE_TTL_MS) {
+    return entry.xml;
   }
   return null;
 }
 
+function setCached(key: string, xml: string): void {
+  caches[key] = { xml, generatedAt: Date.now() };
+}
+
+export function getCachedSitemap(): string | null {
+  return getCached("legacy");
+}
+
 export function setCachedSitemap(xml: string): void {
-  sitemapCache = { xml, generatedAt: Date.now() };
+  setCached("legacy", xml);
+}
+
+export function getCachedSitemapIndex(): string | null {
+  return getCached("index");
+}
+
+export function setCachedSitemapIndex(xml: string): void {
+  setCached("index", xml);
+}
+
+export function getCachedStaticSitemap(): string | null {
+  return getCached("static");
+}
+
+export function setCachedStaticSitemap(xml: string): void {
+  setCached("static", xml);
+}
+
+export function getCachedBlogSitemap(): string | null {
+  return getCached("blog");
+}
+
+export function setCachedBlogSitemap(xml: string): void {
+  setCached("blog", xml);
 }
 
 export function invalidateSitemapCache(): void {
-  sitemapCache = null;
+  caches.legacy = null;
+  caches.index = null;
+  caches.static = null;
+  caches.blog = null;
 }
 
 export { DEFAULT_BASE_URL };
