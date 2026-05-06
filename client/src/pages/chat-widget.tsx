@@ -1017,8 +1017,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   }, [merchantConfig?.activeAgentId]);
 
   const visitorUpgradedRef = useRef(false);
+  const initialMessagesShownRef = useRef(false);
 
-  const { data: serverMessages } = useQuery<Message[]>({
+  useEffect(() => {
+    initialMessagesShownRef.current = false;
+  }, [sessionId]);
+
+  const { data: serverMessages, isLoading: isMessagesLoading } = useQuery<Message[]>({
     queryKey: ["/api/messages", sessionId],
     enabled: !!sessionId,
     refetchInterval: 2000,
@@ -1088,7 +1093,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     limitFallback?: boolean;
   }
   
-  const { data: sessionInfo } = useQuery<SessionInfo>({
+  const { data: sessionInfo, isLoading: isSessionInfoLoading } = useQuery<SessionInfo>({
     queryKey: [`/api/widget/session-info`, sessionId],
     enabled: !!sessionId,
     refetchInterval: 3000, // Poll for supervisor takeover
@@ -3787,7 +3792,60 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             )}
             {/* Add extra top padding when social panel is open to prevent overlap */}
             <div className={`space-y-4 p-4 ${socialIconsExpanded ? 'pt-16' : ''}`}>
-              {allMessages.map((msg, index) => {
+              {/* Skeleton shimmer: shown while session/messages are loading and no messages exist yet */}
+              {(isMessagesLoading || isSessionInfoLoading) && allMessages.length === 0 && (
+                <div className="flex flex-col gap-4" data-testid="widget-message-skeleton">
+                  {/* Skeleton: agent message left */}
+                  <div className="flex gap-2 items-end justify-start">
+                    <div
+                      className={`w-7 h-7 rounded-full shrink-0 ${widgetIsDark ? 'widget-msg-skeleton-dark' : 'widget-msg-skeleton'}`}
+                    />
+                    <div className="flex flex-col gap-1.5 max-w-[70%]">
+                      <div
+                        className={`h-4 w-44 rounded-2xl rounded-bl-sm ${widgetIsDark ? 'widget-msg-skeleton-dark' : 'widget-msg-skeleton'}`}
+                        style={{ animationDelay: '0ms' }}
+                      />
+                      <div
+                        className={`h-4 w-32 rounded-2xl rounded-bl-sm ${widgetIsDark ? 'widget-msg-skeleton-dark' : 'widget-msg-skeleton'}`}
+                        style={{ animationDelay: '75ms' }}
+                      />
+                    </div>
+                  </div>
+                  {/* Skeleton: customer message right */}
+                  <div className="flex gap-2 items-end justify-end">
+                    <div
+                      className={`h-4 w-28 rounded-2xl rounded-br-sm ${widgetIsDark ? 'widget-msg-skeleton-dark' : 'widget-msg-skeleton'}`}
+                      style={{ animationDelay: '150ms' }}
+                    />
+                  </div>
+                  {/* Skeleton: agent message left (longer) */}
+                  <div className="flex gap-2 items-end justify-start">
+                    <div
+                      className={`w-7 h-7 rounded-full shrink-0 ${widgetIsDark ? 'widget-msg-skeleton-dark' : 'widget-msg-skeleton'}`}
+                    />
+                    <div className="flex flex-col gap-1.5 max-w-[70%]">
+                      <div
+                        className={`h-4 w-52 rounded-2xl rounded-bl-sm ${widgetIsDark ? 'widget-msg-skeleton-dark' : 'widget-msg-skeleton'}`}
+                        style={{ animationDelay: '225ms' }}
+                      />
+                      <div
+                        className={`h-4 w-40 rounded-2xl rounded-bl-sm ${widgetIsDark ? 'widget-msg-skeleton-dark' : 'widget-msg-skeleton'}`}
+                        style={{ animationDelay: '300ms' }}
+                      />
+                      <div
+                        className={`h-4 w-36 rounded-2xl rounded-bl-sm ${widgetIsDark ? 'widget-msg-skeleton-dark' : 'widget-msg-skeleton'}`}
+                        style={{ animationDelay: '375ms' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+              {(() => {
+                const isFirstAppearance = allMessages.length > 0 && !initialMessagesShownRef.current;
+                if (isFirstAppearance) initialMessagesShownRef.current = true;
+                return (
+                <div className={`space-y-4 ${isFirstAppearance ? 'widget-messages-enter' : ''}`}>
+                {allMessages.map((msg, index) => {
                 const wIsCustomer = msg.from === "user";
                 const wIsLastAgentMsg = !wIsCustomer && index === allMessages.length - 1;
                 const wMsgReactions = widgetReactions.filter((r) => r.messageId === msg.id);
@@ -4575,6 +4633,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           )}
           <div ref={messagesEndRef} />
         </div>
+        );
+      })()}
+            </div>
       </ScrollArea>
 
       {suggestedQuestions.length > 0 && (
