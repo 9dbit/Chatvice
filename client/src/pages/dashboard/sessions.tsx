@@ -1447,7 +1447,7 @@ export default function SessionsPage() {
         </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 xl:grid-cols-[30%_1fr] gap-4 min-h-0">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 xl:grid-cols-[28%_1fr] gap-3 min-h-0 min-w-0">
         <div className={`lg:col-span-4 xl:col-span-1 flex flex-col min-h-0 min-w-0 ${selectedSession ? 'hidden lg:flex' : 'flex'}`}>
           <Card className="flex flex-col h-full">
             <CardHeader className="flex-shrink-0 py-3 px-4">
@@ -1624,8 +1624,8 @@ export default function SessionsPage() {
               </Button>
             </div>
           )}
-          <div className="flex flex-1 min-h-0 gap-3">
-          <Card className={`flex flex-col flex-1 min-h-0 transition-all duration-300 ${!previewContent ? 'w-full' : ''}`}>
+          <div className="flex flex-1 min-h-0 min-w-0 gap-3">
+          <Card className={`flex flex-col flex-1 min-h-0 min-w-0 transition-all duration-300 ${!previewContent ? 'w-full' : ''}`}>
             {selectedSession ? (
               <>
                 <CardHeader className="flex-shrink-0 border-b py-2 sm:py-3 px-3 sm:px-4">
@@ -2748,7 +2748,7 @@ export default function SessionsPage() {
           
           {/* Visitor Info Panel */}
           {showVisitorInfo && selectedSessionData && (
-            <Card className="flex flex-col h-full w-72 flex-shrink-0" data-testid="card-visitor-info-panel">
+            <Card className="flex flex-col h-full w-64 flex-shrink-0" data-testid="card-visitor-info-panel">
               <CardHeader className="flex-shrink-0 border-b py-2 px-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
