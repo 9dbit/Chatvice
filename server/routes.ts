@@ -29,6 +29,7 @@ import { createQRISPayment, createVAPayment, createBankTransferPayment, createPa
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification, sendEmailChangeOtp, sendQuota80Email, sendQuota100Email, sendSubscriptionExpiringEmail } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
+import { staticBlogMetaMap } from "@shared/static-blog-meta";
 import { db, pool } from "./db";
 import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } from "drizzle-orm";
 import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, blastCampaigns } from "@shared/schema";
@@ -2633,16 +2634,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const baseUrl = getBaseUrl(req);
     const pageUrl = `${baseUrl}${pagePath}`;
 
-    // Static blog article metadata for server-side injection fallback
-    const staticBlogMeta: Record<string, { title: string; description: string; author: string; date: string; category: string }> = {
-      "introducing-lexa1-ai-engine": { title: "Introducing LEXA1: The AI Engine Behind Chatvice", description: "Discover LEXA1, Chatvice's proprietary AI engine for customer service. Learn how it outperforms LiveChat, Zendesk, and Intercom alternatives with advanced NLP.", author: "Chatvice Team", date: "2025-12-09T00:00:00.000Z", category: "Product" },
-      "ai-transforming-customer-service-indonesia": { title: "How AI is Transforming Customer Service in Indonesia", description: "Explore how Indonesian businesses use AI chatbots like Chatvice for customer service. Compare with LiveChat, Zendesk alternatives for the local market.", author: "Chatvice Team", date: "2025-12-05T00:00:00.000Z", category: "Industry" },
-      "best-practices-training-ai-agent": { title: "Best Practices for Training Your AI Customer Service Agent", description: "Learn the best practices for training AI agents on Chatvice. Optimize your knowledge base and system prompt for better customer service automation.", author: "Chatvice Team", date: "2025-12-01T00:00:00.000Z", category: "Tutorial" },
-      "human-ai-collaboration-customer-support": { title: "Human-AI Collaboration in Modern Customer Support", description: "Discover how Chatvice enables seamless human-AI collaboration for customer support. Best practices for AI-to-human escalation and team coordination.", author: "Chatvice Team", date: "2025-11-25T00:00:00.000Z", category: "Industry" },
-      "multi-language-support-strategy": { title: "Building a Multi-Language Customer Support Strategy", description: "How to build a multi-language customer support strategy using AI. Chatvice supports Bahasa Indonesia, English, and 50+ languages automatically.", author: "Chatvice Team", date: "2025-11-20T00:00:00.000Z", category: "Tutorial" },
-      "chatvice-vs-livechat-zendesk-intercom": { title: "Chatvice vs LiveChat vs Zendesk vs Intercom: Full Comparison", description: "A detailed comparison of Chatvice against LiveChat, Zendesk, and Intercom. Which AI customer service platform is right for your business in 2025?", author: "Chatvice Team", date: "2025-11-10T00:00:00.000Z", category: "Comparison" },
-    };
-
     // Special handling for blog article pages — fetch from DB for accurate per-post meta + JSON-LD
     const blogSlugMatch = pagePath.match(/^\/blog\/([^/]+)$/);
     if (blogSlugMatch) {
@@ -2666,26 +2657,26 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           blogDateModified = (post as any).generatedAt ? new Date((post as any).generatedAt).toISOString() : blogDatePublished;
           blogHeadline = post.title;
           blogCategory = post.category || "Blog";
-        } else if (staticBlogMeta[slug]) {
-          // Fallback to static article metadata
-          const meta = staticBlogMeta[slug];
+        } else if (staticBlogMetaMap[slug]) {
+          // Fallback to static article metadata (shared/static-blog-meta.ts)
+          const meta = staticBlogMetaMap[slug];
           blogTitle = `${meta.title} | Chatvice Blog`;
           blogDescription = meta.description;
           blogAuthor = meta.author;
-          blogDatePublished = meta.date;
-          blogDateModified = meta.date;
+          blogDatePublished = meta.isoDate;
+          blogDateModified = meta.isoDate;
           blogHeadline = meta.title;
           blogCategory = meta.category;
         }
       } catch (_e) {
         // fall back to generic blog defaults set above
-        if (staticBlogMeta[slug]) {
-          const meta = staticBlogMeta[slug];
+        if (staticBlogMetaMap[slug]) {
+          const meta = staticBlogMetaMap[slug];
           blogTitle = `${meta.title} | Chatvice Blog`;
           blogDescription = meta.description;
           blogAuthor = meta.author;
-          blogDatePublished = meta.date;
-          blogDateModified = meta.date;
+          blogDatePublished = meta.isoDate;
+          blogDateModified = meta.isoDate;
           blogHeadline = meta.title;
           blogCategory = meta.category;
         }
