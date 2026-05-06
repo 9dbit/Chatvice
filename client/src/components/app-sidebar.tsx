@@ -772,15 +772,15 @@ export function AppSidebar() {
             <button 
               type="button"
               className={`flex items-center gap-2.5 p-2.5 w-full rounded-lg transition-all duration-200 ${
-                escalatedCount > 0
+                totalPendingMessages > 0
                   ? "text-white animate-pulse"
                   : isChatSessionsActive 
                     ? "bg-primary text-white" 
                     : "bg-primary/90 text-white hover:bg-primary hover:scale-[1.02] active:scale-[0.98]"
               }`}
               style={{ 
-                backgroundColor: escalatedCount > 0 ? "rgb(220 38 38)" : undefined,
-                boxShadow: escalatedCount > 0
+                backgroundColor: totalPendingMessages > 0 ? "rgb(220 38 38)" : undefined,
+                boxShadow: totalPendingMessages > 0
                   ? "0 4px 12px rgba(220, 38, 38, 0.5)"
                   : isChatSessionsActive 
                     ? "inset 0 2px 8px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(107, 92, 246, 0.4)" 
@@ -789,12 +789,12 @@ export function AppSidebar() {
             >
               <MessageSquare className="w-5 h-5 shrink-0" />
               <span className="font-medium flex-1 text-left">{t("dashboard.chatSessions")}</span>
-              {escalatedCount > 0 && (
+              {totalPendingMessages > 0 && (
                 <span
                   data-testid="badge-escalated-count"
                   className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-white text-red-600 text-xs font-bold leading-none shrink-0"
                 >
-                  {totalPendingMessages > 99 ? "99+" : totalPendingMessages > 0 ? totalPendingMessages : escalatedCount}
+                  {totalPendingMessages > 99 ? "99+" : totalPendingMessages}
                 </span>
               )}
             </button>

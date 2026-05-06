@@ -1448,7 +1448,7 @@ export default function SessionsPage() {
       </div>
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
-        <div className={`lg:col-span-5 xl:col-span-4 flex flex-col min-h-0 ${selectedSession ? 'hidden lg:flex' : 'flex'}`}>
+        <div className={`lg:col-span-4 xl:col-span-3 flex flex-col min-h-0 ${selectedSession ? 'hidden lg:flex' : 'flex'}`}>
           <Card className="flex flex-col h-full">
             <CardHeader className="flex-shrink-0 py-3 px-4">
               <div className="flex items-center gap-2">
@@ -1610,7 +1610,7 @@ export default function SessionsPage() {
           </Card>
         </div>
 
-        <div className={`lg:col-span-7 xl:col-span-8 flex flex-col min-h-0 gap-2 ${selectedSession ? 'flex' : 'hidden lg:flex'}`}>
+        <div className={`lg:col-span-8 xl:col-span-9 flex flex-col min-h-0 gap-2 ${selectedSession ? 'flex' : 'hidden lg:flex'}`}>
           {/* Mobile: back arrow shown above the card */}
           {selectedSession && (
             <div className="lg:hidden flex items-center">
@@ -2826,7 +2826,7 @@ export default function SessionsPage() {
                         href={selectedSessionData.pageUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-start gap-1.5 text-xs text-primary hover:underline break-all"
+                        className="flex items-start gap-1.5 text-xs text-sky-500 dark:text-sky-400 hover:underline break-all"
                         data-testid="link-current-page"
                       >
                         <ExternalLink className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
