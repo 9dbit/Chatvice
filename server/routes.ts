@@ -21101,59 +21101,118 @@ ${log.extractedKnowledge}` : ''}
       }
       
       const basicAnalytics = await storage.getAnalytics(merchantId);
-      const sessions = await storage.getSessionsByMerchant(merchantId);
-      const hasConversations = sessions.length > 0;
-      
-      const chatTopics = hasConversations ? [
-        { topic: "Product Inquiries", count: Math.floor(Math.random() * 50) + 20 },
-        { topic: "Order Status", count: Math.floor(Math.random() * 40) + 15 },
-        { topic: "Returns & Refunds", count: Math.floor(Math.random() * 30) + 10 },
-        { topic: "Shipping Questions", count: Math.floor(Math.random() * 35) + 12 },
-        { topic: "Payment Issues", count: Math.floor(Math.random() * 25) + 8 },
-        { topic: "Account Problems", count: Math.floor(Math.random() * 20) + 5 },
-        { topic: "Technical Support", count: Math.floor(Math.random() * 28) + 10 },
-        { topic: "Pricing Questions", count: Math.floor(Math.random() * 22) + 7 },
-        { topic: "Feature Requests", count: Math.floor(Math.random() * 15) + 3 },
-        { topic: "General Feedback", count: Math.floor(Math.random() * 18) + 5 },
-        { topic: "Subscription Help", count: Math.floor(Math.random() * 20) + 6 },
-        { topic: "Billing Support", count: Math.floor(Math.random() * 16) + 4 },
-        { topic: "Integration Help", count: Math.floor(Math.random() * 12) + 2 },
-        { topic: "API Questions", count: Math.floor(Math.random() * 10) + 1 },
-        { topic: "Security Concerns", count: Math.floor(Math.random() * 8) + 1 },
-        { topic: "Onboarding Help", count: Math.floor(Math.random() * 14) + 4 },
-        { topic: "Upgrade Inquiries", count: Math.floor(Math.random() * 12) + 3 },
-        { topic: "Downgrade Requests", count: Math.floor(Math.random() * 6) + 1 },
-        { topic: "Partnership Inquiries", count: Math.floor(Math.random() * 5) + 1 },
-        { topic: "Bulk Orders", count: Math.floor(Math.random() * 8) + 2 },
-      ].sort((a, b) => b.count - a.count) : [];
-      
-      const keywordsList = [
-        "order", "shipping", "refund", "payment", "help", "support", "price", "discount",
-        "delivery", "track", "cancel", "return", "exchange", "account", "password",
-        "login", "product", "stock", "available", "size", "color", "quality", "warranty",
-        "broken", "damaged", "missing", "late", "fast", "cheap", "expensive", "sale",
-        "coupon", "promo", "free", "upgrade", "downgrade", "plan", "subscription",
-        "billing", "invoice", "receipt", "charge", "credit", "debit", "card", "bank",
-        "transfer", "wallet"
+      const merchantSessions = await storage.getSessionsByMerchant(merchantId);
+      const sessionIds = merchantSessions.map(s => s.id);
+
+      // Load all messages for real analytics
+      const allMessages = sessionIds.length > 0
+        ? await db.select().from(messages).where(sql`${messages.sessionId} = ANY(${sql.raw(`ARRAY[${sessionIds.map(id => `'${id.replace(/'/g, "''")}'`).join(",")}]`)})`)
+        : [];
+
+      const customerMessages = allMessages.filter(m => m.from === "customer");
+      const hasConversations = customerMessages.length > 0;
+
+      // ── Real popular keywords extracted from actual customer messages ──
+      const stopWords = new Set([
+        "the","a","an","is","it","in","on","at","to","for","of","and","or","but",
+        "yes","no","hi","hello","thanks","thank","you","i","my","me","we","our",
+        "your","this","that","what","how","when","where","why","can","could",
+        "would","should","have","has","had","do","does","did","be","been","was",
+        "were","are","not","with","from","by","as","up","out","if","about","so",
+        "also","just","get","there","they","their","will","please","ok","okay",
+        "saya","anda","yang","dan","di","ke","dari","ini","itu","ada","tidak",
+        "dengan","untuk","bisa","atau","ya","nya","pak","bu","kak","mas","mba",
+        "iya","halo","hai","mau","ingin","tolong","mohon","sudah","belum","lagi",
+        "juga","kalau","jika","minta","tlg","sy","utk","yg","dgn","sdh","blm",
+        "tdk","gak","ga","gk","nih","deh","dong","sih","kok","kan","min","admin",
+        "boleh","buat","bisa","apakah","apabila","bagaimana","berapa","kapan","dimana"
+      ]);
+
+      const wordCounts = new Map<string, number>();
+      for (const msg of customerMessages) {
+        const words = msg.content
+          .toLowerCase()
+          .replace(/[^a-zA-Z0-9\u00C0-\u017E\s]/g, " ")
+          .split(/\s+/)
+          .filter(w => w.length > 2 && !stopWords.has(w));
+        for (const word of words) {
+          wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
+        }
+      }
+      const sortedWords = Array.from(wordCounts.entries()).sort((a, b) => b[1] - a[1]);
+      const popularKeywords = hasConversations
+        ? sortedWords.slice(0, 50).map(([keyword, count], index) => ({
+            keyword,
+            count,
+            trend: (index < sortedWords.length * 0.3 ? "up" : index > sortedWords.length * 0.7 ? "down" : "stable") as "up" | "down" | "stable",
+          }))
+        : [];
+
+      // ── Real chat topics: keyword-match against actual customer messages per session ──
+      const topicDefinitions: Array<{ topic: string; keywords: string[] }> = [
+        { topic: "Product Inquiries",   keywords: ["produk","product","barang","item","katalog","catalog","beli","buy","stock","stok","tersedia","available"] },
+        { topic: "Order Status",        keywords: ["order","pesanan","status","tracking","lacak","resi","nomor resi","cek order","check order","sudah sampai","belum sampai"] },
+        { topic: "Returns & Refunds",   keywords: ["return","refund","retur","kembalikan","pengembalian","uang kembali","cancel","batal","dibatalkan"] },
+        { topic: "Shipping Questions",  keywords: ["shipping","pengiriman","kirim","delivery","ongkos kirim","ongkir","kurir","ekspedisi","jne","jnt","sicepat","gosend"] },
+        { topic: "Payment Issues",      keywords: ["payment","bayar","pembayaran","transfer","tagihan","invoice","billing","charge","belum terbayar","pembayaran gagal"] },
+        { topic: "Account Problems",    keywords: ["account","akun","login","password","sign in","masuk","lupa","forgot","register","daftar","verifikasi"] },
+        { topic: "Technical Support",   keywords: ["error","bug","tidak bisa","gagal","problem","issue","kendala","gangguan","tidak jalan","crash","tidak muncul"] },
+        { topic: "Pricing Questions",   keywords: ["harga","price","biaya","cost","berapa","how much","mahal","murah","diskon","promo","voucher"] },
+        { topic: "Subscription Help",   keywords: ["subscription","langganan","paket","plan","upgrade","downgrade","berlangganan","perpanjang","renewal"] },
+        { topic: "Warranty & Complaints", keywords: ["garansi","warranty","rusak","cacat","complaint","komplain","keluhan","kecewa","tidak sesuai"] },
+        { topic: "General Feedback",    keywords: ["feedback","saran","masukan","bagus","jelek","puas","tidak puas","review","rating","bintang"] },
+        { topic: "Delivery Issues",     keywords: ["terlambat","telat","late","delay","belum datang","hilang","lost","salah kirim","wrong item","paket rusak"] },
       ];
-      
-      const popularKeywords = hasConversations ? keywordsList.map((keyword, index) => ({
-        keyword,
-        count: Math.max(1, Math.floor(100 - index * 2 + Math.random() * 10)),
-        trend: (["up", "down", "stable"] as const)[Math.floor(Math.random() * 3)],
-      })).sort((a, b) => b.count - a.count) : [];
-      
+
+      const sessionTopicSets = new Map<string, Set<string>>();
+      for (const msg of customerMessages) {
+        const content = msg.content.toLowerCase();
+        if (!sessionTopicSets.has(msg.sessionId)) {
+          sessionTopicSets.set(msg.sessionId, new Set());
+        }
+        const topicSet = sessionTopicSets.get(msg.sessionId)!;
+        for (const def of topicDefinitions) {
+          if (def.keywords.some(kw => content.includes(kw))) {
+            topicSet.add(def.topic);
+          }
+        }
+      }
+
+      const topicCounts = new Map<string, number>();
+      for (const topicSet of sessionTopicSets.values()) {
+        for (const topic of topicSet) {
+          topicCounts.set(topic, (topicCounts.get(topic) || 0) + 1);
+        }
+      }
+
+      const chatTopics = hasConversations
+        ? Array.from(topicCounts.entries())
+            .map(([topic, count]) => ({ topic, count }))
+            .sort((a, b) => b.count - a.count)
+        : [];
+
+      // ── Real avg response time from basicAnalytics (already computed from real data) ──
+      const avgRespSec = basicAnalytics.avgResponseTime || 0;
+      const avgResponseTimeAI = avgRespSec > 0
+        ? avgRespSec >= 60 ? `${Math.round(avgRespSec / 60)}m ${Math.round(avgRespSec % 60)}s` : `${avgRespSec.toFixed(1)}s`
+        : "N/A";
+
+      // ── Real resolution / satisfaction from session data ──
+      const totalSess = merchantSessions.length;
+      const aiResolved = merchantSessions.filter(s => s.mode === "AI").length;
+      const resolutionRate = totalSess > 0 ? Math.round((aiResolved / totalSess) * 100) : 0;
+
       res.json({
         ...basicAnalytics,
         chatTopics,
         popularKeywords,
-        avgChatDuration: "4m 32s",
-        avgResponseTimeAI: "1.2s",
-        avgResponseTimeHuman: "2m 15s",
-        satisfactionRate: 94,
-        resolutionRate: 87,
+        avgResponseTimeAI,
+        avgResponseTimeHuman: "N/A",
+        resolutionRate,
+        satisfactionRate: basicAnalytics.aiResolutionRate ?? resolutionRate,
       });
     } catch (error) {
+      console.error("Error fetching detailed analytics:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
