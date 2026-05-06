@@ -2315,7 +2315,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   // Maximized state: mobile = full height below header (top: 60px), desktop = 20% larger
   const getContainerClasses = () => {
     if (isExternalEmbed || previewMode) {
-      return "absolute inset-0 w-full h-full overflow-hidden flex flex-col";
+      return "chatvice-widget-ready-enter absolute inset-0 w-full h-full overflow-hidden flex flex-col";
     }
     if (embedded) {
       return "w-full overflow-hidden flex flex-col";
@@ -2460,8 +2460,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       }
     : {};
 
-  // Layer 1: For external embeds, if none of the style sources are ready yet, render an
-  // invisible placeholder so the user never sees the flash of default purple/light styles.
+  // Layer 1: For external embeds, if none of the style sources are ready yet, render a
+  // branded loading animation so the widget never flashes unstyled default colors.
   // "Config known" = live config loaded, OR chatvice.js passed URL params, OR localStorage cache hit,
   // OR merchant uses pure defaults (primaryColor=#6b5dfc, theme=light, no iconUrl) — in which case
   // the default render is already correct and hiding would cause an unnecessary blank state.
@@ -2471,7 +2471,92 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const isUncustomizedMerchant = urlColorIsDefault && urlThemeIsDefault;
   const configKnown = !!merchantConfig || !!(urlParamColor && urlParamTheme) || !!cachedWidgetStyle || isUncustomizedMerchant;
   if (isExternalEmbed && !configKnown) {
-    return <div style={{ position: "absolute", inset: 0, opacity: 0, pointerEvents: "none" }} />;
+    // Use whatever color/theme hints chatvice.js may have already passed via URL params,
+    // falling back to the default brand color and light theme.
+    const loadingColor = (() => {
+      if (!urlParamColor) return DEFAULT_PRIMARY;
+      try {
+        return decodeURIComponent(urlParamColor).replace("%23", "#");
+      } catch {
+        return DEFAULT_PRIMARY;
+      }
+    })();
+    const loadingIsDark = urlParamTheme === "dark";
+    const loadingBg = loadingIsDark ? "rgba(24,24,27,0.92)" : "rgba(255,255,255,0.92)";
+    const loadingBorder = loadingIsDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)";
+    const loadingTrack = loadingIsDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.08)";
+    const loadingTextColor = loadingIsDark ? "rgba(255,255,255,0.30)" : "rgba(0,0,0,0.28)";
+    const loadingRadius = "28px";
+    return (
+      <div
+        className="chatvice-widget-loading-enter"
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          borderRadius: loadingRadius,
+          border: `1px solid ${loadingBorder}`,
+          boxShadow: `0 8px 32px rgba(0,0,0,${loadingIsDark ? 0.4 : 0.12})`,
+          backdropFilter: "blur(24px) saturate(150%)",
+          WebkitBackdropFilter: "blur(24px) saturate(150%)",
+          backgroundColor: loadingBg,
+        }}
+      >
+        {/* Skeleton header strip using brand color */}
+        <div
+          style={{
+            height: "56px",
+            flexShrink: 0,
+            backgroundColor: loadingColor,
+            borderRadius: `${loadingRadius} ${loadingRadius} 0 0`,
+            opacity: 0.92,
+          }}
+        />
+        {/* Center area: spinner + subtle label */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "12px",
+          }}
+        >
+          <div
+            style={{
+              width: "32px",
+              height: "32px",
+              borderRadius: "50%",
+              border: `3px solid ${loadingTrack}`,
+              borderTopColor: loadingColor,
+              animation: "chatvice-widget-spin 0.75s linear infinite",
+            }}
+          />
+          <span
+            style={{
+              fontSize: "11px",
+              letterSpacing: "0.02em",
+              color: loadingTextColor,
+              animation: "chatvice-widget-pulse 2s ease-in-out infinite",
+            }}
+          >
+            Loading…
+          </span>
+        </div>
+        {/* Skeleton footer strip */}
+        <div
+          style={{
+            height: "52px",
+            flexShrink: 0,
+            borderTop: `1px solid ${loadingBorder}`,
+            borderRadius: `0 0 ${loadingRadius} ${loadingRadius}`,
+          }}
+        />
+      </div>
+    );
   }
 
   return (
