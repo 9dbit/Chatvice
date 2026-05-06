@@ -3,6 +3,21 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { SchemaMarkup } from "./seo/schema-markup";
 
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Chatvice",
+  "url": "https://chatvice.app",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "https://chatvice.app/blog?q={search_term_string}"
+    },
+    "query-input": "required name=search_term_string"
+  }
+};
+
 const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
@@ -338,5 +353,10 @@ export function DynamicHead() {
     }
   }, [settings, isError]);
 
-  return <SchemaMarkup id="org-jsonld" schema={organizationSchema} />;
+  return (
+    <>
+      <SchemaMarkup id="org-jsonld" schema={organizationSchema} />
+      <SchemaMarkup id="website-jsonld" schema={websiteSchema} />
+    </>
+  );
 }

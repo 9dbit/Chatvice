@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -85,6 +85,9 @@ function mergeWithStaticFallback(dbPosts: BlogPost[]): BlogPost[] {
 export default function BlogPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const categories = ["All", "Product", "Tutorial", "Industry", "Insights", "Comparison"];
+  const search = useSearch();
+  const searchParams = new URLSearchParams(search);
+  const searchQuery = searchParams.get("q") || "";
 
   const { data: rawPosts = [], isLoading } = useQuery<BlogPost[]>({
     queryKey: ["/api/blog/posts"],
@@ -92,9 +95,21 @@ export default function BlogPage() {
 
   const posts = mergeWithStaticFallback(rawPosts);
 
-  const filteredArticles = selectedCategory === "All"
+  const categoryFiltered = selectedCategory === "All"
     ? posts
     : posts.filter((article) => article.category === selectedCategory);
+
+  const filteredArticles = searchQuery.trim()
+    ? categoryFiltered.filter((article) => {
+        const q = searchQuery.toLowerCase();
+        return (
+          article.title.toLowerCase().includes(q) ||
+          article.excerpt.toLowerCase().includes(q) ||
+          article.category.toLowerCase().includes(q) ||
+          article.tags.some((t) => t.toLowerCase().includes(q))
+        );
+      })
+    : categoryFiltered;
 
   const featuredArticles = filteredArticles.filter((p) => p.featured);
   const regularArticles = filteredArticles.filter((p) => !p.featured);
