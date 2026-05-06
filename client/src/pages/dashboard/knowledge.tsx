@@ -3212,12 +3212,12 @@ export default function KnowledgePage() {
                         <p className="text-xs font-medium" style={{ color: "#71717a" }}>Widget preview:</p>
                         <div className="rounded-md p-3" style={{ backgroundColor: "#1c1c1f", border: "1px solid #3f3f46" }}>
                           <div className="flex items-end gap-2">
-                            <div
-                              className="flex-shrink-0 rounded-full flex items-center justify-center text-xs font-bold"
-                              style={{ width: 28, height: 28, backgroundColor: "#3f3f46", color: "#a1a1aa" }}
-                            >
-                              AI
-                            </div>
+                            <Avatar className="flex-shrink-0" style={{ width: 28, height: 28 }}>
+                              <AvatarImage src={selectedAgent?.photoUrl || ""} alt={selectedAgent?.name || "Agent"} />
+                              <AvatarFallback className="text-[10px] font-bold" style={{ backgroundColor: "#3f3f46", color: "#a1a1aa" }}>
+                                {selectedAgent?.name ? selectedAgent.name.slice(0, 2).toUpperCase() : <Bot className="w-3 h-3" />}
+                              </AvatarFallback>
+                            </Avatar>
                             <div
                               className="rounded-2xl rounded-bl-sm px-3 py-2 text-sm leading-snug"
                               style={{ backgroundColor: "#27272a", color: "#f4f4f5", maxWidth: "80%", wordBreak: "break-word" }}
