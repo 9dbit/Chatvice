@@ -32,6 +32,13 @@ const STATIC_PAGES: StaticPage[] = [
   { url: "/cookies", priority: "0.3", changefreq: "yearly" },
   { url: "/gdpr", priority: "0.3", changefreq: "yearly" },
   { url: "/security", priority: "0.4", changefreq: "yearly" },
+  // Solution pages (Indonesian long-tail SEO landing pages)
+  { url: "/chatbot-customer-service", priority: "0.9", changefreq: "weekly" },
+  { url: "/ai-chatbot-whatsapp", priority: "0.9", changefreq: "weekly" },
+  { url: "/live-chat-website", priority: "0.9", changefreq: "weekly" },
+  { url: "/chatbot-toko-online", priority: "0.9", changefreq: "weekly" },
+  { url: "/ai-chatbot-gratis", priority: "0.9", changefreq: "weekly" },
+  { url: "/alternatif-tawkto", priority: "0.9", changefreq: "weekly" },
   // Competitor comparison pages
   { url: "/vs/livechat", priority: "0.85", changefreq: "weekly" },
   { url: "/vs/tawkto", priority: "0.85", changefreq: "weekly" },
