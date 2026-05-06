@@ -26,7 +26,7 @@ export function PublicNavbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [location] = useLocation();
   const { resolvedTheme } = useTheme();
-  const isOnComparePage = location.startsWith("/vs/");
+  const isOnComparePage = location.startsWith("/vs/") || location === "/compare";
   const chatviceLogo = resolvedTheme === "dark" ? chatviceLogoDark : chatviceLogoLight;
 
   useEffect(() => {
@@ -104,7 +104,16 @@ export function PublicNavbar() {
                   Compare
                   <ChevronDown className="w-3.5 h-3.5" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-44">
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/compare"
+                      data-testid="nav-compare-overview"
+                      className={`cursor-pointer font-medium ${location === "/compare" ? "text-foreground" : ""}`}
+                    >
+                      All comparisons →
+                    </Link>
+                  </DropdownMenuItem>
                   {compareLinks.map((link) => (
                     <DropdownMenuItem key={link.href} asChild>
                       <Link
@@ -165,9 +174,13 @@ export function PublicNavbar() {
               </Link>
             ))}
             <div className="border-b border-border">
-              <p className={`text-lg font-medium py-3 ${isOnComparePage ? "text-foreground" : "text-muted-foreground"}`}>
+              <Link
+                href="/compare"
+                className={`block text-lg font-medium py-3 transition-colors ${isOnComparePage ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 Compare
-              </p>
+              </Link>
               <div className="flex flex-col gap-1 pb-3 pl-3">
                 {compareLinks.map((link) => (
                   <Link
@@ -237,6 +250,7 @@ export function PublicFooter() {
       { label: "Chatbot Pendidikan", href: "/chatbot-pendidikan" },
     ],
     compare: [
+      { label: "Compare All", href: "/compare" },
       { label: "vs Tawk.to", href: "/vs/tawkto" },
       { label: "vs Intercom", href: "/vs/intercom" },
       { label: "vs Tidio", href: "/vs/tidio" },

@@ -39,7 +39,8 @@ const STATIC_PAGES: StaticPage[] = [
   { url: "/chatbot-toko-online", priority: "0.9", changefreq: "weekly" },
   { url: "/ai-chatbot-gratis", priority: "0.9", changefreq: "weekly" },
   { url: "/alternatif-tawkto", priority: "0.9", changefreq: "weekly" },
-  // Competitor comparison pages
+  // Competitor comparison overview + individual pages
+  { url: "/compare", priority: "0.90", changefreq: "weekly" },
   { url: "/vs/livechat", priority: "0.85", changefreq: "weekly" },
   { url: "/vs/tawkto", priority: "0.85", changefreq: "weekly" },
   { url: "/vs/chatport", priority: "0.85", changefreq: "weekly" },

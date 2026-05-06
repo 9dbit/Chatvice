@@ -41,6 +41,7 @@ import PartnersPage from "@/pages/company/partners";
 import AffiliatePage from "@/pages/company/affiliate";
 
 import ComparisonPage from "@/pages/comparison/comparison-page";
+import CompareOverviewPage from "@/pages/comparison/compare-overview";
 import { competitorsData } from "@/pages/comparison/competitors-data";
 import SolutionPage from "@/pages/solutions/solution-page";
 import { solutionsBySlug } from "@/pages/solutions/solutions-data";
@@ -134,6 +135,7 @@ function GlobalHelpBubble() {
     '/docs',
     '/help',
     '/marketing-tools',
+    '/compare',
     '/vs',
     '/chatbot-customer-service',
     '/ai-chatbot-whatsapp',
@@ -264,6 +266,8 @@ function MainRouter() {
       <Route path="/affiliate" component={AffiliatePage} />
 
       <Route path="/marketing-tools" component={MarketingToolsPage} />
+
+      <Route path="/compare" component={CompareOverviewPage} />
 
       <Route path="/vs/:competitor">
         {(params) => {
