@@ -589,7 +589,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const isExternalEmbed = showCloseButton;
   // Style hint params injected by chatvice.js after it fetches config — available on first paint
   const urlParamColor = urlParams.get("color") || null;
-  const urlParamTheme = (urlParams.get("theme") || null) as "light" | "dark" | null;
+  // Validate theme against allowed values to prevent injection of unexpected strings
+  const _rawTheme = urlParams.get("theme");
+  const urlParamTheme: "light" | "dark" | null = _rawTheme === "dark" ? "dark" : _rawTheme === "light" ? "light" : null;
   
   const [isOpen, setIsOpen] = useState(embedded);
   
@@ -950,7 +952,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   // Layer 2: Persist style-critical fields to localStorage so repeat visitors get
   // correct colors on the very first paint (before the API call finishes).
   const WIDGET_CACHE_KEY = `chatvice_cfg_${merchantId}`;
-  const [cachedWidgetStyle] = useState<{ primaryColor: string; widgetTheme: string } | null>(() => {
+  const [cachedWidgetStyle] = useState<{
+    primaryColor: string;
+    widgetTheme: string;
+    iconUrl?: string;
+    agentName?: string;
+    agentPhotoUrl?: string;
+  } | null>(() => {
     if (previewMode || !merchantId) return null;
     try {
       const raw = localStorage.getItem(`chatvice_cfg_${merchantId}`);
@@ -963,6 +971,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       localStorage.setItem(WIDGET_CACHE_KEY, JSON.stringify({
         primaryColor: merchantConfig.primaryColor || "#6b5dfc",
         widgetTheme: merchantConfig.widgetTheme || "light",
+        iconUrl: merchantConfig.iconUrl || "",
+        agentName: merchantConfig.agentName || "",
+        agentPhotoUrl: merchantConfig.agentPhotoUrl || "",
       }));
     } catch {}
   }, [merchantConfig, previewMode, WIDGET_CACHE_KEY]);
@@ -2447,9 +2458,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   // Layer 1: For external embeds, if none of the style sources are ready yet, render an
   // invisible placeholder so the user never sees the flash of default purple/light styles.
-  // "Config known" = live config loaded, OR chatvice.js passed URL params, OR localStorage cache hit.
-  // previewMode is excluded — it always renders immediately with whatever colors are set in the editor.
-  const configKnown = !!merchantConfig || !!(urlParamColor && urlParamTheme) || !!cachedWidgetStyle;
+  // "Config known" = live config loaded, OR chatvice.js passed URL params, OR localStorage cache hit,
+  // OR merchant uses pure defaults (primaryColor=#6b5dfc, theme=light, no iconUrl) — in which case
+  // the default render is already correct and hiding would cause an unnecessary blank state.
+  const DEFAULT_PRIMARY = "#6b5dfc";
+  const urlThemeIsDefault = !urlParamTheme || urlParamTheme === "light";
+  const urlColorIsDefault = !urlParamColor || urlParamColor.replace("%23", "#").toLowerCase() === DEFAULT_PRIMARY;
+  const isUncustomizedMerchant = urlColorIsDefault && urlThemeIsDefault;
+  const configKnown = !!merchantConfig || !!(urlParamColor && urlParamTheme) || !!cachedWidgetStyle || isUncustomizedMerchant;
   if (isExternalEmbed && !configKnown) {
     return <div style={{ position: "absolute", inset: 0, opacity: 0, pointerEvents: "none" }} />;
   }
