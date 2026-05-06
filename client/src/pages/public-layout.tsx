@@ -1,18 +1,32 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useTheme } from "@/components/theme-provider";
-import { Menu, X, Brain, Twitter, Linkedin, Github, Instagram } from "lucide-react";
+import { Menu, X, Brain, Twitter, Linkedin, Github, Instagram, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
+import { competitorsData } from "./comparison/competitors-data";
+
+const compareLinks = Object.values(competitorsData).map((c) => ({
+  label: `vs ${c.name}`,
+  href: `/vs/${c.slug}`,
+}));
 
 export function PublicNavbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [location] = useLocation();
   const { resolvedTheme } = useTheme();
+  const isOnComparePage = location.startsWith("/vs/");
   const chatviceLogo = resolvedTheme === "dark" ? chatviceLogoDark : chatviceLogoLight;
 
   useEffect(() => {
@@ -82,6 +96,28 @@ export function PublicNavbar() {
                   {link.label}
                 </Link>
               ))}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  data-testid="nav-compare-trigger"
+                  className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-foreground outline-none ${isOnComparePage ? "text-foreground" : "text-muted-foreground"}`}
+                >
+                  Compare
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                  {compareLinks.map((link) => (
+                    <DropdownMenuItem key={link.href} asChild>
+                      <Link
+                        href={link.href}
+                        data-testid={`nav-compare-${link.href.split("/vs/")[1]}`}
+                        className={`cursor-pointer ${location === link.href ? "font-medium text-foreground" : ""}`}
+                      >
+                        {link.label}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <div className="flex items-center gap-3">
@@ -116,7 +152,7 @@ export function PublicNavbar() {
       </nav>
 
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-background pt-20 px-4 lg:hidden">
+        <div className="fixed inset-0 z-40 bg-background pt-20 px-4 lg:hidden overflow-y-auto">
           <div className="flex flex-col gap-4">
             {navLinks.map((link) => (
               <Link 
@@ -128,6 +164,24 @@ export function PublicNavbar() {
                 {link.label}
               </Link>
             ))}
+            <div className="border-b border-border">
+              <p className={`text-lg font-medium py-3 ${isOnComparePage ? "text-foreground" : "text-muted-foreground"}`}>
+                Compare
+              </p>
+              <div className="flex flex-col gap-1 pb-3 pl-3">
+                {compareLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    data-testid={`mobile-compare-${link.href.split("/vs/")[1]}`}
+                    className={`text-base py-2 transition-colors ${location === link.href ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
             <div className="flex flex-col gap-3 pt-4">
               <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
                 <Button variant="outline" className="w-full">Sign in</Button>
