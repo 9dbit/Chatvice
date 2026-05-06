@@ -19618,10 +19618,11 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
   // Public endpoint: submit password recovery form data from widget
   app.post("/api/widget/submit-password-recovery", async (req, res) => {
     try {
-      const { sessionId, merchantId, username, bankAccount, phoneNumber } = req.body;
+      const { sessionId, merchantId, username, bankAccount, phoneNumber, locale } = req.body;
       if (!sessionId || !merchantId || !username || !bankAccount || !phoneNumber) {
         return res.status(400).json({ error: "All fields required" });
       }
+      const ticketLocale = (typeof locale === "string" && ["id", "en"].includes(locale)) ? locale : "en";
 
       const session = await storage.getSession(sessionId);
       if (!session) return res.status(404).json({ error: "Session not found" });
@@ -19712,7 +19713,7 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
       });
 
       // Broadcast ticket card message to chat
-      const ticketPayload = { ticketId, username, bankAccount };
+      const ticketPayload = { ticketId, username, bankAccount, locale: ticketLocale };
       await storage.createMessage({ sessionId, from: "chatvice", content: "", messageType: "password_recovery_ticket", payload: ticketPayload });
       broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "", messageType: "password_recovery_ticket", payload: ticketPayload } });
 

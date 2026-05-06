@@ -167,6 +167,7 @@ interface PasswordRecoveryTicketPayload {
   ticketId: string;
   username: string;
   bankAccount: string;
+  locale?: string;
 }
 type PasswordRecoveryTicketMessage = Message & {
   messageType: "password_recovery_ticket";
@@ -176,6 +177,35 @@ function isPasswordRecoveryTicket(msg: Message): msg is PasswordRecoveryTicketMe
   return (msg as any).messageType === "password_recovery_ticket"
     && !!(msg as any).payload?.ticketId;
 }
+
+const prTicketI18n: Record<string, {
+  headerTitle: string;
+  statusPending: string;
+  ticketIdLabel: string;
+  usernameLabel: string;
+  bankLabel: string;
+  copyTitle: string;
+  footerNote: string;
+}> = {
+  id: {
+    headerTitle: "Tiket Reset Password",
+    statusPending: "Menunggu",
+    ticketIdLabel: "ID Tiket",
+    usernameLabel: "Username",
+    bankLabel: "Bank Terdaftar",
+    copyTitle: "Salin ID Tiket",
+    footerNote: "Sedang diproses — password baru akan dikirim ke chat ini.",
+  },
+  en: {
+    headerTitle: "Password Reset Ticket",
+    statusPending: "Pending",
+    ticketIdLabel: "Ticket ID",
+    usernameLabel: "Username",
+    bankLabel: "Registered Bank",
+    copyTitle: "Copy Ticket ID",
+    footerNote: "Processing — your new password will be sent to this chat.",
+  },
+};
 
 interface MerchantConfig {
   merchantId?: string;
@@ -4014,7 +4044,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                         const res = await fetch("/api/widget/submit-password-recovery", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ sessionId, merchantId, username: formVals.username.trim(), bankAccount: formVals.bankAccount.trim(), phoneNumber: formVals.phoneNumber.trim() }),
+                          body: JSON.stringify({ sessionId, merchantId, username: formVals.username.trim(), bankAccount: formVals.bankAccount.trim(), phoneNumber: formVals.phoneNumber.trim(), locale: prLocale }),
                         });
                         const data = await res.json();
                         if (res.ok && data.success) {
@@ -4140,6 +4170,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     const p = (msg as PasswordRecoveryTicketMessage).payload;
                     const ticketKey = p.ticketId;
                     const copied = copiedTicketIds[ticketKey];
+                    const tkt = prTicketI18n[p.locale ?? "en"] ?? prTicketI18n.en;
 
                     const copyTicketId = () => {
                       navigator.clipboard.writeText(p.ticketId).catch(() => {});
@@ -4165,7 +4196,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                           <div className="flex items-center gap-2 min-w-0">
                             <TicketCheck className="w-3.5 h-3.5 shrink-0" style={{ color: primaryColor }} />
                             <span className="text-xs font-semibold" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.9)' : '#111827' }}>
-                              Reset Password Ticket
+                              {tkt.headerTitle}
                             </span>
                           </div>
                           {/* Status badge */}
@@ -4173,7 +4204,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                             className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide"
                             style={{ backgroundColor: 'rgba(234,179,8,0.15)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.3)' }}
                           >
-                            Pending
+                            {tkt.statusPending}
                           </span>
                         </div>
 
@@ -4183,7 +4214,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                           <div className="flex items-center justify-between gap-2">
                             <div className="min-w-0">
                               <p className="text-[9px] font-medium uppercase tracking-wide" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.45)' : '#9ca3af' }}>
-                                Ticket ID
+                                {tkt.ticketIdLabel}
                               </p>
                               <p className="text-[11px] font-mono font-semibold" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.9)' : '#111827' }}>
                                 {p.ticketId}
@@ -4193,7 +4224,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                               onClick={copyTicketId}
                               className="shrink-0 p-1 rounded-md transition-colors"
                               style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }}
-                              title="Copy Ticket ID"
+                              title={tkt.copyTitle}
                               data-testid="button-copy-ticket-id"
                             >
                               {copied ? <CheckCheck className="w-3 h-3" style={{ color: primaryColor }} /> : <Copy className="w-3 h-3" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.5)' : '#6b7280' }} />}
@@ -4205,7 +4236,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                           {/* Username */}
                           <div>
                             <p className="text-[9px] font-medium uppercase tracking-wide" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.45)' : '#9ca3af' }}>
-                              Username
+                              {tkt.usernameLabel}
                             </p>
                             <p className="text-xs" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.85)' : '#374151' }}>
                               {p.username}
@@ -4215,7 +4246,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                           {/* Bank Account */}
                           <div>
                             <p className="text-[9px] font-medium uppercase tracking-wide" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.45)' : '#9ca3af' }}>
-                              Bank Terdaftar
+                              {tkt.bankLabel}
                             </p>
                             <p className="text-xs" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.85)' : '#374151' }}>
                               {p.bankAccount}
@@ -4226,7 +4257,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
                           {/* Footer note */}
                           <p className="text-[10px]" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.45)' : '#9ca3af' }}>
-                            Sedang diproses — password baru akan dikirim ke chat ini.
+                            {tkt.footerNote}
                           </p>
                         </div>
                       </div>
