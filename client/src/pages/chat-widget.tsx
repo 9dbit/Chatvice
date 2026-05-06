@@ -967,10 +967,51 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     } catch { return { cachedConfig: undefined, cachedVersion: "" }; }
   }, [previewMode, merchantId, WIDGET_CACHE_KEY]);
 
+  // Lightweight pre-check: fetch only the version token to validate the cached config
+  // before committing to it as initialData.  Only runs when there is something in cache
+  // to verify (cachedVersion is non-empty).  When there is no cached version we skip this
+  // and go straight to the full status fetch.
+  const versionCheckRequired = !previewMode && !!merchantId && !!cachedVersion;
+  // isFetched becomes true on both success AND error, so the full config fetch is never
+  // permanently blocked even if the version-check endpoint is unavailable.
+  const { data: versionCheckData, isFetched: versionCheckSettled, isError: versionCheckError } = useQuery<{ configVersion: string }>({
+    queryKey: ["/api/merchant/config-version", merchantId],
+    enabled: versionCheckRequired,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false, // fail fast so a network error doesn't add multiple RTTs of delay
+  });
+
+  // Resolve whether the cached payload is safe to use as initialData.
+  // - No cache → undefined (fetch fresh)
+  // - Version check still in-flight → undefined (wait; avoids stale flash)
+  // - Version check failed (network error / 5xx) → fall back to cachedConfig optimistically
+  // - Server version matches cached version → use cachedConfig (instant paint)
+  // - Server version differs → undefined (fetch fresh; no stale flash)
+  const validatedInitialData = useMemo<MerchantConfig | undefined>(() => {
+    if (!cachedConfig) return undefined;
+    // No versioned cache entry → legacy/unversioned cache; use it as-is.
+    if (!versionCheckRequired) return cachedConfig;
+    // Version check still in-flight → withhold initialData to prevent a stale flash.
+    if (!versionCheckSettled) return undefined;
+    // Version check failed — apply cached config optimistically (best effort).
+    if (versionCheckError) return cachedConfig;
+    const serverVersion = versionCheckData?.configVersion || "";
+    // Server has no version stored yet (fresh boot) → treat cache as valid.
+    if (!serverVersion) return cachedConfig;
+    // Versions match — cache is fresh.
+    if (serverVersion === cachedVersion) return cachedConfig;
+    // Versions differ — cache is stale; withhold it so fresh data renders first.
+    console.debug("[Chatvice] Version pre-check: cache is stale — withholding initialData.");
+    return undefined;
+  }, [cachedConfig, versionCheckRequired, versionCheckSettled, versionCheckError, versionCheckData, cachedVersion]);
+
   const { data: merchantConfig } = useQuery<MerchantConfig>({
     queryKey: ["/api/merchant/status", merchantId],
-    enabled: !!merchantId,
-    initialData: cachedConfig,
+    // Gate on versionCheckSettled (true on both success and error) so a failed
+    // version-check never permanently blocks the full config fetch.
+    enabled: !!merchantId && (!versionCheckRequired || versionCheckSettled),
+    initialData: validatedInitialData,
     staleTime: 0,
   });
 

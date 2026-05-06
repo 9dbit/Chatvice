@@ -5869,6 +5869,23 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
+  // Lightweight version-check endpoint — returns only the configVersion token so
+  // clients can verify their localStorage cache before committing to stale data.
+  // Always responds with { configVersion: string } — even on error paths — so
+  // clients never need to handle a different shape from this endpoint.
+  app.get("/api/merchant/config-version/:merchantId", async (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type");
+    try {
+      const merchant = await resolveMerchant(req.params.merchantId);
+      if (!merchant) return res.json({ configVersion: "" });
+      return res.json({ configVersion: getConfigVersion(merchant.id) });
+    } catch {
+      return res.json({ configVersion: "" });
+    }
+  });
+
   app.post("/api/merchant/config", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
@@ -16442,20 +16459,28 @@ Rules:
     applyAnimations(config);
   }
 
-  // On repeat visits: apply cached config immediately (zero network wait).
-  // The cached entry stores { config, ws, version } so the background fetch can
-  // compare versions and explicitly invalidate the entry when config has changed.
+  // On repeat visits: verify the cached config version before applying it.
+  // A lightweight GET /api/merchant/config-version call is made in parallel with
+  // the full config fetch.  If versions match the cached config is applied
+  // immediately (zero visual wait).  If they differ we wait for the fresh
+  // full-config fetch before calling applyConfig, eliminating the stale flash.
   var cachedJsVersion = "";
+  var cachedJsEntry = null;
   try {
     var _cachedJs = localStorage.getItem(JS_CACHE_KEY);
     if (_cachedJs) {
       var _parsed = JSON.parse(_cachedJs);
       if (_parsed && _parsed.config) {
         cachedJsVersion = _parsed.version || "";
-        applyConfig(_parsed.config, _parsed.ws || null);
+        cachedJsEntry = _parsed;
       }
     }
   } catch(e) {}
+
+  // Shared flag: set to true when fetchConfig successfully applies fresh network data.
+  // The version-check handler reads this flag to avoid overwriting fresh data with
+  // stale cached config if the full fetch wins the race against the version check.
+  var _freshNetworkApplied = false;
 
   function fetchConfig(retryCount) {
     retryCount = retryCount || 0;
@@ -16475,6 +16500,9 @@ Rules:
         }
         // Persist full config (with version) to localStorage for the next visit.
         try { localStorage.setItem(JS_CACHE_KEY, JSON.stringify({ config: config, ws: ws, version: freshVersion })); } catch(e) {}
+        // Mark that fresh data has been applied so the version-check callback
+        // does not overwrite it with stale cached content.
+        _freshNetworkApplied = true;
         // Always re-apply after a network fetch: config OR widget-style (ws) may
         // have changed independently of the config version token.
         applyConfig(config, ws);
@@ -16485,8 +16513,42 @@ Rules:
         }
       });
   }
-  fetchConfig(0);
-  
+
+  // Version-aware cache bootstrap.
+  // Fire the lightweight config-version endpoint in parallel with the full fetch.
+  // Only apply the cached config when the server confirms the version matches AND
+  // the network fetch has not already applied fresh data (_freshNetworkApplied).
+  // This prevents stale-cache overwriting fresh data when fetchConfig wins the race.
+  if (cachedJsEntry && cachedJsVersion) {
+    fetch(baseUrl + "/api/merchant/config-version/" + merchantId + "?t=" + Date.now())
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(vd) {
+        // Only apply cached config if network hasn't already applied fresh data.
+        if (_freshNetworkApplied) return;
+        var serverVersion = vd ? (vd.configVersion || "") : "";
+        // No server version yet (fresh server boot) — treat cache as valid.
+        if (!serverVersion || serverVersion === cachedJsVersion) {
+          applyConfig(cachedJsEntry.config, cachedJsEntry.ws || null);
+        }
+        // Version mismatch: applyConfig will be called by fetchConfig when it resolves.
+      })
+      .catch(function() {
+        // Network error on version check — apply cached config optimistically,
+        // but only if the network fetch hasn't already provided fresh data.
+        if (!_freshNetworkApplied) {
+          applyConfig(cachedJsEntry.config, cachedJsEntry.ws || null);
+        }
+      });
+    fetchConfig(0);
+  } else {
+    // No versioned cache entry — apply any unversioned cached config immediately
+    // (legacy behaviour) and kick off a fresh fetch.
+    if (cachedJsEntry) {
+      applyConfig(cachedJsEntry.config, cachedJsEntry.ws || null);
+    }
+    fetchConfig(0);
+  }
+
   button.onmouseover = function() { button.style.transform = "scale(1.05)"; };
   button.onmouseout = function() { button.style.transform = "scale(1)"; };
   
