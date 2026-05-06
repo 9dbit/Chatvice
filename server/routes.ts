@@ -6912,7 +6912,9 @@ Sitemap: ${baseUrl}/sitemap.xml`;
                   broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: fallbackText } });
                 }
               }
-              const formPayload = { type: "password_recovery_form" };
+              const prIdPattern = /\b(saya|aku|lupa|kata\s*sandi|tolong|gimana|bisa|mau|mohon|kak|mas|mbak|dong|yang|dengan|untuk|tidak|iya|bantu|silakan|bagaimana|kami|anda|apakah|boleh|sudah|belum|butuh|perlu|coba|ingat)\b/i;
+              const formLocale = prIdPattern.test(message) ? "id" : "en";
+              const formPayload = { type: "password_recovery_form", locale: formLocale };
               await storage.createMessage({ sessionId, from: "chatvice", content: "", messageType: "password_recovery_form", payload: formPayload });
               broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: "", messageType: "password_recovery_form", payload: formPayload } });
               console.log(`[PassRecov] Showed form card for session ${sessionId}`);

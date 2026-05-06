@@ -104,7 +104,60 @@ function isHotelOptions(msg: Message): msg is HotelOptionsMessage {
 // ── Password Recovery Form / Ticket Types ──────────────────────────────────
 type PasswordRecoveryFormMessage = Message & {
   messageType: "password_recovery_form";
-  payload: { type: "password_recovery_form" };
+  payload: { type: "password_recovery_form"; locale?: string };
+};
+
+const prFormI18n: Record<string, {
+  title: string;
+  description: string;
+  usernameLabel: string;
+  usernamePlaceholder: string;
+  bankLabel: string;
+  bankPlaceholder: string;
+  phoneLabel: string;
+  phonePlaceholder: string;
+  validationError: string;
+  submitLabel: string;
+  submittingLabel: string;
+  successTitle: string;
+  successSubtitle: string;
+  networkError: string;
+  serverError: string;
+}> = {
+  id: {
+    title: "Form Reset Password",
+    description: "Isi form berikut untuk mengajukan reset password:",
+    usernameLabel: "Username Akun",
+    usernamePlaceholder: "Masukkan username",
+    bankLabel: "Nama Bank Terdaftar",
+    bankPlaceholder: "Contoh: BCA, Mandiri, BRI",
+    phoneLabel: "Nomor HP Terdaftar",
+    phonePlaceholder: "Contoh: 081234567890",
+    validationError: "Semua field wajib diisi.",
+    submitLabel: "Ajukan Reset Password",
+    submittingLabel: "Memproses...",
+    successTitle: "Permintaan terkirim",
+    successSubtitle: "Ticket ID akan muncul di bawah.",
+    networkError: "Koneksi gagal. Silakan coba lagi.",
+    serverError: "Terjadi kesalahan. Silakan coba lagi.",
+  },
+  en: {
+    title: "Password Reset Form",
+    description: "Please fill in the form below to submit your password reset request:",
+    usernameLabel: "Account Username",
+    usernamePlaceholder: "Enter your username",
+    bankLabel: "Registered Bank Name",
+    bankPlaceholder: "e.g. Chase, Bank of America",
+    phoneLabel: "Registered Phone Number",
+    phonePlaceholder: "e.g. +1 555 123 4567",
+    validationError: "All fields are required.",
+    submitLabel: "Submit Reset Request",
+    submittingLabel: "Processing...",
+    successTitle: "Request submitted",
+    successSubtitle: "Your ticket ID will appear below.",
+    networkError: "Connection failed. Please try again.",
+    serverError: "Something went wrong. Please try again.",
+  },
 };
 function isPasswordRecoveryForm(msg: Message): msg is PasswordRecoveryFormMessage {
   return (msg as any).messageType === "password_recovery_form";
@@ -3937,6 +3990,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     const formKey = (msg as any).id || String(index);
                     const formVals = passwordFormValues[formKey] || { username: "", bankAccount: "", phoneNumber: "" };
                     const formState = passwordFormStates[formKey] || { submitting: false, submitted: false };
+                    const prLocale = (msg as PasswordRecoveryFormMessage).payload?.locale || "en";
+                    const t = prFormI18n[prLocale] ?? prFormI18n.id;
 
                     const inputStyle = {
                       backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
@@ -3951,7 +4006,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
                     const handleSubmit = async () => {
                       if (!formVals.username.trim() || !formVals.bankAccount.trim() || !formVals.phoneNumber.trim()) {
-                        setPasswordFormStates(prev => ({ ...prev, [formKey]: { ...formState, error: "Semua field wajib diisi." } }));
+                        setPasswordFormStates(prev => ({ ...prev, [formKey]: { ...formState, error: t.validationError } }));
                         return;
                       }
                       setPasswordFormStates(prev => ({ ...prev, [formKey]: { submitting: true, submitted: false, error: undefined } }));
@@ -3965,10 +4020,10 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                         if (res.ok && data.success) {
                           setPasswordFormStates(prev => ({ ...prev, [formKey]: { submitting: false, submitted: true, ticketId: data.ticketId } }));
                         } else {
-                          setPasswordFormStates(prev => ({ ...prev, [formKey]: { submitting: false, submitted: false, error: data.error || "Terjadi kesalahan. Silakan coba lagi." } }));
+                          setPasswordFormStates(prev => ({ ...prev, [formKey]: { submitting: false, submitted: false, error: data.error || t.serverError } }));
                         }
                       } catch {
-                        setPasswordFormStates(prev => ({ ...prev, [formKey]: { submitting: false, submitted: false, error: "Koneksi gagal. Silakan coba lagi." } }));
+                        setPasswordFormStates(prev => ({ ...prev, [formKey]: { submitting: false, submitted: false, error: t.networkError } }));
                       }
                     };
 
@@ -3989,7 +4044,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                         >
                           <Lock className="w-3.5 h-3.5 shrink-0" style={{ color: primaryColor }} />
                           <span className="text-xs font-semibold" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.9)' : '#111827' }}>
-                            Form Reset Password
+                            {t.title}
                           </span>
                         </div>
 
@@ -3997,29 +4052,29 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                           <div className="px-3 py-4 flex flex-col items-center gap-2 text-center">
                             <TicketCheck className="w-7 h-7" style={{ color: primaryColor }} />
                             <p className="text-xs font-medium" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.85)' : '#111827' }}>
-                              Permintaan terkirim
+                              {t.successTitle}
                             </p>
                             <p className="text-[11px]" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.55)' : '#6b7280' }}>
-                              Ticket ID akan muncul di bawah.
+                              {t.successSubtitle}
                             </p>
                           </div>
                         ) : (
                           <div className="px-3 py-3 space-y-2.5">
                             <p className="text-[11px]" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.6)' : '#6b7280' }}>
-                              Isi form berikut untuk mengajukan reset password:
+                              {t.description}
                             </p>
 
                             {/* Username */}
                             <div className="space-y-1">
                               <label className="text-[10px] font-medium" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.65)' : '#4b5563' }}>
-                                Username Akun
+                                {t.usernameLabel}
                               </label>
                               <input
                                 type="text"
                                 style={inputStyle}
                                 value={formVals.username}
                                 onChange={e => setPasswordFormValues(prev => ({ ...prev, [formKey]: { ...formVals, username: e.target.value } }))}
-                                placeholder="Masukkan username"
+                                placeholder={t.usernamePlaceholder}
                                 disabled={formState.submitting}
                                 data-testid="input-pr-username"
                               />
@@ -4028,14 +4083,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                             {/* Bank Account */}
                             <div className="space-y-1">
                               <label className="text-[10px] font-medium" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.65)' : '#4b5563' }}>
-                                Nama Bank Terdaftar
+                                {t.bankLabel}
                               </label>
                               <input
                                 type="text"
                                 style={inputStyle}
                                 value={formVals.bankAccount}
                                 onChange={e => setPasswordFormValues(prev => ({ ...prev, [formKey]: { ...formVals, bankAccount: e.target.value } }))}
-                                placeholder="Contoh: BCA, Mandiri, BRI"
+                                placeholder={t.bankPlaceholder}
                                 disabled={formState.submitting}
                                 data-testid="input-pr-bank"
                               />
@@ -4044,14 +4099,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                             {/* Phone Number */}
                             <div className="space-y-1">
                               <label className="text-[10px] font-medium" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.65)' : '#4b5563' }}>
-                                Nomor HP Terdaftar
+                                {t.phoneLabel}
                               </label>
                               <input
                                 type="tel"
                                 style={inputStyle}
                                 value={formVals.phoneNumber}
                                 onChange={e => setPasswordFormValues(prev => ({ ...prev, [formKey]: { ...formVals, phoneNumber: e.target.value } }))}
-                                placeholder="Contoh: 081234567890"
+                                placeholder={t.phonePlaceholder}
                                 disabled={formState.submitting}
                                 data-testid="input-pr-phone"
                               />
@@ -4071,9 +4126,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                               data-testid="button-pr-submit"
                             >
                               {formState.submitting ? (
-                                <><Loader2 className="w-3 h-3 animate-spin" /> Memproses...</>
+                                <><Loader2 className="w-3 h-3 animate-spin" /> {t.submittingLabel}</>
                               ) : (
-                                <><Lock className="w-3 h-3" /> Ajukan Reset Password</>
+                                <><Lock className="w-3 h-3" /> {t.submitLabel}</>
                               )}
                             </button>
                           </div>
