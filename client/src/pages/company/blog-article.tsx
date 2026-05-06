@@ -26,10 +26,11 @@ import {
 } from "lucide-react";
 import { SiWhatsapp, SiTelegram, SiLinkedin, SiFacebook } from "react-icons/si";
 import { FaXTwitter } from "react-icons/fa6";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import PublicPageLayout from "../public-layout";
 import { blogArticles } from "./blog-data";
+import { SchemaMarkup } from "@/components/seo/schema-markup";
 
 import lexa1Image from "@assets/IMG_0322_1765176461601.jpeg";
 import indonesiaAIImage from "@assets/IMG_0323_1765176461601.jpeg";
@@ -111,6 +112,46 @@ export default function BlogArticlePage() {
     tags: staticArticle.tags,
   } as BlogPost : null);
 
+  const articleSchema = useMemo(() => {
+    if (!article) return null;
+    const baseUrl = "https://chatvice.app";
+    const articleUrl = `${baseUrl}/blog/${slug}`;
+    const datePublished = article.publishedAt || article.generatedAt || new Date().toISOString();
+    const heroImg = getHeroImage(slug, article.heroImageKey);
+    const absoluteHeroImg = heroImg ? `${baseUrl}${heroImg}` : null;
+    return {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": article.title,
+      "description": article.metaDescription,
+      "datePublished": datePublished,
+      "dateModified": datePublished,
+      "author": { "@type": "Person", "name": article.author },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Chatvice",
+        "logo": { "@type": "ImageObject", "url": `${baseUrl}/og/home.png` }
+      },
+      "url": articleUrl,
+      ...(absoluteHeroImg ? { "image": { "@type": "ImageObject", "url": absoluteHeroImg } } : {}),
+      "mainEntityOfPage": { "@type": "WebPage", "@id": articleUrl }
+    };
+  }, [slug, article]);
+
+  const breadcrumbSchema = useMemo(() => {
+    if (!article) return null;
+    const baseUrl = "https://chatvice.app";
+    return {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": baseUrl },
+        { "@type": "ListItem", "position": 2, "name": "Blog", "item": `${baseUrl}/blog` },
+        { "@type": "ListItem", "position": 3, "name": article.title, "item": `${baseUrl}/blog/${slug}` }
+      ]
+    };
+  }, [slug, article]);
+
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/blog/${slug}` : `https://chatvice.app/blog/${slug}`;
   const shareTitle = article?.title || "Chatvice Blog";
   const shareText = article?.metaDescription || "";
@@ -190,6 +231,8 @@ export default function BlogArticlePage() {
       title={`${article.title} | Chatvice Blog`}
       description={article.metaDescription}
     >
+      {articleSchema && <SchemaMarkup id="blog-article-jsonld" schema={articleSchema} />}
+      {breadcrumbSchema && <SchemaMarkup id="blog-breadcrumb-jsonld" schema={breadcrumbSchema} />}
       <article className="py-8 md:py-12">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <Link href="/blog">

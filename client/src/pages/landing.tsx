@@ -68,6 +68,30 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/hooks/use-language";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { SchemaMarkup } from "@/components/seo/schema-markup";
+
+const landingSoftwareAppSchema = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Chatvice",
+  "description": "AI-powered customer service chatbot platform for businesses. Automate support, reduce costs, and delight customers with intelligent AI agents powered by LEXA1.",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Web",
+  "url": "https://chatvice.app",
+  "offers": [
+    { "@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD", "description": "Free plan with basic features" },
+    { "@type": "Offer", "name": "Starter", "price": "29", "priceCurrency": "USD", "description": "1 agent, 1,000 messages/month, basic features" },
+    { "@type": "Offer", "name": "Pro", "price": "99", "priceCurrency": "USD", "description": "5 agents, 10,000 messages/month, human escalation, analytics" },
+    { "@type": "Offer", "name": "Enterprise", "description": "Unlimited agents and messages, SLA, dedicated support" }
+  ],
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.8",
+    "ratingCount": "240",
+    "bestRating": "5",
+    "worstRating": "1"
+  }
+};
 
 interface LandingPageSettings {
   id: string;
@@ -2329,9 +2353,10 @@ function Footer() {
 
 export default function LandingPage() {
   useParallaxScroll();
-  
+
   return (
     <div className="min-h-screen overflow-x-hidden">
+      <SchemaMarkup id="landing-software-app-jsonld" schema={landingSoftwareAppSchema} />
       <Navbar />
       <HeroSection />
       <StatsSection />

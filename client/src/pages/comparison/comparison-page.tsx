@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { SchemaMarkup } from "@/components/seo/schema-markup";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,6 +56,15 @@ export default function ComparisonPage({ competitor }: ComparisonPageProps) {
     };
   }, [competitor.slug, competitor.faqs]);
 
+  const breadcrumbSchema = useMemo(() => ({
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://chatvice.app" },
+      { "@type": "ListItem", "position": 2, "name": `Chatvice vs ${competitor.name}`, "item": `https://chatvice.app/vs/${competitor.slug}` }
+    ]
+  }), [competitor.slug, competitor.name]);
+
   const chatviceFeatureCount = competitor.features.filter(
     (f) => f.chatvice === true || (typeof f.chatvice === "string" && f.chatvice.length > 0)
   ).length;
@@ -67,6 +77,7 @@ export default function ComparisonPage({ competitor }: ComparisonPageProps) {
       title={competitor.metaTitle}
       description={competitor.metaDescription}
     >
+      <SchemaMarkup id={`vs-${competitor.slug}-breadcrumb-jsonld`} schema={breadcrumbSchema} />
       <section className="bg-purple-600 text-white py-20">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <Badge className="bg-white/20 text-white mb-4">

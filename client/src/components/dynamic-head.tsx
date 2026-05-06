@@ -1,6 +1,28 @@
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { SchemaMarkup } from "./seo/schema-markup";
+
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Chatvice",
+  "url": "https://chatvice.app",
+  "logo": "https://chatvice.app/og/home.png",
+  "description": "AI-powered customer service chatbot platform for businesses. Automate support, reduce costs, and delight customers with intelligent AI agents powered by LEXA1.",
+  "sameAs": [
+    "https://twitter.com/chatvice",
+    "https://www.linkedin.com/company/chatvice",
+    "https://github.com/chatvice",
+    "https://www.instagram.com/chatvice"
+  ],
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "contactType": "customer support",
+    "email": "hello@chatvice.app",
+    "availableLanguage": ["English", "Indonesian"]
+  }
+};
 
 interface LandingPageSettings {
   logoUrl?: string;
@@ -292,5 +314,5 @@ export function DynamicHead() {
     }
   }, [settings, isError]);
 
-  return null;
+  return <SchemaMarkup id="org-jsonld" schema={organizationSchema} />;
 }

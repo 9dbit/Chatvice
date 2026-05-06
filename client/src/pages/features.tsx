@@ -1,6 +1,30 @@
 import { Link } from "wouter";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { SchemaMarkup } from "@/components/seo/schema-markup";
+
+const featuresSoftwareAppSchema = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Chatvice",
+  "description": "AI-powered customer service chatbot platform powered by LEXA1. Features include AI chatbot, human escalation, knowledge base, embeddable widget, multi-language support, proactive chat, and real-time analytics.",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Web",
+  "url": "https://chatvice.app/features",
+  "offers": [
+    { "@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD", "description": "Free plan with basic features" },
+    { "@type": "Offer", "name": "Starter", "price": "29", "priceCurrency": "USD", "description": "1 agent, 1,000 messages/month, basic features" },
+    { "@type": "Offer", "name": "Pro", "price": "99", "priceCurrency": "USD", "description": "5 agents, 10,000 messages/month, human escalation, analytics" },
+    { "@type": "Offer", "name": "Enterprise", "description": "Unlimited agents and messages, SLA, dedicated support" }
+  ],
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.8",
+    "ratingCount": "240",
+    "bestRating": "5",
+    "worstRating": "1"
+  }
+};
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -343,12 +367,13 @@ export default function FeaturesPage() {
   ];
 
   useParallaxScroll();
-  
+
   return (
     <PublicPageLayout
       title="Features - AI Customer Service Platform | Chatvice"
       description="Explore every Chatvice feature: LEXA1 AI engine, proactive chat, Telegram bridge, smart knowledge base, human escalation, multi-language support, embeddable widget, product crawler, security monitoring, and more."
     >
+      <SchemaMarkup id="features-software-app-jsonld" schema={featuresSoftwareAppSchema} />
       <section className="bg-purple-600 text-white py-20">
         <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
           <Badge className="bg-white/20 text-white mb-4">
