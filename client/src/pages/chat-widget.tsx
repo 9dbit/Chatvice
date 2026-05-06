@@ -239,6 +239,7 @@ interface MerchantConfig {
   proactiveChatDingEnabled?: boolean;
   proactiveChatGreetingDelay?: number;
   proactiveChatTemplates?: string[];
+  configVersion?: string;
 }
 
 interface NotificationSettings {
@@ -946,14 +947,24 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   // Layer 2: Cache the full merchantConfig in localStorage so repeat visitors get
   // the complete widget content on the very first paint (no network wait).
+  // Cache format: { payload: MerchantConfig, version: string }
+  // The version token is compared against the freshly-fetched configVersion so we
+  // can detect stale entries and drop them before they cause a visible stale flash.
   // previewMode always skips cache and fetches fresh.
   const WIDGET_CACHE_KEY = `chatvice_cfg_${merchantId}`;
-  const cachedConfig = useMemo<MerchantConfig | undefined>(() => {
-    if (previewMode || !merchantId) return undefined;
+
+  const { cachedConfig, cachedVersion } = useMemo<{ cachedConfig: MerchantConfig | undefined; cachedVersion: string }>(() => {
+    if (previewMode || !merchantId) return { cachedConfig: undefined, cachedVersion: "" };
     try {
       const raw = localStorage.getItem(WIDGET_CACHE_KEY);
-      return raw ? (JSON.parse(raw) as MerchantConfig) : undefined;
-    } catch { return undefined; }
+      if (!raw) return { cachedConfig: undefined, cachedVersion: "" };
+      const parsed = JSON.parse(raw);
+      // Support both new format { payload, version } and legacy format (plain config object).
+      if (parsed && parsed.payload) {
+        return { cachedConfig: parsed.payload as MerchantConfig, cachedVersion: parsed.version || "" };
+      }
+      return { cachedConfig: parsed as MerchantConfig, cachedVersion: "" };
+    } catch { return { cachedConfig: undefined, cachedVersion: "" }; }
   }, [previewMode, merchantId, WIDGET_CACHE_KEY]);
 
   const { data: merchantConfig } = useQuery<MerchantConfig>({
@@ -965,13 +976,23 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   // Keep the full config cache refreshed after every successful API fetch.
   // We compare a stable field to avoid writing on the initialData reference itself.
+  // When the freshly-fetched configVersion differs from the cached version the entry
+  // is explicitly removed (invalidated) before the fresh data is written, so the
+  // next visit always starts with an up-to-date payload.
   const merchantConfigJson = merchantConfig ? JSON.stringify(merchantConfig) : null;
   useEffect(() => {
     if (!merchantConfig || previewMode) return;
     try {
-      localStorage.setItem(WIDGET_CACHE_KEY, JSON.stringify(merchantConfig));
+      const freshVersion = merchantConfig.configVersion || "";
+      if (freshVersion && cachedVersion && freshVersion !== cachedVersion) {
+        // Version mismatch: the cached entry is stale. Explicitly remove it so
+        // there is no window where a concurrent read could still serve old data.
+        console.debug("[Chatvice] Widget config changed (version mismatch) — invalidating stale cache.");
+        localStorage.removeItem(WIDGET_CACHE_KEY);
+      }
+      localStorage.setItem(WIDGET_CACHE_KEY, JSON.stringify({ payload: merchantConfig, version: freshVersion }));
     } catch {}
-  }, [merchantConfigJson, previewMode, WIDGET_CACHE_KEY]);
+  }, [merchantConfigJson, previewMode, WIDGET_CACHE_KEY, cachedVersion]);
 
   // Derive the style fields used below from merchantConfig (was cachedWidgetStyle).
   const cachedWidgetStyle = merchantConfig ? {

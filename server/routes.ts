@@ -1944,6 +1944,18 @@ ${knowledgeContext || "No specific knowledge base configured yet."}`
 
 const responseCache = new Map<string, { data: any; expiresAt: number }>();
 
+// Per-merchant config version store — bumped whenever any widget-visible setting changes.
+// Clients embed this token in their localStorage cache so they can detect stale entries.
+const configVersionStore = new Map<string, string>();
+
+function getConfigVersion(merchantId: string): string {
+  return configVersionStore.get(merchantId) || "";
+}
+
+function bumpConfigVersion(merchantId: string): void {
+  configVersionStore.set(merchantId, Date.now().toString());
+}
+
 function getCached(key: string): any | null {
   const entry = responseCache.get(key);
   if (entry && Date.now() < entry.expiresAt) return entry.data;
@@ -5655,6 +5667,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         proactiveChatDingEnabled: merchant.proactiveChatDingEnabled ?? false,
         proactiveChatGreetingDelay: merchant.proactiveChatGreetingDelay ?? 8,
         proactiveChatTemplates: merchant.proactiveChatTemplates ?? [],
+        configVersion: getConfigVersion(merchant.id),
       };
       setCache(cacheKey, statusResponse, 30);
       res.json(statusResponse);
@@ -5682,6 +5695,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
         return res.status(404).json({ error: "Merchant not found" });
       }
       invalidateCache("merchant-status:");
+      bumpConfigVersion(merchantId);
       res.json({ success: true, config: updated });
     } catch (error: any) {
       console.error("Config save error:", error);
@@ -5739,6 +5753,7 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       // Invalidate the merchant status cache so the embedded widget picks up
       // changes to proactiveChatEnabled and related fields immediately
       invalidateCache(`merchant-status:${merchantId}`);
+      bumpConfigVersion(merchantId);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -16230,11 +16245,15 @@ Rules:
   }
 
   // On repeat visits: apply cached config immediately (zero network wait).
+  // The cached entry stores { config, ws, version } so the background fetch can
+  // compare versions and explicitly invalidate the entry when config has changed.
+  var cachedJsVersion = "";
   try {
     var _cachedJs = localStorage.getItem(JS_CACHE_KEY);
     if (_cachedJs) {
       var _parsed = JSON.parse(_cachedJs);
       if (_parsed && _parsed.config) {
+        cachedJsVersion = _parsed.version || "";
         applyConfig(_parsed.config, _parsed.ws || null);
       }
     }
@@ -16249,8 +16268,17 @@ Rules:
     ]).then(function(results) {
         var config = results[0];
         var ws = results[1] || null;
-        // Persist full config to localStorage for instant rendering on next visit.
-        try { localStorage.setItem(JS_CACHE_KEY, JSON.stringify({ config: config, ws: ws })); } catch(e) {}
+        var freshVersion = config.configVersion || "";
+        // If the version token has changed the cached entry is stale — remove it
+        // explicitly before writing the fresh payload so any concurrent read
+        // cannot accidentally serve the outdated config.
+        if (cachedJsVersion && freshVersion && freshVersion !== cachedJsVersion) {
+          try { localStorage.removeItem(JS_CACHE_KEY); } catch(e) {}
+        }
+        // Persist full config (with version) to localStorage for the next visit.
+        try { localStorage.setItem(JS_CACHE_KEY, JSON.stringify({ config: config, ws: ws, version: freshVersion })); } catch(e) {}
+        // Always re-apply after a network fetch: config OR widget-style (ws) may
+        // have changed independently of the config version token.
         applyConfig(config, ws);
       })
       .catch(function(err) { 
@@ -17816,6 +17844,9 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         if (Object.keys(widgetUpdates).length > 0) {
           await storage.updateMerchant(merchantId, widgetUpdates);
         }
+        // Active agent was updated — widget-visible fields may have changed
+        invalidateCache(`merchant-status:${merchantId}`);
+        bumpConfigVersion(merchantId);
       }
       
       res.json(updated);
@@ -17867,6 +17898,9 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         if (Object.keys(syncUpdates).length > 0) {
           await storage.updateMerchant(merchantId, syncUpdates);
         }
+        // Agent is active — widget-visible settings changed, bump version
+        invalidateCache(`merchant-status:${merchantId}`);
+        bumpConfigVersion(merchantId);
       }
       
       res.json({ success: true, agent: updated });
