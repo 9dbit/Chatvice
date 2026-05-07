@@ -146,6 +146,7 @@ export const merchants = pgTable("merchants", {
   onboardingDomainRegistered: boolean("onboarding_domain_registered").default(false),
   onboardingKnowledgeConfigured: boolean("onboarding_knowledge_configured").default(false),
   onboardingDeployed: boolean("onboarding_deployed").default(false),
+  onboardingTutorialsViewed: text("onboarding_tutorials_viewed").array().default([]),
 });
 
 // Email verification tokens for merchant registration

@@ -123,6 +123,35 @@ export function GettingStartedChecklist({
     },
   });
 
+  const tutorialsViewed = merchant?.onboardingTutorialsViewed || [];
+  const markTutorialViewedMutation = useMutation({
+    mutationFn: (tutorialId: string) =>
+      apiRequest("POST", `/api/merchant/onboarding/tutorial/${tutorialId}/viewed`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/profile"] });
+    },
+  });
+
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (autoOpenedRef.current) return;
+    if (!merchant || dismissed || collapsed) return;
+    const firstUnseen = onboardingPhases.find(
+      (p) => !completionMap[p.id] && !tutorialsViewed.includes(p.id),
+    );
+    if (firstUnseen) {
+      autoOpenedRef.current = true;
+      setTutorialPhase(firstUnseen);
+    }
+  }, [merchant, dismissed, collapsed, tutorialsViewed.length]);
+
+  function closeTutorial() {
+    if (tutorialPhase && !tutorialsViewed.includes(tutorialPhase.id)) {
+      markTutorialViewedMutation.mutate(tutorialPhase.id);
+    }
+    setTutorialPhase(null);
+  }
+
   useEffect(() => {
     if (
       allDone &&
@@ -308,7 +337,7 @@ export function GettingStartedChecklist({
         )}
       </Card>
 
-      <Dialog open={tutorialPhase !== null} onOpenChange={(open) => !open && setTutorialPhase(null)}>
+      <Dialog open={tutorialPhase !== null} onOpenChange={(open) => !open && closeTutorial()}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto" data-testid="dialog-tutorial">
           {tutorialPhase && (
             <>
@@ -354,7 +383,7 @@ export function GettingStartedChecklist({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setTutorialPhase(null)}
+                  onClick={closeTutorial}
                   data-testid="button-tutorial-close"
                 >
                   Tutup
@@ -363,7 +392,7 @@ export function GettingStartedChecklist({
                   size="sm"
                   onClick={() => {
                     const href = tutorialPhase.deepLinkHref;
-                    setTutorialPhase(null);
+                    closeTutorial();
                     navigate(href);
                   }}
                   data-testid="button-tutorial-open-page"

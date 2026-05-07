@@ -5691,20 +5691,44 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
   });
 
   // Generic checkpoint complete/reset endpoints (Task #286)
-  const ONBOARDING_CHECKPOINT_FLAGS: Record<string, "onboardingWidgetInstalled" | "onboardingPrechatConfigured" | "onboardingDomainRegistered" | "onboardingKnowledgeConfigured" | "onboardingDeployed"> = {
+  type OnboardingFlagKey =
+    | "onboardingWidgetInstalled"
+    | "onboardingPrechatConfigured"
+    | "onboardingDomainRegistered"
+    | "onboardingKnowledgeConfigured"
+    | "onboardingDeployed";
+  const ONBOARDING_CHECKPOINT_FLAGS: Record<string, OnboardingFlagKey> = {
     "widget-settings": "onboardingWidgetInstalled",
     "prechat": "onboardingPrechatConfigured",
     "domain": "onboardingDomainRegistered",
     "knowledge": "onboardingKnowledgeConfigured",
     "deploy": "onboardingDeployed",
   };
+  const VALID_TUTORIAL_IDS = new Set([
+    "agent",
+    "widget-settings",
+    "prechat",
+    "domain",
+    "knowledge",
+    "deploy",
+  ]);
+
+  function setOnboardingFlag(flag: OnboardingFlagKey, value: boolean): Partial<Pick<Merchant, OnboardingFlagKey>> {
+    switch (flag) {
+      case "onboardingWidgetInstalled": return { onboardingWidgetInstalled: value };
+      case "onboardingPrechatConfigured": return { onboardingPrechatConfigured: value };
+      case "onboardingDomainRegistered": return { onboardingDomainRegistered: value };
+      case "onboardingKnowledgeConfigured": return { onboardingKnowledgeConfigured: value };
+      case "onboardingDeployed": return { onboardingDeployed: value };
+    }
+  }
 
   app.post("/api/merchant/onboarding/checkpoint/:id/complete", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
       const flag = ONBOARDING_CHECKPOINT_FLAGS[req.params.id];
       if (!flag) return res.status(400).json({ error: "Invalid checkpoint id" });
-      await storage.updateMerchant(merchantId, { [flag]: true } as any);
+      await storage.updateMerchant(merchantId, setOnboardingFlag(flag, true));
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -5716,8 +5740,27 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       const merchantId = req.session.merchantId!;
       const flag = ONBOARDING_CHECKPOINT_FLAGS[req.params.id];
       if (!flag) return res.status(400).json({ error: "Invalid checkpoint id" });
-      await storage.updateMerchant(merchantId, { [flag]: false } as any);
+      await storage.updateMerchant(merchantId, setOnboardingFlag(flag, false));
       res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/merchant/onboarding/tutorial/:id/viewed", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const id = req.params.id;
+      if (!VALID_TUTORIAL_IDS.has(id)) return res.status(400).json({ error: "Invalid tutorial id" });
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+      const current = merchant.onboardingTutorialsViewed || [];
+      if (current.includes(id)) {
+        return res.json({ success: true, viewed: current });
+      }
+      const updated = [...current, id];
+      await storage.updateMerchant(merchantId, { onboardingTutorialsViewed: updated });
+      res.json({ success: true, viewed: updated });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
