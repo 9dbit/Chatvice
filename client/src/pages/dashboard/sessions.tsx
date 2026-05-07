@@ -1763,7 +1763,7 @@ export default function SessionsPage() {
               size="icon"
               variant="ghost"
               onClick={() => setSelectedSession(null)}
-              className="md:hidden absolute top-2 left-2 z-30 h-8 w-8 rounded-full border border-border/60 bg-background/90 backdrop-blur shadow-sm"
+              className="md:hidden absolute -top-11 left-0 z-30 h-8 w-8 rounded-full border border-border/60 bg-background/90 backdrop-blur shadow-sm"
               aria-label="Kembali ke daftar"
               data-testid="button-back-to-session-list"
             >
@@ -1774,7 +1774,7 @@ export default function SessionsPage() {
           <Card className={`flex flex-col flex-1 min-h-0 min-w-0 transition-all duration-300 ${!previewContent ? 'w-full' : ''}`}>
             {selectedSession ? (
               <>
-                <CardHeader className="flex-shrink-0 border-b py-2 sm:py-3 pl-12 pr-3 sm:px-4">
+                <CardHeader className="flex-shrink-0 border-b py-2 sm:py-3 px-3 sm:px-4">
                   <div className="flex items-center justify-between gap-2 sm:gap-3">
                     {/* LEFT: customer avatar + customer name/time */}
                     <div className="flex items-center gap-2 sm:gap-3 min-w-0">
