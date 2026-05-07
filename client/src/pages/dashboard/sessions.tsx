@@ -1593,8 +1593,8 @@ export default function SessionsPage() {
         </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 xl:grid-cols-[28%_1fr] gap-3 min-h-0 min-w-0">
-        <div className={`lg:col-span-4 xl:col-span-1 flex flex-col min-h-0 min-w-0 ${selectedSession ? 'hidden lg:flex' : 'flex'}`}>
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-12 xl:grid-cols-[28%_1fr] gap-3 min-h-0 min-w-0">
+        <div className={`md:col-span-4 xl:col-span-1 flex flex-col min-h-0 min-w-0 ${selectedSession ? 'hidden md:flex' : 'flex'}`}>
           <Card className="flex flex-col h-full">
             <CardHeader className="flex-shrink-0 py-3 px-4">
               <div className="flex items-center gap-2">
@@ -1756,10 +1756,10 @@ export default function SessionsPage() {
           </Card>
         </div>
 
-        <div className={`lg:col-span-8 xl:col-span-1 flex flex-col min-h-0 min-w-0 gap-2 ${selectedSession ? 'flex' : 'hidden lg:flex'}`}>
+        <div className={`md:col-span-8 xl:col-span-1 flex flex-col min-h-0 min-w-0 gap-2 ${selectedSession ? 'flex' : 'hidden md:flex'}`}>
           {/* Mobile: back arrow shown above the card */}
           {selectedSession && (
-            <div className="lg:hidden flex items-center -mb-1">
+            <div className="md:hidden flex items-center -mb-1">
               <Button
                 size="icon"
                 variant="ghost"
