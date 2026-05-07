@@ -45,6 +45,7 @@ import {
   CalendarRange,
   CalendarIcon,
   ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 
 interface NotifSettings {
@@ -320,6 +321,17 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
   const [chipStatuses, setChipStatuses] = useState<Set<TicketStatus>>(new Set());
   const [showExample, setShowExample] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [mobileView, setMobileView] = useState<"list" | "detail">("list");
+
+  // Reset mobile view to list whenever the dialog is closed
+  useEffect(() => {
+    if (!open) setMobileView("list");
+  }, [open]);
+
+  const openTicket = (id: string) => {
+    setActiveId(id);
+    setMobileView("detail");
+  };
 
   const toggleChip = (s: TicketStatus) => {
     setChipStatuses(prev => {
@@ -328,6 +340,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
       return next;
     });
     setActiveId(null);
+    setMobileView("list");
   };
 
   // Auto-show tutorial once
@@ -473,26 +486,47 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="p-0 overflow-hidden flex flex-col bg-background/85 backdrop-blur-xl border border-border/50 shadow-2xl rounded-2xl w-[92vw] max-w-[420px] h-[85vh] max-h-[640px] sm:w-[96vw] sm:max-w-6xl sm:h-[88vh] sm:max-h-none"
+        className="p-0 overflow-hidden flex flex-col bg-background/85 backdrop-blur-xl border border-border/50 shadow-2xl rounded-2xl w-[94vw] max-w-[420px] h-[88dvh] max-h-[680px] sm:w-[96vw] sm:max-w-6xl sm:h-[88dvh] sm:max-h-none"
         data-testid="dialog-tickets"
       >
-        <DialogHeader className="px-5 py-4 border-b border-border/50 bg-background/40">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2 min-w-0">
+        <DialogHeader className="px-3 sm:px-5 py-3 sm:py-4 border-b border-border/50 bg-background/40 pr-12">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               <Ticket className="w-5 h-5 shrink-0" />
               <div className="min-w-0">
-                <DialogTitle data-testid="text-tickets-title" className="truncate">Tiket Pemulihan Password</DialogTitle>
-                <DialogDescription className="text-xs mt-0.5 truncate">
+                <DialogTitle data-testid="text-tickets-title" className="truncate text-base sm:text-lg">Tiket Pemulihan Password</DialogTitle>
+                <DialogDescription className="text-xs mt-0.5 truncate hidden sm:block">
                   Daftar permintaan pelanggan disinkronkan otomatis dari Google Sheet.
                 </DialogDescription>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setTutorialOpen(true)}
+                className="sm:hidden"
+                aria-label="Tutorial"
+                data-testid="button-open-tutorial-mobile"
+              >
+                <HelpCircle className="w-4 h-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="sm:hidden"
+                aria-label="Segarkan"
+                data-testid="button-refresh-tickets-mobile"
+              >
+                {isFetching ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              </Button>
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => setTutorialOpen(true)}
-                className="gap-1.5"
+                className="gap-1.5 hidden sm:inline-flex"
                 data-testid="button-open-tutorial"
               >
                 <HelpCircle className="w-3.5 h-3.5" />
@@ -503,7 +537,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                 variant="ghost"
                 onClick={() => refetch()}
                 disabled={isFetching}
-                className="gap-1.5"
+                className="gap-1.5 hidden sm:inline-flex"
                 data-testid="button-refresh-tickets"
               >
                 {isFetching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
@@ -553,8 +587,8 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
         )}
 
         <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[380px_1fr]">
-          {/* LEFT: list */}
-          <div className="flex flex-col border-r border-border/50 min-h-0 bg-background/30">
+          {/* LEFT: list — hidden on mobile when a ticket is open */}
+          <div className={`${mobileView === "detail" ? "hidden md:flex" : "flex"} flex-col border-r border-border/50 min-h-0 bg-background/30`}>
             <div className="p-3 border-b border-border/50 flex flex-col gap-2">
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -566,7 +600,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                   data-testid="input-search-tickets"
                 />
               </div>
-              <Tabs value={tab} onValueChange={v => { setTab(v as TicketStatus); setActiveId(null); }}>
+              <Tabs value={tab} onValueChange={v => { setTab(v as TicketStatus); setActiveId(null); setMobileView("list"); }}>
                 <TabsList className="grid grid-cols-3 w-full">
                   {(["checking", "rejected", "solved"] as TicketStatus[]).map(s => (
                     <TabsTrigger key={s} value={s} className="gap-1.5 text-xs min-w-0" data-testid={`tab-${s}`}>
@@ -578,8 +612,8 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                 </TabsList>
               </Tabs>
 
-              {/* Multi-status filter chips */}
-              <div className="flex items-center gap-1.5 flex-wrap">
+              {/* Multi-status filter chips — desktop only; mobile uses tabs above to avoid duplication */}
+              <div className="hidden md:flex items-center gap-1.5 flex-wrap">
                 <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0">Filter status:</span>
                 {(["checking", "rejected", "solved"] as TicketStatus[]).map(s => {
                   const on = chipStatuses.has(s);
@@ -608,10 +642,10 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                 ) : null}
               </div>
 
-              {/* Date range + sort row */}
-              <div className="flex items-center gap-2 flex-wrap">
+              {/* Date range + sort row — even 2-column grid on mobile, wrap on desktop */}
+              <div className="grid grid-cols-2 md:flex md:items-center gap-2 md:flex-wrap">
                 <Select value={dateRange} onValueChange={(v) => { setDateRange(v as DateRange); if (v !== "custom") setCustomRange(undefined); }}>
-                  <SelectTrigger className="h-8 flex-1 min-w-[140px] text-xs gap-1.5 bg-background/60" data-testid="select-date-range">
+                  <SelectTrigger className="h-8 w-full md:flex-1 md:min-w-[140px] text-xs gap-1.5 bg-background/60" data-testid="select-date-range">
                     <CalendarRange className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                     <SelectValue />
                   </SelectTrigger>
@@ -658,7 +692,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                   </Popover>
                 ) : null}
                 <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
-                  <SelectTrigger className="h-8 flex-1 min-w-[140px] text-xs gap-1.5 bg-background/60" data-testid="select-sort">
+                  <SelectTrigger className="h-8 w-full md:flex-1 md:min-w-[140px] text-xs gap-1.5 bg-background/60" data-testid="select-sort">
                     {sortBy === "newest" ? (
                       <ArrowDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                     ) : sortBy === "oldest" ? (
@@ -688,7 +722,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                   <EmptyState
                     showExample={showExample}
                     onToggleExample={() => setShowExample(v => !v)}
-                    onSelectExample={() => setActiveId(EXAMPLE_TICKET.id)}
+                    onSelectExample={() => openTicket(EXAMPLE_TICKET.id)}
                     isExampleActive={active?.id === EXAMPLE_TICKET.id}
                   />
                 ) : grouped.map(({ group, items }, gi) => (
@@ -706,7 +740,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                         key={t.id}
                         ticket={t}
                         isActive={active?.id === t.id}
-                        onClick={() => setActiveId(t.id)}
+                        onClick={() => openTicket(t.id)}
                       />
                     ))}
                   </div>
@@ -730,7 +764,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                     <TicketCard
                       ticket={EXAMPLE_TICKET}
                       isActive={active?.id === EXAMPLE_TICKET.id}
-                      onClick={() => setActiveId(EXAMPLE_TICKET.id)}
+                      onClick={() => openTicket(EXAMPLE_TICKET.id)}
                       isExample
                     />
                   </div>
@@ -739,68 +773,81 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
             </ScrollArea>
           </div>
 
-          {/* RIGHT: detail */}
-          <div className="flex flex-col min-h-0 bg-background/40">
+          {/* RIGHT: detail — hidden on mobile when viewing list */}
+          <div className={`${mobileView === "list" ? "hidden md:flex" : "flex"} flex-col min-h-0 bg-background/40`}>
             {!active ? (
               <EmptyDetail onOpenTutorial={() => setTutorialOpen(true)} />
             ) : (
               <>
                 {/* Status header strip */}
                 <div className={`${STATUS_BAR[activeStatus]} h-1.5 w-full`} />
-                <div className="px-5 py-4 border-b border-border/50">
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-lg font-semibold truncate min-w-0 max-w-full" title={active.username} data-testid="text-detail-username">{active.username}</h3>
-                        <Badge className={`gap-1.5 ${STATUS_BADGE_TINT[activeStatus]} shrink-0`} data-testid="badge-detail-status">
-                          <span className={`inline-block w-1.5 h-1.5 rounded-full ${STATUS_DOT[activeStatus]}`} />
-                          {STATUS_LABEL[activeStatus]}
-                        </Badge>
-                        {active.manualOverride ? <Badge variant="outline" className="gap-1 shrink-0"><ShieldAlert className="w-3 h-3" /> Manual</Badge> : null}
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
-                        {active.ticketId ? <span className="inline-flex items-center gap-1 truncate max-w-full" title={active.ticketId}><Hash className="w-3 h-3 shrink-0" /><span className="truncate">{active.ticketId}</span></span> : null}
-                        {active.requestType ? <span className="truncate" title={active.requestType}>Tipe: {active.requestType}</span> : null}
-                        {active.createdAt ? <span className="truncate">{formatDistanceToNow(new Date(active.createdAt), { addSuffix: true })}</span> : null}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap shrink-0">
-                      {active.id === EXAMPLE_TICKET.id ? (
-                        <Badge variant="outline" className="gap-1.5" data-testid="badge-example-readonly">
-                          <Eye className="w-3 h-3" /> Mode Contoh - hanya pratinjau
-                        </Badge>
-                      ) : (
-                        <>
-                          <span className="text-xs text-muted-foreground">Override status:</span>
-                          <Select
-                            value={activeStatus}
-                            onValueChange={(v) => statusMutation.mutate({ id: active.id, status: v as TicketStatus })}
-                            disabled={statusMutation.isPending}
-                          >
-                            <SelectTrigger className="h-8 w-[180px]" data-testid="select-status-override">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="checking" data-testid="option-checking">Sedang Diperiksa</SelectItem>
-                              <SelectItem value="rejected" data-testid="option-rejected">Ditolak</SelectItem>
-                              <SelectItem value="solved" data-testid="option-solved">Selesai</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </>
+                <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-border/50">
+                  {/* Row 1: back (mobile only) + name + primary status badge */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="md:hidden h-8 w-8 rounded-full shrink-0 -ml-1"
+                      onClick={() => setMobileView("list")}
+                      aria-label="Kembali ke daftar"
+                      data-testid="button-back-to-list"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <h3 className="text-base sm:text-lg font-semibold truncate min-w-0 flex-1" title={active.username} data-testid="text-detail-username">{active.username}</h3>
+                    <Badge className={`gap-1.5 ${STATUS_BADGE_TINT[activeStatus]} shrink-0`} data-testid="badge-detail-status">
+                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${STATUS_DOT[activeStatus]}`} />
+                      <span className="hidden xs:inline">{STATUS_LABEL[activeStatus]}</span>
+                      <span className="xs:hidden truncate max-w-[80px]">{STATUS_LABEL[activeStatus]}</span>
+                    </Badge>
+                    {active.manualOverride ? <Badge variant="outline" className="gap-1 shrink-0 hidden sm:inline-flex"><ShieldAlert className="w-3 h-3" /> Manual</Badge> : null}
+                  </div>
+
+                  {/* Row 2: meta (id, type, time) */}
+                  <div className="mt-2 text-xs text-muted-foreground flex items-center gap-x-3 gap-y-1 flex-wrap">
+                    {active.ticketId ? <span className="inline-flex items-center gap-1 truncate max-w-full" title={active.ticketId}><Hash className="w-3 h-3 shrink-0" /><span className="truncate">{active.ticketId}</span></span> : null}
+                    {active.requestType ? <span className="truncate" title={active.requestType}>Tipe: {active.requestType}</span> : null}
+                    {active.createdAt ? <span className="truncate">{formatDistanceToNow(new Date(active.createdAt), { addSuffix: true })}</span> : null}
+                    {active.manualOverride ? <Badge variant="outline" className="gap-1 shrink-0 sm:hidden h-5"><ShieldAlert className="w-3 h-3" /> Manual</Badge> : null}
+                  </div>
+
+                  {/* Row 3: status override / example badge / sheet link */}
+                  <div className="mt-3 flex items-center gap-2 flex-wrap">
+                    {active.id === EXAMPLE_TICKET.id ? (
+                      <Badge variant="outline" className="gap-1.5" data-testid="badge-example-readonly">
+                        <Eye className="w-3 h-3" /> Mode Contoh - hanya pratinjau
+                      </Badge>
+                    ) : (
+                      <>
+                        <span className="text-xs text-muted-foreground shrink-0">Override status:</span>
+                        <Select
+                          value={activeStatus}
+                          onValueChange={(v) => statusMutation.mutate({ id: active.id, status: v as TicketStatus })}
+                          disabled={statusMutation.isPending}
+                        >
+                          <SelectTrigger className="h-8 flex-1 min-w-[160px] sm:flex-none sm:w-[180px]" data-testid="select-status-override">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="checking" data-testid="option-checking">Sedang Diperiksa</SelectItem>
+                            <SelectItem value="rejected" data-testid="option-rejected">Ditolak</SelectItem>
+                            <SelectItem value="solved" data-testid="option-solved">Selesai</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </>
                       )}
-                      {active.id !== EXAMPLE_TICKET.id && sheetId && active.sheetRowIndex ? (
-                        <Button asChild size="sm" variant="outline" className="gap-1.5">
-                          <a
-                            href={`https://docs.google.com/spreadsheets/d/${sheetId}/edit#gid=0&range=A${active.sheetRowIndex}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            data-testid="link-open-sheet"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" /> Buka Sheet
-                          </a>
-                        </Button>
-                      ) : null}
-                    </div>
+                    {active.id !== EXAMPLE_TICKET.id && sheetId && active.sheetRowIndex ? (
+                      <Button asChild size="sm" variant="outline" className="gap-1.5">
+                        <a
+                          href={`https://docs.google.com/spreadsheets/d/${sheetId}/edit#gid=0&range=A${active.sheetRowIndex}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          data-testid="link-open-sheet"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" /> Buka Sheet
+                        </a>
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
 
@@ -968,7 +1015,7 @@ function TicketCard({
       data-testid={`card-ticket-${ticket.id}`}
     >
       <div className={`absolute left-0 top-0 bottom-0 w-1 ${STATUS_BAR[st]}`} />
-      <div className="pl-3 pr-3 py-2.5 min-w-0">
+      <div className="pl-3.5 pr-3 py-3 min-w-0 space-y-1.5">
         <div className="flex items-center justify-between gap-2 min-w-0">
           <div className="flex items-center gap-1.5 min-w-0 flex-1">
             <UserIcon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
@@ -995,7 +1042,7 @@ function TicketCard({
             </Badge>
           </div>
         </div>
-        <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground min-w-0">
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground min-w-0">
           {ticket.ticketId ? (
             <span className="inline-flex items-center gap-1 truncate min-w-0 max-w-[50%]" title={ticket.ticketId}>
               <Hash className="w-3 h-3 shrink-0" />
@@ -1009,7 +1056,7 @@ function TicketCard({
             </span>
           ) : null}
         </div>
-        <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground gap-2 min-w-0">
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground gap-2 min-w-0">
           <span className="truncate min-w-0" title={ticket.session?.clientIp || "IP tidak tersedia"}>
             {ticket.session?.clientIp || "IP tidak tersedia"}
           </span>

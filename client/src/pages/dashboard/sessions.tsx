@@ -1756,26 +1756,25 @@ export default function SessionsPage() {
           </Card>
         </div>
 
-        <div className={`md:col-span-8 xl:col-span-1 flex flex-col min-h-0 min-w-0 gap-2 ${selectedSession ? 'flex' : 'hidden md:flex'}`}>
-          {/* Mobile: back arrow shown above the card */}
+        <div className={`md:col-span-8 xl:col-span-1 flex flex-col min-h-0 min-w-0 gap-2 relative ${selectedSession ? 'flex' : 'hidden md:flex'}`}>
+          {/* Mobile: back arrow as floating circular button over the card */}
           {selectedSession && (
-            <div className="md:hidden flex items-center -mb-1">
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => setSelectedSession(null)}
-                className="h-9 w-9 rounded-full border border-border/60 bg-background/80 backdrop-blur shadow-sm"
-                data-testid="button-back-to-list"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </Button>
-            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setSelectedSession(null)}
+              className="md:hidden absolute top-2 left-2 z-30 h-8 w-8 rounded-full border border-border/60 bg-background/90 backdrop-blur shadow-sm"
+              aria-label="Kembali ke daftar"
+              data-testid="button-back-to-session-list"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
           )}
           <div className="flex flex-1 min-h-0 min-w-0 gap-3">
           <Card className={`flex flex-col flex-1 min-h-0 min-w-0 transition-all duration-300 ${!previewContent ? 'w-full' : ''}`}>
             {selectedSession ? (
               <>
-                <CardHeader className="flex-shrink-0 border-b py-2 sm:py-3 px-3 sm:px-4">
+                <CardHeader className="flex-shrink-0 border-b py-2 sm:py-3 pl-12 pr-3 sm:px-4">
                   <div className="flex items-center justify-between gap-2 sm:gap-3">
                     {/* LEFT: customer avatar + customer name/time */}
                     <div className="flex items-center gap-2 sm:gap-3 min-w-0">

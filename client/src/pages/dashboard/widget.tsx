@@ -1792,6 +1792,41 @@ async function handleLogin() {
                       <div className="space-y-2">
                         <Label className="text-sm">Or Choose Avatar</Label>
                         <div className="flex flex-wrap gap-1.5">
+                          {(() => {
+                            const activeAgent = agents.find((a) => a.id === merchant?.activeAgentId);
+                            const agentPhoto = activeAgent?.photoUrl;
+                            if (!agentPhoto) return null;
+                            const isSelected = config.agentPhotoUrl === agentPhoto;
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => setConfig({ ...config, agentPhotoUrl: agentPhoto })}
+                                aria-pressed={isSelected}
+                                className={`relative rounded-md overflow-hidden border-2 transition-all hover-elevate active-elevate-2 w-[56px] h-[56px] ${
+                                  isSelected
+                                    ? "border-primary ring-2 ring-primary/30"
+                                    : "border-muted"
+                                }`}
+                                title={`Current agent: ${activeAgent?.name || ""}`}
+                                data-testid="button-avatar-current-agent"
+                              >
+                                <img
+                                  src={agentPhoto}
+                                  alt={activeAgent?.name || "Current agent"}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                />
+                                <span className="absolute bottom-0 inset-x-0 bg-background/85 text-[8px] font-medium text-center py-0.5 truncate px-0.5">
+                                  Agent
+                                </span>
+                                {isSelected && (
+                                  <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                                    <Check className="w-3 h-3 text-primary" />
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })()}
                           {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
                             <button
                               key={num}
