@@ -3147,6 +3147,7 @@ export default function KnowledgePage() {
                     >
                       <Copy className="w-4 h-4 mr-1.5" />
                       Salin Template Google Sheet
+                      <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
                     </Button>
                     <div className="rounded-md border bg-muted/30 p-3 space-y-2">
                       <p className="text-xs font-medium text-muted-foreground">Kolom wajib di sheet kamu</p>
@@ -3254,7 +3255,20 @@ export default function KnowledgePage() {
                         </button>
                       </CollapsibleTrigger>
                       <CollapsibleContent className="space-y-2 pt-3">
-                        <Label htmlFor="pr-writeback-url" className="text-xs text-muted-foreground">Link Apps Script Web App</Label>
+                        <div className="flex items-center gap-1.5">
+                          <Label htmlFor="pr-writeback-url" className="text-xs text-muted-foreground">Link Apps Script Web App</Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button type="button" className="text-muted-foreground hover-elevate rounded-sm" data-testid="tooltip-writeback-help">
+                                <HelpCircle className="w-3.5 h-3.5" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="text-xs mb-1">Server akan POST payload ini ke link Apps Script kamu:</p>
+                              <code className="block text-[11px] bg-muted/50 px-2 py-1 rounded font-mono">{"{ rowNumber, newStatus: \"request\" }"}</code>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                         <Input
                           id="pr-writeback-url"
                           value={prWriteBackUrl}
@@ -3263,7 +3277,7 @@ export default function KnowledgePage() {
                           data-testid="input-password-recovery-writeback-url"
                         />
                         <p className="text-xs text-muted-foreground">
-                          Saat customer minta reset, server akan kirim <code className="text-foreground">{"{ rowNumber, newStatus: \"request\" }"}</code> ke link ini agar Apps Script kamu bisa cari baris yang tepat, generate password baru, dan tulis kembali ke sheet.
+                          Saat customer minta reset, Apps Script kamu akan dipanggil agar bisa cari baris yang tepat, generate password baru, dan tulis kembali ke sheet.
                         </p>
                       </CollapsibleContent>
                     </Collapsible>
@@ -3533,8 +3547,11 @@ export default function KnowledgePage() {
                   const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
                     pending: "secondary",
                     ready: "default",
-                    delivered: "default",
+                    delivered: "outline",
                     failed: "destructive",
+                  };
+                  const statusExtraClass: Record<string, string> = {
+                    delivered: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
                   };
                   const fmt = (d?: string | Date | null) => d ? new Date(d).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" }) : "—";
                   return (
@@ -3571,7 +3588,7 @@ export default function KnowledgePage() {
                                   </Badge>
                                 </TableCell>
                                 <TableCell data-testid={`text-pr-status-${req.id}`}>
-                                  <Badge variant={statusVariant[req.status] || "secondary"} className="font-normal">
+                                  <Badge variant={statusVariant[req.status] || "secondary"} className={"font-normal " + (statusExtraClass[req.status] || "")}>
                                     {statusLabel[req.status] || req.status}
                                   </Badge>
                                 </TableCell>
@@ -3596,7 +3613,7 @@ export default function KnowledgePage() {
                                 <p className="font-mono text-sm truncate" data-testid={`text-pr-username-mobile-${req.id}`}>{req.username}</p>
                                 <p className="font-mono text-[11px] text-muted-foreground" title={req.id}>{req.id.slice(0, 8)}…</p>
                               </div>
-                              <Badge variant={statusVariant[req.status] || "secondary"} className="font-normal shrink-0">
+                              <Badge variant={statusVariant[req.status] || "secondary"} className={"font-normal shrink-0 " + (statusExtraClass[req.status] || "")}>
                                 {statusLabel[req.status] || req.status}
                               </Badge>
                             </div>
