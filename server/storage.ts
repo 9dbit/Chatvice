@@ -614,6 +614,7 @@ export interface IStorage {
   updatePasswordRecoveryLastSynced(id: string): Promise<void>;
   createPasswordRecoveryRequest(data: InsertPasswordRecoveryRequest & { id: string }): Promise<PasswordRecoveryRequest>;
   getPasswordRecoveryRequestsByMerchant(merchantId: string, status?: string): Promise<PasswordRecoveryRequest[]>;
+  getPasswordRecoveryRequestById(id: string): Promise<PasswordRecoveryRequest | undefined>;
   updatePasswordRecoveryRequest(id: string, data: Partial<PasswordRecoveryRequest>): Promise<PasswordRecoveryRequest | undefined>;
 
   // Appointment Divisions
@@ -4493,6 +4494,11 @@ export class DatabaseStorage implements IStorage {
 
   async updatePasswordRecoveryRequest(id: string, data: Partial<PasswordRecoveryRequest>): Promise<PasswordRecoveryRequest | undefined> {
     const [row] = await db.update(passwordRecoveryRequests).set(data).where(eq(passwordRecoveryRequests.id, id)).returning();
+    return row;
+  }
+
+  async getPasswordRecoveryRequestById(id: string): Promise<PasswordRecoveryRequest | undefined> {
+    const [row] = await db.select().from(passwordRecoveryRequests).where(eq(passwordRecoveryRequests.id, id));
     return row;
   }
 

@@ -2626,6 +2626,8 @@ export type InsertPasswordRecoveryConfig = z.infer<typeof insertPasswordRecovery
 export type PasswordRecoveryConfig = typeof passwordRecoveryConfigs.$inferSelect;
 
 // ── Password Recovery Requests ─────────────────────────────────────────────
+// Status canonical values: "checking" | "rejected" | "solved"
+// Legacy values still tolerated by the API: "pending" (==checking), "delivered" (==solved).
 export const passwordRecoveryRequests = pgTable("password_recovery_requests", {
   id: varchar("id", { length: 32 }).primaryKey(),
   merchantId: varchar("merchant_id", { length: 32 }).notNull(),
@@ -2634,8 +2636,15 @@ export const passwordRecoveryRequests = pgTable("password_recovery_requests", {
   phoneNumber: text("phone_number").notNull().default(""),
   bankAccount: text("bank_account").notNull().default(""),
   requestType: text("request_type").notNull().default("reset"),
-  status: text("status").notNull().default("pending"),
+  status: text("status").notNull().default("checking"),
   newPassword: text("new_password"),
+  ticketId: text("ticket_id"),
+  sheetRowIndex: integer("sheet_row_index"),
+  extraData: jsonb("extra_data").notNull().default({}),
+  manualOverride: boolean("manual_override").notNull().default(false),
+  solvedAt: timestamp("solved_at"),
+  rejectedAt: timestamp("rejected_at"),
+  lastSyncedAt: timestamp("last_synced_at"),
   createdAt: timestamp("created_at").defaultNow(),
   deliveredAt: timestamp("delivered_at"),
 }, (table) => ({

@@ -35,6 +35,7 @@ import { ToastAction } from "@/components/ui/toast";
 import { formatDistanceToNow } from "date-fns";
 import type { Session, Message, Supervisor, Agent, QuickReply, ProductCard, ProductCardButton } from "@shared/schema";
 import { playIncomingChatSound, playChatReplySound, playAngrySound } from "@/lib/sounds";
+import { TicketsDialog } from "./tickets-dialog";
 
 function renderMessageWithLinks(content: string) {
   const urlRegex = /(https?:\/\/[^\s<>"')\]]+|(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+(?:com|org|net|io|app|dev|id|co|me|info|biz|xyz|tech|store|shop|site|online|cloud|ai|gg|tv|cc|us|uk|eu|de|fr|jp|kr|cn|in|au|ca|br|ru|nl|se|no|fi|dk|pl|cz|at|ch|it|es|pt|be|ie|nz|sg|my|th|ph|vn|hk|tw|za|mx|ar|cl|co\.id|co\.uk|co\.jp|co\.kr|co\.nz|com\.au|com\.br|com\.sg|com\.my|com\.ph|ac\.id|or\.id|go\.id|web\.id|sch\.id))(?:\/[^\s<>"')\]]*)?)/gi;
@@ -277,6 +278,11 @@ export default function SessionsPage() {
   }, [authData?.merchantId]);
   
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
+  const [ticketsOpen, setTicketsOpen] = useState(false);
+  const { data: ticketsCount } = useQuery<{ count: number }>({
+    queryKey: ["/api/merchant/password-recovery-requests/pending-count"],
+    refetchInterval: 15000,
+  });
   const [unreadEscalatedSessionIds, setUnreadEscalatedSessionIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [agentFilter, setAgentFilter] = useState<string>("all");
@@ -1920,6 +1926,27 @@ export default function SessionsPage() {
                               </div>
                             </PopoverContent>
                           </Popover>
+
+                          {/* Tickets popup — Password Recovery requests */}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Tiket"
+                            className="relative h-8 w-8"
+                            onClick={() => setTicketsOpen(true)}
+                            data-testid="button-open-tickets"
+                          >
+                            <Ticket className="w-4 h-4" />
+                            {ticketsCount && ticketsCount.count > 0 ? (
+                              <Badge
+                                variant="destructive"
+                                className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[9px] flex items-center justify-center"
+                                data-testid="badge-tickets-count"
+                              >
+                                {ticketsCount.count}
+                              </Badge>
+                            ) : null}
+                          </Button>
 
                           {/* Desktop: More menu (Refresh, Refine, Translate, Export) */}
                           <Popover>
@@ -3573,6 +3600,8 @@ export default function SessionsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <TicketsDialog merchantId={merchantId} open={ticketsOpen} onOpenChange={setTicketsOpen} />
     </div>
   );
 }

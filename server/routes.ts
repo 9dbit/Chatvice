@@ -644,6 +644,17 @@ interface PassRecovPollEntry {
 }
 const passwordRecoveryPollRegistry = new Map<string, PassRecovPollEntry>();
 
+// Map a raw sheet status cell to a canonical ticket status.
+// Empty/unknown values keep the ticket in "checking".
+function mapSheetStatusToTicket(raw: string): "checking" | "rejected" | "solved" | null {
+  const s = (raw || "").toLowerCase().trim();
+  if (!s) return "checking";
+  if (s === "ok" || s === "done" || s === "solved" || s === "success" || s === "completed") return "solved";
+  if (s === "reject" || s === "rejected" || s.includes("not match") || s.includes("tidak cocok") || s === "failed" || s === "deny" || s === "denied") return "rejected";
+  if (s === "request" || s === "checking" || s === "pending" || s === "processing" || s === "normal") return "checking";
+  return null; // unknown — leave as-is
+}
+
 // Start the session-level poller (3s) — must run after WebSocket server is initialized
 function startPasswordRecoverySessionPoller() {
   setInterval(async () => {
@@ -673,7 +684,20 @@ function startPasswordRecoverySessionPoller() {
           const deliveryMsg = `Password baru akun **${entry.username}**${ticketLabel} telah disiapkan:\n\n\`${matchRow.newPassword}\`\n\nSilakan segera login menggunakan username **${entry.username}** dan segera ubah ke password yang lebih aman.`;
           await storage.createMessage({ sessionId, from: "chatvice", content: deliveryMsg });
           broadcastToSessionExternal(sessionId, { type: "message", message: { from: "chatvice", content: deliveryMsg } });
-          await storage.updatePasswordRecoveryRequest(entry.requestId, { status: "delivered", deliveredAt: new Date(), newPassword: matchRow.newPassword });
+          // Respect manual override — don't clobber a supervisor-set status.
+          const existing = await storage.getPasswordRecoveryRequestById?.(entry.requestId).catch(() => undefined);
+          const patch: any = {
+            status: "solved",
+            deliveredAt: new Date(),
+            solvedAt: new Date(),
+            newPassword: matchRow.newPassword,
+            lastSyncedAt: new Date(),
+          };
+          if (existing && (existing as any).manualOverride) {
+            delete patch.status;
+            delete patch.solvedAt;
+          }
+          await storage.updatePasswordRecoveryRequest(entry.requestId, patch);
           await storage.updatePasswordRecoveryLastSynced(entry.configId).catch(() => {});
           passwordRecoveryPollRegistry.delete(sessionId);
           console.log(`[PassRecov Poll] Delivered new password for ${entry.username} (row ${entry.rowIndex}) to session ${sessionId}`);
@@ -684,6 +708,54 @@ function startPasswordRecoverySessionPoller() {
     }
   }, 3000);
   console.log("[pass-recov-poll] Session-level password recovery poller started (3s interval)");
+}
+
+// Merchant-wide ticket status sweeper — every 15s, walks every active config,
+// fetches the sheet once, and synchronises the `status` column for any DB
+// ticket that hasn't been manually overridden. This keeps the Tickets popup
+// in sync even after the customer's session is closed/archived (the per-session
+// registry above only covers freshly opened sessions).
+function startPasswordRecoveryStatusSweeper() {
+  const tick = async () => {
+    try {
+      const configs = await storage.getActivePasswordRecoveryConfigs();
+      for (const cfg of configs) {
+        if (!cfg.sheetCsvUrl) continue;
+        const tickets = await storage.getPasswordRecoveryRequestsByMerchant(cfg.merchantId);
+        // Treat legacy "delivered" as terminal "solved" so we never re-open closed tickets.
+        const openTickets = tickets.filter((t: any) => !t.manualOverride && !["solved", "rejected", "delivered"].includes(t.status));
+        if (openTickets.length === 0) continue;
+
+        const csvText = await fetchPasswordRecoveryRawCSV(cfg.sheetCsvUrl);
+        if (!csvText) continue;
+        const { rows } = parsePRCsv(csvText);
+
+        for (const t of openTickets) {
+          const row = (t as any).sheetRowIndex
+            ? rows.find(r => r.rowIndex === (t as any).sheetRowIndex)
+            : rows.find(r => r.username.toLowerCase() === t.username.toLowerCase());
+          if (!row) continue;
+          const mapped = mapSheetStatusToTicket(row.status);
+          if (!mapped || mapped === t.status) {
+            await storage.updatePasswordRecoveryRequest(t.id, { lastSyncedAt: new Date() } as any).catch(() => {});
+            continue;
+          }
+          const patch: any = { status: mapped, lastSyncedAt: new Date() };
+          if (mapped === "solved") {
+            patch.solvedAt = new Date();
+            if (row.newPassword && row.newPassword !== t.newPassword) patch.newPassword = row.newPassword;
+          }
+          if (mapped === "rejected") patch.rejectedAt = new Date();
+          await storage.updatePasswordRecoveryRequest(t.id, patch);
+          console.log(`[PassRecov Sweep] Ticket ${t.id} status ${t.status} -> ${mapped} from sheet`);
+        }
+      }
+    } catch (err) {
+      console.warn("[PassRecov Sweep] Sweep error:", err);
+    }
+  };
+  setInterval(tick, 15000);
+  console.log("[pass-recov-sweep] Merchant-wide status sweeper started (15s interval)");
 }
 
 // Round-robin agent assignment tracking per merchant
@@ -7602,9 +7674,12 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       // Visitor sessions with no interaction are cleaned up by the stale-visitor cleanup job (every 60s).
       const sessions = allSessions;
       
-      // Pre-fetch pending password recovery requests to tag sessions with active tickets
-      const pendingPassRecovReqs = await storage.getPasswordRecoveryRequestsByMerchant(req.params.merchantId, "pending");
-      const pendingPassRecovSessionIds = new Set(pendingPassRecovReqs.map(r => r.sessionId));
+      // Pre-fetch open password recovery tickets ("checking") to tag sessions
+      // with active tickets — also tolerate the legacy "pending" value for
+      // any rows created before the rename.
+      const checkingPassRecovReqs = await storage.getPasswordRecoveryRequestsByMerchant(req.params.merchantId, "checking");
+      const legacyPendingPassRecovReqs = await storage.getPasswordRecoveryRequestsByMerchant(req.params.merchantId, "pending");
+      const pendingPassRecovSessionIds = new Set([...checkingPassRecovReqs, ...legacyPendingPassRecovReqs].map(r => r.sessionId));
 
       const sessionsWithPreview = await Promise.all(
         sessions.map(async (session) => {
@@ -20144,8 +20219,33 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
         }
       }
 
-      // Create DB record
+      // Create DB record — capture row snapshot so the Tickets popup can show
+      // every column from the sheet for this user (extraData) and the sheet
+      // row number for deep-linking + later writebacks.
       const prRequestId = "prr_" + crypto.randomBytes(8).toString("hex");
+      const headerCells = (() => {
+        const lines = csvText.split(/\r?\n/).filter(l => l.trim().length > 0);
+        if (lines.length === 0) return [] as string[];
+        const split = (line: string) => {
+          const cells: string[] = [];
+          let cur = "";
+          let inQ = false;
+          for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') { if (inQ && line[i + 1] === '"') { cur += '"'; i++; } else { inQ = !inQ; } }
+            else if (ch === ',' && !inQ) { cells.push(cur.trim()); cur = ""; }
+            else { cur += ch; }
+          }
+          cells.push(cur.trim());
+          return cells;
+        };
+        return split(lines[0]);
+      })();
+      const extraData: Record<string, string> = {};
+      headerCells.forEach((h, i) => {
+        if (h) extraData[h] = matchRow.raw[i] ?? "";
+      });
+
       await storage.createPasswordRecoveryRequest({
         id: prRequestId,
         merchantId: merchant.id,
@@ -20154,8 +20254,11 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
         phoneNumber,
         bankAccount,
         requestType: "reset",
-        status: "pending",
-      });
+        status: "checking",
+        ticketId,
+        sheetRowIndex: matchRow.rowIndex,
+        extraData,
+      } as any);
 
       // Broadcast ticket card message to chat
       const ticketPayload = { ticketId, username, bankAccount, locale: ticketLocale };
@@ -27854,8 +27957,9 @@ Please create a comprehensive help center article that would be useful for custo
   app.get("/api/merchant/password-recovery-requests/pending-count", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
-      const pending = await storage.getPasswordRecoveryRequestsByMerchant(merchantId, "pending");
-      res.json({ count: pending.length });
+      const checking = await storage.getPasswordRecoveryRequestsByMerchant(merchantId, "checking");
+      const legacyPending = await storage.getPasswordRecoveryRequestsByMerchant(merchantId, "pending");
+      res.json({ count: checking.length + legacyPending.length });
     } catch (err) {
       res.status(500).json({ error: "Failed to fetch pending count" });
     }
@@ -27869,6 +27973,143 @@ Please create a comprehensive help center article that would be useful for custo
       res.json(requests);
     } catch (err) {
       res.status(500).json({ error: "Failed to fetch password recovery requests" });
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // PASSWORD RECOVERY TICKETS — supervisor-facing popup
+  // ════════════════════════════════════════════════════════════════════════════
+
+  // GET /api/merchant/tickets — full ticket list with session metadata for the popup
+  app.get("/api/merchant/tickets", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const all = await storage.getPasswordRecoveryRequestsByMerchant(merchantId);
+
+      // Normalise legacy statuses on the way out so the UI only sees the canonical set.
+      const tickets = await Promise.all(all.map(async (t: any) => {
+        let status: string = t.status || "checking";
+        if (status === "pending") status = "checking";
+        if (status === "delivered") status = "solved";
+
+        let sessionInfo: any = null;
+        if (t.sessionId) {
+          try {
+            const session = await storage.getSession(t.sessionId);
+            if (session) {
+              sessionInfo = {
+                id: session.id,
+                customerName: session.customerName,
+                clientIp: (session as any).clientIp,
+                countryCode: (session as any).countryCode,
+                countryName: (session as any).countryName,
+                cityName: (session as any).cityName,
+                userAgent: (session as any).userAgent,
+                status: session.status,
+                mode: session.mode,
+              };
+            }
+          } catch {/* ignore */}
+        }
+
+        return {
+          ...t,
+          status,
+          session: sessionInfo,
+        };
+      }));
+
+      res.json(tickets);
+    } catch (err) {
+      console.error("[tickets] list error:", err);
+      res.status(500).json({ error: "Failed to fetch tickets" });
+    }
+  });
+
+  // PATCH /api/merchant/tickets/:id/status — manual status override (writes back to sheet too)
+  app.patch("/api/merchant/tickets/:id/status", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { id } = req.params;
+      const { status } = req.body as { status?: string };
+      const allowed = new Set(["checking", "rejected", "solved"]);
+      if (!status || !allowed.has(status)) return res.status(400).json({ error: "status must be checking|rejected|solved" });
+
+      const ticket = await storage.getPasswordRecoveryRequestById(id);
+      if (!ticket) return res.status(404).json({ error: "Ticket not found" });
+      if (ticket.merchantId !== merchantId) return res.status(403).json({ error: "Forbidden" });
+
+      // Idempotency: if the requested status already equals the effective current
+      // status (with legacy mapping), short-circuit without DB writes or external
+      // write-back side effects.
+      const currentEffective = ticket.status === "pending" ? "checking" : ticket.status === "delivered" ? "solved" : ticket.status;
+      if (currentEffective === status && (ticket as any).manualOverride) {
+        return res.json({ success: true, ticket, unchanged: true });
+      }
+
+      const patch: any = { status, manualOverride: true, lastSyncedAt: new Date() };
+      if (status === "solved" && !(ticket as any).solvedAt) patch.solvedAt = new Date();
+      if (status === "rejected" && !(ticket as any).rejectedAt) patch.rejectedAt = new Date();
+
+      const updated = await storage.updatePasswordRecoveryRequest(id, patch);
+
+      // Fire-and-forget write-back to Google Apps Script so the merchant's sheet
+      // reflects the manual override too.
+      try {
+        const cfg = await storage.getPasswordRecoveryConfig(merchantId, undefined);
+        const writeBackUrl = (cfg && (cfg as any).writeBackUrl) || "";
+        const rowIndex = (ticket as any).sheetRowIndex;
+        if (writeBackUrl && rowIndex && !validatePasswordRecoveryUrls(undefined, writeBackUrl)) {
+          const sheetStatus = status === "solved" ? "ok" : status === "rejected" ? "rejected" : "request";
+          fetch(writeBackUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              rowNumber: rowIndex,
+              newStatus: sheetStatus,
+              manualStatus: status,
+              ticketId: (ticket as any).ticketId,
+              username: ticket.username,
+            }),
+            signal: AbortSignal.timeout(8000),
+          }).catch(() => {/* ignore — manual override still applied locally */});
+        }
+      } catch {/* ignore */}
+
+      res.json({ success: true, ticket: updated });
+    } catch (err) {
+      console.error("[tickets] status error:", err);
+      res.status(500).json({ error: "Failed to update status" });
+    }
+  });
+
+  // POST /api/merchant/tickets/:id/reply — supervisor sends a reply to the customer's chat session
+  app.post("/api/merchant/tickets/:id/reply", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { id } = req.params;
+      const { message } = req.body as { message?: string };
+      if (!message || typeof message !== "string" || !message.trim()) {
+        return res.status(400).json({ error: "message required" });
+      }
+
+      const ticket = await storage.getPasswordRecoveryRequestById(id);
+      if (!ticket) return res.status(404).json({ error: "Ticket not found" });
+      if (ticket.merchantId !== merchantId) return res.status(403).json({ error: "Forbidden" });
+      if (!ticket.sessionId) return res.status(400).json({ error: "Ticket has no session" });
+
+      const created = await storage.createMessage({
+        sessionId: ticket.sessionId,
+        from: "supervisor",
+        content: message.trim(),
+      });
+
+      broadcastToSession(ticket.sessionId, { type: "message", message: created });
+
+      res.json({ success: true, message: created });
+    } catch (err) {
+      console.error("[tickets] reply error:", err);
+      res.status(500).json({ error: "Failed to send reply" });
     }
   });
 
@@ -28444,6 +28685,7 @@ Please create a comprehensive help center article that would be useful for custo
 
   // Start session-level password recovery poller (needs to be inside registerRoutes to share broadcastToSession)
   startPasswordRecoverySessionPoller();
+  startPasswordRecoveryStatusSweeper();
 
   return httpServer;
 }
