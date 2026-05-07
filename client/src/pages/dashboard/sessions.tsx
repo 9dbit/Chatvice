@@ -162,37 +162,90 @@ function CountryFlag({ code, name }: { code?: string | null; name?: string | nul
   );
 }
 
+function parseUserAgent(userAgent?: string | null): { browser: string; os: string; device: "Mobile" | "Tablet" | "Desktop" } {
+  if (!userAgent) return { browser: "Unknown", os: "Unknown", device: "Desktop" };
+  const ua = userAgent;
+  let browser = "Unknown";
+  if (/Edg\//i.test(ua)) browser = "Edge";
+  else if (/OPR\/|Opera/i.test(ua)) browser = "Opera";
+  else if (/Chrome/i.test(ua) && !/Chromium/i.test(ua)) browser = "Chrome";
+  else if (/Firefox/i.test(ua)) browser = "Firefox";
+  else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = "Safari";
+  let os = "Unknown";
+  if (/Android/i.test(ua)) os = "Android";
+  else if (/iPhone|iPad|iPod/i.test(ua)) os = "iOS";
+  else if (/Windows/i.test(ua)) os = "Windows";
+  else if (/Macintosh|Mac OS X/i.test(ua)) os = "macOS";
+  else if (/Linux/i.test(ua)) os = "Linux";
+  let device: "Mobile" | "Tablet" | "Desktop" = "Desktop";
+  if (/iPad|Tablet/i.test(ua)) device = "Tablet";
+  else if (/Android|iPhone|iPod|Mobile/i.test(ua)) device = "Mobile";
+  return { browser, os, device };
+}
+
+function IconTooltip({ children, label, userAgent }: { children: React.ReactNode; label: string; userAgent?: string | null }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex items-center">{children}</span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs">
+        <p className="text-xs font-medium">{label}</p>
+        {userAgent && (
+          <p className="text-[10px] text-muted-foreground mt-1 break-all">{userAgent}</p>
+        )}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 function DeviceIcon({ userAgent, size = "sm" }: { userAgent?: string | null; size?: "sm" | "md" }) {
   const cls = size === "md" ? "w-4 h-4" : "w-3.5 h-3.5";
-  if (!userAgent) return <Monitor className={`${cls} text-muted-foreground`} />;
-  const ua = userAgent.toLowerCase();
-  if (/android|iphone|ipad|ipod|mobile|tablet/i.test(ua))
-    return <Smartphone className={`${cls} text-muted-foreground`} aria-label="Mobile" />;
-  return <Monitor className={`${cls} text-muted-foreground`} aria-label="Desktop" />;
+  const { browser, os, device } = parseUserAgent(userAgent);
+  const label = userAgent ? `${browser} on ${os} • ${device}` : "Unknown device";
+  const Icon = device === "Desktop" ? Monitor : Smartphone;
+  return (
+    <IconTooltip label={label} userAgent={userAgent}>
+      <Icon className={`${cls} text-muted-foreground`} />
+    </IconTooltip>
+  );
 }
 
 function OsIcon({ userAgent, size = "sm" }: { userAgent?: string | null; size?: "sm" | "md" }) {
   const cls = size === "md" ? "w-4 h-4" : "w-3.5 h-3.5";
   if (!userAgent) return null;
-  const ua = userAgent.toLowerCase();
-  if (/android/i.test(ua)) return <SiAndroid className={`${cls} text-green-500`} title="Android" />;
-  if (/iphone|ipad|ipod/i.test(ua)) return <SiApple className={`${cls} text-muted-foreground`} title="iOS" />;
-  if (/windows/i.test(ua)) return <Monitor className={`${cls} text-blue-400`} title="Windows" />;
-  if (/macintosh|mac os x/i.test(ua)) return <SiApple className={`${cls} text-muted-foreground`} title="macOS" />;
-  if (/linux/i.test(ua)) return <SiLinux className={`${cls} text-yellow-500`} title="Linux" />;
-  return null;
+  const { browser, os, device } = parseUserAgent(userAgent);
+  let icon: React.ReactNode = null;
+  if (os === "Android") icon = <SiAndroid className={`${cls} text-green-500`} />;
+  else if (os === "iOS" || os === "macOS") icon = <SiApple className={`${cls} text-muted-foreground`} />;
+  else if (os === "Windows") icon = <Monitor className={`${cls} text-blue-400`} />;
+  else if (os === "Linux") icon = <SiLinux className={`${cls} text-yellow-500`} />;
+  if (!icon) return null;
+  const label = `${browser} on ${os} • ${device}`;
+  return (
+    <IconTooltip label={label} userAgent={userAgent}>
+      {icon}
+    </IconTooltip>
+  );
 }
 
 function BrowserIcon({ userAgent, size = "sm" }: { userAgent?: string | null; size?: "sm" | "md" }) {
   const cls = size === "md" ? "w-4 h-4" : "w-3.5 h-3.5";
-  if (!userAgent) return <Globe className={`${cls} text-muted-foreground`} />;
-  const ua = userAgent.toLowerCase();
-  if (/edg\//i.test(ua)) return <Globe className={`${cls} text-blue-500`} title="Edge" />;
-  if (/opr\//i.test(ua) || /opera/i.test(ua)) return <SiOpera className={`${cls} text-red-500`} title="Opera" />;
-  if (/chrome/i.test(ua) && !/chromium/i.test(ua)) return <SiGooglechrome className={`${cls} text-yellow-500`} title="Chrome" />;
-  if (/firefox/i.test(ua)) return <SiFirefox className={`${cls} text-orange-500`} title="Firefox" />;
-  if (/safari/i.test(ua) && !/chrome/i.test(ua)) return <SiSafari className={`${cls} text-blue-400`} title="Safari" />;
-  return <Globe className={`${cls} text-muted-foreground`} />;
+  const { browser, os, device } = parseUserAgent(userAgent);
+  let icon: React.ReactNode;
+  if (!userAgent) icon = <Globe className={`${cls} text-muted-foreground`} />;
+  else if (browser === "Edge") icon = <Globe className={`${cls} text-blue-500`} />;
+  else if (browser === "Opera") icon = <SiOpera className={`${cls} text-red-500`} />;
+  else if (browser === "Chrome") icon = <SiGooglechrome className={`${cls} text-yellow-500`} />;
+  else if (browser === "Firefox") icon = <SiFirefox className={`${cls} text-orange-500`} />;
+  else if (browser === "Safari") icon = <SiSafari className={`${cls} text-blue-400`} />;
+  else icon = <Globe className={`${cls} text-muted-foreground`} />;
+  const label = userAgent ? `${browser} on ${os} • ${device}` : "Unknown browser";
+  return (
+    <IconTooltip label={label} userAgent={userAgent}>
+      {icon}
+    </IconTooltip>
+  );
 }
 
 function HandlerAvatar({ mode, supervisorPhoto, agentPhoto, size = "md", className: extraClass }: { 
