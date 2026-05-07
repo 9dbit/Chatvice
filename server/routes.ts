@@ -499,11 +499,27 @@ async function notifySupervisors(merchantId: string, sessionId: string, reason: 
 // Module-level WebSocket clients map (exported so background jobs can broadcast)
 export const wsClients = new Map<string, Set<WebSocket>>();
 
+// Module-level merchant-channel WebSocket clients map. Used for dashboard-wide
+// notifications (e.g. ticket:update) that aren't tied to a specific chat session.
+export const merchantWsClients = new Map<string, Set<WebSocket>>();
+
 export function broadcastToSessionExternal(sessionId: string, data: any) {
   const sessionClients = wsClients.get(sessionId);
   if (sessionClients) {
     const message = JSON.stringify(data);
     sessionClients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  }
+}
+
+export function broadcastToMerchant(merchantId: string, data: any) {
+  const channelClients = merchantWsClients.get(merchantId);
+  if (channelClients) {
+    const message = JSON.stringify(data);
+    channelClients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message);
       }
@@ -747,6 +763,15 @@ function startPasswordRecoveryStatusSweeper() {
           }
           if (mapped === "rejected") patch.rejectedAt = new Date();
           await storage.updatePasswordRecoveryRequest(t.id, patch);
+          // Notify dashboard subscribers in real time so the Tickets popup
+          // and badge reflect the new status immediately.
+          broadcastToMerchant(cfg.merchantId, {
+            type: "ticket:update",
+            event: "status",
+            ticketId: (t as any).ticketId || t.id,
+            requestId: t.id,
+            status: mapped,
+          });
           console.log(`[PassRecov Sweep] Ticket ${t.id} status ${t.status} -> ${mapped} from sheet`);
         }
       }
@@ -2214,16 +2239,67 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     },
   };
   
-  app.use(session(sessionConfig));
+  const sessionMiddleware = session(sessionConfig);
+  app.use(sessionMiddleware);
 
-  const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
+  const wss = new WebSocketServer({ noServer: true });
   const clients = wsClients;
+
+  // Handle the HTTP upgrade ourselves so we can run the session middleware
+  // before accepting the WebSocket. This lets us authenticate merchant-channel
+  // subscriptions against the user's session cookie.
+  httpServer.on("upgrade", (request, socket, head) => {
+    try {
+      const url = new URL(request.url || "", `http://${request.headers.host}`);
+      if (url.pathname !== "/ws") {
+        // Let other upgrade handlers (e.g. Vite HMR) deal with it
+        return;
+      }
+      // Run express-session to populate (request as any).session from cookies
+      sessionMiddleware(request as any, {} as any, () => {
+        wss.handleUpgrade(request, socket as any, head, (ws) => {
+          wss.emit("connection", ws, request);
+        });
+      });
+    } catch (err) {
+      try { socket.destroy(); } catch {}
+    }
+  });
 
   wss.on("connection", (ws, req) => {
     const url = new URL(req.url || "", `http://${req.headers.host}`);
     const sessionId = url.searchParams.get("session");
+    const merchantChannelId = url.searchParams.get("merchant");
     const clientType = url.searchParams.get("type") || "customer"; // customer, supervisor, or ai
-    
+
+    // Merchant-channel subscription (used by dashboard for ticket:update etc.)
+    // Requires an authenticated merchant or supervisor session whose tenant
+    // matches the requested merchant channel.
+    if (merchantChannelId) {
+      const sess: any = (req as any).session;
+      const userType = sess?.userType;
+      const tenantId = sess?.merchantId;
+      const authorized =
+        sess?.userId &&
+        (userType === "merchant" || userType === "supervisor") &&
+        tenantId === merchantChannelId;
+      if (!authorized) {
+        try { ws.close(1008, "unauthorized"); } catch {}
+        return;
+      }
+      if (!merchantWsClients.has(merchantChannelId)) {
+        merchantWsClients.set(merchantChannelId, new Set());
+      }
+      merchantWsClients.get(merchantChannelId)!.add(ws);
+      ws.on("close", () => {
+        merchantWsClients.get(merchantChannelId)?.delete(ws);
+        if (merchantWsClients.get(merchantChannelId)?.size === 0) {
+          merchantWsClients.delete(merchantChannelId);
+        }
+      });
+      return;
+    }
+
     if (sessionId) {
       if (!clients.has(sessionId)) {
         clients.set(sessionId, new Set());
@@ -20279,6 +20355,17 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
       });
 
       await storage.updatePasswordRecoveryLastSynced(prConfig.id).catch(() => {});
+
+      // Push real-time notification to dashboard so the Tickets badge/list
+      // updates instantly without waiting on the 5s/15s polls. Payload is
+      // intentionally minimal — clients refetch the full ticket via the
+      // existing authenticated endpoints.
+      broadcastToMerchant(merchant.id, {
+        type: "ticket:update",
+        event: "created",
+        ticketId,
+      });
+
       console.log(`[PassRecov Form] Ticket ${ticketId} created for ${username} (row ${matchRow.rowIndex}), session ${sessionId}`);
       return res.json({ success: true, ticketId });
     } catch (err) {

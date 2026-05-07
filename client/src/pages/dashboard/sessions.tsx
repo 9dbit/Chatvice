@@ -588,6 +588,53 @@ export default function SessionsPage() {
     lastProcessedMessageIdRef.current = lastMessage.id;
   }, [messages, selectedSession, soundEnabled]);
 
+  // Subscribe to merchant-channel WebSocket for real-time ticket notifications.
+  // Pushes ticket:update events instantly so the Tickets badge/list refresh
+  // without waiting on the 5s/15s polling intervals.
+  useEffect(() => {
+    if (!merchantId) return;
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws?merchant=${encodeURIComponent(merchantId)}&type=dashboard`;
+    let ws: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let closed = false;
+
+    const connect = () => {
+      try {
+        ws = new WebSocket(wsUrl);
+      } catch (e) {
+        return;
+      }
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data?.type !== "ticket:update") return;
+          queryClient.invalidateQueries({ queryKey: ["/api/merchant/tickets"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-requests/pending-count"] });
+          if (data.event === "created" && soundEnabled) {
+            playIncomingChatSound();
+          }
+        } catch {
+          /* ignore */
+        }
+      };
+      ws.onclose = () => {
+        if (closed) return;
+        reconnectTimer = setTimeout(connect, 3000);
+      };
+      ws.onerror = () => {
+        try { ws?.close(); } catch {}
+      };
+    };
+    connect();
+
+    return () => {
+      closed = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      try { ws?.close(); } catch {}
+    };
+  }, [merchantId, soundEnabled]);
+
   // Capture the page title to restore when sessions page unmounts
   const preMountTitleRef = useRef<string>(document.title);
   useEffect(() => {
