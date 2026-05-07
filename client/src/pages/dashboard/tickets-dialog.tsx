@@ -11,8 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
+import type { DateRange as CalendarDateRange } from "react-day-picker";
 import { invalidateNotificationSoundCache } from "@/lib/sounds";
 import {
   Ticket,
@@ -36,7 +39,11 @@ import {
   Eye,
   EyeOff,
   ArrowUpDown,
+  ArrowDown,
+  ArrowUp,
+  ArrowDownAZ,
   CalendarRange,
+  CalendarIcon,
   ChevronRight,
 } from "lucide-react";
 
@@ -122,8 +129,17 @@ function useDesktopNotifPrompt(open: boolean) {
 }
 
 type TicketStatus = "checking" | "rejected" | "solved";
-type SortBy = "newest" | "oldest" | "username";
-type DateRange = "all" | "today" | "7d" | "30d";
+type SortBy = "newest" | "oldest" | "status" | "username";
+type DateRange = "all" | "today" | "7d" | "30d" | "custom";
+
+const STATUS_ORDER: Record<TicketStatus, number> = { checking: 0, rejected: 1, solved: 2 };
+
+const SORT_LABEL: Record<SortBy, string> = {
+  newest: "Terbaru",
+  oldest: "Terlama",
+  status: "Status",
+  username: "Username (A-Z)",
+};
 
 interface TicketSession {
   id: string;
@@ -231,7 +247,12 @@ function bucketOf(dateStr: string | null | undefined, now: Date): DateGroup {
   return "older";
 }
 
-function isWithinRange(dateStr: string | null | undefined, range: DateRange, now: Date): boolean {
+function isWithinRange(
+  dateStr: string | null | undefined,
+  range: DateRange,
+  now: Date,
+  custom?: { from?: Date; to?: Date },
+): boolean {
   if (range === "all") return true;
   if (!dateStr) return false;
   const d = new Date(dateStr);
@@ -241,6 +262,12 @@ function isWithinRange(dateStr: string | null | undefined, range: DateRange, now
   if (range === "today") return t >= startOfToday;
   if (range === "7d") return t >= startOfToday - 7 * 24 * 60 * 60 * 1000;
   if (range === "30d") return t >= startOfToday - 30 * 24 * 60 * 60 * 1000;
+  if (range === "custom") {
+    const from = custom?.from ? new Date(custom.from.getFullYear(), custom.from.getMonth(), custom.from.getDate()).getTime() : -Infinity;
+    const toBase = custom?.to ?? custom?.from;
+    const to = toBase ? new Date(toBase.getFullYear(), toBase.getMonth(), toBase.getDate()).getTime() + 24 * 60 * 60 * 1000 - 1 : Infinity;
+    return t >= from && t <= to;
+  }
   return true;
 }
 
@@ -289,8 +316,19 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
   const [sendingPwdId, setSendingPwdId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortBy>("newest");
   const [dateRange, setDateRange] = useState<DateRange>("all");
+  const [customRange, setCustomRange] = useState<CalendarDateRange | undefined>(undefined);
+  const [chipStatuses, setChipStatuses] = useState<Set<TicketStatus>>(new Set());
   const [showExample, setShowExample] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
+
+  const toggleChip = (s: TicketStatus) => {
+    setChipStatuses(prev => {
+      const next = new Set(prev);
+      if (next.has(s)) next.delete(s); else next.add(s);
+      return next;
+    });
+    setActiveId(null);
+  };
 
   // Auto-show tutorial once
   useEffect(() => {
@@ -326,9 +364,10 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const now = new Date();
+    const allowed: Set<TicketStatus> = chipStatuses.size > 0 ? chipStatuses : new Set([tab]);
     const list = tickets
-      .filter(t => normaliseStatus(t.status) === tab)
-      .filter(t => isWithinRange(t.createdAt, dateRange, now))
+      .filter(t => allowed.has(normaliseStatus(t.status)))
+      .filter(t => isWithinRange(t.createdAt, dateRange, now, customRange ? { from: customRange.from, to: customRange.to } : undefined))
       .filter(t => {
         if (!q) return true;
         return [
@@ -338,28 +377,33 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
       });
     list.sort((a, b) => {
       if (sortBy === "username") return a.username.localeCompare(b.username);
+      if (sortBy === "status") {
+        const sa = STATUS_ORDER[normaliseStatus(a.status)];
+        const sb = STATUS_ORDER[normaliseStatus(b.status)];
+        if (sa !== sb) return sa - sb;
+        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tb - ta;
+      }
       const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       if (sortBy === "oldest") return ta - tb;
       return tb - ta; // newest
     });
     return list;
-  }, [tickets, tab, search, sortBy, dateRange]);
+  }, [tickets, tab, search, sortBy, dateRange, customRange, chipStatuses]);
 
-  // Group only when sort = newest (chronological). Otherwise honor flat sort order.
+  // Always group by date bucket; sort within each bucket follows the selected sort.
   const grouped = useMemo(() => {
-    if (sortBy !== "newest") {
-      return filtered.length > 0 ? [{ group: null as DateGroup | null, items: filtered }] : [];
-    }
     const now = new Date();
     const buckets: Record<DateGroup, TicketRow[]> = {
       today: [], yesterday: [], thisWeek: [], older: [], unknown: [],
     };
     filtered.forEach(t => { buckets[bucketOf(t.createdAt, now)].push(t); });
     return DATE_GROUP_ORDER
-      .map(g => ({ group: g as DateGroup | null, items: buckets[g] }))
+      .map(g => ({ group: g as DateGroup, items: buckets[g] }))
       .filter(g => g.items.length > 0);
-  }, [filtered, sortBy]);
+  }, [filtered]);
 
   const active = useMemo(() => {
     if (activeId === EXAMPLE_TICKET.id && showExample) return EXAMPLE_TICKET;
@@ -534,11 +578,41 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                 </TabsList>
               </Tabs>
 
-              {/* Filter & sort row */}
-              <div className="flex items-center gap-2">
-                <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
-                  <SelectTrigger className="h-8 flex-1 text-xs gap-1.5 bg-background/60" data-testid="select-date-range">
-                    <CalendarRange className="w-3.5 h-3.5 text-muted-foreground" />
+              {/* Multi-status filter chips */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0">Filter status:</span>
+                {(["checking", "rejected", "solved"] as TicketStatus[]).map(s => {
+                  const on = chipStatuses.has(s);
+                  return (
+                    <Badge
+                      key={s}
+                      onClick={() => toggleChip(s)}
+                      className={`cursor-pointer gap-1 px-2 ${on ? STATUS_BADGE_TINT[s] : "bg-muted/40 text-muted-foreground border border-border/40"}`}
+                      data-testid={`chip-status-${s}`}
+                    >
+                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${STATUS_DOT[s]}`} />
+                      {STATUS_LABEL[s]}
+                    </Badge>
+                  );
+                })}
+                {chipStatuses.size > 0 ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-[10px]"
+                    onClick={() => { setChipStatuses(new Set()); setActiveId(null); }}
+                    data-testid="button-clear-chips"
+                  >
+                    Reset
+                  </Button>
+                ) : null}
+              </div>
+
+              {/* Date range + sort row */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <Select value={dateRange} onValueChange={(v) => { setDateRange(v as DateRange); if (v !== "custom") setCustomRange(undefined); }}>
+                  <SelectTrigger className="h-8 flex-1 min-w-[140px] text-xs gap-1.5 bg-background/60" data-testid="select-date-range">
+                    <CalendarRange className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -546,17 +620,61 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                     <SelectItem value="today" data-testid="option-range-today">Hari ini</SelectItem>
                     <SelectItem value="7d" data-testid="option-range-7d">7 hari terakhir</SelectItem>
                     <SelectItem value="30d" data-testid="option-range-30d">30 hari terakhir</SelectItem>
+                    <SelectItem value="custom" data-testid="option-range-custom">Rentang kustom...</SelectItem>
                   </SelectContent>
                 </Select>
+                {dateRange === "custom" ? (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1.5 text-xs bg-background/60"
+                        data-testid="button-custom-range"
+                      >
+                        <CalendarIcon className="w-3.5 h-3.5" />
+                        {customRange?.from
+                          ? customRange.to
+                            ? `${format(customRange.from, "d MMM")} - ${format(customRange.to, "d MMM")}`
+                            : format(customRange.from, "d MMM yyyy")
+                          : "Pilih tanggal"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="range"
+                        selected={customRange}
+                        onSelect={setCustomRange}
+                        numberOfMonths={1}
+                      />
+                      {customRange?.from || customRange?.to ? (
+                        <div className="p-2 border-t flex justify-end">
+                          <Button size="sm" variant="ghost" onClick={() => setCustomRange(undefined)} data-testid="button-clear-custom-range">
+                            Hapus
+                          </Button>
+                        </div>
+                      ) : null}
+                    </PopoverContent>
+                  </Popover>
+                ) : null}
                 <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
-                  <SelectTrigger className="h-8 flex-1 text-xs gap-1.5 bg-background/60" data-testid="select-sort">
-                    <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground" />
+                  <SelectTrigger className="h-8 flex-1 min-w-[140px] text-xs gap-1.5 bg-background/60" data-testid="select-sort">
+                    {sortBy === "newest" ? (
+                      <ArrowDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    ) : sortBy === "oldest" ? (
+                      <ArrowUp className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    ) : sortBy === "username" ? (
+                      <ArrowDownAZ className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    ) : (
+                      <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    )}
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="newest" data-testid="option-sort-newest">Terbaru</SelectItem>
-                    <SelectItem value="oldest" data-testid="option-sort-oldest">Terlama</SelectItem>
-                    <SelectItem value="username" data-testid="option-sort-username">Username (A-Z)</SelectItem>
+                    <SelectItem value="newest" data-testid="option-sort-newest">{SORT_LABEL.newest}</SelectItem>
+                    <SelectItem value="oldest" data-testid="option-sort-oldest">{SORT_LABEL.oldest}</SelectItem>
+                    <SelectItem value="status" data-testid="option-sort-status">{SORT_LABEL.status}</SelectItem>
+                    <SelectItem value="username" data-testid="option-sort-username">{SORT_LABEL.username}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -647,22 +765,30 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap shrink-0">
-                      <span className="text-xs text-muted-foreground">Override status:</span>
-                      <Select
-                        value={activeStatus}
-                        onValueChange={(v) => statusMutation.mutate({ id: active.id, status: v as TicketStatus })}
-                        disabled={statusMutation.isPending}
-                      >
-                        <SelectTrigger className="h-8 w-[180px]" data-testid="select-status-override">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="checking" data-testid="option-checking">Sedang Diperiksa</SelectItem>
-                          <SelectItem value="rejected" data-testid="option-rejected">Ditolak</SelectItem>
-                          <SelectItem value="solved" data-testid="option-solved">Selesai</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {sheetId && active.sheetRowIndex ? (
+                      {active.id === EXAMPLE_TICKET.id ? (
+                        <Badge variant="outline" className="gap-1.5" data-testid="badge-example-readonly">
+                          <Eye className="w-3 h-3" /> Mode Contoh - hanya pratinjau
+                        </Badge>
+                      ) : (
+                        <>
+                          <span className="text-xs text-muted-foreground">Override status:</span>
+                          <Select
+                            value={activeStatus}
+                            onValueChange={(v) => statusMutation.mutate({ id: active.id, status: v as TicketStatus })}
+                            disabled={statusMutation.isPending}
+                          >
+                            <SelectTrigger className="h-8 w-[180px]" data-testid="select-status-override">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="checking" data-testid="option-checking">Sedang Diperiksa</SelectItem>
+                              <SelectItem value="rejected" data-testid="option-rejected">Ditolak</SelectItem>
+                              <SelectItem value="solved" data-testid="option-solved">Selesai</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </>
+                      )}
+                      {active.id !== EXAMPLE_TICKET.id && sheetId && active.sheetRowIndex ? (
                         <Button asChild size="sm" variant="outline" className="gap-1.5">
                           <a
                             href={`https://docs.google.com/spreadsheets/d/${sheetId}/edit#gid=0&range=A${active.sheetRowIndex}`}
