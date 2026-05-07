@@ -630,6 +630,28 @@ export default function SessionsPage() {
               tag: `chatvice-ticket-${data.ticketId || username}`,
               onClick: () => setTicketsOpen(true),
             });
+          } else if (data.event === "status") {
+            // Status changes (solved/rejected/etc.) coming from the Google
+            // Sheet sweep should also surface a desktop popup so supervisors
+            // waiting on a resolution notice without polling the dashboard.
+            const status = typeof data.status === "string" && data.status.trim()
+              ? data.status.trim()
+              : "updated";
+            const username = typeof data.username === "string" && data.username.trim()
+              ? data.username.trim()
+              : "";
+            const ticketLabel = data.ticketId
+              ? `Ticket #${data.ticketId}`
+              : "Ticket";
+            const body = username
+              ? `${ticketLabel} (${username}) marked as ${status}`
+              : `${ticketLabel} marked as ${status}`;
+            sendTicketBrowserNotification({
+              title: "Ticket Status Updated",
+              body,
+              tag: `chatvice-ticket-status-${data.ticketId || data.requestId || username}`,
+              onClick: () => setTicketsOpen(true),
+            });
           }
         } catch {
           /* ignore */

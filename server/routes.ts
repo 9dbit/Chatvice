@@ -771,6 +771,7 @@ function startPasswordRecoveryStatusSweeper() {
             ticketId: (t as any).ticketId || t.id,
             requestId: t.id,
             status: mapped,
+            username: t.username,
           });
           console.log(`[PassRecov Sweep] Ticket ${t.id} status ${t.status} -> ${mapped} from sheet`);
         }
