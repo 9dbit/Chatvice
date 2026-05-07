@@ -10,6 +10,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 import { competitorsData } from "./comparison/competitors-data";
@@ -278,131 +283,125 @@ export function PublicFooter() {
   const { resolvedTheme } = useTheme();
   const chatviceLogo = resolvedTheme === "dark" ? chatviceLogoDark : chatviceLogoLight;
 
+  const renderLink = (link: { label: string; href: string }) => {
+    const className = "text-sm text-muted-foreground hover:text-foreground transition-colors";
+    if (link.href.startsWith("mailto:")) {
+      return <a href={link.href} className={className}>{link.label}</a>;
+    }
+    return <Link href={link.href} className={className}>{link.label}</Link>;
+  };
+
+  type ColLinks = { label: string; href: string }[];
+  const FooterColumn = ({
+    title,
+    links,
+    desktopTwoCol = false,
+  }: { title: string; links: ColLinks; desktopTwoCol?: boolean }) => (
+    <div>
+      {/* Mobile: collapsible */}
+      <div className="md:hidden border-b border-border">
+        <Collapsible>
+          <CollapsibleTrigger
+            className="flex w-full items-center justify-between py-3 font-semibold text-sm group"
+            data-testid={`footer-toggle-${title.toLowerCase()}`}
+          >
+            {title}
+            <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <ul className="space-y-2 pb-3 pl-1">
+              {links.map((link) => (
+                <li key={link.label + link.href}>{renderLink(link)}</li>
+              ))}
+            </ul>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+      {/* Desktop: static */}
+      <div className="hidden md:block">
+        <h4 className="font-semibold mb-4">{title}</h4>
+        <ul
+          className={
+            desktopTwoCol
+              ? "grid grid-cols-2 gap-x-4 gap-y-2"
+              : "space-y-2"
+          }
+        >
+          {links.map((link) => (
+            <li key={link.label + link.href}>{renderLink(link)}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+
   return (
     <footer className="bg-card border-t border-border">
-      <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-7 gap-8 mb-12">
-          <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="inline-block mb-4">
-              <img src={chatviceLogo} alt="Chatvice" className="h-8" />
-            </Link>
-            <p className="text-sm text-muted-foreground mb-4">
-              AI-powered customer service platform built for the future.
-            </p>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Brain className="w-4 h-4 text-purple-600" />
-              <span>Powered by <span className="font-semibold text-purple-600">LEXA1</span></span>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-4">Product</h4>
-            <ul className="space-y-2">
-              {footerLinks.product.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-4">Company</h4>
-            <ul className="space-y-2">
-              {footerLinks.company.map((link) => (
-                <li key={link.label}>
-                  {link.href.startsWith("mailto:") ? (
-                    <a href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                      {link.label}
-                    </a>
-                  ) : (
-                    <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                      {link.label}
-                    </Link>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-4">Resources</h4>
-            <ul className="space-y-2">
-              {footerLinks.resources.map((link) => (
-                <li key={link.label}>
-                  {link.href.startsWith("mailto:") ? (
-                    <a href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                      {link.label}
-                    </a>
-                  ) : (
-                    <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                      {link.label}
-                    </Link>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-4">Solutions</h4>
-            <ul className="space-y-2">
-              {footerLinks.solutions.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-4">Compare</h4>
-            <ul className="space-y-2">
-              {footerLinks.compare.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-4">Legal</h4>
-            <ul className="space-y-2">
-              {footerLinks.legal.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+      <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 py-12 md:py-16">
+        {/* Brand block */}
+        <div className="mb-8 md:mb-12 md:max-w-md">
+          <Link href="/" className="inline-block mb-4">
+            <img src={chatviceLogo} alt="Chatvice" className="h-8" />
+          </Link>
+          <p className="text-sm text-muted-foreground mb-3">
+            AI-powered customer service platform built for the future.
+          </p>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Brain className="w-4 h-4 text-purple-600" />
+            <span>Powered by <span className="font-semibold text-purple-600">LEXA1</span></span>
           </div>
         </div>
 
-        <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} Chatvice. All rights reserved.
-          </p>
-          <div className="flex items-center gap-4">
-            <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-              <Twitter className="w-5 h-5" />
-            </a>
-            <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-              <Linkedin className="w-5 h-5" />
-            </a>
-            <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-              <Github className="w-5 h-5" />
-            </a>
-            <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-              <Instagram className="w-5 h-5" />
-            </a>
+        {/* Link columns */}
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-x-8 gap-y-0 md:gap-y-8 mb-8 md:mb-12">
+          <div className="md:col-span-1">
+            <FooterColumn title="Product" links={footerLinks.product} />
+          </div>
+          <div className="md:col-span-1">
+            <FooterColumn title="Company" links={footerLinks.company} />
+          </div>
+          <div className="md:col-span-1">
+            <FooterColumn title="Resources" links={footerLinks.resources} />
+          </div>
+          <div className="md:col-span-2">
+            <FooterColumn title="Solutions" links={footerLinks.solutions} desktopTwoCol />
+          </div>
+          <div className="md:col-span-1">
+            <FooterColumn title="Compare" links={footerLinks.compare} />
+          </div>
+        </div>
+
+        {/* Bottom bar */}
+        <div className="pt-6 md:pt-8 border-t border-border flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            {footerLinks.legal.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+          <div className="flex items-center justify-between md:justify-end gap-4">
+            <p className="text-xs text-muted-foreground">
+              &copy; {new Date().getFullYear()} Chatvice. All rights reserved.
+            </p>
+            <div className="flex items-center gap-3">
+              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Twitter">
+                <Twitter className="w-4 h-4" />
+              </a>
+              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors" aria-label="LinkedIn">
+                <Linkedin className="w-4 h-4" />
+              </a>
+              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors" aria-label="GitHub">
+                <Github className="w-4 h-4" />
+              </a>
+              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Instagram">
+                <Instagram className="w-4 h-4" />
+              </a>
+            </div>
           </div>
         </div>
       </div>
