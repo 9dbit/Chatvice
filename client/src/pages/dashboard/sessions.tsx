@@ -1488,7 +1488,7 @@ export default function SessionsPage() {
             </div>
             <p className="text-muted-foreground text-xs sm:text-sm hidden sm:block">{t("dashboard.sessions.subtitle")}</p>
           </div>
-          <div className={`${selectedSession ? 'hidden' : 'flex'} sm:flex items-center gap-1.5 flex-wrap`}>
+          <div className={`${selectedSession ? 'hidden' : 'flex'} sm:flex items-center gap-1.5 flex-wrap landscape:max-md:flex-nowrap landscape:max-md:overflow-x-auto landscape:max-md:-mx-1 landscape:max-md:px-1 landscape:max-md:[&>*]:shrink-0 landscape:max-md:[&::-webkit-scrollbar]:hidden landscape:max-md:[scrollbar-width:none]`}>
             {/* All */}
             <button
               onClick={() => setStatusFilter("all")}
