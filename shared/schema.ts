@@ -142,6 +142,10 @@ export const merchants = pgTable("merchants", {
   // Onboarding checklist
   onboardingDismissed: boolean("onboarding_dismissed").default(false),
   onboardingWidgetInstalled: boolean("onboarding_widget_installed").default(false),
+  onboardingPrechatConfigured: boolean("onboarding_prechat_configured").default(false),
+  onboardingDomainRegistered: boolean("onboarding_domain_registered").default(false),
+  onboardingKnowledgeConfigured: boolean("onboarding_knowledge_configured").default(false),
+  onboardingDeployed: boolean("onboarding_deployed").default(false),
 });
 
 // Email verification tokens for merchant registration

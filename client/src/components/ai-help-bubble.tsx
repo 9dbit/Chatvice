@@ -102,16 +102,16 @@ function parseMessageContent(content: string): ParsedContent[] {
   return parts;
 }
 
-const INITIAL_MESSAGE = `Hi! I'm Chatvice Guide, here to help you make the most of your Chatvice dashboard. I can help you with:
+const INITIAL_MESSAGE = `Hai! Saya Chatvice Guide. Saya bisa memandu Anda dari pembuatan agent sampai deploy chatbot ke website. Pilih fase yang ingin Anda pelajari:
 
-- Setting up your AI agents
-- Managing knowledge sources
-- Understanding analytics
-- Configuring your chat widget
-- Subscription plans and billing
-- Best practices for customer support
+[BTN:Fase 1 Buat AI Agent:Bagaimana cara buat AI Agent pertama?]
+[BTN:Fase 2 Atur Widget:Bagaimana cara atur tampilan widget?]
+[BTN:Fase 3 Konfigurasi Prechat:Bagaimana cara konfigurasi prechat?]
+[BTN:Fase 4 Daftarkan Domain:Bagaimana cara daftarkan domain website?]
+[BTN:Fase 5 Knowledge Base:Bagaimana cara atur Knowledge Base?]
+[BTN:Fase 6 Deploy:Bagaimana cara deploy widget ke website?]
 
-What would you like to know?`;
+Atau tanya apa pun tentang dashboard, analytics, billing, dan fitur Chatvice lainnya.`;
 
 const CARD_WIDTH = 384;
 const CARD_HEIGHT = 700; // Increased by 40% from 500
@@ -143,15 +143,17 @@ interface AIHelpBubbleProps {
   publicMode?: boolean;
 }
 
-const PUBLIC_INITIAL_MESSAGE = `Hi! I'm Chatvice Guide. I can help you learn about our AI customer service platform:
+const PUBLIC_INITIAL_MESSAGE = `Hai! Saya Chatvice Guide. Saya bisa membantu Anda mengenal platform customer service AI kami:
 
-- What is Chatvice?
-- Our key features
-- Pricing plans
-- How to get started
-- Integration options
+- Apa itu Chatvice?
+- Fitur utama
+- Paket harga
+- Alur onboarding 6 fase (dari buat agent sampai deploy)
+- Cara integrasi ke website
 
-What would you like to know?`;
+[BTN:Lihat Harga:Berapa harga paket Chatvice?]
+[BTN:Cara Mulai:Bagaimana alur onboarding Chatvice?]
+[BTN:Fitur Utama:Apa saja fitur utama Chatvice?]`;
 
 export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
   const storageKeySuffix = publicMode ? "-public" : "-dashboard";

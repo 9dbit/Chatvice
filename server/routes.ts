@@ -30,6 +30,7 @@ import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./payp
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification, sendEmailChangeOtp, sendQuota80Email, sendQuota100Email, sendSubscriptionExpiringEmail } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
 import { staticBlogMetaMap } from "@shared/static-blog-meta";
+import { buildOnboardingKnowledgeForGuide, buildOnboardingKnowledgePublic, buildOnboardingWorkflowGuidance } from "@shared/onboarding-content";
 import { db, pool } from "./db";
 import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } from "drizzle-orm";
 import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, blastCampaigns } from "@shared/schema";
@@ -5683,6 +5684,39 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
     try {
       const merchantId = req.session.merchantId!;
       await storage.updateMerchant(merchantId, { onboardingDismissed: false });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Generic checkpoint complete/reset endpoints (Task #286)
+  const ONBOARDING_CHECKPOINT_FLAGS: Record<string, "onboardingWidgetInstalled" | "onboardingPrechatConfigured" | "onboardingDomainRegistered" | "onboardingKnowledgeConfigured" | "onboardingDeployed"> = {
+    "widget-settings": "onboardingWidgetInstalled",
+    "prechat": "onboardingPrechatConfigured",
+    "domain": "onboardingDomainRegistered",
+    "knowledge": "onboardingKnowledgeConfigured",
+    "deploy": "onboardingDeployed",
+  };
+
+  app.post("/api/merchant/onboarding/checkpoint/:id/complete", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const flag = ONBOARDING_CHECKPOINT_FLAGS[req.params.id];
+      if (!flag) return res.status(400).json({ error: "Invalid checkpoint id" });
+      await storage.updateMerchant(merchantId, { [flag]: true } as any);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/merchant/onboarding/checkpoint/:id/reset", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const flag = ONBOARDING_CHECKPOINT_FLAGS[req.params.id];
+      if (!flag) return res.status(400).json({ error: "Invalid checkpoint id" });
+      await storage.updateMerchant(merchantId, { [flag]: false } as any);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -17645,12 +17679,12 @@ Semua paket termasuk ${trialDays} hari FREE TRIAL. Tidak perlu kartu kredit!
 
 ${faqKnowledge}
 
+${buildOnboardingKnowledgePublic()}
+
 GETTING STARTED:
 1. Daftar akun gratis di /register
-2. Tambah knowledge sources (FAQs, info produk, dll)
-3. Kustomisasi chat widget
-4. Embed widget di website Anda
-5. Mulai otomasi customer support!
+2. Login ke dashboard, lalu ikuti checklist Getting Started yang memandu Anda lewat 6 fase di atas
+3. Setiap fase punya tutorial mini di dashboard
 `;
 
       // Always include pricing and FAQ knowledge, appending to custom knowledge if set
@@ -17930,6 +17964,8 @@ SUBSCRIPTION PLANS:
 - Enterprise ($299/mo): 50,000 conversations, 10 agents, dedicated support
 - Custom: Contact sales for unlimited features
 
+${buildOnboardingKnowledgeForGuide()}
+
 TIPS:
 - Train your AI with quality knowledge sources for better responses
 - Use triggers strategically to catch important customer issues
@@ -17991,30 +18027,20 @@ Dashboard pages to link:
 - /notification-settings - Pengaturan notifikasi
 - /live-preview - Preview widget
 
-WORKFLOW GUIDANCE:
-Ketika merchant bertanya tentang cara melakukan sesuatu, berikan panduan step-by-step:
+${buildOnboardingWorkflowGuidance()}
 
-1. SETUP CHATBOT PERTAMA KALI:
-   a. Buat AI Agent di [LINK:Agents:/agents]
-   b. Tambah Knowledge Source di [LINK:Sources:/sources]
-   c. Kustomisasi widget di [LINK:Widget:/widget]
-   d. Copy embed code dan pasang di website
+WORKFLOW GUIDANCE TAMBAHAN (di luar 6 fase utama):
 
-2. MENAMBAH SUPERVISOR:
+A. MENAMBAH SUPERVISOR:
    a. Buka [LINK:Supervisors:/supervisors]
    b. Klik "Add Supervisor"
    c. Masukkan nama, email, dan password
    d. Atur jadwal kerja di [LINK:Work Scheduler:/work-scheduler]
 
-3. MENGATUR ESKALASI:
+B. MENGATUR ESKALASI:
    a. Buka [LINK:Triggers:/triggers]
    b. Tambah keyword yang memicu eskalasi (contoh: "refund", "manager")
    c. Pilih action: escalate atau custom response
-
-4. MELATIH AI:
-   a. Buka [LINK:Knowledge Base:/knowledge]
-   b. Tambah konten training dengan topik dan jawaban
-   c. Atau crawl website di [LINK:Sources:/sources]
 
 BILLING GUIDANCE (IMPORTANT):
 - Ketika merchant bertanya tentang billing, tagihan, atau pembayaran, GUNAKAN data dari BILLING & SUBSCRIPTION di atas
