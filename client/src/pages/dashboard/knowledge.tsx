@@ -3112,7 +3112,7 @@ export default function KnowledgePage() {
                     Reset flow: AI collects username + bank + phone → server verifies row → POSTs to Write-Back URL → polls sheet every 3s for Status=<strong style={{ color: "#a1a1aa" }}>ok</strong> + new_password → delivers via chat automatically.
                   </p>
                   <a
-                    href="https://docs.google.com/spreadsheets/d/1X6TY-PASSWORD-RECOVERY-TEMPLATE/copy"
+                    href="https://docs.google.com/spreadsheets/d/1yFI99lGO5pfxNBB-1cz8jTUT3VeZbINcvl6xvOO_KLo/copy"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-xs"
