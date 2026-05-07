@@ -128,6 +128,8 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
   const [activeId, setActiveId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [copiedPwdId, setCopiedPwdId] = useState<string | null>(null);
+  const [sentPwdIds, setSentPwdIds] = useState<Set<string>>(new Set());
+  const [sendingPwdId, setSendingPwdId] = useState<string | null>(null);
 
   const { data: tickets = [], isLoading, refetch, isFetching } = useQuery<TicketRow[]>({
     queryKey: ["/api/merchant/tickets"],
@@ -188,6 +190,29 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
     },
     onError: (err: any) => toast({ title: "Gagal mengirim pesan", description: err?.message, variant: "destructive" }),
   });
+
+  const sendPasswordToCustomer = async (ticket: TicketRow) => {
+    if (!ticket.sessionId || !ticket.newPassword) return;
+    const displayName = ticket.session?.customerName?.trim() || "Pelanggan";
+    const message =
+      `Halo ${displayName}, permintaan reset password untuk akun *${ticket.username}* sudah selesai diproses.\n\n` +
+      `Password baru Anda: *${ticket.newPassword}*\n\n` +
+      `Demi keamanan, mohon segera login dan ganti password ini dengan kombinasi yang lebih kuat. Terima kasih!`;
+    setSendingPwdId(ticket.id);
+    try {
+      await apiRequest("POST", `/api/merchant/tickets/${ticket.id}/reply`, { message });
+      setSentPwdIds(prev => {
+        const next = new Set(prev);
+        next.add(ticket.id);
+        return next;
+      });
+      toast({ title: "Password terkirim ke pelanggan" });
+    } catch (err: any) {
+      toast({ title: "Gagal mengirim password", description: err?.message, variant: "destructive" });
+    } finally {
+      setSendingPwdId(prev => (prev === ticket.id ? null : prev));
+    }
+  };
 
   const copyPwd = async (id: string, pwd: string) => {
     try {
@@ -384,6 +409,24 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                                 {copiedPwdId === active.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                                 {copiedPwdId === active.id ? "Tersalin" : "Salin"}
                               </Button>
+                              {active.sessionId ? (
+                                <Button
+                                  size="sm"
+                                  onClick={() => sendPasswordToCustomer(active)}
+                                  disabled={sendingPwdId === active.id || sentPwdIds.has(active.id)}
+                                  className="gap-1.5"
+                                  data-testid="button-send-password"
+                                >
+                                  {sendingPwdId === active.id ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : sentPwdIds.has(active.id) ? (
+                                    <Check className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <Send className="w-3.5 h-3.5" />
+                                  )}
+                                  {sentPwdIds.has(active.id) ? "Terkirim" : "Kirim Password ke Pelanggan"}
+                                </Button>
+                              ) : null}
                             </div>
                             <p className="mt-2 text-[11px] text-muted-foreground">
                               Bagikan password baru ini ke pelanggan dan minta segera ganti dengan password yang lebih aman.
