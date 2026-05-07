@@ -29,6 +29,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatDistanceToNow } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
+import { Inbox as InboxIcon } from "lucide-react";
 import type { Merchant, CrawledLink, Agent, SuggestedQuestion, KnowledgebaseArticle, Source, KnowledgeEntry, PasswordRecoveryRequest } from "@shared/schema";
 import { subscriptionPlans, type SubscriptionPlanId } from "@shared/schema";
 import { PlanLimitPopup } from "@/components/plan-limit-popup";
@@ -400,6 +407,9 @@ export default function KnowledgePage() {
   const [prIsTesting, setPrIsTesting] = useState(false);
   const [prIsSaving, setPrIsSaving] = useState(false);
   const [prIsFetching, setPrIsFetching] = useState(false);
+  const [prDeleteDialogOpen, setPrDeleteDialogOpen] = useState(false);
+  const [prAdvancedOpen, setPrAdvancedOpen] = useState(false);
+  const [prMessagesOpen, setPrMessagesOpen] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -3069,21 +3079,47 @@ export default function KnowledgePage() {
               </div>
             </div>
 
-            {/* Password Recovery via Google Sheet Card */}
-            <div className="rounded-lg bg-zinc-800 dark:bg-zinc-900 overflow-hidden" data-testid="card-password-recovery">
-              <div className="p-4 space-y-4" style={{ color: "white" }}>
+            {/* Reset Password via Google Sheet — Configuration Card */}
+            <Card data-testid="card-password-recovery">
+              <CardHeader className="space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="space-y-1">
+                  <div className="space-y-1.5 flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <Lock className="w-4 h-4 shrink-0" style={{ color: "#a1a1aa" }} />
-                      <h3 className="font-semibold" style={{ color: "white" }}>Password Recovery via Google Sheet</h3>
+                      <Lock className="w-4 h-4 shrink-0 text-muted-foreground" />
+                      <CardTitle className="text-base">Reset Password via Google Sheet</CardTitle>
                     </div>
-                    <p className="text-sm" style={{ color: "#d4d4d8" }}>
-                      Allow the AI to help customers reset or retrieve passwords by looking up a Google Sheet. The sheet acts as your user database — AI collects identity info, verifies the row, and delivers passwords securely via chat.
-                    </p>
+                    <CardDescription>
+                      AI bantu customer reset password dengan cek data di Google Sheet kamu.
+                    </CardDescription>
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground" data-testid="status-password-recovery">
+                        <span
+                          className={
+                            "inline-block w-2 h-2 rounded-full " +
+                            (!prEnabled
+                              ? "bg-zinc-400 dark:bg-zinc-500"
+                              : prConfig?.sheetCsvUrl && prConfig?.lastSyncedAt
+                                ? "bg-emerald-500"
+                                : "bg-amber-500")
+                          }
+                        />
+                        <span>
+                          {!prEnabled
+                            ? "Nonaktif"
+                            : prConfig?.sheetCsvUrl && prConfig?.lastSyncedAt
+                              ? "Aktif & Sheet terhubung"
+                              : "Aktif — sheet belum terhubung"}
+                        </span>
+                      </div>
+                      {prConfig?.lastSyncedAt && (
+                        <Badge variant="secondary" className="font-normal" data-testid="badge-last-synced">
+                          Terakhir disinkron {formatDistanceToNow(new Date(prConfig.lastSyncedAt), { addSuffix: true, locale: idLocale })}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-sm" style={{ color: "#a1a1aa" }}>{prEnabled ? "On" : "Off"}</span>
+                    <span className="text-sm text-muted-foreground">{prEnabled ? "Aktif" : "Nonaktif"}</span>
                     <Switch
                       checked={prEnabled}
                       onCheckedChange={setPrEnabled}
@@ -3091,63 +3127,81 @@ export default function KnowledgePage() {
                     />
                   </div>
                 </div>
+              </CardHeader>
 
-                {/* Sheet column reference */}
-                <div className="rounded-md p-3 space-y-2" style={{ backgroundColor: "#27272a", border: "1px solid #3f3f46" }}>
-                  <p className="text-xs font-medium" style={{ color: "#a1a1aa" }}>Required Google Sheet Columns</p>
-                  <div className="flex flex-wrap gap-1">
-                    {[
-                      { col: "Number", note: "Row number — used by Apps Script to update the exact row" },
-                      { col: "Username", note: "User identifier (primary key)" },
-                      { col: "Registered Bank Account", note: "Bank name — used for identity verification" },
-                      { col: "Phone Number", note: "Registered phone — secondary verification" },
-                      { col: "Current Password", note: "Returned on lookup requests" },
-                      { col: "New Password", note: "Filled by Apps Script when reset is ready" },
-                      { col: "Status", note: "normal → request → ok" },
-                    ].map(({ col, note }) => (
-                      <span key={col} title={note} className="text-xs px-2 py-0.5 rounded-md" style={{ backgroundColor: "#3f3f46", color: "#e4e4e7", border: "1px solid #52525b" }}>{col}</span>
-                    ))}
+              <CardContent className="space-y-6">
+                {/* Step 1 — Prepare Google Sheet */}
+                <div className="flex gap-3">
+                  <Badge variant="secondary" className="rounded-full w-6 h-6 flex items-center justify-center p-0 shrink-0 mt-0.5">1</Badge>
+                  <div className="flex-1 min-w-0 space-y-3">
+                    <div>
+                      <h4 className="text-sm font-semibold">Siapkan Google Sheet kamu</h4>
+                      <p className="text-xs text-muted-foreground mt-1">Salin template di bawah ini ke Google Drive kamu — sheet ini berfungsi sebagai database user untuk verifikasi & reset password.</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={() => window.open("https://docs.google.com/spreadsheets/d/1yFI99lGO5pfxNBB-1cz8jTUT3VeZbINcvl6xvOO_KLo/copy", "_blank", "noopener,noreferrer")}
+                      data-testid="button-copy-password-recovery-template"
+                    >
+                      <Copy className="w-4 h-4 mr-1.5" />
+                      Salin Template Google Sheet
+                    </Button>
+                    <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Kolom wajib di sheet kamu</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {[
+                          { col: "Number", note: "Nomor baris — dipakai Apps Script untuk update baris yang tepat." },
+                          { col: "Username", note: "ID user (kunci utama)." },
+                          { col: "Registered Bank Account", note: "Nama bank — untuk verifikasi identitas." },
+                          { col: "Phone Number", note: "No HP terdaftar — verifikasi tambahan." },
+                          { col: "Current Password", note: "Dikembalikan saat customer minta lihat password." },
+                          { col: "New Password", note: "Diisi otomatis oleh Apps Script saat reset selesai." },
+                          { col: "Status", note: "normal → request → ok" },
+                        ].map(({ col, note }) => (
+                          <div key={col} className="space-y-0.5">
+                            <Badge variant="outline" className="font-mono text-[11px]">{col}</Badge>
+                            <p className="text-[11px] text-muted-foreground leading-snug">{note}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-xs" style={{ color: "#71717a" }}>
-                    Reset flow: AI collects username + bank + phone → server verifies row → POSTs to Write-Back URL → polls sheet every 3s for Status=<strong style={{ color: "#a1a1aa" }}>ok</strong> + new_password → delivers via chat automatically.
-                  </p>
-                  <a
-                    href="https://docs.google.com/spreadsheets/d/1yFI99lGO5pfxNBB-1cz8jTUT3VeZbINcvl6xvOO_KLo/copy"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs"
-                    style={{ color: "#818cf8" }}
-                    data-testid="link-password-recovery-template"
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                    Open Google Sheet template
-                  </a>
                 </div>
 
-                <div className="space-y-3">
-                  {/* Sheet CSV URL */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label style={{ color: "#d4d4d8" }}>Google Sheet CSV URL</Label>
-                      {prConfig?.lastSyncedAt && (
-                        <span className="text-xs" style={{ color: "#71717a" }}>
-                          Last synced: {new Date(prConfig.lastSyncedAt).toLocaleString()}
-                        </span>
-                      )}
+                {/* Step 2 — Paste CSV link */}
+                <div className="flex gap-3">
+                  <Badge variant="secondary" className="rounded-full w-6 h-6 flex items-center justify-center p-0 shrink-0 mt-0.5">2</Badge>
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-sm font-semibold">Tempel link CSV Sheet kamu</h4>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="text-muted-foreground hover-elevate rounded-sm" data-testid="tooltip-csv-help">
+                            <HelpCircle className="w-3.5 h-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="text-xs">Cara dapat link CSV: di Google Sheet pilih <strong>File → Bagikan → Publikasikan ke web → format CSV</strong>, lalu salin URL-nya ke sini.</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
-                    <div className="flex gap-2">
+                    <Label htmlFor="pr-csv-url" className="text-xs text-muted-foreground">Link CSV Sheet</Label>
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <Input
+                        id="pr-csv-url"
                         value={prSheetUrl}
                         onChange={(e) => { setPrSheetUrl(e.target.value); setPrTestResult(null); }}
                         placeholder="https://docs.google.com/spreadsheets/d/.../export?format=csv"
-                        style={{ backgroundColor: "#27272a", borderColor: "#3f3f46", color: "white" }}
                         data-testid="input-password-recovery-sheet-url"
                       />
                       <Button
+                        type="button"
                         variant="outline"
                         size="default"
                         disabled={!prSheetUrl.includes("docs.google.com") || prIsTesting}
-                        style={{ borderColor: "#52525b", color: "white", whiteSpace: "nowrap" }}
+                        className="whitespace-nowrap"
                         data-testid="button-test-password-recovery-sheet"
                         onClick={async () => {
                           setPrIsTesting(true);
@@ -3157,99 +3211,155 @@ export default function KnowledgePage() {
                             const data = await res.json();
                             setPrTestResult({ success: data.success, message: data.message || data.error });
                           } catch {
-                            setPrTestResult({ success: false, message: "Failed to test sheet connection" });
+                            setPrTestResult({ success: false, message: "Gagal menghubungkan ke sheet" });
                           } finally {
                             setPrIsTesting(false);
                           }
                         }}
                       >
                         {prIsTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                        <span className="ml-1.5">Test</span>
+                        <span className="ml-1.5">Tes Koneksi</span>
                       </Button>
                     </div>
                     {prTestResult && (
-                      <p className="text-xs" style={{ color: prTestResult.success ? "#86efac" : "#fca5a5" }}>
-                        {prTestResult.success ? <CheckCircle2 className="w-3 h-3 inline mr-1" /> : <X className="w-3 h-3 inline mr-1" />}
+                      <Badge
+                        variant={prTestResult.success ? "default" : "destructive"}
+                        className="gap-1 font-normal"
+                        data-testid="badge-test-result"
+                      >
+                        {prTestResult.success ? <CheckCircle2 className="w-3 h-3" /> : <X className="w-3 h-3" />}
                         {prTestResult.message}
-                      </p>
+                      </Badge>
                     )}
-                    <p className="text-xs" style={{ color: "#71717a" }}>Use the CSV export URL: <strong style={{ color: "#a1a1aa" }}>File → Share → Publish to web → CSV</strong>. Sheet must be publicly accessible.</p>
-                  </div>
-
-                  {/* Write-Back URL */}
-                  <div className="space-y-1.5">
-                    <Label style={{ color: "#d4d4d8" }}>
-                      Apps Script Write-Back URL{" "}
-                      <span style={{ color: "#71717a" }}>(optional — for reset flow)</span>
-                    </Label>
-                    <Input
-                      value={prWriteBackUrl}
-                      onChange={(e) => setPrWriteBackUrl(e.target.value)}
-                      placeholder="https://script.google.com/macros/s/.../exec"
-                      style={{ backgroundColor: "#27272a", borderColor: "#3f3f46", color: "white" }}
-                      data-testid="input-password-recovery-writeback-url"
-                    />
-                    <p className="text-xs" style={{ color: "#71717a" }}>
-                      When a customer requests a reset, the server POSTs <code style={{ color: "#a1a1aa" }}>{"{ rowNumber, newStatus: \"request\" }"}</code> to this URL so your Apps Script can locate the exact row, generate a new password, and write it back to the sheet.
-                    </p>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label style={{ color: "#d4d4d8" }}>Form Intro Message <span style={{ color: "#71717a" }}>(optional)</span></Label>
-                    <Textarea
-                      value={prFormIntroText}
-                      onChange={(e) => setPrFormIntroText(e.target.value)}
-                      placeholder="e.g. Please fill in the form below to submit your password reset request:"
-                      rows={2}
-                      style={{ backgroundColor: "#27272a", borderColor: "#3f3f46", color: "white", resize: "none" }}
-                      data-testid="input-password-recovery-form-intro"
-                    />
-                    <p className="text-xs" style={{ color: "#71717a" }}>
-                      Shown to customers just before the reset form appears. If left blank, the AI will generate its own phrase (or a default based on language detection will be used as a fallback).
-                    </p>
-                    {prFormIntroText.trim() && (
-                      <div className="mt-2 space-y-1">
-                        <p className="text-xs font-medium" style={{ color: "#71717a" }}>Widget preview:</p>
-                        <div className="rounded-md p-3" style={{ backgroundColor: "#1c1c1f", border: "1px solid #3f3f46" }}>
-                          <div className="flex items-end gap-2">
-                            <Avatar className="flex-shrink-0" style={{ width: 28, height: 28 }}>
-                              <AvatarImage src={selectedAgent?.photoUrl || ""} alt={selectedAgent?.name || "Agent"} />
-                              <AvatarFallback className="text-[10px] font-bold" style={{ backgroundColor: "#3f3f46", color: "#a1a1aa" }}>
-                                {selectedAgent?.name ? selectedAgent.name.slice(0, 2).toUpperCase() : <Bot className="w-3 h-3" />}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div
-                              className="rounded-2xl rounded-bl-sm px-3 py-2 text-sm leading-snug"
-                              style={{ backgroundColor: "#27272a", color: "#f4f4f5", maxWidth: "80%", wordBreak: "break-word" }}
-                              data-testid="preview-form-intro-message"
-                            >
-                              {prFormIntroText}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label style={{ color: "#d4d4d8" }}>Additional AI Instructions <span style={{ color: "#71717a" }}>(optional)</span></Label>
-                    <Textarea
-                      value={prInstructions}
-                      onChange={(e) => setPrInstructions(e.target.value)}
-                      placeholder="e.g. Ask for the customer's registered phone number before proceeding..."
-                      rows={2}
-                      style={{ backgroundColor: "#27272a", borderColor: "#3f3f46", color: "white", resize: "none" }}
-                      data-testid="input-password-recovery-instructions"
-                    />
+                    <p className="text-xs text-muted-foreground">Pastikan sheet sudah dipublikasikan agar bisa diakses publik.</p>
                   </div>
                 </div>
 
+                {/* Step 3 — Apps Script (optional, collapsible) */}
+                <div className="flex gap-3">
+                  <Badge variant="secondary" className="rounded-full w-6 h-6 flex items-center justify-center p-0 shrink-0 mt-0.5">3</Badge>
+                  <div className="flex-1 min-w-0">
+                    <Collapsible open={prAdvancedOpen} onOpenChange={setPrAdvancedOpen}>
+                      <CollapsibleTrigger asChild>
+                        <button
+                          type="button"
+                          className="w-full flex items-center justify-between gap-2 text-left rounded-md hover-elevate p-1 -m-1"
+                          data-testid="toggle-password-recovery-advanced"
+                        >
+                          <div>
+                            <h4 className="text-sm font-semibold">Aktifkan reset otomatis lewat Apps Script <span className="text-xs font-normal text-muted-foreground">(opsional)</span></h4>
+                            <p className="text-xs text-muted-foreground mt-0.5">Lewati langkah ini kalau cukup pakai mode lihat password saja.</p>
+                          </div>
+                          {prAdvancedOpen ? <ChevronDown className="w-4 h-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground" />}
+                        </button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="space-y-2 pt-3">
+                        <Label htmlFor="pr-writeback-url" className="text-xs text-muted-foreground">Link Apps Script Web App</Label>
+                        <Input
+                          id="pr-writeback-url"
+                          value={prWriteBackUrl}
+                          onChange={(e) => setPrWriteBackUrl(e.target.value)}
+                          placeholder="https://script.google.com/macros/s/.../exec"
+                          data-testid="input-password-recovery-writeback-url"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Saat customer minta reset, server akan kirim <code className="text-foreground">{"{ rowNumber, newStatus: \"request\" }"}</code> ke link ini agar Apps Script kamu bisa cari baris yang tepat, generate password baru, dan tulis kembali ke sheet.
+                        </p>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </div>
+                </div>
+
+                {/* Step 4 — Customize messages (optional, collapsible) */}
+                <div className="flex gap-3">
+                  <Badge variant="secondary" className="rounded-full w-6 h-6 flex items-center justify-center p-0 shrink-0 mt-0.5">4</Badge>
+                  <div className="flex-1 min-w-0">
+                    <Collapsible open={prMessagesOpen} onOpenChange={setPrMessagesOpen}>
+                      <CollapsibleTrigger asChild>
+                        <button
+                          type="button"
+                          className="w-full flex items-center justify-between gap-2 text-left rounded-md hover-elevate p-1 -m-1"
+                          data-testid="toggle-password-recovery-messages"
+                        >
+                          <div>
+                            <h4 className="text-sm font-semibold">Sesuaikan pesan & instruksi AI <span className="text-xs font-normal text-muted-foreground">(opsional)</span></h4>
+                            <p className="text-xs text-muted-foreground mt-0.5">Atur pesan pembuka form dan tambahan instruksi untuk AI.</p>
+                          </div>
+                          {prMessagesOpen ? <ChevronDown className="w-4 h-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground" />}
+                        </button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="space-y-4 pt-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="pr-form-intro" className="text-xs text-muted-foreground">Pesan Pembuka Form</Label>
+                          <Textarea
+                            id="pr-form-intro"
+                            value={prFormIntroText}
+                            onChange={(e) => setPrFormIntroText(e.target.value)}
+                            placeholder="Contoh: Silakan isi form di bawah ini untuk mengajukan reset password kamu:"
+                            rows={2}
+                            className="resize-none"
+                            data-testid="input-password-recovery-form-intro"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Ditampilkan ke customer sebelum form reset muncul. Kalau dikosongkan, AI akan generate kalimatnya sendiri (atau pakai default berdasarkan bahasa terdeteksi).
+                          </p>
+                          {prFormIntroText.trim() && (
+                            <div className="space-y-1.5 pt-1">
+                              <p className="text-xs font-medium text-muted-foreground">Pratinjau di widget:</p>
+                              <div className="rounded-md border bg-muted/30 p-3">
+                                <div className="flex items-end gap-2">
+                                  <Avatar className="flex-shrink-0 h-7 w-7">
+                                    <AvatarImage src={selectedAgent?.photoUrl || ""} alt={selectedAgent?.name || "Agent"} />
+                                    <AvatarFallback className="text-[10px] font-bold">
+                                      {selectedAgent?.name ? selectedAgent.name.slice(0, 2).toUpperCase() : <Bot className="w-3 h-3" />}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div
+                                    className="rounded-2xl rounded-bl-sm px-3 py-2 text-sm leading-snug bg-background border max-w-[80%] break-words"
+                                    data-testid="preview-form-intro-message"
+                                  >
+                                    {prFormIntroText}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="pr-instructions" className="text-xs text-muted-foreground">Instruksi Tambahan untuk AI</Label>
+                          <Textarea
+                            id="pr-instructions"
+                            value={prInstructions}
+                            onChange={(e) => setPrInstructions(e.target.value)}
+                            placeholder="Contoh: Minta nomor HP terdaftar customer sebelum melanjutkan..."
+                            rows={2}
+                            className="resize-none"
+                            data-testid="input-password-recovery-instructions"
+                          />
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </div>
+                </div>
+
+                {/* Step 5 — Save & activate */}
+                <div className="flex gap-3">
+                  <Badge variant="secondary" className="rounded-full w-6 h-6 flex items-center justify-center p-0 shrink-0 mt-0.5">5</Badge>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-semibold">Simpan & aktifkan</h4>
+                    <p className="text-xs text-muted-foreground mt-1">Tekan tombol di bawah untuk menyimpan konfigurasi. Pastikan toggle di pojok kanan atas sudah aktif kalau ingin AI mulai menangani permintaan reset password.</p>
+                  </div>
+                </div>
+              </CardContent>
+
+              <CardFooter className="flex flex-wrap gap-2 justify-between">
                 <div className="flex flex-wrap gap-2">
                   <Button
-                    variant="outline"
+                    type="button"
+                    variant="default"
                     size="default"
                     disabled={prIsSaving}
-                    style={{ borderColor: "#52525b", color: "white" }}
                     data-testid="button-save-password-recovery-config"
                     onClick={async () => {
                       setPrIsSaving(true);
@@ -3264,24 +3374,24 @@ export default function KnowledgePage() {
                         });
                         setPrConfigLoaded(false);
                         queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config", selectedAgentId] });
-                        toast({ title: "Password Recovery config saved", description: prEnabled ? "AI will now handle password recovery requests." : "Password Recovery is disabled." });
+                        toast({ title: "Konfigurasi tersimpan", description: prEnabled ? "AI sekarang akan menangani permintaan reset password." : "Reset password sedang nonaktif." });
                       } catch {
-                        toast({ title: "Failed to save config", variant: "destructive" });
+                        toast({ title: "Gagal menyimpan konfigurasi", variant: "destructive" });
                       } finally {
                         setPrIsSaving(false);
                       }
                     }}
                   >
                     {prIsSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Save className="w-4 h-4 mr-1.5" />}
-                    Save Configuration
+                    Simpan Konfigurasi
                   </Button>
 
                   {prConfig && (
                     <Button
+                      type="button"
                       variant="outline"
                       size="default"
                       disabled={prIsFetching || !prConfig.sheetCsvUrl}
-                      style={{ borderColor: "#52525b", color: "white" }}
                       data-testid="button-manual-fetch-password-recovery"
                       onClick={async () => {
                         setPrIsFetching(true);
@@ -3290,157 +3400,224 @@ export default function KnowledgePage() {
                           const data = await res.json();
                           setPrConfigLoaded(false);
                           queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config", selectedAgentId] });
-                          toast({ title: "Sheet fetched", description: data.message || `Fetched successfully` });
+                          toast({ title: "Sheet berhasil disinkron", description: data.message || "Data terbaru sudah diambil." });
                         } catch {
-                          toast({ title: "Failed to fetch sheet", variant: "destructive" });
+                          toast({ title: "Gagal sinkron sheet", variant: "destructive" });
                         } finally {
                           setPrIsFetching(false);
                         }
                       }}
                     >
                       {prIsFetching ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}
-                      Fetch Now
-                    </Button>
-                  )}
-
-                  {prConfig && (
-                    <Button
-                      variant="outline"
-                      size="default"
-                      style={{ borderColor: "#52525b", color: "#ef4444" }}
-                      data-testid="button-delete-password-recovery-config"
-                      onClick={async () => {
-                        if (!confirm("Delete this password recovery configuration?")) return;
-                        try {
-                          const deleteUrl = selectedAgentId
-                            ? `/api/merchant/password-recovery-config?agentId=${selectedAgentId}`
-                            : `/api/merchant/password-recovery-config`;
-                          await apiRequest("DELETE", deleteUrl);
-                          setPrSheetUrl("");
-                          setPrWriteBackUrl("");
-                          setPrEnabled(false);
-                          setPrInstructions("");
-                          setPrFormIntroText("");
-                          setPrConfigLoaded(false);
-                          queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config", selectedAgentId] });
-                          toast({ title: "Config deleted" });
-                        } catch {
-                          toast({ title: "Failed to delete config", variant: "destructive" });
-                        }
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4 mr-1.5" />
-                      Delete
+                      Sinkron Sekarang
                     </Button>
                   )}
                 </div>
-              </div>
-            </div>
 
-            {/* Password Recovery Request History */}
-            <div className="rounded-lg bg-zinc-800 dark:bg-zinc-900 overflow-hidden" data-testid="card-password-recovery-history">
-              <div className="p-4 space-y-3" style={{ color: "white" }}>
+                {prConfig && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    data-testid="button-delete-password-recovery-config"
+                    onClick={() => setPrDeleteDialogOpen(true)}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1.5" />
+                    Hapus Konfigurasi
+                  </Button>
+                )}
+              </CardFooter>
+            </Card>
+
+            {/* Delete confirmation dialog */}
+            <AlertDialog open={prDeleteDialogOpen} onOpenChange={setPrDeleteDialogOpen}>
+              <AlertDialogContent data-testid="dialog-delete-password-recovery">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Hapus konfigurasi reset password?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Konfigurasi sheet, link Apps Script, dan semua instruksi AI akan dihapus. Customer tidak akan bisa lagi mengajukan reset password sampai konfigurasi baru dibuat.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel data-testid="button-cancel-delete-password-recovery">Batal</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    data-testid="button-confirm-delete-password-recovery"
+                    onClick={async () => {
+                      try {
+                        const deleteUrl = selectedAgentId
+                          ? `/api/merchant/password-recovery-config?agentId=${selectedAgentId}`
+                          : `/api/merchant/password-recovery-config`;
+                        await apiRequest("DELETE", deleteUrl);
+                        setPrSheetUrl("");
+                        setPrWriteBackUrl("");
+                        setPrEnabled(false);
+                        setPrInstructions("");
+                        setPrFormIntroText("");
+                        setPrConfigLoaded(false);
+                        queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config", selectedAgentId] });
+                        toast({ title: "Konfigurasi dihapus" });
+                      } catch {
+                        toast({ title: "Gagal menghapus konfigurasi", variant: "destructive" });
+                      } finally {
+                        setPrDeleteDialogOpen(false);
+                      }
+                    }}
+                  >
+                    Hapus
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Riwayat Reset Password */}
+            <Card data-testid="card-password-recovery-history">
+              <CardHeader className="space-y-1.5">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 shrink-0" style={{ color: "#a1a1aa" }} />
-                    <h3 className="font-semibold" style={{ color: "white" }}>Password Reset Request History</h3>
+                    <Clock className="w-4 h-4 shrink-0 text-muted-foreground" />
+                    <CardTitle className="text-base">Riwayat Reset Password</CardTitle>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     {prRequestsLoading ? (
-                      <Loader2 className="w-3 h-3 animate-spin" style={{ color: "#71717a" }} />
+                      <Loader2 className="w-3 h-3 animate-spin" />
                     ) : (
-                      <RefreshCw className="w-3 h-3" style={{ color: "#71717a" }} />
+                      <RefreshCw className="w-3 h-3" />
                     )}
-                    <span className="text-xs" style={{ color: "#71717a" }}>Auto-refreshes every 10s</span>
+                    <span>Diperbarui otomatis setiap 10 detik</span>
                   </div>
                 </div>
+              </CardHeader>
 
+              <CardContent>
                 {prRequestsLoading && prRequests.length === 0 ? (
                   <div className="space-y-2">
                     {[1, 2, 3].map((i) => (
-                      <Skeleton key={i} className="h-9 w-full rounded-md" style={{ backgroundColor: "#3f3f46" }} />
+                      <Skeleton key={i} className="h-9 w-full rounded-md" />
                     ))}
                   </div>
                 ) : prRequestsError ? (
-                  <p className="text-sm py-4 text-center" style={{ color: "#fca5a5" }}>
-                    Failed to load request history. The auto-refresh will retry shortly.
-                  </p>
+                  <Alert variant="destructive" data-testid="alert-pr-history-error">
+                    <AlertDescription className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <span>Gagal memuat riwayat permintaan. Sistem akan mencoba lagi otomatis.</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-requests/list"] })}
+                        data-testid="button-pr-history-retry"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                        Coba lagi
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
                 ) : prRequests.length === 0 ? (
-                  <p className="text-sm py-4 text-center" style={{ color: "#71717a" }}>
-                    No password recovery requests yet. Requests will appear here once customers initiate a password reset or retrieve flow.
-                  </p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
-                      <thead>
-                        <tr style={{ borderBottom: "1px solid #3f3f46" }}>
-                          <th className="text-left py-2 pr-4 text-xs font-medium" style={{ color: "#a1a1aa" }}>Ticket ID</th>
-                          <th className="text-left py-2 pr-4 text-xs font-medium" style={{ color: "#a1a1aa" }}>Username</th>
-                          <th className="text-left py-2 pr-4 text-xs font-medium" style={{ color: "#a1a1aa" }}>Bank Account</th>
-                          <th className="text-left py-2 pr-4 text-xs font-medium" style={{ color: "#a1a1aa" }}>Request Type</th>
-                          <th className="text-left py-2 pr-4 text-xs font-medium" style={{ color: "#a1a1aa" }}>Status</th>
-                          <th className="text-left py-2 pr-4 text-xs font-medium" style={{ color: "#a1a1aa" }}>Created At</th>
-                          <th className="text-left py-2 text-xs font-medium" style={{ color: "#a1a1aa" }}>Delivered At</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[...prRequests].sort((a, b) => {
-                          const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                          const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                          return tb - ta;
-                        }).map((req) => {
-                          const statusColor: Record<string, string> = {
-                            pending: "#fbbf24",
-                            ready: "#60a5fa",
-                            delivered: "#86efac",
-                            failed: "#fca5a5",
-                          };
-                          const statusLabel: Record<string, string> = {
-                            pending: "Pending",
-                            ready: "Ready",
-                            delivered: "Delivered",
-                            failed: "Failed",
-                          };
-                          return (
-                            <tr
-                              key={req.id}
-                              style={{ borderBottom: "1px solid #27272a" }}
-                              data-testid={`row-pr-request-${req.id}`}
-                            >
-                              <td className="py-2 pr-4 font-mono text-xs" style={{ color: "#71717a" }} data-testid={`text-pr-id-${req.id}`} title={req.id}>
-                                {req.id.slice(0, 8)}…
-                              </td>
-                              <td className="py-2 pr-4 font-mono text-xs" style={{ color: "#e4e4e7" }} data-testid={`text-pr-username-${req.id}`}>
-                                {req.username}
-                              </td>
-                              <td className="py-2 pr-4 text-xs" style={{ color: "#d4d4d8" }} data-testid={`text-pr-bank-${req.id}`}>
-                                {req.bankAccount || <span style={{ color: "#52525b" }}>—</span>}
-                              </td>
-                              <td className="py-2 pr-4" data-testid={`text-pr-type-${req.id}`}>
-                                <span className="text-xs px-2 py-0.5 rounded-md capitalize" style={{ backgroundColor: "#3f3f46", color: "#d4d4d8", border: "1px solid #52525b" }}>
-                                  {req.requestType === "reset" ? "Reset" : "Retrieve"}
-                                </span>
-                              </td>
-                              <td className="py-2 pr-4" data-testid={`text-pr-status-${req.id}`}>
-                                <span className="text-xs font-medium" style={{ color: statusColor[req.status] || "#a1a1aa" }}>
-                                  {statusLabel[req.status] || req.status}
-                                </span>
-                              </td>
-                              <td className="py-2 pr-4 text-xs" style={{ color: "#a1a1aa" }} data-testid={`text-pr-created-${req.id}`}>
-                                {req.createdAt ? new Date(req.createdAt).toLocaleString() : "—"}
-                              </td>
-                              <td className="py-2 text-xs" style={{ color: "#a1a1aa" }} data-testid={`text-pr-delivered-${req.id}`}>
-                                {req.deliveredAt ? new Date(req.deliveredAt).toLocaleString() : "—"}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                  <div className="flex flex-col items-center justify-center py-10 gap-2 text-center" data-testid="empty-pr-history">
+                    <InboxIcon className="w-8 h-8 text-muted-foreground" />
+                    <p className="text-sm font-medium">Belum ada permintaan reset password.</p>
+                    <p className="text-xs text-muted-foreground max-w-sm">Permintaan akan muncul di sini saat customer mengajukan reset atau lihat password.</p>
                   </div>
-                )}
-              </div>
-            </div>
+                ) : (() => {
+                  const sorted = [...prRequests].sort((a, b) => {
+                    const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                    const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                    return tb - ta;
+                  });
+                  const statusLabel: Record<string, string> = {
+                    pending: "Menunggu",
+                    ready: "Siap",
+                    delivered: "Terkirim",
+                    failed: "Gagal",
+                  };
+                  const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+                    pending: "secondary",
+                    ready: "default",
+                    delivered: "default",
+                    failed: "destructive",
+                  };
+                  const fmt = (d?: string | Date | null) => d ? new Date(d).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" }) : "—";
+                  return (
+                    <>
+                      {/* Desktop / tablet: table */}
+                      <div className="hidden sm:block overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs">ID Tiket</TableHead>
+                              <TableHead className="text-xs">Username</TableHead>
+                              <TableHead className="text-xs">Rekening</TableHead>
+                              <TableHead className="text-xs">Tipe</TableHead>
+                              <TableHead className="text-xs">Status</TableHead>
+                              <TableHead className="text-xs">Dibuat</TableHead>
+                              <TableHead className="text-xs">Dikirim</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {sorted.map((req) => (
+                              <TableRow key={req.id} data-testid={`row-pr-request-${req.id}`}>
+                                <TableCell className="font-mono text-xs text-muted-foreground" title={req.id} data-testid={`text-pr-id-${req.id}`}>
+                                  {req.id.slice(0, 8)}…
+                                </TableCell>
+                                <TableCell className="font-mono text-xs" data-testid={`text-pr-username-${req.id}`}>
+                                  {req.username}
+                                </TableCell>
+                                <TableCell className="text-xs" data-testid={`text-pr-bank-${req.id}`}>
+                                  {req.bankAccount || <span className="text-muted-foreground">—</span>}
+                                </TableCell>
+                                <TableCell data-testid={`text-pr-type-${req.id}`}>
+                                  <Badge variant="outline" className="font-normal">
+                                    {req.requestType === "reset" ? "Reset" : "Lihat"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell data-testid={`text-pr-status-${req.id}`}>
+                                  <Badge variant={statusVariant[req.status] || "secondary"} className="font-normal">
+                                    {statusLabel[req.status] || req.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground" data-testid={`text-pr-created-${req.id}`}>
+                                  {fmt(req.createdAt)}
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground" data-testid={`text-pr-delivered-${req.id}`}>
+                                  {fmt(req.deliveredAt)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      {/* Mobile: stacked cards */}
+                      <div className="sm:hidden space-y-2">
+                        {sorted.map((req) => (
+                          <Card key={req.id} className="p-3" data-testid={`card-pr-request-${req.id}`}>
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <div className="space-y-0.5 min-w-0">
+                                <p className="font-mono text-sm truncate" data-testid={`text-pr-username-mobile-${req.id}`}>{req.username}</p>
+                                <p className="font-mono text-[11px] text-muted-foreground" title={req.id}>{req.id.slice(0, 8)}…</p>
+                              </div>
+                              <Badge variant={statusVariant[req.status] || "secondary"} className="font-normal shrink-0">
+                                {statusLabel[req.status] || req.status}
+                              </Badge>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                              <div className="text-muted-foreground">Rekening</div>
+                              <div className="text-right">{req.bankAccount || "—"}</div>
+                              <div className="text-muted-foreground">Tipe</div>
+                              <div className="text-right">{req.requestType === "reset" ? "Reset" : "Lihat"}</div>
+                              <div className="text-muted-foreground">Dibuat</div>
+                              <div className="text-right">{fmt(req.createdAt)}</div>
+                              <div className="text-muted-foreground">Dikirim</div>
+                              <div className="text-right">{fmt(req.deliveredAt)}</div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
+              </CardContent>
+            </Card>
 
             <Dialog open={isTransactionTemplateOpen} onOpenChange={(open) => { setIsTransactionTemplateOpen(open); if (!open) setTransactionTemplateUrl(""); }}>
               <DialogContent className="sm:max-w-lg">
