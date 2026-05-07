@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { invalidateNotificationSoundCache } from "@/lib/sounds";
@@ -32,6 +31,13 @@ import {
   Loader2,
   Bell,
   X,
+  HelpCircle,
+  Inbox,
+  Eye,
+  EyeOff,
+  ArrowUpDown,
+  CalendarRange,
+  ChevronRight,
 } from "lucide-react";
 
 interface NotifSettings {
@@ -39,6 +45,7 @@ interface NotifSettings {
 }
 
 const DESKTOP_NOTIF_PROMPT_DISMISSED_KEY = "tickets-desktop-notif-prompt-dismissed";
+const TUTORIAL_SEEN_KEY = "tickets-tutorial-seen";
 
 function useDesktopNotifPrompt(open: boolean) {
   const { toast } = useToast();
@@ -115,6 +122,8 @@ function useDesktopNotifPrompt(open: boolean) {
 }
 
 type TicketStatus = "checking" | "rejected" | "solved";
+type SortBy = "newest" | "oldest" | "username";
+type DateRange = "all" | "today" | "7d" | "30d";
 
 interface TicketSession {
   id: string;
@@ -174,10 +183,10 @@ const STATUS_DOT: Record<TicketStatus, string> = {
   solved: "bg-emerald-500",
 };
 
-const STATUS_TEXT: Record<TicketStatus, string> = {
-  checking: "text-amber-700 dark:text-amber-400",
-  rejected: "text-rose-700 dark:text-rose-400",
-  solved: "text-emerald-700 dark:text-emerald-400",
+const STATUS_BADGE_TINT: Record<TicketStatus, string> = {
+  checking: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30",
+  rejected: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30",
+  solved: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30",
 };
 
 function normaliseStatus(s: string | undefined | null): TicketStatus {
@@ -198,6 +207,70 @@ function CountryFlag({ code }: { code?: string | null }) {
   return <span className="text-base leading-none" data-testid={`flag-country-${code.toLowerCase()}`}>{String.fromCodePoint(...cp)}</span>;
 }
 
+type DateGroup = "today" | "yesterday" | "thisWeek" | "older" | "unknown";
+const DATE_GROUP_LABEL: Record<DateGroup, string> = {
+  today: "Hari Ini",
+  yesterday: "Kemarin",
+  thisWeek: "Minggu Ini",
+  older: "Lebih Lama",
+  unknown: "Tanpa Tanggal",
+};
+const DATE_GROUP_ORDER: DateGroup[] = ["today", "yesterday", "thisWeek", "older", "unknown"];
+
+function bucketOf(dateStr: string | null | undefined, now: Date): DateGroup {
+  if (!dateStr) return "unknown";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "unknown";
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfYesterday = startOfToday - 24 * 60 * 60 * 1000;
+  const startOfWeek = startOfToday - 7 * 24 * 60 * 60 * 1000;
+  const t = d.getTime();
+  if (t >= startOfToday) return "today";
+  if (t >= startOfYesterday) return "yesterday";
+  if (t >= startOfWeek) return "thisWeek";
+  return "older";
+}
+
+function isWithinRange(dateStr: string | null | undefined, range: DateRange, now: Date): boolean {
+  if (range === "all") return true;
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return false;
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const t = d.getTime();
+  if (range === "today") return t >= startOfToday;
+  if (range === "7d") return t >= startOfToday - 7 * 24 * 60 * 60 * 1000;
+  if (range === "30d") return t >= startOfToday - 30 * 24 * 60 * 60 * 1000;
+  return true;
+}
+
+const EXAMPLE_TICKET: TicketRow = {
+  id: "example-demo-001",
+  merchantId: "demo",
+  sessionId: null,
+  ticketId: "TCK-000123",
+  username: "budi.santoso",
+  phoneNumber: "+62 812-3456-7890",
+  bankAccount: "1234567890",
+  requestType: "reset",
+  status: "checking",
+  newPassword: null,
+  sheetRowIndex: 12,
+  extraData: { Catatan: "Lupa password sejak kemarin", "ID Anggota": "MBR-7788" },
+  manualOverride: false,
+  createdAt: new Date().toISOString(),
+  lastSyncedAt: new Date().toISOString(),
+  session: {
+    id: "demo-sess",
+    customerName: "Budi Santoso",
+    clientIp: "203.0.113.45",
+    countryCode: "ID",
+    countryName: "Indonesia",
+    cityName: "Jakarta",
+    userAgent: "Mozilla/5.0",
+  },
+};
+
 interface TicketsDialogProps {
   merchantId: string;
   open: boolean;
@@ -214,6 +287,22 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
   const [copiedPwdId, setCopiedPwdId] = useState<string | null>(null);
   const [sentPwdIds, setSentPwdIds] = useState<Set<string>>(new Set());
   const [sendingPwdId, setSendingPwdId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortBy>("newest");
+  const [dateRange, setDateRange] = useState<DateRange>("all");
+  const [showExample, setShowExample] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+
+  // Auto-show tutorial once
+  useEffect(() => {
+    if (!open) return;
+    try {
+      const seen = localStorage.getItem(TUTORIAL_SEEN_KEY) === "1";
+      if (!seen) {
+        setTutorialOpen(true);
+        localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
+      }
+    } catch {}
+  }, [open]);
 
   const { data: tickets = [], isLoading, refetch, isFetching } = useQuery<TicketRow[]>({
     queryKey: ["/api/merchant/tickets"],
@@ -236,8 +325,10 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return tickets
+    const now = new Date();
+    const list = tickets
       .filter(t => normaliseStatus(t.status) === tab)
+      .filter(t => isWithinRange(t.createdAt, dateRange, now))
       .filter(t => {
         if (!q) return true;
         return [
@@ -245,9 +336,35 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
           t.session?.customerName, t.session?.clientIp, t.session?.countryName, t.session?.cityName,
         ].some(v => (v || "").toString().toLowerCase().includes(q));
       });
-  }, [tickets, tab, search]);
+    list.sort((a, b) => {
+      if (sortBy === "username") return a.username.localeCompare(b.username);
+      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (sortBy === "oldest") return ta - tb;
+      return tb - ta; // newest
+    });
+    return list;
+  }, [tickets, tab, search, sortBy, dateRange]);
 
-  const active = useMemo(() => filtered.find(t => t.id === activeId) || filtered[0] || null, [filtered, activeId]);
+  // Group only when sort = newest (chronological). Otherwise honor flat sort order.
+  const grouped = useMemo(() => {
+    if (sortBy !== "newest") {
+      return filtered.length > 0 ? [{ group: null as DateGroup | null, items: filtered }] : [];
+    }
+    const now = new Date();
+    const buckets: Record<DateGroup, TicketRow[]> = {
+      today: [], yesterday: [], thisWeek: [], older: [], unknown: [],
+    };
+    filtered.forEach(t => { buckets[bucketOf(t.createdAt, now)].push(t); });
+    return DATE_GROUP_ORDER
+      .map(g => ({ group: g as DateGroup | null, items: buckets[g] }))
+      .filter(g => g.items.length > 0);
+  }, [filtered, sortBy]);
+
+  const active = useMemo(() => {
+    if (activeId === EXAMPLE_TICKET.id && showExample) return EXAMPLE_TICKET;
+    return filtered.find(t => t.id === activeId) || filtered[0] || null;
+  }, [filtered, activeId, showExample]);
   const activeStatus = active ? normaliseStatus(active.status) : "checking";
 
   const statusMutation = useMutation({
@@ -309,20 +426,34 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl w-[96vw] h-[88vh] p-0 overflow-hidden flex flex-col" data-testid="dialog-tickets">
-        <DialogHeader className="px-5 py-4 border-b">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Ticket className="w-5 h-5" />
-              <div>
-                <DialogTitle data-testid="text-tickets-title">Tiket Pemulihan Password</DialogTitle>
-                <DialogDescription className="text-xs mt-0.5">
+      <DialogContent
+        className="max-w-6xl w-[96vw] h-[88vh] p-0 overflow-hidden flex flex-col bg-background/85 backdrop-blur-xl border border-border/50 shadow-2xl"
+        data-testid="dialog-tickets"
+      >
+        <DialogHeader className="px-5 py-4 border-b border-border/50 bg-background/40">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2 min-w-0">
+              <Ticket className="w-5 h-5 shrink-0" />
+              <div className="min-w-0">
+                <DialogTitle data-testid="text-tickets-title" className="truncate">Tiket Pemulihan Password</DialogTitle>
+                <DialogDescription className="text-xs mt-0.5 truncate">
                   Daftar permintaan pelanggan disinkronkan otomatis dari Google Sheet.
                 </DialogDescription>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setTutorialOpen(true)}
+                className="gap-1.5"
+                data-testid="button-open-tutorial"
+              >
+                <HelpCircle className="w-3.5 h-3.5" />
+                Tutorial
+              </Button>
               <Button
                 size="sm"
                 variant="ghost"
@@ -340,7 +471,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
 
         {desktopNotif.needsPrompt && (
           <div
-            className="px-5 py-3 border-b bg-amber-50/70 dark:bg-amber-950/30 flex items-start sm:items-center gap-3 flex-col sm:flex-row"
+            className="px-5 py-3 border-b border-border/50 bg-amber-50/70 dark:bg-amber-950/30 flex items-start sm:items-center gap-3 flex-col sm:flex-row"
             data-testid="banner-enable-desktop-notifications"
           >
             <div className="flex items-start gap-2.5 flex-1 min-w-0">
@@ -379,105 +510,143 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
 
         <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[380px_1fr]">
           {/* LEFT: list */}
-          <div className="flex flex-col border-r min-h-0">
-            <div className="p-3 border-b flex flex-col gap-2">
+          <div className="flex flex-col border-r border-border/50 min-h-0 bg-background/30">
+            <div className="p-3 border-b border-border/50 flex flex-col gap-2">
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Cari username, IP, kota..."
-                  className="pl-8 h-9"
+                  className="pl-8 h-9 bg-background/60"
                   data-testid="input-search-tickets"
                 />
               </div>
               <Tabs value={tab} onValueChange={v => { setTab(v as TicketStatus); setActiveId(null); }}>
                 <TabsList className="grid grid-cols-3 w-full">
                   {(["checking", "rejected", "solved"] as TicketStatus[]).map(s => (
-                    <TabsTrigger key={s} value={s} className="gap-1.5 text-xs" data-testid={`tab-${s}`}>
-                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${STATUS_DOT[s]}`} />
-                      <span>{STATUS_LABEL[s]}</span>
-                      <Badge variant="secondary" className="ml-0.5 px-1.5 h-4 text-[10px]">{counts[s]}</Badge>
+                    <TabsTrigger key={s} value={s} className="gap-1.5 text-xs min-w-0" data-testid={`tab-${s}`}>
+                      <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[s]}`} />
+                      <span className="truncate">{STATUS_LABEL[s]}</span>
+                      <Badge variant="secondary" className="ml-0.5 px-1.5 h-4 text-[10px] shrink-0">{counts[s]}</Badge>
                     </TabsTrigger>
                   ))}
                 </TabsList>
               </Tabs>
+
+              {/* Filter & sort row */}
+              <div className="flex items-center gap-2">
+                <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
+                  <SelectTrigger className="h-8 flex-1 text-xs gap-1.5 bg-background/60" data-testid="select-date-range">
+                    <CalendarRange className="w-3.5 h-3.5 text-muted-foreground" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all" data-testid="option-range-all">Semua tanggal</SelectItem>
+                    <SelectItem value="today" data-testid="option-range-today">Hari ini</SelectItem>
+                    <SelectItem value="7d" data-testid="option-range-7d">7 hari terakhir</SelectItem>
+                    <SelectItem value="30d" data-testid="option-range-30d">30 hari terakhir</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
+                  <SelectTrigger className="h-8 flex-1 text-xs gap-1.5 bg-background/60" data-testid="select-sort">
+                    <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest" data-testid="option-sort-newest">Terbaru</SelectItem>
+                    <SelectItem value="oldest" data-testid="option-sort-oldest">Terlama</SelectItem>
+                    <SelectItem value="username" data-testid="option-sort-username">Username (A-Z)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <ScrollArea className="flex-1 min-h-0">
-              <div className="p-3 flex flex-col gap-2">
+              <div className="p-3 flex flex-col gap-3">
                 {isLoading ? (
                   Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-md" />)
-                ) : filtered.length === 0 ? (
-                  <div className="text-center py-10 text-sm text-muted-foreground" data-testid="text-no-tickets">
-                    Belum ada tiket pada kategori ini.
-                  </div>
-                ) : filtered.map(t => {
-                  const st = normaliseStatus(t.status);
-                  const isActive = active?.id === t.id;
-                  return (
-                    <Card
-                      key={t.id}
-                      onClick={() => setActiveId(t.id)}
-                      className={`relative overflow-hidden cursor-pointer hover-elevate ${isActive ? "ring-2 ring-primary" : ""}`}
-                      data-testid={`card-ticket-${t.id}`}
-                    >
-                      <div className={`absolute left-0 top-0 bottom-0 w-1 ${STATUS_BAR[st]}`} />
-                      <div className="pl-3 pr-3 py-2.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <UserIcon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-                            <span className="font-medium text-sm truncate" data-testid={`text-ticket-username-${t.id}`}>{t.username}</span>
-                          </div>
-                          {t.manualOverride ? (
-                            <Badge variant="outline" className="text-[9px] gap-1 px-1.5">
-                              <ShieldAlert className="w-2.5 h-2.5" /> Manual
-                            </Badge>
-                          ) : null}
-                        </div>
-                        <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
-                          {t.ticketId ? <span className="inline-flex items-center gap-1"><Hash className="w-3 h-3" />{t.ticketId}</span> : null}
-                          {t.session?.countryCode ? <span className="inline-flex items-center gap-1"><CountryFlag code={t.session.countryCode} /> {t.session.countryName || t.session.countryCode}</span> : null}
-                        </div>
-                        <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
-                          <span>{t.session?.clientIp || "IP tidak tersedia"}</span>
-                          <span>{t.createdAt ? formatDistanceToNow(new Date(t.createdAt), { addSuffix: true }) : ""}</span>
-                        </div>
+                ) : grouped.length === 0 ? (
+                  <EmptyState
+                    showExample={showExample}
+                    onToggleExample={() => setShowExample(v => !v)}
+                    onSelectExample={() => setActiveId(EXAMPLE_TICKET.id)}
+                    isExampleActive={active?.id === EXAMPLE_TICKET.id}
+                  />
+                ) : grouped.map(({ group, items }, gi) => (
+                  <div key={group ?? `flat-${gi}`} className="flex flex-col gap-2">
+                    {group ? (
+                      <div className="flex items-center justify-between px-1 sticky top-0 z-[1] py-1 bg-background/70 backdrop-blur-sm rounded-md">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground truncate">
+                          {DATE_GROUP_LABEL[group]}
+                        </span>
+                        <Badge variant="secondary" className="px-1.5 h-4 text-[10px] shrink-0">{items.length}</Badge>
                       </div>
-                    </Card>
-                  );
-                })}
+                    ) : null}
+                    {items.map(t => (
+                      <TicketCard
+                        key={t.id}
+                        ticket={t}
+                        isActive={active?.id === t.id}
+                        onClick={() => setActiveId(t.id)}
+                      />
+                    ))}
+                  </div>
+                ))}
+
+                {/* Inline example below list when not empty but example explicitly opened */}
+                {grouped.length > 0 && showExample && (
+                  <div className="mt-2 flex flex-col gap-2 border-t border-dashed border-border/50 pt-3">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Contoh Tiket</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-[10px] gap-1"
+                        onClick={() => setShowExample(false)}
+                        data-testid="button-hide-example"
+                      >
+                        <EyeOff className="w-3 h-3" /> Sembunyikan
+                      </Button>
+                    </div>
+                    <TicketCard
+                      ticket={EXAMPLE_TICKET}
+                      isActive={active?.id === EXAMPLE_TICKET.id}
+                      onClick={() => setActiveId(EXAMPLE_TICKET.id)}
+                      isExample
+                    />
+                  </div>
+                )}
               </div>
             </ScrollArea>
           </div>
 
           {/* RIGHT: detail */}
-          <div className="flex flex-col min-h-0">
+          <div className="flex flex-col min-h-0 bg-background/40">
             {!active ? (
-              <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground" data-testid="text-empty-detail">
-                Pilih sebuah tiket untuk melihat detail.
-              </div>
+              <EmptyDetail onOpenTutorial={() => setTutorialOpen(true)} />
             ) : (
               <>
                 {/* Status header strip */}
                 <div className={`${STATUS_BAR[activeStatus]} h-1.5 w-full`} />
-                <div className="px-5 py-4 border-b">
+                <div className="px-5 py-4 border-b border-border/50">
                   <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-semibold" data-testid="text-detail-username">{active.username}</h3>
-                        <Badge className={`gap-1.5 ${STATUS_BAR[activeStatus]} text-white border-0`} data-testid="badge-detail-status">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-lg font-semibold truncate min-w-0 max-w-full" title={active.username} data-testid="text-detail-username">{active.username}</h3>
+                        <Badge className={`gap-1.5 ${STATUS_BADGE_TINT[activeStatus]} shrink-0`} data-testid="badge-detail-status">
+                          <span className={`inline-block w-1.5 h-1.5 rounded-full ${STATUS_DOT[activeStatus]}`} />
                           {STATUS_LABEL[activeStatus]}
                         </Badge>
-                        {active.manualOverride ? <Badge variant="outline" className="gap-1"><ShieldAlert className="w-3 h-3" /> Manual</Badge> : null}
+                        {active.manualOverride ? <Badge variant="outline" className="gap-1 shrink-0"><ShieldAlert className="w-3 h-3" /> Manual</Badge> : null}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
-                        {active.ticketId ? <span className="inline-flex items-center gap-1"><Hash className="w-3 h-3" />{active.ticketId}</span> : null}
-                        {active.requestType ? <span>Tipe: {active.requestType}</span> : null}
-                        {active.createdAt ? <span>{formatDistanceToNow(new Date(active.createdAt), { addSuffix: true })}</span> : null}
+                        {active.ticketId ? <span className="inline-flex items-center gap-1 truncate max-w-full" title={active.ticketId}><Hash className="w-3 h-3 shrink-0" /><span className="truncate">{active.ticketId}</span></span> : null}
+                        {active.requestType ? <span className="truncate" title={active.requestType}>Tipe: {active.requestType}</span> : null}
+                        {active.createdAt ? <span className="truncate">{formatDistanceToNow(new Date(active.createdAt), { addSuffix: true })}</span> : null}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap shrink-0">
                       <span className="text-xs text-muted-foreground">Override status:</span>
                       <Select
                         value={activeStatus}
@@ -511,15 +680,21 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
 
                 <ScrollArea className="flex-1 min-h-0">
                   <div className="p-5 flex flex-col gap-4">
+                    {active.id === EXAMPLE_TICKET.id && (
+                      <div className="text-xs px-3 py-2 rounded-md border border-dashed border-border/60 bg-muted/40 text-muted-foreground" data-testid="banner-example-detail">
+                        Ini adalah <strong>contoh tiket</strong> untuk membantu Anda mengenal tampilan. Tiket nyata akan muncul otomatis saat pelanggan meminta reset password.
+                      </div>
+                    )}
+
                     {/* Solved highlight */}
                     {activeStatus === "solved" && active.newPassword ? (
                       <Card className="overflow-hidden border-emerald-500/30">
                         <div className="bg-emerald-50 dark:bg-emerald-950/30 px-4 py-3 flex items-start gap-3">
-                          <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mt-0.5" />
+                          <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300">Reset password berhasil</p>
-                            <div className="mt-2 flex items-center gap-2">
-                              <code className="px-2 py-1 rounded bg-background border text-sm font-mono break-all" data-testid="text-new-password">
+                            <div className="mt-2 flex items-center gap-2 flex-wrap">
+                              <code className="px-2 py-1 rounded bg-background border text-sm font-mono break-all max-w-full" data-testid="text-new-password">
                                 {active.newPassword}
                               </code>
                               <Button
@@ -555,7 +730,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                               Bagikan password baru ini ke pelanggan dan minta segera ganti dengan password yang lebih aman.
                             </p>
                           </div>
-                          <KeyRound className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          <KeyRound className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                         </div>
                       </Card>
                     ) : null}
@@ -572,7 +747,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                           label="IP"
                           value={active.session?.clientIp}
                           testId="field-ip"
-                          icon={<Globe className="w-3 h-3 text-muted-foreground" />}
+                          icon={<Globe className="w-3 h-3 text-muted-foreground shrink-0" />}
                         />
                         <Field
                           label="Negara"
@@ -583,6 +758,11 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                         <Field label="Kota" value={active.session?.cityName} testId="field-city" />
                         <Field label="Tipe Permintaan" value={active.requestType || "reset"} testId="field-request-type" />
                       </div>
+                      {active.session?.userAgent ? (
+                        <div className="mt-3 pt-3 border-t border-border/40">
+                          <Field label="User Agent" value={active.session.userAgent} testId="field-user-agent" wrap />
+                        </div>
+                      ) : null}
                     </Card>
 
                     {/* Sheet row */}
@@ -591,7 +771,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                         <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-3">Data dari Google Sheet</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4 text-sm">
                           {Object.entries(active.extraData).map(([k, v]) => (
-                            <Field key={k} label={k} value={v} testId={`field-extra-${k.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} />
+                            <Field key={k} label={k} value={v} testId={`field-extra-${k.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} wrap />
                           ))}
                         </div>
                       </Card>
@@ -608,7 +788,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                           className="min-h-[88px] resize-none"
                           data-testid="textarea-reply"
                         />
-                        <div className="mt-2 flex items-center justify-between gap-2">
+                        <div className="mt-2 flex items-center justify-between gap-2 flex-wrap">
                           <p className="text-[11px] text-muted-foreground">Pesan akan terkirim ke chat pelanggan secara langsung.</p>
                           <Button
                             size="sm"
@@ -637,17 +817,236 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
         </div>
       </DialogContent>
     </Dialog>
+
+    <TutorialDialog open={tutorialOpen} onOpenChange={setTutorialOpen} />
+    </>
+  );
+}
+
+function TicketCard({
+  ticket,
+  isActive,
+  onClick,
+  isExample = false,
+}: {
+  ticket: TicketRow;
+  isActive: boolean;
+  onClick: () => void;
+  isExample?: boolean;
+}) {
+  const st = normaliseStatus(ticket.status);
+  return (
+    <Card
+      onClick={onClick}
+      className={`relative overflow-hidden cursor-pointer hover-elevate ${isActive ? "ring-2 ring-primary" : ""} ${isExample ? "border-dashed" : ""}`}
+      data-testid={`card-ticket-${ticket.id}`}
+    >
+      <div className={`absolute left-0 top-0 bottom-0 w-1 ${STATUS_BAR[st]}`} />
+      <div className="pl-3 pr-3 py-2.5 min-w-0">
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <UserIcon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+            <span
+              className="font-medium text-sm truncate min-w-0"
+              title={ticket.username}
+              data-testid={`text-ticket-username-${ticket.id}`}
+            >
+              {ticket.username}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            {isExample ? (
+              <Badge variant="outline" className="text-[9px] px-1.5 border-dashed">Contoh</Badge>
+            ) : null}
+            {ticket.manualOverride ? (
+              <Badge variant="outline" className="text-[9px] gap-1 px-1.5">
+                <ShieldAlert className="w-2.5 h-2.5" /> Manual
+              </Badge>
+            ) : null}
+            <Badge className={`text-[9px] gap-1 px-1.5 ${STATUS_BADGE_TINT[st]}`}>
+              <span className={`inline-block w-1.5 h-1.5 rounded-full ${STATUS_DOT[st]}`} />
+              <span className="truncate max-w-[80px]">{STATUS_LABEL[st]}</span>
+            </Badge>
+          </div>
+        </div>
+        <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground min-w-0">
+          {ticket.ticketId ? (
+            <span className="inline-flex items-center gap-1 truncate min-w-0 max-w-[50%]" title={ticket.ticketId}>
+              <Hash className="w-3 h-3 shrink-0" />
+              <span className="truncate">{ticket.ticketId}</span>
+            </span>
+          ) : null}
+          {ticket.session?.countryCode ? (
+            <span className="inline-flex items-center gap-1 truncate min-w-0" title={ticket.session.countryName || ticket.session.countryCode}>
+              <CountryFlag code={ticket.session.countryCode} />
+              <span className="truncate">{ticket.session.countryName || ticket.session.countryCode}</span>
+            </span>
+          ) : null}
+        </div>
+        <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground gap-2 min-w-0">
+          <span className="truncate min-w-0" title={ticket.session?.clientIp || "IP tidak tersedia"}>
+            {ticket.session?.clientIp || "IP tidak tersedia"}
+          </span>
+          <span className="shrink-0">{ticket.createdAt ? formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true }) : ""}</span>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function EmptyState({
+  showExample,
+  onToggleExample,
+  onSelectExample,
+  isExampleActive,
+}: {
+  showExample: boolean;
+  onToggleExample: () => void;
+  onSelectExample: () => void;
+  isExampleActive: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-center text-center py-10 px-4 gap-3" data-testid="text-no-tickets">
+      <div className="w-14 h-14 rounded-full bg-muted/60 flex items-center justify-center">
+        <Inbox className="w-7 h-7 text-muted-foreground" />
+      </div>
+      <div>
+        <p className="text-sm font-semibold">Tidak ada ticket saat ini</p>
+        <p className="text-xs text-muted-foreground mt-1 max-w-[260px]">
+          Tiket baru akan muncul otomatis di sini saat pelanggan meminta reset password lewat chat widget.
+        </p>
+      </div>
+      <Button
+        size="sm"
+        variant="outline"
+        className="gap-1.5"
+        onClick={onToggleExample}
+        data-testid="button-toggle-example"
+      >
+        {showExample ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+        {showExample ? "Sembunyikan contoh" : "Lihat contoh tiket"}
+      </Button>
+      {showExample && (
+        <div className="w-full mt-2">
+          <TicketCard
+            ticket={EXAMPLE_TICKET}
+            isActive={isExampleActive}
+            onClick={onSelectExample}
+            isExample
+          />
+          <p className="text-[10px] text-muted-foreground mt-2">
+            Klik kartu untuk melihat tampilan detail tiket.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmptyDetail({ onOpenTutorial }: { onOpenTutorial: () => void }) {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 px-6" data-testid="text-empty-detail">
+      <div className="w-14 h-14 rounded-full bg-muted/60 flex items-center justify-center">
+        <Ticket className="w-7 h-7 text-muted-foreground" />
+      </div>
+      <div>
+        <p className="text-sm font-medium">Pilih sebuah tiket untuk melihat detail.</p>
+        <p className="text-xs text-muted-foreground mt-1 max-w-[320px]">
+          Pilih tiket di kolom kiri untuk melihat data pelanggan, mengirim password, atau memperbarui status.
+        </p>
+      </div>
+      <Button size="sm" variant="ghost" onClick={onOpenTutorial} className="gap-1.5" data-testid="button-open-tutorial-detail">
+        <HelpCircle className="w-3.5 h-3.5" /> Buka Tutorial
+      </Button>
+    </div>
+  );
+}
+
+const TUTORIAL_STEPS: { title: string; body: string }[] = [
+  {
+    title: "Tiket masuk otomatis",
+    body: "Saat pelanggan meminta reset password lewat chat widget, AI akan mengumpulkan username, bank, dan nomor HP, lalu tiket otomatis muncul di tab Sedang Diperiksa di sini. Anda akan menerima notifikasi jika sudah mengaktifkannya.",
+  },
+  {
+    title: "Periksa data dan ubah status bila perlu",
+    body: "Klik tiket untuk melihat detail pelanggan dan data dari Google Sheet. Gunakan dropdown 'Override status' untuk memindahkan tiket ke Sedang Diperiksa, Ditolak, atau Selesai sesuai keputusan Anda.",
+  },
+  {
+    title: "Kirim password baru satu kali tap",
+    body: "Setelah tiket berstatus Selesai dan password baru tersedia, klik tombol 'Kirim Password ke Pelanggan' untuk mengirim pesan otomatis berisi password baru langsung ke chat pelanggan, tanpa perlu menulis manual.",
+  },
+  {
+    title: "Buka baris di Google Sheet",
+    body: "Tombol 'Buka Sheet' akan membawa Anda langsung ke baris yang sesuai di Google Sheet untuk audit, koreksi, atau perubahan manual. Perubahan di Sheet akan tersinkron kembali setiap beberapa detik.",
+  },
+  {
+    title: "Aktifkan notifikasi desktop",
+    body: "Aktifkan notifikasi desktop dari banner di atas agar Anda tetap mendapat pemberitahuan tiket baru dan perubahan status meskipun tab Chatvice sedang tidak aktif.",
+  },
+];
+
+function TutorialDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="max-w-lg w-[94vw] bg-background/90 backdrop-blur-xl border border-border/50 shadow-2xl"
+        data-testid="dialog-tickets-tutorial"
+      >
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <HelpCircle className="w-5 h-5" />
+            Tutorial Tiket Pemulihan Password
+          </DialogTitle>
+          <DialogDescription>
+            Lima langkah singkat untuk menguasai alur tiket dari masuk hingga selesai.
+          </DialogDescription>
+        </DialogHeader>
+        <ScrollArea className="max-h-[60vh] -mx-2 px-2">
+          <ol className="flex flex-col gap-3">
+            {TUTORIAL_STEPS.map((s, i) => (
+              <li
+                key={i}
+                className="flex items-start gap-3 p-3 rounded-md border border-border/50 bg-muted/30"
+                data-testid={`tutorial-step-${i + 1}`}
+              >
+                <div className="w-6 h-6 rounded-full bg-primary/15 text-primary text-xs font-semibold flex items-center justify-center shrink-0">
+                  {i + 1}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium break-words">{s.title}</p>
+                  <p className="text-xs text-muted-foreground mt-1 break-words">{s.body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </ScrollArea>
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <Button onClick={() => onOpenChange(false)} className="gap-1.5" data-testid="button-close-tutorial">
+            Mengerti <ChevronRight className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 function Field({
-  label, value, testId, icon, prefix,
-}: { label: string; value?: string | null; testId: string; icon?: React.ReactNode; prefix?: React.ReactNode }) {
+  label, value, testId, icon, prefix, wrap = false,
+}: { label: string; value?: string | null; testId: string; icon?: React.ReactNode; prefix?: React.ReactNode; wrap?: boolean }) {
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col min-w-0">
       <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
-      <span className="inline-flex items-center gap-1.5 text-sm break-words" data-testid={testId}>
-        {prefix}{icon}{value || <span className="text-muted-foreground italic">—</span>}
+      <span
+        className={`inline-flex items-center gap-1.5 text-sm min-w-0 ${wrap ? "break-words" : "truncate"}`}
+        title={typeof value === "string" ? value : undefined}
+        data-testid={testId}
+      >
+        {prefix}{icon}
+        {value ? (
+          <span className={wrap ? "break-words min-w-0" : "truncate min-w-0"}>{value}</span>
+        ) : (
+          <span className="text-muted-foreground italic">—</span>
+        )}
       </span>
     </div>
   );
