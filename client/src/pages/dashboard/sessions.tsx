@@ -34,7 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { formatDistanceToNow } from "date-fns";
 import type { Session, Message, Supervisor, Agent, QuickReply, ProductCard, ProductCardButton } from "@shared/schema";
-import { playIncomingChatSound, playChatReplySound, playAngrySound } from "@/lib/sounds";
+import { playIncomingChatSound, playChatReplySound, playAngrySound, sendTicketBrowserNotification } from "@/lib/sounds";
 import { TicketsDialog } from "./tickets-dialog";
 
 function renderMessageWithLinks(content: string) {
@@ -611,8 +611,25 @@ export default function SessionsPage() {
           if (data?.type !== "ticket:update") return;
           queryClient.invalidateQueries({ queryKey: ["/api/merchant/tickets"] });
           queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-requests/pending-count"] });
-          if (data.event === "created" && soundEnabled) {
-            playIncomingChatSound();
+          if (data.event === "created") {
+            if (soundEnabled) {
+              // Play sound only — the ticket-specific desktop notification
+              // below replaces the generic "New Chat" browser notification
+              // that playIncomingChatSound would otherwise emit.
+              playIncomingChatSound(undefined, { skipBrowserNotification: true });
+            }
+            // Fire a desktop notification so supervisors with the tab in
+            // the background still notice. Respects browserPushEnabled and
+            // only fires when the tab is hidden (handled inside helper).
+            const username = typeof data.username === "string" && data.username.trim()
+              ? data.username.trim()
+              : "Customer";
+            sendTicketBrowserNotification({
+              title: "New Ticket",
+              body: `${username} submitted a new password recovery ticket`,
+              tag: `chatvice-ticket-${data.ticketId || username}`,
+              onClick: () => setTicketsOpen(true),
+            });
           }
         } catch {
           /* ignore */

@@ -20364,6 +20364,7 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
         type: "ticket:update",
         event: "created",
         ticketId,
+        username,
       });
 
       console.log(`[PassRecov Form] Ticket ${ticketId} created for ${username} (row ${matchRow.rowIndex}), session ${sessionId}`);

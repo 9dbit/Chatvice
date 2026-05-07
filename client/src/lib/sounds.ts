@@ -67,6 +67,33 @@ function sendBrowserNotification(title: string, body: string) {
   }
 }
 
+export async function sendTicketBrowserNotification(opts: {
+  title: string;
+  body: string;
+  tag?: string;
+  onClick?: () => void;
+}) {
+  const settings = await fetchNotificationSettings();
+  if (!settings?.browserPushEnabled) return;
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  if (!document.hidden) return;
+  try {
+    const n = new Notification(opts.title, {
+      body: opts.body,
+      icon: "/favicon.ico",
+      tag: opts.tag || "chatvice-ticket",
+    });
+    n.onclick = () => {
+      try { window.focus(); } catch {}
+      try { opts.onClick?.(); } catch {}
+      try { n.close(); } catch {}
+    };
+  } catch (e) {
+    console.warn("Browser notification failed:", e);
+  }
+}
+
 let cachedNotificationSettings: NotificationSettings | null = null;
 let lastFetchTime = 0;
 const CACHE_DURATION = 60000; // 1 minute cache
@@ -95,14 +122,17 @@ async function fetchNotificationSettings(): Promise<NotificationSettings | null>
   return null;
 }
 
-export async function playIncomingChatSound(sessionInfo?: { customerName?: string }) {
+export async function playIncomingChatSound(
+  sessionInfo?: { customerName?: string },
+  options?: { skipBrowserNotification?: boolean },
+) {
   const settings = await fetchNotificationSettings();
   if (settings?.incomingChatEnabled === false) return;
   const raw = settings?.incomingChatSound;
   const soundId = (raw && raw !== "default") ? raw : "sci-fi-confirm";
   playSound(soundId);
   
-  if (settings?.browserPushEnabled) {
+  if (settings?.browserPushEnabled && !options?.skipBrowserNotification) {
     const name = sessionInfo?.customerName || "Customer";
     sendBrowserNotification("New Chat", `${name} started a new conversation`);
   }
