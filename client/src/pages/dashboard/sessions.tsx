@@ -1471,7 +1471,7 @@ export default function SessionsPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)]">
+    <div className="flex flex-col h-[calc(100dvh-72px)] sm:h-[calc(100dvh-104px)] sm:min-h-[420px]">
       <div className="flex-shrink-0 pb-2 sm:pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-2 sm:mb-4">
           <div>
@@ -2912,7 +2912,7 @@ export default function SessionsPage() {
           {/* Visitor Info Panel — side panel on desktop, fullscreen overlay on mobile */}
           {showVisitorInfo && selectedSessionData && (
             <Card
-              className="flex flex-col h-full lg:w-64 lg:flex-shrink-0 lg:static lg:bg-card fixed inset-x-2 top-16 bottom-2 z-40 max-w-md mx-auto bg-background shadow-2xl border-border lg:shadow-none lg:max-w-none lg:mx-0 lg:inset-auto"
+              className="flex flex-col h-full lg:w-64 lg:flex-shrink-0 lg:static lg:bg-card fixed inset-x-2 top-16 bottom-2 z-40 max-w-md mx-auto bg-background shadow-2xl border-border lg:shadow-none lg:max-w-none lg:mx-0 lg:inset-auto max-lg:landscape:left-auto max-lg:landscape:right-2 max-lg:landscape:top-2 max-lg:landscape:mx-0 max-lg:landscape:max-w-none max-lg:landscape:w-[55%] max-lg:landscape:max-w-[20rem]"
               data-testid="card-visitor-info-panel"
             >
               <CardHeader className="flex-shrink-0 border-b py-2 px-3">
