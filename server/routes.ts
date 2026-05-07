@@ -6681,6 +6681,14 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         await storage.updateSession(sessionId, { visitorSession: false });
       }
 
+      // If session was previously ended/closed by merchant, reactivate now that customer is replying
+      if (existingSession && (existingSession.status === "ended" || existingSession.status === "closed")) {
+        await storage.updateSession(sessionId, {
+          status: "active",
+          lastActivity: new Date(),
+        });
+      }
+
       await storage.createMessage({
         sessionId,
         from: "customer",

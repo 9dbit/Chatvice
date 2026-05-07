@@ -23,7 +23,7 @@ import {
   CheckCircle2, Circle, XCircle, Filter, ShoppingBag, Plus, ImageIcon, Video, FileText,
   ExternalLink, Maximize2, Minimize2, MapPin, Volume2, VolumeX, Monitor, Globe, Smartphone, Radio,
   Languages, Wand2, Settings2, Info, Copy, Link2, StopCircle, Archive, CalendarDays,
-  Megaphone, Users, ChevronDown, ChevronUp, FileUp, RotateCcw, Ban, TrendingUp, Ticket
+  Megaphone, Users, ChevronDown, ChevronUp, FileUp, RotateCcw, Ban, TrendingUp, Ticket, MoreHorizontal
 } from "lucide-react";
 import {
   SiAndroid, SiApple, SiLinux,
@@ -1674,89 +1674,7 @@ export default function SessionsPage() {
                       </div>
                     </div>
                     {/* RIGHT: action buttons */}
-                    <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                      <div className="flex flex-col items-end gap-1">
-                        <div className="flex items-center gap-1 sm:gap-1.5">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => refetchMessages()}
-                            title="Refresh"
-                            className="hidden sm:flex h-8 w-8"
-                            data-testid="button-refresh-messages"
-                          >
-                            <RefreshCw className="w-4 h-4" />
-                          </Button>
-
-                          {/* Desktop: Auto Refine toggle (hidden on mobile) */}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="hidden sm:flex items-center gap-1" data-testid="auto-refine-controls">
-                                <Switch
-                                  id="auto-refine-toggle"
-                                  checked={autoRefineEnabled}
-                                  onCheckedChange={setAutoRefineEnabled}
-                                  disabled={selectedSessionData?.mode !== "HUMAN"}
-                                  className="scale-75 origin-center"
-                                  data-testid="switch-auto-refine"
-                                />
-                                <label
-                                  htmlFor="auto-refine-toggle"
-                                  className="flex items-center gap-0.5 text-[11px] text-muted-foreground cursor-pointer select-none"
-                                >
-                                  <Wand2 className="w-3 h-3" />
-                                  <span>{t("dashboard.sessions.refine")}</span>
-                                </label>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">
-                              {selectedSessionData?.mode !== "HUMAN"
-                                ? <p>{t("dashboard.sessions.availableOnTakeover")}</p>
-                                : <p>{t("dashboard.sessions.autoRefineMessage")}</p>}
-                            </TooltipContent>
-                          </Tooltip>
-
-                          {/* Desktop: Auto-translate toggle (hidden on mobile) */}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="hidden sm:flex items-center gap-1" data-testid="auto-translate-controls">
-                                <Switch
-                                  id="auto-translate-toggle"
-                                  checked={autoTranslateEnabled}
-                                  onCheckedChange={setAutoTranslateEnabled}
-                                  className="scale-75 origin-center"
-                                  data-testid="switch-auto-translate"
-                                />
-                                <label
-                                  htmlFor="auto-translate-toggle"
-                                  className="flex items-center gap-0.5 text-[11px] text-muted-foreground cursor-pointer select-none"
-                                >
-                                  <Languages className="w-3 h-3" />
-                                </label>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">
-                              <p>{t("dashboard.sessions.autoTranslate")}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          {autoTranslateEnabled && (
-                            <Select value={translateLang} onValueChange={setTranslateLang}>
-                              <SelectTrigger
-                                className="hidden sm:flex h-7 sm:h-8 text-[11px] sm:text-xs w-24 sm:w-28 px-1.5 sm:px-2"
-                                data-testid="select-translate-lang"
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {TRANSLATE_LANGUAGES.map(lang => (
-                                  <SelectItem key={lang.code} value={lang.name} className="text-xs">
-                                    {lang.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-
+                    <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap justify-end flex-shrink-0">
                           {/* Desktop: Take Over / Return to Bot (hidden on mobile) */}
                           {selectedSessionData?.mode === "AI" ? (
                             <Button
@@ -1783,8 +1701,8 @@ export default function SessionsPage() {
                             </Button>
                           )}
 
-                          {/* Desktop: End Session (only when session is live) */}
-                          {selectedSessionData && ["active", "needs_response", "angry"].includes(getSessionStatus(selectedSessionData)) && (
+                          {/* Desktop: End Session (always available unless permanently archived) */}
+                          {selectedSessionData && selectedSessionData.status !== "archived" && (
                             <Button
                               size="sm"
                               variant="destructive"
@@ -1975,7 +1893,7 @@ export default function SessionsPage() {
                                 )}
                                 <div className="border-t" />
                                 {/* End Session (mobile) */}
-                                {selectedSessionData && ["active", "needs_response", "angry"].includes(getSessionStatus(selectedSessionData)) && (
+                                {selectedSessionData && selectedSessionData.status !== "archived" && (
                                   <Button
                                     size="sm"
                                     variant="destructive"
@@ -2003,16 +1921,95 @@ export default function SessionsPage() {
                             </PopoverContent>
                           </Popover>
 
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={handleExportTranscript}
-                            title="Export"
-                            className="hidden sm:flex h-8 w-8"
-                            data-testid="button-export-transcript"
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
+                          {/* Desktop: More menu (Refresh, Refine, Translate, Export) */}
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                title="More"
+                                className="hidden sm:flex h-8 w-8"
+                                data-testid="button-more-menu"
+                              >
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent side="bottom" align="end" className="w-64 p-3">
+                              <div className="flex flex-col gap-3">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full justify-start gap-2"
+                                  onClick={() => refetchMessages()}
+                                  data-testid="button-refresh-messages"
+                                >
+                                  <RefreshCw className="w-3.5 h-3.5" />
+                                  Refresh messages
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full justify-start gap-2"
+                                  onClick={handleExportTranscript}
+                                  data-testid="button-export-transcript"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  Export transcript
+                                </Button>
+                                <div className="border-t" />
+                                {/* Auto Refine */}
+                                <div className="flex items-center justify-between gap-2" data-testid="auto-refine-controls">
+                                  <label
+                                    htmlFor="auto-refine-toggle"
+                                    className="flex items-center gap-1.5 text-sm cursor-pointer select-none"
+                                  >
+                                    <Wand2 className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <span>{t("dashboard.sessions.refine")}</span>
+                                  </label>
+                                  <Switch
+                                    id="auto-refine-toggle"
+                                    checked={autoRefineEnabled}
+                                    onCheckedChange={setAutoRefineEnabled}
+                                    disabled={selectedSessionData?.mode !== "HUMAN"}
+                                    data-testid="switch-auto-refine"
+                                  />
+                                </div>
+                                {selectedSessionData?.mode !== "HUMAN" && (
+                                  <p className="text-[11px] text-muted-foreground -mt-1">{t("dashboard.sessions.availableOnTakeover")}</p>
+                                )}
+                                {/* Auto Translate */}
+                                <div className="flex items-center justify-between gap-2" data-testid="auto-translate-controls">
+                                  <label
+                                    htmlFor="auto-translate-toggle"
+                                    className="flex items-center gap-1.5 text-sm cursor-pointer select-none"
+                                  >
+                                    <Languages className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <span>{t("dashboard.sessions.autoTranslate")}</span>
+                                  </label>
+                                  <Switch
+                                    id="auto-translate-toggle"
+                                    checked={autoTranslateEnabled}
+                                    onCheckedChange={setAutoTranslateEnabled}
+                                    data-testid="switch-auto-translate"
+                                  />
+                                </div>
+                                {autoTranslateEnabled && (
+                                  <Select value={translateLang} onValueChange={setTranslateLang}>
+                                    <SelectTrigger className="h-8 text-xs" data-testid="select-translate-lang">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {TRANSLATE_LANGUAGES.map(lang => (
+                                        <SelectItem key={lang.code} value={lang.name} className="text-xs">
+                                          {lang.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
 
                           <Button
                             size="icon"
@@ -2024,8 +2021,6 @@ export default function SessionsPage() {
                           >
                             <Info className="w-4 h-4" />
                           </Button>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 </CardHeader>
