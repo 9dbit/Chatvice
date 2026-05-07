@@ -19,7 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   MessageSquare, Bot, HeadphonesIcon, Send, Search, User, Download, 
-  Hand, ArrowLeft, Clock, Edit, Check, X, Loader2, RefreshCw, AlertCircle,
+  Hand, ArrowLeft, ChevronLeft, Clock, Edit, Check, X, Loader2, RefreshCw, AlertCircle,
   CheckCircle2, Circle, XCircle, Filter, ShoppingBag, Plus, ImageIcon, Video, FileText,
   ExternalLink, Maximize2, Minimize2, MapPin, Volume2, VolumeX, Monitor, Globe, Smartphone, Radio,
   Languages, Wand2, Settings2, Info, Copy, Link2, StopCircle, Archive, CalendarDays,
@@ -1439,7 +1439,7 @@ export default function SessionsPage() {
             {/* All */}
             <button
               onClick={() => setStatusFilter("all")}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "all" ? "bg-primary/10 border-primary/50 text-primary" : "bg-card border-border text-muted-foreground hover:text-foreground"}`}
+              className={`inline-flex items-center gap-1 h-8 px-3 rounded-full border cursor-pointer select-none transition-colors hover-elevate ${statusFilter === "all" ? "bg-primary/10 border-primary/50 text-primary" : "bg-card border-border text-muted-foreground hover:text-foreground"}`}
               title="Show all sessions"
               data-testid="button-filter-all"
             >
@@ -1448,7 +1448,7 @@ export default function SessionsPage() {
             {/* Alert */}
             <button
               onClick={() => setStatusFilter(statusFilter === "angry" ? "all" : "angry")}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "angry" ? "bg-red-500/20 border-red-500/50 text-red-600 dark:text-red-400" : "bg-card border-border text-muted-foreground hover:border-red-500/40 hover:text-red-600 dark:hover:text-red-400"}`}
+              className={`inline-flex items-center gap-1 h-8 px-3 rounded-full border cursor-pointer select-none transition-colors hover-elevate ${statusFilter === "angry" ? "bg-red-500/20 border-red-500/50 text-red-600 dark:text-red-400" : "bg-card border-border text-muted-foreground"}`}
               title="Filter: Alert"
               data-testid="button-filter-angry"
             >
@@ -1459,7 +1459,7 @@ export default function SessionsPage() {
             {/* Active */}
             <button
               onClick={() => setStatusFilter(statusFilter === "active" ? "all" : "active")}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "active" ? "bg-green-500/20 border-green-500/50 text-green-600 dark:text-green-400" : "bg-card border-border text-muted-foreground hover:border-green-500/40 hover:text-green-600 dark:hover:text-green-400"}`}
+              className={`inline-flex items-center gap-1 h-8 px-3 rounded-full border cursor-pointer select-none transition-colors hover-elevate ${statusFilter === "active" ? "bg-green-500/20 border-green-500/50 text-green-600 dark:text-green-400" : "bg-card border-border text-muted-foreground"}`}
               title="Filter: Active"
               data-testid="button-filter-active"
             >
@@ -1470,7 +1470,7 @@ export default function SessionsPage() {
             {/* Pending */}
             <button
               onClick={() => setStatusFilter(statusFilter === "needs_response" ? "all" : "needs_response")}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "needs_response" ? "bg-orange-500/20 border-orange-500/50 text-orange-600 dark:text-orange-400" : "bg-card border-border text-muted-foreground hover:border-orange-500/40 hover:text-orange-600 dark:hover:text-orange-400"}`}
+              className={`inline-flex items-center gap-1 h-8 px-3 rounded-full border cursor-pointer select-none transition-colors hover-elevate ${statusFilter === "needs_response" ? "bg-orange-500/20 border-orange-500/50 text-orange-600 dark:text-orange-400" : "bg-card border-border text-muted-foreground"}`}
               title="Filter: Pending"
               data-testid="button-filter-needs-response"
             >
@@ -1481,7 +1481,7 @@ export default function SessionsPage() {
             {/* Finished */}
             <button
               onClick={() => setStatusFilter(statusFilter === "ended" ? "all" : "ended")}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "ended" ? "bg-muted border-border/80 text-foreground" : "bg-card border-border text-muted-foreground hover:border-border/80 hover:text-foreground"}`}
+              className={`inline-flex items-center gap-1 h-8 px-3 rounded-full border cursor-pointer select-none transition-colors hover-elevate ${statusFilter === "ended" ? "bg-muted border-border/80 text-foreground" : "bg-card border-border text-muted-foreground"}`}
               title="Filter: Finished"
               data-testid="button-filter-ended"
             >
@@ -1492,7 +1492,7 @@ export default function SessionsPage() {
             {/* Ticket — sessions with an active password recovery request */}
             <button
               onClick={() => setStatusFilter(statusFilter === "ticket" ? "all" : "ticket")}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md border cursor-pointer select-none transition-colors ${statusFilter === "ticket" ? "bg-blue-500/20 border-blue-500/50 text-blue-600 dark:text-blue-400" : "bg-card border-border text-muted-foreground hover:border-blue-500/40 hover:text-blue-600 dark:hover:text-blue-400"}`}
+              className={`inline-flex items-center gap-1 h-8 px-3 rounded-full border cursor-pointer select-none transition-colors hover-elevate ${statusFilter === "ticket" ? "bg-blue-500/20 border-blue-500/50 text-blue-600 dark:text-blue-400" : "bg-card border-border text-muted-foreground"}`}
               title="Filter: Password Reset Tickets"
               data-testid="button-filter-ticket"
             >
@@ -1504,7 +1504,7 @@ export default function SessionsPage() {
               variant="outline"
               size="sm"
               onClick={() => { setBlastDialogOpen(true); setBlastTab("compose"); }}
-              className="gap-1.5"
+              className="gap-1.5 h-8 rounded-full px-3"
               data-testid="button-open-blast"
             >
               <Megaphone className="w-4 h-4" />
@@ -1515,6 +1515,7 @@ export default function SessionsPage() {
               size="icon"
               onClick={() => setSoundEnabled(!soundEnabled)}
               title={soundEnabled ? "Sound alerts on" : "Sound alerts off"}
+              className="h-8 w-8 rounded-full"
               data-testid="button-toggle-sound"
             >
               {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
@@ -1705,14 +1706,15 @@ export default function SessionsPage() {
         <div className={`lg:col-span-8 xl:col-span-1 flex flex-col min-h-0 min-w-0 gap-2 ${selectedSession ? 'flex' : 'hidden lg:flex'}`}>
           {/* Mobile: back arrow shown above the card */}
           {selectedSession && (
-            <div className="lg:hidden flex items-center">
+            <div className="lg:hidden flex items-center -mb-1">
               <Button
                 size="icon"
                 variant="ghost"
                 onClick={() => setSelectedSession(null)}
+                className="h-9 w-9 rounded-full border border-border/60 bg-background/80 backdrop-blur shadow-sm"
                 data-testid="button-back-to-list"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ChevronLeft className="w-5 h-5" />
               </Button>
             </div>
           )}
@@ -2129,7 +2131,7 @@ export default function SessionsPage() {
                             variant="ghost"
                             onClick={() => setShowVisitorInfo(!showVisitorInfo)}
                             title="Visitor Info"
-                            className={`hidden sm:flex h-8 w-8 ${showVisitorInfo ? "bg-primary/10 text-primary" : ""}`}
+                            className={`flex h-8 w-8 ${showVisitorInfo ? "bg-primary/10 text-primary" : ""}`}
                             data-testid="button-toggle-visitor-info"
                           >
                             <Info className="w-4 h-4" />
@@ -2854,9 +2856,12 @@ export default function SessionsPage() {
             )}
           </Card>
           
-          {/* Visitor Info Panel */}
+          {/* Visitor Info Panel — side panel on desktop, fullscreen overlay on mobile */}
           {showVisitorInfo && selectedSessionData && (
-            <Card className="flex flex-col h-full w-64 flex-shrink-0" data-testid="card-visitor-info-panel">
+            <Card
+              className="flex flex-col h-full lg:w-64 lg:flex-shrink-0 lg:static lg:bg-card fixed inset-x-2 top-16 bottom-2 z-40 max-w-md mx-auto bg-background shadow-2xl border-border lg:shadow-none lg:max-w-none lg:mx-0 lg:inset-auto"
+              data-testid="card-visitor-info-panel"
+            >
               <CardHeader className="flex-shrink-0 border-b py-2 px-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">

@@ -1744,7 +1744,14 @@ async function handleLogin() {
                       <div className="flex items-center gap-4">
                         <div className="relative">
                           <Avatar className="w-16 h-16">
-                            <AvatarImage src={config.agentPhotoUrl} alt={config.agentName} />
+                            <AvatarImage
+                              src={
+                                config.agentPhotoUrl ||
+                                agents.find((a) => a.id === merchant?.activeAgentId)?.photoUrl ||
+                                ""
+                              }
+                              alt={config.agentName}
+                            />
                             <AvatarFallback className="bg-primary/20">
                               <Bot className="w-6 h-6 text-primary" />
                             </AvatarFallback>
