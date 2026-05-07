@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { invalidateNotificationSoundCache } from "@/lib/sounds";
 import {
   Ticket,
   Search,
@@ -29,7 +30,89 @@ import {
   KeyRound,
   ShieldAlert,
   Loader2,
+  Bell,
+  X,
 } from "lucide-react";
+
+interface NotifSettings {
+  browserPushEnabled?: boolean;
+}
+
+const DESKTOP_NOTIF_PROMPT_DISMISSED_KEY = "tickets-desktop-notif-prompt-dismissed";
+
+function useDesktopNotifPrompt(open: boolean) {
+  const { toast } = useToast();
+  const [dismissed, setDismissed] = useState<boolean>(() => {
+    try { return localStorage.getItem(DESKTOP_NOTIF_PROMPT_DISMISSED_KEY) === "1"; } catch { return false; }
+  });
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
+    return Notification.permission;
+  });
+  const [enabling, setEnabling] = useState(false);
+
+  const { data: settings } = useQuery<NotifSettings>({
+    queryKey: ["/api/notification-settings"],
+    enabled: open,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: Partial<NotifSettings>) => {
+      const res = await apiRequest("PUT", "/api/notification-settings", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidateNotificationSoundCache();
+      queryClient.invalidateQueries({ queryKey: ["/api/notification-settings"] });
+    },
+  });
+
+  const enable = async () => {
+    if (permission === "unsupported") {
+      toast({ title: "Browser tidak mendukung notifikasi desktop", variant: "destructive" });
+      return;
+    }
+    setEnabling(true);
+    try {
+      let perm: NotificationPermission = Notification.permission;
+      if (perm === "default") {
+        perm = await Notification.requestPermission();
+        setPermission(perm);
+      }
+      if (perm !== "granted") {
+        toast({ title: "Izin notifikasi ditolak", description: "Aktifkan dari pengaturan browser Anda untuk menerima notifikasi tiket.", variant: "destructive" });
+        return;
+      }
+      await updateMutation.mutateAsync({ browserPushEnabled: true });
+      setDismissed(true);
+      try { localStorage.setItem(DESKTOP_NOTIF_PROMPT_DISMISSED_KEY, "1"); } catch {}
+      try {
+        new Notification("Chatvice Notifications Enabled", {
+          body: "You'll be alerted of new tickets even when this tab is in the background.",
+          icon: "/favicon.ico",
+        });
+      } catch {}
+      toast({ title: "Notifikasi desktop diaktifkan" });
+    } catch (err: any) {
+      toast({ title: "Gagal mengaktifkan notifikasi", description: err?.message, variant: "destructive" });
+    } finally {
+      setEnabling(false);
+    }
+  };
+
+  const dismiss = () => {
+    setDismissed(true);
+    try { localStorage.setItem(DESKTOP_NOTIF_PROMPT_DISMISSED_KEY, "1"); } catch {}
+  };
+
+  const needsPrompt =
+    !dismissed &&
+    permission !== "unsupported" &&
+    permission !== "denied" &&
+    (permission !== "granted" || settings?.browserPushEnabled !== true);
+
+  return { needsPrompt, enable, dismiss, enabling };
+}
 
 type TicketStatus = "checking" | "rejected" | "solved";
 
@@ -123,6 +206,7 @@ interface TicketsDialogProps {
 
 export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogProps) {
   const { toast } = useToast();
+  const desktopNotif = useDesktopNotifPrompt(open);
   const [tab, setTab] = useState<TicketStatus>("checking");
   const [search, setSearch] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -253,6 +337,45 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
             </div>
           </div>
         </DialogHeader>
+
+        {desktopNotif.needsPrompt && (
+          <div
+            className="px-5 py-3 border-b bg-amber-50/70 dark:bg-amber-950/30 flex items-start sm:items-center gap-3 flex-col sm:flex-row"
+            data-testid="banner-enable-desktop-notifications"
+          >
+            <div className="flex items-start gap-2.5 flex-1 min-w-0">
+              <Bell className="w-4 h-4 mt-0.5 shrink-0 text-amber-700 dark:text-amber-400" />
+              <div className="min-w-0">
+                <div className="text-sm font-medium" data-testid="text-desktop-notif-title">
+                  Aktifkan notifikasi desktop untuk tiket
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Dapatkan pemberitahuan instan saat ada tiket baru, bahkan ketika tab ini tidak aktif.
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+              <Button
+                size="sm"
+                onClick={desktopNotif.enable}
+                disabled={desktopNotif.enabling}
+                data-testid="button-enable-desktop-notifications"
+              >
+                {desktopNotif.enabling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
+                Aktifkan
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={desktopNotif.dismiss}
+                aria-label="Tutup pemberitahuan"
+                data-testid="button-dismiss-desktop-notifications"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[380px_1fr]">
           {/* LEFT: list */}
