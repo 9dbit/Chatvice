@@ -3030,14 +3030,14 @@ export default function KnowledgePage() {
             </div>
             
             {/* Info note about Active Sources auto-sync */}
-            <div className="rounded-lg p-4" style={{ backgroundColor: "#27272a", color: "white" }} data-testid="info-active-sources-autosync">
-              <div className="flex items-start gap-3">
-                <Globe className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "#d4d4d8" }} />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium" style={{ color: "white" }}>
+            <div className="rounded-lg px-3 py-2.5" style={{ backgroundColor: "#27272a", color: "white" }} data-testid="info-active-sources-autosync">
+              <div className="flex items-start gap-2.5 max-w-2xl">
+                <Globe className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "#d4d4d8" }} />
+                <div className="space-y-0.5 min-w-0">
+                  <p className="text-xs font-semibold" style={{ color: "white" }}>
                     Active Sources Auto-Sync
                   </p>
-                  <p className="text-sm" style={{ color: "#d4d4d8" }}>
+                  <p className="text-xs leading-snug" style={{ color: "#d4d4d8" }}>
                     <strong style={{ color: "white" }}>Website URLs</strong> auto-sync every 60 minutes. <strong style={{ color: "white" }}>Google Sheets</strong> auto-sync every 10 seconds for real-time data.
                     File uploads (Excel, PDF, Word, CSV) and Google Docs do not support auto-sync — re-upload manually if content changes.
                   </p>
@@ -3078,6 +3078,245 @@ export default function KnowledgePage() {
                 </div>
               </div>
             </div>
+
+            {/* Active Source cards (WITHDRAW, DEPOSIT, …) — moved up so they sit right under the Transaction Record Template banner */}
+            {sourcesLoading ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <CardHeader className="pb-2">
+                      <Skeleton className="h-5 w-3/4" />
+                    </CardHeader>
+                    <CardContent>
+                      <Skeleton className="h-4 w-full mb-2" />
+                      <Skeleton className="h-4 w-2/3" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : sources.length === 0 ? (
+              <Card className="text-center py-8">
+                <CardContent>
+                  <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="font-medium mb-2">No sources yet</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Add documents, text, or websites to train your AI chatbot.
+                  </p>
+                  <Button onClick={() => setIsSourceDialogOpen(true)} data-testid="button-add-first-source">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Your First Source
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {sources.map((source) => {
+                  const isGoogleSheet = source.sourceSubtype === "google_sheet";
+                  const isFetching = fetchingSourceIds.has(source.id) || source.syncStatus === "syncing";
+                  const countdown = isGoogleSheet ? getCountdown(source.lastSyncedAt) : 0;
+                  const countdownProgress = isGoogleSheet ? ((SYNC_INTERVAL_SECONDS - countdown) / SYNC_INTERVAL_SECONDS) * 100 : 0;
+
+                  return isGoogleSheet ? (
+                    <div
+                      key={source.id}
+                      className={`rounded-lg overflow-hidden relative ${!(source.isActive ?? true) ? "opacity-60" : ""}`}
+                      style={{ backgroundColor: "#27272a" }}
+                      data-testid={`source-card-${source.id}`}
+                    >
+                      <div className="p-4 space-y-3" style={{ color: "white" }}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="relative flex h-3 w-3 shrink-0">
+                              {isFetching ? (
+                                <Loader2 className="w-3 h-3 animate-spin" style={{ color: "#22c55e" }} />
+                              ) : (source.isActive ?? true) ? (
+                                <>
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: "#22c55e" }}></span>
+                                  <span className="relative inline-flex rounded-full h-3 w-3" style={{ backgroundColor: "#22c55e" }}></span>
+                                </>
+                              ) : (
+                                <span className="relative inline-flex rounded-full h-3 w-3" style={{ backgroundColor: "#ef4444" }}></span>
+                              )}
+                            </span>
+                            <SourceNameEditor
+                              sourceId={source.id}
+                              name={source.name}
+                              onSave={(name) => updateNameMutation.mutate({ id: source.id, name })}
+                            />
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Switch
+                              checked={source.isActive ?? true}
+                              onCheckedChange={(checked) => toggleSourceMutation.mutate({ id: source.id, isActive: checked })}
+                              data-testid={`switch-source-${source.id}`}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 text-xs" style={{ color: "#a1a1aa" }}>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            Last: {getTimeAgo(source.lastSyncedAt)}
+                          </span>
+                          {(source.isActive ?? true) && countdown > 0 && !isFetching && (
+                            <span className="flex items-center gap-1">
+                              <Zap className="w-3 h-3" style={{ color: "#facc15" }} />
+                              Next in {countdown}s
+                            </span>
+                          )}
+                          {isFetching && (
+                            <span className="flex items-center gap-1" style={{ color: "#22c55e" }}>
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              Fetching...
+                            </span>
+                          )}
+                        </div>
+
+                        {source.url && (
+                          <p className="text-xs truncate" style={{ color: "#71717a" }}>{source.url}</p>
+                        )}
+
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded border font-medium text-muted-foreground border-border/50">
+                            <Globe className="w-2.5 h-2.5" />
+                            Active Source
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            style={{ borderColor: "#52525b", color: "white" }}
+                            onClick={() => manualFetchMutation.mutate(source.id)}
+                            disabled={isFetching}
+                            data-testid={`button-fetch-${source.id}`}
+                          >
+                            {isFetching ? (
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                            ) : (
+                              <RefreshCw className="w-3 h-3 mr-1" />
+                            )}
+                            Fetch
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            asChild
+                          >
+                            <a href={source.url || "#"} target="_blank" rel="noopener noreferrer" style={{ color: "#a1a1aa" }}>
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            style={{ color: "#a1a1aa" }}
+                            onClick={() => {
+                              if (confirm("Delete this source?")) {
+                                deleteSourceMutation.mutate(source.id);
+                              }
+                            }}
+                            data-testid={`button-delete-source-${source.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="h-1 w-full" style={{ backgroundColor: "#3f3f46" }}>
+                        <div
+                          className="h-full transition-all duration-1000 ease-linear"
+                          style={{
+                            width: `${isFetching ? 100 : countdownProgress}%`,
+                            backgroundColor: isFetching ? "#22c55e" : "#6366f1",
+                            ...(isFetching ? { animation: "pulse 1s ease-in-out infinite" } : {}),
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                  <Card key={source.id} className={!(source.isActive ?? true) ? "opacity-60" : ""}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          {getSourceTypeIcon(source.type)}
+                          <CardTitle className="text-base truncate">{source.name}</CardTitle>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="relative flex h-2.5 w-2.5" title={(source.isActive ?? true) ? "Active" : "Disabled"}>
+                            {(source.isActive ?? true) ? (
+                              <>
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                              </>
+                            ) : (
+                              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                            )}
+                          </span>
+                          {source.syncStatus === "syncing" && (
+                            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                          )}
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {source.type.replace("-", " ")}
+                      </Badge>
+                      {source.lastSyncedAt && (
+                        <p className="text-xs text-muted-foreground">
+                          Last synced: {formatDate(source.lastSyncedAt)}
+                        </p>
+                      )}
+                      {source.content && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {source.content.substring(0, 100)}...
+                        </p>
+                      )}
+                    </CardContent>
+                    <CardFooter className="flex items-center justify-between gap-2 pt-2">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={source.isActive ?? true}
+                          onCheckedChange={(checked) => toggleSourceMutation.mutate({ id: source.id, isActive: checked })}
+                          data-testid={`switch-source-${source.id}`}
+                        />
+                        <Label className="text-xs text-muted-foreground">
+                          {(source.isActive ?? true) ? "Active" : "Disabled"}
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {source.type === "website" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => requestUpdateMutation.mutate(source.id)}
+                            disabled={requestUpdateMutation.isPending || source.syncStatus === "syncing"}
+                            title="Request update"
+                            data-testid={`button-update-source-${source.id}`}
+                          >
+                            <RefreshCw className={`w-4 h-4 ${source.syncStatus === "syncing" ? "animate-spin" : ""}`} />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            if (confirm("Delete this source?")) {
+                              deleteSourceMutation.mutate(source.id);
+                            }
+                          }}
+                          data-testid={`button-delete-source-${source.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </CardFooter>
+                  </Card>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Reset Password via Google Sheet — Configuration Card */}
             <Card data-testid="card-password-recovery">
@@ -3129,9 +3368,9 @@ export default function KnowledgePage() {
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-6">
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
                 {/* Step 1 — Prepare Google Sheet */}
-                <div className="flex gap-3">
+                <div className="flex gap-3 md:col-span-2 lg:col-span-2">
                   <Badge variant="secondary" className="rounded-full w-6 h-6 flex items-center justify-center p-0 shrink-0 mt-0.5">1</Badge>
                   <div className="flex-1 min-w-0 space-y-3">
                     <div>
@@ -3708,244 +3947,6 @@ export default function KnowledgePage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-
-            {sourcesLoading ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {[1, 2, 3].map((i) => (
-                  <Card key={i}>
-                    <CardHeader className="pb-2">
-                      <Skeleton className="h-5 w-3/4" />
-                    </CardHeader>
-                    <CardContent>
-                      <Skeleton className="h-4 w-full mb-2" />
-                      <Skeleton className="h-4 w-2/3" />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : sources.length === 0 ? (
-              <Card className="text-center py-8">
-                <CardContent>
-                  <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="font-medium mb-2">No sources yet</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Add documents, text, or websites to train your AI chatbot.
-                  </p>
-                  <Button onClick={() => setIsSourceDialogOpen(true)} data-testid="button-add-first-source">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Your First Source
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {sources.map((source) => {
-                  const isGoogleSheet = source.sourceSubtype === "google_sheet";
-                  const isFetching = fetchingSourceIds.has(source.id) || source.syncStatus === "syncing";
-                  const countdown = isGoogleSheet ? getCountdown(source.lastSyncedAt) : 0;
-                  const countdownProgress = isGoogleSheet ? ((SYNC_INTERVAL_SECONDS - countdown) / SYNC_INTERVAL_SECONDS) * 100 : 0;
-
-                  return isGoogleSheet ? (
-                    <div
-                      key={source.id}
-                      className={`rounded-lg overflow-hidden relative ${!(source.isActive ?? true) ? "opacity-60" : ""}`}
-                      style={{ backgroundColor: "#27272a" }}
-                      data-testid={`source-card-${source.id}`}
-                    >
-                      <div className="p-4 space-y-3" style={{ color: "white" }}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="relative flex h-3 w-3 shrink-0">
-                              {isFetching ? (
-                                <Loader2 className="w-3 h-3 animate-spin" style={{ color: "#22c55e" }} />
-                              ) : (source.isActive ?? true) ? (
-                                <>
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: "#22c55e" }}></span>
-                                  <span className="relative inline-flex rounded-full h-3 w-3" style={{ backgroundColor: "#22c55e" }}></span>
-                                </>
-                              ) : (
-                                <span className="relative inline-flex rounded-full h-3 w-3" style={{ backgroundColor: "#ef4444" }}></span>
-                              )}
-                            </span>
-                            <SourceNameEditor
-                              sourceId={source.id}
-                              name={source.name}
-                              onSave={(name) => updateNameMutation.mutate({ id: source.id, name })}
-                            />
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <Switch
-                              checked={source.isActive ?? true}
-                              onCheckedChange={(checked) => toggleSourceMutation.mutate({ id: source.id, isActive: checked })}
-                              data-testid={`switch-source-${source.id}`}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2 text-xs" style={{ color: "#a1a1aa" }}>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            Last: {getTimeAgo(source.lastSyncedAt)}
-                          </span>
-                          {(source.isActive ?? true) && countdown > 0 && !isFetching && (
-                            <span className="flex items-center gap-1">
-                              <Zap className="w-3 h-3" style={{ color: "#facc15" }} />
-                              Next in {countdown}s
-                            </span>
-                          )}
-                          {isFetching && (
-                            <span className="flex items-center gap-1" style={{ color: "#22c55e" }}>
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                              Fetching...
-                            </span>
-                          )}
-                        </div>
-
-                        {source.url && (
-                          <p className="text-xs truncate" style={{ color: "#71717a" }}>{source.url}</p>
-                        )}
-
-                        <div className="flex items-center gap-1.5">
-                          <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded border font-medium text-muted-foreground border-border/50">
-                            <Globe className="w-2.5 h-2.5" />
-                            Active Source
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            style={{ borderColor: "#52525b", color: "white" }}
-                            onClick={() => manualFetchMutation.mutate(source.id)}
-                            disabled={isFetching}
-                            data-testid={`button-fetch-${source.id}`}
-                          >
-                            {isFetching ? (
-                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                            ) : (
-                              <RefreshCw className="w-3 h-3 mr-1" />
-                            )}
-                            Fetch
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            asChild
-                          >
-                            <a href={source.url || "#"} target="_blank" rel="noopener noreferrer" style={{ color: "#a1a1aa" }}>
-                              <ExternalLink className="w-4 h-4" />
-                            </a>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            style={{ color: "#a1a1aa" }}
-                            onClick={() => {
-                              if (confirm("Delete this source?")) {
-                                deleteSourceMutation.mutate(source.id);
-                              }
-                            }}
-                            data-testid={`button-delete-source-${source.id}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="h-1 w-full" style={{ backgroundColor: "#3f3f46" }}>
-                        <div
-                          className="h-full transition-all duration-1000 ease-linear"
-                          style={{
-                            width: `${isFetching ? 100 : countdownProgress}%`,
-                            backgroundColor: isFetching ? "#22c55e" : "#6366f1",
-                            ...(isFetching ? { animation: "pulse 1s ease-in-out infinite" } : {}),
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                  <Card key={source.id} className={!(source.isActive ?? true) ? "opacity-60" : ""}>
-                    <CardHeader className="pb-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          {getSourceTypeIcon(source.type)}
-                          <CardTitle className="text-base truncate">{source.name}</CardTitle>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="relative flex h-2.5 w-2.5" title={(source.isActive ?? true) ? "Active" : "Disabled"}>
-                            {(source.isActive ?? true) ? (
-                              <>
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-                              </>
-                            ) : (
-                              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
-                            )}
-                          </span>
-                          {source.syncStatus === "syncing" && (
-                            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                          )}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <Badge variant="outline" className="text-xs capitalize">
-                        {source.type.replace("-", " ")}
-                      </Badge>
-                      {source.lastSyncedAt && (
-                        <p className="text-xs text-muted-foreground">
-                          Last synced: {formatDate(source.lastSyncedAt)}
-                        </p>
-                      )}
-                      {source.content && (
-                        <p className="text-xs text-muted-foreground line-clamp-2">
-                          {source.content.substring(0, 100)}...
-                        </p>
-                      )}
-                    </CardContent>
-                    <CardFooter className="flex items-center justify-between gap-2 pt-2">
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={source.isActive ?? true}
-                          onCheckedChange={(checked) => toggleSourceMutation.mutate({ id: source.id, isActive: checked })}
-                          data-testid={`switch-source-${source.id}`}
-                        />
-                        <Label className="text-xs text-muted-foreground">
-                          {(source.isActive ?? true) ? "Active" : "Disabled"}
-                        </Label>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {source.type === "website" && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => requestUpdateMutation.mutate(source.id)}
-                            disabled={requestUpdateMutation.isPending || source.syncStatus === "syncing"}
-                            title="Request update"
-                            data-testid={`button-update-source-${source.id}`}
-                          >
-                            <RefreshCw className={`w-4 h-4 ${source.syncStatus === "syncing" ? "animate-spin" : ""}`} />
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            if (confirm("Delete this source?")) {
-                              deleteSourceMutation.mutate(source.id);
-                            }
-                          }}
-                          data-testid={`button-delete-source-${source.id}`}
-                        >
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </CardFooter>
-                  </Card>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
           {/* Add Source Dialog */}
