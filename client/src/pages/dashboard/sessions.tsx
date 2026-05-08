@@ -1812,8 +1812,8 @@ export default function SessionsPage() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0 flex-1">
-                        {/* Name row: name + device icons (left) + last-active time (right) */}
-                        <div className="flex items-center gap-1.5 sm:flex-wrap">
+                        {/* Name row: name + device icons (left) + last-active time (right) — single line until xl */}
+                        <div className="flex items-center gap-1.5 min-w-0 xl:flex-wrap">
                           <CardTitle className="text-base sm:text-lg font-semibold truncate min-w-0" data-testid="text-selected-customer">
                             {getVisitorDisplayName(selectedSessionData?.customerName)}
                           </CardTitle>
@@ -1821,14 +1821,14 @@ export default function SessionsPage() {
                           <OsIcon userAgent={selectedSessionData?.userAgent} size="md" />
                           <BrowserIcon userAgent={selectedSessionData?.userAgent} size="md" />
                           {selectedSessionData?.lastActivity && (
-                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground flex-shrink-0 ml-auto sm:ml-0 whitespace-nowrap">
+                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground flex-shrink-0 ml-auto xl:ml-0 whitespace-nowrap">
                               <Clock className="w-3 h-3" />
                               {formatDistanceToNow(new Date(selectedSessionData.lastActivity), { addSuffix: true })}
                             </span>
                           )}
                         </div>
-                        {/* Sub-info row: flag + city/country + IP — single line on mobile */}
-                        <div className="flex items-center gap-1.5 mt-0.5 min-w-0 sm:flex-wrap">
+                        {/* Sub-info row: flag + city/country + IP — single line until xl */}
+                        <div className="flex items-center gap-1.5 mt-0.5 min-w-0 xl:flex-wrap">
                           <span className="flex-shrink-0">
                             <CountryFlag code={selectedSessionData?.countryCode} name={selectedSessionData?.countryName} />
                           </span>
@@ -1845,7 +1845,8 @@ export default function SessionsPage() {
                         </div>
                       </div>
                     </div>
-                    {/* RIGHT: action buttons — single row, never wraps; collapses to icon-only below lg */}
+                    {/* RIGHT: action buttons — single row, never wraps; collapses to icon-only below lg.
+                        sm:mr-2 keeps a small gap so the floating Chatvice Guide bubble doesn't visually clip the last icon. */}
                     <div className="flex items-center gap-1 sm:gap-1.5 flex-nowrap justify-end flex-shrink-0">
                           {/* Desktop: Take Over / Return to Bot (hidden on mobile) */}
                           {selectedSessionData?.mode === "AI" ? (
