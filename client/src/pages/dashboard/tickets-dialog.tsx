@@ -322,6 +322,14 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
   const [showExample, setShowExample] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [mobileView, setMobileView] = useState<"list" | "detail">("list");
+  const [nowTick, setNowTick] = useState(() => Date.now());
+
+  // Refresh "x minutes ago" labels once per minute while dialog is open.
+  useEffect(() => {
+    if (!open) return;
+    const id = window.setInterval(() => setNowTick(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, [open]);
 
   // Reset mobile view to list whenever the dialog is closed
   useEffect(() => {
@@ -737,6 +745,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                     onToggleExample={() => setShowExample(v => !v)}
                     onSelectExample={() => openTicket(EXAMPLE_TICKET.id)}
                     isExampleActive={active?.id === EXAMPLE_TICKET.id}
+                    nowTick={nowTick}
                   />
                 ) : grouped.map(({ group, items }, gi) => (
                   <div key={group ?? `flat-${gi}`} className="flex flex-col gap-2">
@@ -754,6 +763,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                         ticket={t}
                         isActive={active?.id === t.id}
                         onClick={() => openTicket(t.id)}
+                        nowTick={nowTick}
                       />
                     ))}
                   </div>
@@ -779,6 +789,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                       isActive={active?.id === EXAMPLE_TICKET.id}
                       onClick={() => openTicket(EXAMPLE_TICKET.id)}
                       isExample
+                      nowTick={nowTick}
                     />
                   </div>
                 )}
@@ -1014,11 +1025,13 @@ const TicketCard = React.memo(function TicketCard({
   isActive,
   onClick,
   isExample = false,
+  nowTick: _nowTick,
 }: {
   ticket: TicketRow;
   isActive: boolean;
   onClick: () => void;
   isExample?: boolean;
+  nowTick?: number;
 }) {
   const st = normaliseStatus(ticket.status);
   return (
@@ -1083,6 +1096,7 @@ const TicketCard = React.memo(function TicketCard({
   return (
     prev.isActive === next.isActive &&
     prev.isExample === next.isExample &&
+    prev.nowTick === next.nowTick &&
     prev.ticket.id === next.ticket.id &&
     prev.ticket.status === next.ticket.status &&
     prev.ticket.manualOverride === next.ticket.manualOverride &&
@@ -1100,11 +1114,13 @@ function EmptyState({
   onToggleExample,
   onSelectExample,
   isExampleActive,
+  nowTick,
 }: {
   showExample: boolean;
   onToggleExample: () => void;
   onSelectExample: () => void;
   isExampleActive: boolean;
+  nowTick?: number;
 }) {
   return (
     <div className="flex flex-col items-center text-center py-10 px-4 gap-3" data-testid="text-no-tickets">
@@ -1134,6 +1150,7 @@ function EmptyState({
             isActive={isExampleActive}
             onClick={onSelectExample}
             isExample
+            nowTick={nowTick}
           />
           <p className="text-[10px] text-muted-foreground mt-2">
             Klik kartu untuk melihat tampilan detail tiket.
