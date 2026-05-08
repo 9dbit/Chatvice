@@ -1846,8 +1846,10 @@ export default function SessionsPage() {
                       </div>
                     </div>
                     {/* RIGHT: action buttons — single row, never wraps; collapses to icon-only below lg.
-                        sm:mr-2 keeps a small gap so the floating Chatvice Guide bubble doesn't visually clip the last icon. */}
-                    <div className="flex items-center gap-1 sm:gap-1.5 flex-nowrap justify-end flex-shrink-0">
+                        sm:mr-2 reserves a small clear-zone on the right edge so the floating Chatvice Guide
+                        bubble (fixed-position AIHelpBubble) does not visually clip the last action icon
+                        on narrow desktop widths. */}
+                    <div className="flex items-center gap-1 sm:gap-1.5 sm:mr-2 flex-nowrap justify-end flex-shrink-0">
                           {/* Desktop: Take Over / Return to Bot (hidden on mobile) */}
                           {selectedSessionData?.mode === "AI" ? (
                             <Button
