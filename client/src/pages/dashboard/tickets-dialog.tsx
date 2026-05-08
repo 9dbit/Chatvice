@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -741,7 +741,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                 ) : grouped.map(({ group, items }, gi) => (
                   <div key={group ?? `flat-${gi}`} className="flex flex-col gap-2">
                     {group ? (
-                      <div className="flex items-center justify-between px-1 sticky top-0 z-[1] py-1 bg-background/70 backdrop-blur-sm rounded-md">
+                      <div className="flex items-center justify-between px-1 sticky top-0 z-[1] py-1 bg-background/95 rounded-md">
                         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground truncate">
                           {DATE_GROUP_LABEL[group]}
                         </span>
