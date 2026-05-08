@@ -1541,6 +1541,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         welcomeDescription, // Include welcome description for chat history (only if no quick question)
         isQuickQuestion, // Flag to indicate if user selected a quick question
         referrerUrl: (typeof document !== "undefined" && document.referrer) ? document.referrer : "",
+        userAgent: (typeof navigator !== "undefined" && navigator.userAgent) ? navigator.userAgent : "",
       });
       return response.json() as Promise<{ success: boolean; answer: string; error?: string; code?: string; limit?: number; sanitizedName?: string; welcomeMessage?: string; limitFallback?: boolean }>;
     },

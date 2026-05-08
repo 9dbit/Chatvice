@@ -17338,7 +17338,7 @@ Rules:
 
   function initVisitorTracking() {
     var fp = getDeviceFingerprint();
-    var pingData = { merchantId: merchantId, deviceFingerprint: fp, pageUrl: window.location.href, referrerUrl: document.referrer || "" };
+    var pingData = { merchantId: merchantId, deviceFingerprint: fp, pageUrl: window.location.href, referrerUrl: document.referrer || "", userAgent: (window.navigator && window.navigator.userAgent) || "" };
 
     fetch(baseUrl + "/api/widget/visitor-ping", {
       method: "POST",
@@ -19558,10 +19558,15 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
 
   app.post("/api/widget/visitor-ping", async (req, res) => {
     try {
-      const { merchantId, deviceFingerprint, pageUrl, referrerUrl } = req.body;
+      const { merchantId, deviceFingerprint, pageUrl, referrerUrl, userAgent: bodyUserAgent } = req.body;
       if (!merchantId || !deviceFingerprint) {
         return res.json({ tracked: false });
       }
+      const headerUa = (req.headers["user-agent"] as string) || "";
+      const rawUa = (typeof bodyUserAgent === "string" && bodyUserAgent.trim().length > headerUa.length)
+        ? bodyUserAgent
+        : (headerUa || (typeof bodyUserAgent === "string" ? bodyUserAgent : ""));
+      const resolvedUserAgent = rawUa ? rawUa.slice(0, 1000) : "";
 
       const merchant = await resolveMerchant(merchantId);
       if (!merchant) {
@@ -19596,9 +19601,8 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
           lastActivity: new Date(),
           pageUrl: pageUrl || existingSession.pageUrl,
         };
-        const incomingUa = (req.headers["user-agent"] as string) || "";
-        if (incomingUa && !existingSession.userAgent) {
-          updatePayload.userAgent = incomingUa;
+        if (resolvedUserAgent && (!existingSession.userAgent || resolvedUserAgent.length > existingSession.userAgent.length)) {
+          updatePayload.userAgent = resolvedUserAgent;
         }
         // Only store referrer on first ping — don't overwrite with empty subsequent pings
         if (referrerUrl && !existingSession.referrerUrl) {
@@ -19637,7 +19641,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
       const assignedAgentId = await getNextAgentId(resolvedMerchantId, undefined, deviceFingerprint);
 
       const sessionId = "sess_v_" + crypto.randomBytes(8).toString("hex");
-      const visitorUserAgent = (req.headers["user-agent"] as string) || "";
+      const visitorUserAgent = resolvedUserAgent;
       await storage.createSession({
         id: sessionId,
         merchantId: resolvedMerchantId,
@@ -19904,7 +19908,12 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
   app.post("/api/widget/start-chat", async (req, res) => {
     // CORS is handled by the middleware at line 907-926 for /api/widget/ routes
     try {
-      const { merchantId, sessionId, customerName, customerPhone, customerEmail, initialMessage, deviceFingerprint, welcomeDescription, isQuickQuestion, isAutoOpen, referrerUrl: startChatReferrerUrl } = req.body;
+      const { merchantId, sessionId, customerName, customerPhone, customerEmail, initialMessage, deviceFingerprint, welcomeDescription, isQuickQuestion, isAutoOpen, referrerUrl: startChatReferrerUrl, userAgent: startChatBodyUa } = req.body;
+      const startChatHeaderUa = (req.headers["user-agent"] as string) || "";
+      const startChatRawUa = (typeof startChatBodyUa === "string" && startChatBodyUa.trim().length > startChatHeaderUa.length)
+        ? startChatBodyUa
+        : (startChatHeaderUa || (typeof startChatBodyUa === "string" ? startChatBodyUa : ""));
+      const startChatUserAgent = startChatRawUa ? startChatRawUa.slice(0, 1000) : null;
       
       // Get client IP from request
       const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 
@@ -19982,7 +19991,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
             agentId: null,
             deviceFingerprint: deviceFingerprint || null,
             clientIp: clientIp || null,
-            userAgent: (req.headers["user-agent"] as string) || null,
+            userAgent: startChatUserAgent,
             countryCode: geo.countryCode,
             countryName: geo.countryName,
             cityName: geo.city || null,
@@ -20039,7 +20048,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
           agentId: assignedAgentId,
           deviceFingerprint: deviceFingerprint || null,
           clientIp: clientIp || null,
-          userAgent: (req.headers["user-agent"] as string) || null,
+          userAgent: startChatUserAgent,
           countryCode: geo.countryCode,
           countryName: geo.countryName,
           cityName: geo.city || null,

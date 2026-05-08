@@ -162,24 +162,31 @@ function CountryFlag({ code, name }: { code?: string | null; name?: string | nul
   );
 }
 
-function parseUserAgent(userAgent?: string | null): { browser: string; os: string; device: "Mobile" | "Tablet" | "Desktop" } {
-  if (!userAgent) return { browser: "Unknown", os: "Unknown", device: "Desktop" };
+function parseUserAgent(userAgent?: string | null): { browser: string; os: string; device: "Mobile" | "Tablet" | "Desktop" | "Unknown" } {
+  if (!userAgent || !userAgent.trim()) return { browser: "Unknown", os: "Unknown", device: "Unknown" };
   const ua = userAgent;
   let browser = "Unknown";
   if (/Edg\//i.test(ua)) browser = "Edge";
   else if (/OPR\/|Opera/i.test(ua)) browser = "Opera";
+  else if (/SamsungBrowser/i.test(ua)) browser = "Samsung";
+  else if (/FBAN|FBAV|FB_IAB/i.test(ua)) browser = "Facebook";
+  else if (/Instagram/i.test(ua)) browser = "Instagram";
+  else if (/Telegram/i.test(ua)) browser = "Telegram";
+  else if (/Line\//i.test(ua)) browser = "Line";
   else if (/Chrome/i.test(ua) && !/Chromium/i.test(ua)) browser = "Chrome";
   else if (/Firefox/i.test(ua)) browser = "Firefox";
   else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = "Safari";
+  // iPadOS 13+ reports Macintosh UA but has touch points — treat any Mac with touch as iPad
+  const isIpadOs = /Macintosh/i.test(ua) && typeof navigator !== "undefined" && (navigator as any).maxTouchPoints > 1;
   let os = "Unknown";
   if (/Android/i.test(ua)) os = "Android";
-  else if (/iPhone|iPad|iPod/i.test(ua)) os = "iOS";
+  else if (/iPhone|iPad|iPod/i.test(ua) || isIpadOs) os = "iOS";
   else if (/Windows/i.test(ua)) os = "Windows";
   else if (/Macintosh|Mac OS X/i.test(ua)) os = "macOS";
   else if (/Linux/i.test(ua)) os = "Linux";
-  let device: "Mobile" | "Tablet" | "Desktop" = "Desktop";
-  if (/iPad|Tablet/i.test(ua)) device = "Tablet";
-  else if (/Android|iPhone|iPod|Mobile/i.test(ua)) device = "Mobile";
+  let device: "Mobile" | "Tablet" | "Desktop" | "Unknown" = "Desktop";
+  if (/iPad/i.test(ua) || isIpadOs || /Tablet/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua))) device = "Tablet";
+  else if (/Android|iPhone|iPod|Mobile|FBAN|FBAV|FB_IAB|Instagram|Telegram|Line\//i.test(ua)) device = "Mobile";
   return { browser, os, device };
 }
 
@@ -203,10 +210,22 @@ function DeviceIcon({ userAgent, size = "sm" }: { userAgent?: string | null; siz
   const cls = size === "md" ? "w-4 h-4" : "w-3.5 h-3.5";
   const { browser, os, device } = parseUserAgent(userAgent);
   const label = userAgent ? `${browser} on ${os} • ${device}` : "Unknown device";
-  const Icon = device === "Desktop" ? Monitor : Smartphone;
+  const Icon = device === "Unknown" ? Globe : (device === "Desktop" ? Monitor : Smartphone);
   return (
     <IconTooltip label={label} userAgent={userAgent}>
       <Icon className={`${cls} text-muted-foreground`} />
+    </IconTooltip>
+  );
+}
+
+function ReferrerIcon({ referrerUrl, size = "sm" }: { referrerUrl?: string | null; size?: "sm" | "md" }) {
+  if (!referrerUrl || !referrerUrl.trim()) return null;
+  const cls = size === "md" ? "w-4 h-4" : "w-3.5 h-3.5";
+  let host = referrerUrl;
+  try { host = new URL(referrerUrl).hostname.replace(/^www\./, ""); } catch {}
+  return (
+    <IconTooltip label={`via ${host}`} userAgent={referrerUrl}>
+      <Globe className={`${cls} text-blue-400/80`} />
     </IconTooltip>
   );
 }
@@ -1568,14 +1587,14 @@ export default function SessionsPage() {
               size="icon"
               onClick={() => setSoundEnabled(!soundEnabled)}
               title={soundEnabled ? "Sound alerts on" : "Sound alerts off"}
-              className="h-8 w-8 rounded-full"
+              className="h-8 w-8 rounded-full ml-auto"
               data-testid="button-toggle-sound"
             >
               {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             </Button>
             {/* Handler avatar + name: right of sound button, right-aligned */}
             {selectedSession && selectedSessionData && (
-              <div className="flex items-center gap-1.5 ml-auto" data-testid="handler-identity">
+              <div className="flex items-center gap-1.5" data-testid="handler-identity">
                 <HandlerAvatar
                   size="sm"
                   mode={selectedSessionData.mode as "AI" | "HUMAN"}
@@ -1728,6 +1747,7 @@ export default function SessionsPage() {
                                   <DeviceIcon userAgent={session.userAgent} />
                                   <OsIcon userAgent={session.userAgent} />
                                   <BrowserIcon userAgent={session.userAgent} />
+                                  <ReferrerIcon referrerUrl={(session as any).referrerUrl} />
                                 </div>
                               </div>
                               {/* Row 3: Last message preview */}
