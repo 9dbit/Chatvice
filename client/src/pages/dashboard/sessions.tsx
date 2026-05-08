@@ -1845,19 +1845,21 @@ export default function SessionsPage() {
                         </div>
                       </div>
                     </div>
-                    {/* RIGHT: action buttons */}
-                    <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap justify-end flex-shrink-0">
+                    {/* RIGHT: action buttons — single row, never wraps; collapses to icon-only below lg */}
+                    <div className="flex items-center gap-1 sm:gap-1.5 flex-nowrap justify-end flex-shrink-0">
                           {/* Desktop: Take Over / Return to Bot (hidden on mobile) */}
                           {selectedSessionData?.mode === "AI" ? (
                             <Button
                               size="sm"
                               onClick={() => takeoverMutation.mutate(selectedSession)}
                               disabled={takeoverMutation.isPending}
-                              className="hidden sm:flex h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
+                              className="hidden sm:flex h-7 sm:h-8 text-xs sm:text-sm px-2 lg:px-3"
+                              title={t("dashboard.sessions.takeOver")}
+                              aria-label={t("dashboard.sessions.takeOver")}
                               data-testid="button-takeover-session"
                             >
-                              <Hand className="w-3.5 h-3.5 sm:mr-1.5" />
-                              <span>{t("dashboard.sessions.takeOver")}</span>
+                              <Hand className="w-3.5 h-3.5 lg:mr-1.5" />
+                              <span className="hidden lg:inline">{t("dashboard.sessions.takeOver")}</span>
                             </Button>
                           ) : (
                             <Button
@@ -1865,11 +1867,13 @@ export default function SessionsPage() {
                               variant="outline"
                               onClick={() => returnToBotMutation.mutate(selectedSession)}
                               disabled={returnToBotMutation.isPending}
-                              className="hidden sm:flex h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3"
+                              className="hidden sm:flex h-7 sm:h-8 text-xs sm:text-sm px-2 lg:px-3"
+                              title={t("dashboard.sessions.returnToBot")}
+                              aria-label={t("dashboard.sessions.returnToBot")}
                               data-testid="button-return-to-bot"
                             >
-                              <Bot className="w-3.5 h-3.5 sm:mr-1.5" />
-                              <span>{t("dashboard.sessions.returnToBot")}</span>
+                              <Bot className="w-3.5 h-3.5 lg:mr-1.5" />
+                              <span className="hidden lg:inline">{t("dashboard.sessions.returnToBot")}</span>
                             </Button>
                           )}
 
@@ -1880,11 +1884,13 @@ export default function SessionsPage() {
                               variant="destructive"
                               onClick={() => setEndSessionDialogOpen(true)}
                               disabled={endSessionMutation.isPending}
-                              className="hidden sm:flex h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3 gap-1.5"
+                              className="hidden sm:flex h-7 sm:h-8 text-xs sm:text-sm px-2 lg:px-3 lg:gap-1.5"
+                              title="End Session"
+                              aria-label="End Session"
                               data-testid="button-end-session"
                             >
                               <StopCircle className="w-3.5 h-3.5" />
-                              <span>End Session</span>
+                              <span className="hidden lg:inline">End Session</span>
                             </Button>
                           )}
 
@@ -1894,11 +1900,13 @@ export default function SessionsPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="hidden sm:flex h-7 sm:h-8 text-xs sm:text-sm px-2 sm:px-3 gap-1.5"
+                                className="hidden sm:flex h-7 sm:h-8 text-xs sm:text-sm px-2 lg:px-3 lg:gap-1.5"
+                                title="Archive"
+                                aria-label="Archive"
                                 data-testid="button-archive-session"
                               >
                                 <Archive className="w-3.5 h-3.5" />
-                                <span>Archive</span>
+                                <span className="hidden lg:inline">Archive</span>
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent side="bottom" align="end" className="w-64 p-3">
