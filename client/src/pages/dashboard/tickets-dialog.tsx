@@ -494,7 +494,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="p-0 overflow-hidden flex flex-col bg-background/85 backdrop-blur-xl border border-border/50 shadow-2xl rounded-2xl w-[94vw] max-w-[420px] h-[88dvh] max-h-[680px] sm:w-[96vw] sm:max-w-6xl sm:h-[88dvh] sm:max-h-none"
+        className="p-0 overflow-hidden flex flex-col bg-zinc-900 border border-zinc-800/80 shadow-2xl rounded-2xl w-[94vw] max-w-[420px] h-[88dvh] max-h-[680px] sm:w-[96vw] sm:max-w-6xl sm:h-[88dvh] sm:max-h-none"
         data-testid="dialog-tickets"
       >
         <DialogHeader className="px-3 sm:px-5 py-3 sm:py-4 border-b border-border/50 bg-background/40 pr-12">
@@ -525,7 +525,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                 onClick={() => refetch()}
                 disabled={isFetching}
                 className="sm:hidden"
-                aria-label="Segarkan"
+                aria-label="Refresh"
                 data-testid="button-refresh-tickets-mobile"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -549,7 +549,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                 data-testid="button-refresh-tickets"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                Segarkan
+                Refresh
               </Button>
             </div>
           </div>
@@ -722,19 +722,6 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
               </div>
             </div>
 
-            <div
-              className="relative h-0.5 w-full overflow-hidden bg-transparent"
-              aria-hidden={!(isFetching && !isLoading)}
-            >
-              {isFetching && !isLoading ? (
-                <div
-                  className="absolute inset-y-0 left-0 w-1/4 bg-primary/70 ticket-progress-bar rounded-full"
-                  role="progressbar"
-                  aria-label="Memperbarui daftar tiket"
-                  data-testid="progress-tickets-refresh"
-                />
-              ) : null}
-            </div>
             <ScrollArea className="flex-1 min-h-0">
               <div className="p-3 flex flex-col gap-3">
                 {isLoading ? (
