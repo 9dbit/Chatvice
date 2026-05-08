@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -520,7 +520,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                 aria-label="Segarkan"
                 data-testid="button-refresh-tickets-mobile"
               >
-                {isFetching ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                <RefreshCw className="w-4 h-4" />
               </Button>
               <Button
                 size="sm"
@@ -540,7 +540,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                 className="gap-1.5 hidden sm:inline-flex"
                 data-testid="button-refresh-tickets"
               >
-                {isFetching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                <RefreshCw className="w-3.5 h-3.5" />
                 Segarkan
               </Button>
             </div>
@@ -714,6 +714,19 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
               </div>
             </div>
 
+            <div
+              className="relative h-0.5 w-full overflow-hidden bg-transparent"
+              aria-hidden={!(isFetching && !isLoading)}
+            >
+              {isFetching && !isLoading ? (
+                <div
+                  className="absolute inset-y-0 left-0 w-1/4 bg-primary/70 ticket-progress-bar rounded-full"
+                  role="progressbar"
+                  aria-label="Memperbarui daftar tiket"
+                  data-testid="progress-tickets-refresh"
+                />
+              ) : null}
+            </div>
             <ScrollArea className="flex-1 min-h-0">
               <div className="p-3 flex flex-col gap-3">
                 {isLoading ? (
@@ -996,7 +1009,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
   );
 }
 
-function TicketCard({
+const TicketCard = React.memo(function TicketCard({
   ticket,
   isActive,
   onClick,
@@ -1065,7 +1078,22 @@ function TicketCard({
       </div>
     </Card>
   );
-}
+}, (prev, next) => {
+  // Re-render only when meaningful fields change.
+  return (
+    prev.isActive === next.isActive &&
+    prev.isExample === next.isExample &&
+    prev.ticket.id === next.ticket.id &&
+    prev.ticket.status === next.ticket.status &&
+    prev.ticket.manualOverride === next.ticket.manualOverride &&
+    prev.ticket.username === next.ticket.username &&
+    prev.ticket.ticketId === next.ticket.ticketId &&
+    prev.ticket.createdAt === next.ticket.createdAt &&
+    prev.ticket.session?.clientIp === next.ticket.session?.clientIp &&
+    prev.ticket.session?.countryCode === next.ticket.session?.countryCode &&
+    prev.ticket.session?.countryName === next.ticket.session?.countryName
+  );
+});
 
 function EmptyState({
   showExample,

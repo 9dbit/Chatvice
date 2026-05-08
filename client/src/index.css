@@ -1002,6 +1002,21 @@ html {
 }
 
 /* Typing indicator dots animation */
+@keyframes ticket-progress-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.ticket-progress-bar {
+  animation: ticket-progress-slide 1.2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticket-progress-bar {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
 @keyframes typing-dot {
   0%, 60%, 100% {
     transform: translateY(0);
