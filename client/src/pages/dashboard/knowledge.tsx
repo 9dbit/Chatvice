@@ -28,6 +28,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "wouter";
+import { SiGooglesheets } from "react-icons/si";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -860,6 +861,12 @@ export default function KnowledgePage() {
     }
     setPrConfigLoaded(true);
   }, [prConfig, prConfigLoaded]);
+
+  // Whether the Reset Password sheet is "connected" — used to swap the
+  // Step 2 placeholder skeleton for a Google Sheets logo.
+  const isSheetConnected =
+    prTestResult?.success === true ||
+    (!!prConfig?.sheetCsvUrl && !!prConfig?.lastSyncedAt && prSheetUrl === prConfig.sheetCsvUrl);
 
   // Help Articles queries
   const { data: articles = [], isLoading: articlesLoading } = useQuery<KnowledgebaseArticle[]>({
@@ -3472,6 +3479,24 @@ export default function KnowledgePage() {
                       </Badge>
                     )}
                     <p className="text-xs text-muted-foreground">Pastikan sheet sudah dipublikasikan agar bisa diakses publik.</p>
+                    <div
+                      className="rounded-md border border-border/50 bg-zinc-200 dark:bg-zinc-800 min-h-[180px] flex items-center justify-center overflow-hidden p-4"
+                      data-testid="placeholder-password-recovery-sheet"
+                    >
+                      {isSheetConnected ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <SiGooglesheets className="w-12 h-12 text-emerald-500" />
+                          <p className="text-xs text-muted-foreground mt-2">Sheet terhubung</p>
+                        </div>
+                      ) : (
+                        <div className="w-full space-y-2">
+                          <Skeleton className="h-3 w-3/4 bg-zinc-300 dark:bg-zinc-700" />
+                          <Skeleton className="h-3 w-1/2 bg-zinc-300 dark:bg-zinc-700" />
+                          <Skeleton className="h-3 w-2/3 bg-zinc-300 dark:bg-zinc-700" />
+                          <Skeleton className="h-3 w-2/5 bg-zinc-300 dark:bg-zinc-700" />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
