@@ -3344,7 +3344,7 @@ export default function KnowledgePage() {
                             "inline-block w-2 h-2 rounded-full " +
                             (!prEnabled
                               ? "bg-zinc-400 dark:bg-zinc-500"
-                              : prConfig?.sheetCsvUrl && prConfig?.lastSyncedAt
+                              : isSheetConnected
                                 ? "bg-emerald-500"
                                 : "bg-amber-500")
                           }
@@ -3352,7 +3352,7 @@ export default function KnowledgePage() {
                         <span>
                           {!prEnabled
                             ? "Nonaktif"
-                            : prConfig?.sheetCsvUrl && prConfig?.lastSyncedAt
+                            : isSheetConnected
                               ? "Aktif & Sheet terhubung"
                               : "Aktif — sheet belum terhubung"}
                         </span>
@@ -3642,7 +3642,7 @@ export default function KnowledgePage() {
                     onClick={async () => {
                       setPrIsSaving(true);
                       try {
-                        await apiRequest("POST", "/api/merchant/password-recovery-config", {
+                        const res = await apiRequest("POST", "/api/merchant/password-recovery-config", {
                           sheetCsvUrl: prSheetUrl,
                           writeBackUrl: prWriteBackUrl,
                           isActive: prEnabled,
@@ -3650,7 +3650,13 @@ export default function KnowledgePage() {
                           formIntroText: prFormIntroText,
                           agentId: selectedAgentId || null,
                         });
-                        setPrConfigLoaded(false);
+                        // Seed the query cache with the saved config so the badge & placeholder
+                        // reflect reality immediately and the load-effect doesn't race-overwrite
+                        // the user's toggle state with a stale cached value.
+                        try {
+                          const saved = await res.json();
+                          queryClient.setQueryData(["/api/merchant/password-recovery-config", selectedAgentId], saved);
+                        } catch {}
                         queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config", selectedAgentId] });
                         toast({ title: "Konfigurasi tersimpan", description: prEnabled ? "AI sekarang akan menangani permintaan reset password." : "Reset password sedang nonaktif." });
                       } catch {
@@ -3676,7 +3682,12 @@ export default function KnowledgePage() {
                         try {
                           const res = await apiRequest("POST", "/api/merchant/password-recovery-config/manual-fetch", { agentId: selectedAgentId || null });
                           const data = await res.json();
-                          setPrConfigLoaded(false);
+                          // Patch lastSyncedAt into the cached config so the badge updates
+                          // immediately without re-applying stale fields onto local state.
+                          queryClient.setQueryData(
+                            ["/api/merchant/password-recovery-config", selectedAgentId],
+                            (old: any) => old ? { ...old, lastSyncedAt: data.lastSyncedAt || new Date().toISOString() } : old,
+                          );
                           queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config", selectedAgentId] });
                           toast({ title: "Sheet berhasil disinkron", description: data.message || "Data terbaru sudah diambil." });
                         } catch {
@@ -3732,7 +3743,9 @@ export default function KnowledgePage() {
                         setPrEnabled(false);
                         setPrInstructions("");
                         setPrFormIntroText("");
-                        setPrConfigLoaded(false);
+                        // Clear the cached config so the load-effect doesn't re-apply
+                        // the just-deleted values back into local state.
+                        queryClient.setQueryData(["/api/merchant/password-recovery-config", selectedAgentId], null);
                         queryClient.invalidateQueries({ queryKey: ["/api/merchant/password-recovery-config", selectedAgentId] });
                         toast({ title: "Konfigurasi dihapus" });
                       } catch {
