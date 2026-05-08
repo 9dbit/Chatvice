@@ -176,8 +176,10 @@ function parseUserAgent(userAgent?: string | null): { browser: string; os: strin
   else if (/Chrome/i.test(ua) && !/Chromium/i.test(ua)) browser = "Chrome";
   else if (/Firefox/i.test(ua)) browser = "Firefox";
   else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = "Safari";
-  // iPadOS 13+ reports Macintosh UA but has touch points — treat any Mac with touch as iPad
-  const isIpadOs = /Macintosh/i.test(ua) && typeof navigator !== "undefined" && (navigator as any).maxTouchPoints > 1;
+  // iPadOS 13+ sends a Macintosh-flavoured UA. The only deterministic tell from the
+  // UA string itself is the presence of the iOS-style "Mobile/" build token alongside
+  // Safari on Macintosh — desktop Safari never sends "Mobile/".
+  const isIpadOs = /Macintosh/i.test(ua) && /Mobile\//i.test(ua) && /Safari/i.test(ua);
   let os = "Unknown";
   if (/Android/i.test(ua)) os = "Android";
   else if (/iPhone|iPad|iPod/i.test(ua) || isIpadOs) os = "iOS";
@@ -1747,7 +1749,7 @@ export default function SessionsPage() {
                                   <DeviceIcon userAgent={session.userAgent} />
                                   <OsIcon userAgent={session.userAgent} />
                                   <BrowserIcon userAgent={session.userAgent} />
-                                  <ReferrerIcon referrerUrl={(session as any).referrerUrl} />
+                                  <ReferrerIcon referrerUrl={session.referrerUrl} />
                                 </div>
                               </div>
                               {/* Row 3: Last message preview */}
