@@ -420,8 +420,9 @@ export default function SessionsPage() {
   // Mobile settings popover state
   const [showMobileSettings, setShowMobileSettings] = useState(false);
 
-  // Visitor info panel state
-  const [showVisitorInfo, setShowVisitorInfo] = useState(true);
+  // Visitor info panel state — closed by default so opening a chat lands on
+  // the chat area (especially important on mobile where the panel overlays).
+  const [showVisitorInfo, setShowVisitorInfo] = useState(false);
 
   // End Session dialog state
   const [endSessionDialogOpen, setEndSessionDialogOpen] = useState(false);
@@ -1779,17 +1780,18 @@ export default function SessionsPage() {
         </div>
 
         <div className={`md:col-span-8 xl:col-span-1 flex flex-col min-h-0 min-w-0 gap-2 relative ${selectedSession ? 'flex' : 'hidden md:flex'}`}>
-          {/* Mobile: back arrow as floating circular button over the card */}
+          {/* Mobile: pill-shaped "< Back" button positioned above the card */}
           {selectedSession && (
             <Button
-              size="icon"
-              variant="ghost"
+              size="sm"
+              variant="outline"
               onClick={() => setSelectedSession(null)}
-              className="md:hidden absolute -top-11 left-0 z-30 h-8 w-8 rounded-full border border-border/60 bg-background/90 backdrop-blur shadow-sm"
+              className="md:hidden self-start h-8 px-3 rounded-full gap-1 text-xs font-medium shadow-sm"
               aria-label="Kembali ke daftar"
               data-testid="button-back-to-session-list"
             >
               <ChevronLeft className="w-4 h-4" />
+              <span>Back</span>
             </Button>
           )}
           <div className="flex flex-1 min-h-0 min-w-0 gap-3">
@@ -1799,7 +1801,7 @@ export default function SessionsPage() {
                 <CardHeader className="flex-shrink-0 border-b py-2 sm:py-3 px-3 sm:px-4">
                   <div className="flex items-center justify-between gap-2 sm:gap-3">
                     {/* LEFT: customer avatar + customer name/time */}
-                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                       {/* Customer avatar with colored initials */}
                       <Avatar className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0">
                         {selectedSessionData?.customerAvatarUrl ? (
@@ -1809,32 +1811,34 @@ export default function SessionsPage() {
                           {getInitials(getVisitorDisplayName(selectedSessionData?.customerName))}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="min-w-0">
-                        {/* Name row: name + device/OS/browser icons + last-active time */}
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <CardTitle className="text-base sm:text-lg font-semibold truncate" data-testid="text-selected-customer">
+                      <div className="min-w-0 flex-1">
+                        {/* Name row: name + device icons (left) + last-active time (right) */}
+                        <div className="flex items-center gap-1.5 sm:flex-wrap">
+                          <CardTitle className="text-base sm:text-lg font-semibold truncate min-w-0" data-testid="text-selected-customer">
                             {getVisitorDisplayName(selectedSessionData?.customerName)}
                           </CardTitle>
                           <DeviceIcon userAgent={selectedSessionData?.userAgent} size="md" />
                           <OsIcon userAgent={selectedSessionData?.userAgent} size="md" />
                           <BrowserIcon userAgent={selectedSessionData?.userAgent} size="md" />
                           {selectedSessionData?.lastActivity && (
-                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground flex-shrink-0">
+                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground flex-shrink-0 ml-auto sm:ml-0 whitespace-nowrap">
                               <Clock className="w-3 h-3" />
                               {formatDistanceToNow(new Date(selectedSessionData.lastActivity), { addSuffix: true })}
                             </span>
                           )}
                         </div>
-                        {/* Sub-info row: flag + city/country + IP */}
-                        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                          <CountryFlag code={selectedSessionData?.countryCode} name={selectedSessionData?.countryName} />
+                        {/* Sub-info row: flag + city/country + IP — single line on mobile */}
+                        <div className="flex items-center gap-1.5 mt-0.5 min-w-0 sm:flex-wrap">
+                          <span className="flex-shrink-0">
+                            <CountryFlag code={selectedSessionData?.countryCode} name={selectedSessionData?.countryName} />
+                          </span>
                           {(selectedSessionData?.cityName || selectedSessionData?.countryName) && selectedSessionData?.countryCode !== "xx" && selectedSessionData?.countryCode !== "XX" && (
-                            <span className="text-[11px] sm:text-xs text-muted-foreground">
+                            <span className="text-[11px] sm:text-xs text-muted-foreground flex-shrink-0">
                               {[selectedSessionData.cityName, selectedSessionData.countryName].filter(Boolean).join(", ")}
                             </span>
                           )}
                           {selectedSessionData?.clientIp && (
-                            <span className="font-mono text-[11px] sm:text-xs text-muted-foreground">
+                            <span className="font-mono text-[11px] sm:text-xs text-muted-foreground truncate min-w-0">
                               · {selectedSessionData.clientIp}
                             </span>
                           )}
@@ -2643,13 +2647,6 @@ export default function SessionsPage() {
                       )}
                     </div>
                   </ScrollArea>
-                  {/* Last active — mobile only, shown just above the input */}
-                  {selectedSessionData?.lastActivity && (
-                    <div className="flex sm:hidden items-center gap-1 px-3 py-1 border-t text-[11px] text-muted-foreground">
-                      <Clock className="w-3 h-3 flex-shrink-0" />
-                      <span>Last active {formatDistanceToNow(new Date(selectedSessionData.lastActivity), { addSuffix: true })}</span>
-                    </div>
-                  )}
                   {selectedSessionData?.mode === "HUMAN" && (
                     <div className="flex-shrink-0 p-3 border-t bg-background relative">
                       <input
@@ -2933,7 +2930,7 @@ export default function SessionsPage() {
           {/* Visitor Info Panel — side panel on desktop, fullscreen overlay on mobile */}
           {showVisitorInfo && selectedSessionData && (
             <Card
-              className="flex flex-col h-full lg:w-64 lg:flex-shrink-0 lg:static lg:bg-card fixed inset-x-2 top-16 bottom-2 z-40 max-w-md mx-auto bg-background shadow-2xl border-border lg:shadow-none lg:max-w-none lg:mx-0 lg:inset-auto max-lg:landscape:left-auto max-lg:landscape:right-2 max-lg:landscape:top-2 max-lg:landscape:mx-0 max-lg:landscape:max-w-none max-lg:landscape:w-[55%] max-lg:landscape:max-w-[20rem]"
+              className="flex flex-col h-full lg:w-64 lg:flex-shrink-0 lg:static lg:bg-card fixed inset-x-2 top-2 bottom-2 z-40 max-w-md mx-auto bg-background shadow-2xl border-border lg:shadow-none lg:max-w-none lg:mx-0 lg:inset-auto max-lg:landscape:left-auto max-lg:landscape:right-2 max-lg:landscape:top-2 max-lg:landscape:mx-0 max-lg:landscape:max-w-none max-lg:landscape:w-[55%] max-lg:landscape:max-w-[20rem]"
               data-testid="card-visitor-info-panel"
             >
               <CardHeader className="flex-shrink-0 border-b py-2 px-3">
