@@ -1958,11 +1958,11 @@
       "status": "Status"
     },
     "customDataSource": {
-      "title": "Custom Data Source",
+      "title": "Sumber Data Kustom",
       "subtitle": "Hubungkan panel backend Anda agar AI bisa menjawab pertanyaan customer dengan data realtime.",
       "tabs": {
         "settings": "Pengaturan",
-        "intents": "Intent Lookup",
+        "intents": "Pencarian Intent",
         "audit": "Riwayat Panggilan"
       },
       "health": {
@@ -2044,7 +2044,7 @@
         "connSuccess": "Koneksi berhasil",
         "connFailed": "Koneksi gagal",
         "apiKeyCopied": "API key tersalin",
-        "defaultName": "Panel API"
+        "defaultName": "API Panel"
       },
       "settings": {
         "cardTitle": "Pengaturan Koneksi",
@@ -2052,7 +2052,7 @@
         "enable": "Aktifkan koneksi",
         "monitor": "Monitor kesehatan otomatis (cek tiap 5 menit)",
         "name": "Nama",
-        "baseUrl": "Base URL",
+        "baseUrl": "URL Dasar",
         "authHeader": "Nama header autentikasi",
         "healthPath": "Path health-check",
         "cacheTtl": "Cache TTL (detik)",
@@ -2066,14 +2066,14 @@
         "enableHint": "AI baru akan memanggil panel API saat opsi ini aktif.",
         "monitorHint": "Chatvice ping endpoint health-check setiap 60 detik dan kirim alert (email + Telegram) saat error rate >50% dalam 5 menit terakhir.",
         "placeholder": {
-          "name": "Panel Member API",
+          "name": "API Member Panel",
           "baseUrl": "https://panel.example.com/api/v1",
           "authHeader": "X-API-Key",
           "healthPath": "/health"
         }
       },
       "apiKey": {
-        "title": "API Key",
+        "title": "Kunci API",
         "desc": "Gunakan API key ini di server panel Anda untuk verifikasi request dari Chatvice.",
         "lastFour": "Akhiran key",
         "generate": "Generate API Key Baru",
@@ -2086,24 +2086,24 @@
         "rotateConfirm": "Yakin ingin rotasi API key? Key lama akan langsung tidak berlaku.",
         "cardDesc": "Chatvice mengirim key ini di header autentikasi setiap request. Simpan plaintext di server panel Anda.",
         "notGenerated": "Belum di-generate",
-        "generateOrRotate": "Generate / Rotate",
+        "generateOrRotate": "Buat / Rotasi",
         "plainHint": "Key plaintext hanya tampil satu kali setelah di-generate. Setelah itu Anda hanya bisa rotate ulang.",
         "iSaved": "Saya sudah simpan",
         "generateFailed": "Gagal generate API key"
       },
       "intent": {
         "addNew": "Intent Baru",
-        "edit": "Edit Intent",
+        "edit": "Ubah Intent",
         "create": "Intent Baru",
-        "intentKey": "Intent Key",
+        "intentKey": "Kunci Intent",
         "name": "Nama",
         "description": "Deskripsi",
-        "triggers": "Trigger Keywords",
+        "triggers": "Kata Kunci Pemicu",
         "triggersHint": "Pisahkan dengan koma. AI akan mendeteksi keyword ini di pesan customer.",
-        "method": "HTTP Method",
-        "endpoint": "Endpoint Path",
+        "method": "Metode HTTP",
+        "endpoint": "Path Endpoint",
         "endpointHint": "Gunakan {field} untuk placeholder. Contoh: /member/{username}/balance",
-        "requiredFields": "Required Fields",
+        "requiredFields": "Field Wajib",
         "addField": "Tambah field",
         "required": "wajib",
         "responseTemplate": "Template Jawaban",
@@ -2127,7 +2127,7 @@
           "triggers": "depo, deposit, dp, isi saldo, top up",
           "endpoint": "/deposits/check?username={username}&amount={amount}",
           "fieldKey": "username",
-          "fieldLabel": "Username",
+          "fieldLabel": "Nama Pengguna",
           "responseTemplate": "Status deposit Kakak {username} sebesar {amount}: {status}. Diproses pada {processed_at}.",
           "endpointPath": "/deposits/check?username={username}&amount={amount}"
         }
@@ -2142,14 +2142,14 @@
         "endpoint": "Endpoint",
         "fields": "Field (masked)",
         "status": "Status",
-        "latency": "Latency",
+        "latency": "Latensi",
         "noLogs": "Belum ada panggilan tercatat.",
         "errBadge": "gagal"
       },
       "headerSubtitle": "Hubungkan AI agent ke panel backend Anda agar bisa cek data realtime (status deposit, withdraw, turnover, IP login, dll).",
       "integrationChecklist": "Checklist Integrasi",
       "specApi": "Spec API",
-      "setupWizard": "Setup wizard",
+      "setupWizard": "Wizard penyiapan",
       "setupWizardDesc": "Konfigurasi ulang panel API dengan panduan langkah demi langkah.",
       "connectionTitle": "Koneksi Panel API",
       "connectionDesc": "Endpoint, autentikasi, dan kontrol cache/rate limit.",
@@ -2157,7 +2157,7 @@
       "intentsHeadingDesc": "Tiap intent memetakan kata kunci pertanyaan customer ke endpoint panel Anda.",
       "addIntent": "Tambah Intent",
       "saveFirst": "Simpan koneksi panel API terlebih dahulu pada tab Pengaturan.",
-      "triggers": "Triggers",
+      "triggers": "Pemicu",
       "auditTitle": "Riwayat Panggilan API",
       "auditDesc": "50 panggilan terakhir. Field input customer otomatis di-mask demi keamanan.",
       "ofN": "dari",
@@ -2178,7 +2178,7 @@
         "sectionBTitle": "B. TODO per Intent Aktif",
         "sectionBDesc": "Hanya intent yang diaktifkan ditampilkan di sini. Klik \"Tes Sekarang\" untuk memvalidasi atau \"Salin cURL\" untuk dipakai developer.",
         "sectionBNoActivePre": "Belum ada intent aktif. Aktifkan dari halaman ",
-        "sectionBNoActiveLink": "Custom Data Source",
+        "sectionBNoActiveLink": "Sumber Data Kustom",
         "sectionBNoActivePost": " tab Intent Lookup.",
         "sectionCTitle": "C. Aturan Keamanan & Operasional",
         "sectionCDesc": "Praktik wajib agar koneksi panel API tetap aman dan stabil di production.",
@@ -2287,7 +2287,7 @@
           "itemSensitive": "Field sensitif (PIN, password, OTP) tidak pernah dikembalikan",
           "itemAuditLog": "Audit log internal menyimpan setiap pemanggilan dari Chatvice",
           "itemKeyRotation": "API key dirotasi minimal setiap 90 hari (umur saat ini: {days} hari)",
-          "untested": "untested",
+          "untested": "belum diuji",
           "unknown": "?",
           "statusSuccess": "sukses",
           "statusError": "gagal",
@@ -2386,12 +2386,12 @@
     },
     "ticketsDialog": {
       "title": "Tiket Pemulihan Password",
-      "tutorial": "Tutorial",
-      "refresh": "Refresh",
+      "tutorial": "Panduan",
+      "refresh": "Muat ulang",
       "enableNotif": "Aktifkan Notifikasi Desktop",
       "search": "Cari tiket...",
-      "filterStatus": "Filter status:",
-      "reset": "Reset",
+      "filterStatus": "Saring status:",
+      "reset": "Atur ulang",
       "dateAll": "Semua tanggal",
       "dateToday": "Hari ini",
       "date7d": "7 hari terakhir",
@@ -2426,14 +2426,14 @@
       "customerInfo": "Informasi Pelanggan",
       "field": {
         "name": "Nama",
-        "username": "Username",
+        "username": "Nama Pengguna",
         "phone": "Nomor Telepon",
         "bank": "Nomor Rekening",
         "ip": "IP",
         "country": "Negara",
         "city": "Kota",
         "requestType": "Tipe Permintaan",
-        "userAgent": "User Agent"
+        "userAgent": "Agen Pengguna"
       },
       "sheetData": "Data dari Google Sheet",
       "replyCustomer": "Balas Pelanggan",
@@ -2442,7 +2442,7 @@
       "lastSynced": "Terakhir disinkronkan",
       "ipUnavailable": "IP tidak tersedia",
       "type": "Tipe",
-      "overrideStatus": "Override status:",
+      "overrideStatus": "Timpa status:",
       "status": {
         "checking": "Sedang Diperiksa",
         "rejected": "Ditolak",
@@ -2518,13 +2518,13 @@
       }
     },
     "gettingStarted": {
-      "title": "Getting Started",
+      "title": "Mulai Cepat",
       "progress": "{done}/{total} selesai",
       "congrats": "Selamat! Onboarding selesai.",
       "liveMessage": "Chatbot Anda kini live dan siap melayani customer.",
       "close": "Tutup",
       "phaseLabel": "Fase {n}: {title}",
-      "tutorial": "Tutorial",
+      "tutorial": "Panduan",
       "markDone": "Tandai selesai",
       "tutorialTitle": "Tutorial Fase {n}: {title}",
       "phases": {
@@ -2663,7 +2663,7 @@
               "body": "Pilih jenis bisnis dan kategori, lalu biarkan AI membuat artikel pengetahuan untuk Anda. Edit hasilnya bila perlu."
             },
             {
-              "title": "AI auto-format",
+              "title": "Format-ulang otomatis AI",
               "body": "Saat menyimpan, sistem akan otomatis merapikan format konten sehingga lebih mudah dipahami AI."
             },
             {
