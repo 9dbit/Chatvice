@@ -28217,6 +28217,47 @@ Please create a comprehensive help center article that would be useful for custo
       if (!urlCheck.ok) return res.status(400).json({ error: urlCheck.error });
       const dnsCheck = await assertPublicHostExt(urlCheck.url.hostname.replace(/^\[|\]$/g, ""));
       if (!dnsCheck.ok) return res.status(400).json({ error: dnsCheck.error });
+
+      // Per-intent test mode — invoked from the Integration Checklist page.
+      // Accepts { intentKey, fields? } and dispatches through executeIntentLookup
+      // so audit logging, SSRF guards, rate limit, and templating all match
+      // production behaviour.
+      const intentKey = typeof req.body?.intentKey === "string" ? req.body.intentKey.trim() : "";
+      if (intentKey) {
+        const intents = await storage.getCustomDataIntents(source.id);
+        const intent = intents.find(i => i.intentKey === intentKey);
+        if (!intent) return res.status(404).json({ error: `Intent "${intentKey}" tidak ditemukan` });
+        // Fill missing required fields with deterministic placeholder values so
+        // merchants can run a smoke test without typing anything. Numbers default
+        // to 1, text to "test_<key>". Caller-supplied values take precedence.
+        const supplied: Record<string, string> = (req.body?.fields && typeof req.body.fields === "object") ? req.body.fields : {};
+        const fields: Record<string, string> = {};
+        const reqFields = Array.isArray(intent.requiredFields) ? (intent.requiredFields as any[]) : [];
+        for (const f of reqFields) {
+          if (!f || typeof f.key !== "string") continue;
+          const provided = supplied[f.key];
+          if (provided !== undefined && provided !== null && String(provided).trim() !== "") {
+            fields[f.key] = String(provided);
+          } else if (f.type === "number") {
+            fields[f.key] = "1";
+          } else {
+            fields[f.key] = `test_${f.key}`;
+          }
+        }
+        for (const [k, v] of Object.entries(supplied)) {
+          if (!(k in fields) && v !== undefined && v !== null && String(v).trim() !== "") fields[k] = String(v);
+        }
+        const result = await executeIntentLookup({ merchantId, source, intent, fields });
+        return res.json({
+          ok: result.ok,
+          status: result.httpStatus,
+          latencyMs: result.latencyMs,
+          sample: result.text?.slice(0, 400),
+          error: result.errorMessage,
+          intentKey: intent.intentKey,
+        });
+      }
+
       const apiKey = decryptApiKey(source.apiKeyEncrypted);
       const url = (source.baseUrl.replace(/\/+$/, "")) + (source.healthPath || "/health");
       const t0 = Date.now();
@@ -28240,6 +28281,80 @@ Please create a comprehensive help center article that would be useful for custo
       }
     } catch (err) {
       res.status(500).json({ error: "Failed to test connection" });
+    }
+  });
+
+  // Integration checklist data — drives the /dashboard/custom-data-source/integration-checklist page.
+  // Returns: source meta (without API key blob), intents, per-intent last audit,
+  // overall counts, and apiKeyAgeDays so the UI can render TODO badges without
+  // having to scan the full audit log on the client.
+  app.get("/api/merchant/custom-data-source/integration-status", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const source = await storage.getCustomDataSource(merchantId);
+      if (!source) {
+        return res.json({
+          source: null,
+          intents: [],
+          intentStatus: {},
+          totals: { intents: 0, enabledIntents: 0, successCount: 0, errorCount: 0, untestedCount: 0 },
+          apiKeyAgeDays: null,
+        });
+      }
+      const { apiKeyEncrypted, ...safeSource } = source;
+      const intents = await storage.getCustomDataIntents(source.id);
+      // Pull a generous slice of the audit log so we can find the latest entry
+      // per intent without N+1 queries.
+      const auditRows = await storage.getCustomDataAuditLog(merchantId, 500);
+      const intentStatus: Record<string, {
+        lastStatus: "success" | "error" | "untested";
+        lastHttpStatus: number | null;
+        lastLatencyMs: number | null;
+        lastErrorMessage: string | null;
+        lastRunAt: string | null;
+        lastSuccessAt: string | null;
+        callCount: number;
+      }> = {};
+      for (const intent of intents) {
+        const rows = auditRows.filter(r => r.intentKey === intent.intentKey);
+        const latest = rows[0];
+        const lastSuccess = rows.find(r => r.success);
+        intentStatus[intent.intentKey] = {
+          lastStatus: !latest ? "untested" : (latest.success ? "success" : "error"),
+          lastHttpStatus: latest?.httpStatus ?? null,
+          lastLatencyMs: latest?.latencyMs ?? null,
+          lastErrorMessage: latest?.errorMessage ?? null,
+          lastRunAt: latest?.createdAt ? new Date(latest.createdAt).toISOString() : null,
+          lastSuccessAt: lastSuccess?.createdAt ? new Date(lastSuccess.createdAt).toISOString() : null,
+          callCount: rows.length,
+        };
+      }
+      let successCount = 0, errorCount = 0, untestedCount = 0;
+      for (const intent of intents) {
+        const s = intentStatus[intent.intentKey].lastStatus;
+        if (s === "success") successCount++;
+        else if (s === "error") errorCount++;
+        else untestedCount++;
+      }
+      const apiKeyAgeDays = source.updatedAt
+        ? Math.floor((Date.now() - new Date(source.updatedAt).getTime()) / (1000 * 60 * 60 * 24))
+        : null;
+      res.json({
+        source: safeSource,
+        intents,
+        intentStatus,
+        totals: {
+          intents: intents.length,
+          enabledIntents: intents.filter(i => i.isEnabled).length,
+          successCount,
+          errorCount,
+          untestedCount,
+        },
+        apiKeyAgeDays,
+      });
+    } catch (err) {
+      console.error("[CustomDataSource] integration-status error:", err);
+      res.status(500).json({ error: "Failed to load integration status" });
     }
   });
 

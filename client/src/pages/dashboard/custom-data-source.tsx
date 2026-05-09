@@ -13,7 +13,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Key, RefreshCw, Plug, Plus, Trash2, Pencil, Download, FileText, CheckCircle2, AlertCircle, Loader2, Copy, ArrowLeft, ArrowRight, Sparkles, Wand2 } from "lucide-react";
+import { Database, Key, RefreshCw, Plug, Plus, Trash2, Pencil, Download, FileText, CheckCircle2, AlertCircle, Loader2, Copy, ArrowLeft, ArrowRight, Sparkles, Wand2, ClipboardList } from "lucide-react";
+import { Link } from "wouter";
 
 interface CustomDataSource {
   id: string;
@@ -236,6 +237,11 @@ export default function CustomDataSourcePage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/dashboard/custom-data-source/integration-checklist" data-testid="link-integration-checklist">
+              <ClipboardList className="w-4 h-4 mr-1" /> Checklist Integrasi
+            </Link>
+          </Button>
           <Button variant="outline" size="sm" asChild>
             <a href="/api/merchant/custom-data-source/postman.json" download data-testid="link-download-postman">
               <Download className="w-4 h-4 mr-1" /> Postman
@@ -1218,6 +1224,21 @@ export function ConnectWizard({ onApiKey, onFinish }: { onApiKey: (key: string) 
 
           {step === 4 && (
             <div className="space-y-3" data-testid="wizard-step-4">
+              <div className="p-3 rounded-md border bg-muted/30 flex items-start justify-between gap-3 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium flex items-center gap-2">
+                    <ClipboardList className="w-4 h-4 text-primary" /> Selanjutnya: berikan checklist ke developer panel
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Setelah wizard ini selesai, buka Checklist Integrasi untuk melihat daftar TODO endpoint yang harus dibuat di panel Anda — lengkap dengan tombol Tes & Salin cURL.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" asChild data-testid="wizard-link-checklist">
+                  <Link href="/dashboard/custom-data-source/integration-checklist">
+                    Buka Checklist <ArrowRight className="w-4 h-4 ml-1" />
+                  </Link>
+                </Button>
+              </div>
               {!activePreset || activePreset.intents.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Tidak ada contoh intent untuk preset ini.</p>
               ) : (
