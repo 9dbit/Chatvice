@@ -2034,7 +2034,7 @@ function PricingPreview() {
 
   const getCta = (planId: string) => {
     if (planId === "free") return "Start Free";
-    if (planId === "custom") return "Try Calculator";
+    if (planId === "custom") return "Try Pricing Calculator";
     if (planId === "enterprise") return "Try Free";
     return "Try Free";
   };

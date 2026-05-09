@@ -5,6 +5,18 @@ import { subscriptionPlans, type SubscriptionPlanId } from '@shared/schema';
 import { getEffectiveSubscriptionPlan } from './subscriptionPlanUtils';
 import { sendPaymentReceiptEmail, sendAdminPaymentNotificationEmail } from './resendClient';
 
+export interface CustomSubscriptionMetadata {
+  merchantId: string;
+  planId: 'custom';
+  billingInterval: 'monthly' | 'annual';
+  type: 'custom_subscription';
+  customConversationsLimit: number;
+  customAgentsLimit: number;
+  customSupervisorsLimit: number;
+  customMonthlyPrice: number;
+  customAnnualPrice: number;
+}
+
 export interface PaymentWebhookPayload {
   transaction_id: string;
   external_id: string;
@@ -20,6 +32,11 @@ export interface PaymentWebhookPayload {
     addonType?: string;
     isDowngrade?: string;
     scheduledActivationDate?: string;
+    customConversationsLimit?: number | string;
+    customAgentsLimit?: number | string;
+    customSupervisorsLimit?: number | string;
+    customMonthlyPrice?: number | string;
+    customAnnualPrice?: number | string;
   };
 }
 
@@ -120,10 +137,11 @@ export class PaymentWebhookHandler {
     // webhook can apply them when the QRIS payment clears. We also accept the
     // case where 12Pay does not echo metadata back: in that case we recover the
     // custom config from the saved gatewayResponse on the pending transaction.
-    let customRecoveredFromTx: Record<string, any> | null = null;
+    type CustomSubscriptionSource = Partial<CustomSubscriptionMetadata> & { merchantId: string };
+    let customRecoveredFromTx: CustomSubscriptionSource | null = null;
     if (!(metadata?.type === 'custom_subscription')) {
       const maybePending = await storage.getPaymentTransactionByExternalId(external_id);
-      const gr = (maybePending?.gatewayResponse as Record<string, any>) || {};
+      const gr = (maybePending?.gatewayResponse ?? {}) as Partial<CustomSubscriptionMetadata> & { type?: string };
       if (gr.type === 'custom_subscription' && maybePending?.merchantId) {
         customRecoveredFromTx = { ...gr, merchantId: maybePending.merchantId };
       }
@@ -132,7 +150,15 @@ export class PaymentWebhookHandler {
       (metadata?.type === 'custom_subscription' && metadata?.merchantId && metadata?.planId === 'custom')
       || customRecoveredFromTx
     ) {
-      const src: Record<string, any> = customRecoveredFromTx ?? (metadata as any);
+      const src: CustomSubscriptionSource = customRecoveredFromTx ?? {
+        merchantId: metadata!.merchantId as string,
+        billingInterval: metadata!.billingInterval === 'annual' ? 'annual' : 'monthly',
+        customConversationsLimit: metadata!.customConversationsLimit as number | undefined,
+        customAgentsLimit: metadata!.customAgentsLimit as number | undefined,
+        customSupervisorsLimit: metadata!.customSupervisorsLimit as number | undefined,
+        customMonthlyPrice: metadata!.customMonthlyPrice as number | undefined,
+        customAnnualPrice: metadata!.customAnnualPrice as number | undefined,
+      };
       const customMerchantId: string = src.merchantId;
       const customBillingInterval = src.billingInterval === 'annual' ? 'annual' : 'monthly';
       const merchant = await storage.getMerchant(customMerchantId);

@@ -96,7 +96,24 @@ export function CustomPlanRequestDialog({
     if (open) setStep("calculator");
   }, [open]);
 
-  const subscribeMutation = useMutation({
+  interface SubscribeResponse {
+    paymentMethod: "qris";
+    transactionId: string;
+    orderId: string;
+    qrisString?: string;
+    qrisImage?: string;
+    qrisImageUrl?: string;
+    amount: number;
+    amountFormatted?: string;
+    expiryTime?: string;
+    planId: "custom";
+    planName: string;
+    invoiceId?: string;
+    invoiceNumber?: string;
+    billingInterval: "monthly" | "annual";
+  }
+
+  const subscribeMutation = useMutation<SubscribeResponse>({
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/merchant/custom-plan/subscribe", {
         conversations,
@@ -104,9 +121,9 @@ export function CustomPlanRequestDialog({
         supervisors,
         billingInterval,
       });
-      return response.json();
+      return (await response.json()) as SubscribeResponse;
     },
-    onSuccess: (data: any) => {
+    onSuccess: (_data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
       queryClient.invalidateQueries({ queryKey: ["/api/billing/pending-payment-details"] });
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/me"] });

@@ -5913,6 +5913,8 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         planId: "custom",
         planName: "Custom Plan",
         billingInterval: cfg.billingInterval,
+        invoiceId: externalIdHint,
+        invoiceNumber: externalIdHint,
         breakdown,
         config: {
           conversations: cfg.conversations,
