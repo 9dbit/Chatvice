@@ -93,7 +93,9 @@ const blankIntent = (): Partial<CustomDataIntent> => ({
 
 export default function CustomDataSourcePage() {
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const localeMap: Record<string, string> = { id: "id-ID", en: "en-US" };
+  const dateLocale = localeMap[language] || "en-US";
   const [showKeyDialog, setShowKeyDialog] = useState(false);
   const [newPlainKey, setNewPlainKey] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState<boolean | null>(null);
@@ -579,7 +581,7 @@ export default function CustomDataSourcePage() {
                       : "—";
                     return (
                     <TableRow key={a.id} data-testid={`row-audit-${a.id}`}>
-                      <TableCell className="text-xs whitespace-nowrap">{new Date(a.createdAt).toLocaleString("id-ID")}</TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">{new Date(a.createdAt).toLocaleString(dateLocale)}</TableCell>
                       <TableCell className="font-mono text-xs">{a.intentKey}</TableCell>
                       <TableCell className="font-mono text-xs max-w-[240px] truncate" title={a.endpointUrl}>{a.endpointUrl}</TableCell>
                       <TableCell className="font-mono text-xs max-w-[200px] truncate" title={masked}>{masked}</TableCell>
@@ -587,7 +589,7 @@ export default function CustomDataSourcePage() {
                         {a.httpStatus ? (
                           <Badge variant={a.httpStatus >= 200 && a.httpStatus < 300 ? "outline" : "secondary"}>{a.httpStatus}</Badge>
                         ) : (
-                          <Badge variant="secondary">err</Badge>
+                          <Badge variant="secondary">{t("dashboard.customDataSource.audit.errBadge")}</Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-xs">{a.latencyMs ?? "-"}ms</TableCell>
@@ -637,7 +639,7 @@ export default function CustomDataSourcePage() {
                   <Input
                     value={editingIntent.intentKey || ""}
                     onChange={(e) => setEditingIntent({ ...editingIntent, intentKey: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_") })}
-                    placeholder="deposit_status"
+                    placeholder={t("dashboard.customDataSource.intent.placeholder.intentKey")}
                     disabled={!!editingIntent.id}
                     data-testid="input-intent-key"
                   />
@@ -686,7 +688,7 @@ export default function CustomDataSourcePage() {
                   <Input
                     value={editingIntent.endpointPath || ""}
                     onChange={(e) => setEditingIntent({ ...editingIntent, endpointPath: e.target.value })}
-                    placeholder="/deposits/check?username={username}&amount={amount}"
+                    placeholder={t("dashboard.customDataSource.intent.placeholder.endpointPath")}
                     data-testid="input-endpoint-path"
                   />
                 </div>
@@ -711,7 +713,7 @@ export default function CustomDataSourcePage() {
                           arr[idx] = { ...arr[idx], key: e.target.value };
                           setEditingIntent({ ...editingIntent, requiredFields: arr });
                         }}
-                        placeholder="username"
+                        placeholder={t("dashboard.customDataSource.intent.placeholder.fieldKey")}
                         className="font-mono"
                         data-testid={`input-field-key-${idx}`}
                       />

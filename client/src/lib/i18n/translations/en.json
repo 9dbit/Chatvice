@@ -2151,7 +2151,8 @@
           "endpoint": "/deposits/check?username={username}&amount={amount}",
           "fieldKey": "username",
           "fieldLabel": "Username",
-          "responseTemplate": "Deposit status for {username} of {amount}: {status}. Processed at {processed_at}."
+          "responseTemplate": "Deposit status for {username} of {amount}: {status}. Processed at {processed_at}.",
+          "endpointPath": "/deposits/check?username={username}&amount={amount}"
         }
       },
       "audit": {
@@ -2165,7 +2166,8 @@
         "fields": "Fields (masked)",
         "status": "Status",
         "latency": "Latency",
-        "noLogs": "No calls recorded yet."
+        "noLogs": "No calls recorded yet.",
+        "errBadge": "err"
       },
       "headerSubtitle": "Connect the AI agent to your backend panel so it can check realtime data (deposit/withdraw status, turnover, last login IP, etc).",
       "integrationChecklist": "Integration Checklist",
@@ -2309,7 +2311,10 @@
           "itemAuditLog": "Internal audit log records every call from Chatvice",
           "itemKeyRotation": "API key rotated at least every 90 days (current age: {days} days)",
           "untested": "untested",
-          "unknown": "?"
+          "unknown": "?",
+          "statusSuccess": "success",
+          "statusError": "error",
+          "statusUntested": "untested"
         },
         "todo1Pre": "Implement handler ",
         "todo1Post": " on the panel."
@@ -2511,7 +2516,8 @@
         "statusUpdated": "Status updated",
         "statusUpdateFailed": "Failed to update status",
         "replySent": "Reply sent",
-        "replyFailed": "Failed to send reply"
+        "replyFailed": "Failed to send reply",
+        "passwordCopyFailed": "Failed to copy password"
       },
       "close": "Close",
       "fallbackCustomerName": "Customer",

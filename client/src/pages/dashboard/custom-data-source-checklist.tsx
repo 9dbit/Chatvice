@@ -209,7 +209,10 @@ function buildMarkdown(data: IntegrationStatus, m: (k: string) => string): strin
     const st = data.intentStatus[intent.intentKey];
     const mark = st?.lastStatus === "success" ? "x" : " ";
     lines.push(`### ${intent.name} (\`${intent.intentKey}\`)`);
-    lines.push(`- ${m("intentLastStatus")}: **${st?.lastStatus || m("untested")}**${st?.lastHttpStatus ? ` (HTTP ${st.lastHttpStatus})` : ""}`);
+    const statusLabel = st?.lastStatus
+      ? (st.lastStatus === "success" ? m("statusSuccess") : st.lastStatus === "error" ? m("statusError") : m("statusUntested"))
+      : m("statusUntested");
+    lines.push(`- ${m("intentLastStatus")}: **${statusLabel}**${st?.lastHttpStatus ? ` (HTTP ${st.lastHttpStatus})` : ""}`);
     lines.push(`- ${m("intentEndpoint")}: \`${intent.httpMethod} ${intent.endpointPath}\``);
     lines.push(`- [${mark}] ${m("intentImplement")}`);
     const fieldsStr = (intent.requiredFields || []).map(f => `\`${f.key}\``).join(", ") || m("intentNoFields");

@@ -496,7 +496,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
       setCopiedPwdId(id);
       setTimeout(() => setCopiedPwdId(prev => (prev === id ? null : prev)), 1800);
     } catch {
-      toast({ title: t("dashboard.ticketsDialog.toast.passwordCopied"), variant: "destructive" });
+      toast({ title: t("dashboard.ticketsDialog.toast.passwordCopyFailed"), variant: "destructive" });
     }
   };
 

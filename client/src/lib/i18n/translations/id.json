@@ -2128,7 +2128,8 @@
           "endpoint": "/deposits/check?username={username}&amount={amount}",
           "fieldKey": "username",
           "fieldLabel": "Username",
-          "responseTemplate": "Status deposit Kakak {username} sebesar {amount}: {status}. Diproses pada {processed_at}."
+          "responseTemplate": "Status deposit Kakak {username} sebesar {amount}: {status}. Diproses pada {processed_at}.",
+          "endpointPath": "/deposits/check?username={username}&amount={amount}"
         }
       },
       "audit": {
@@ -2142,7 +2143,8 @@
         "fields": "Field (masked)",
         "status": "Status",
         "latency": "Latency",
-        "noLogs": "Belum ada panggilan tercatat."
+        "noLogs": "Belum ada panggilan tercatat.",
+        "errBadge": "gagal"
       },
       "headerSubtitle": "Hubungkan AI agent ke panel backend Anda agar bisa cek data realtime (status deposit, withdraw, turnover, IP login, dll).",
       "integrationChecklist": "Checklist Integrasi",
@@ -2286,7 +2288,10 @@
           "itemAuditLog": "Audit log internal menyimpan setiap pemanggilan dari Chatvice",
           "itemKeyRotation": "API key dirotasi minimal setiap 90 hari (umur saat ini: {days} hari)",
           "untested": "untested",
-          "unknown": "?"
+          "unknown": "?",
+          "statusSuccess": "sukses",
+          "statusError": "gagal",
+          "statusUntested": "belum diuji"
         },
         "todo1Pre": "Implementasikan handler ",
         "todo1Post": " di panel."
@@ -2488,7 +2493,8 @@
         "statusUpdated": "Status diperbarui",
         "statusUpdateFailed": "Gagal update status",
         "replySent": "Balasan terkirim",
-        "replyFailed": "Gagal kirim balasan"
+        "replyFailed": "Gagal kirim balasan",
+        "passwordCopyFailed": "Gagal menyalin password"
       },
       "close": "Tutup",
       "fallbackCustomerName": "Pelanggan",
