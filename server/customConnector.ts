@@ -205,7 +205,9 @@ function getPath(obj: any, path: string): any {
 // gracefully ("(tidak diketahui)").
 export function renderTemplate(template: string, data: any, fallback = "(tidak diketahui)"): string {
   if (!template) {
-    try { return JSON.stringify(data); } catch { return String(data); }
+    // No merchant template configured — produce a friendly key:value summary
+    // from the response object instead of dumping raw JSON to the customer.
+    return summarizeForCustomer(data);
   }
   return template.replace(/\{([\w\.]+)\}/g, (_m, key) => {
     const v = getPath(data, key);
@@ -215,6 +217,30 @@ export function renderTemplate(template: string, data: any, fallback = "(tidak d
     }
     return String(v);
   });
+}
+
+// Convert a panel JSON response into plain Indonesian "key: value" lines so
+// customers never see raw JSON when a merchant forgot to set responseTemplate.
+export function summarizeForCustomer(data: any): string {
+  if (data === null || data === undefined) return "(tidak ada data)";
+  if (typeof data !== "object") return String(data);
+  if (Array.isArray(data)) {
+    if (data.length === 0) return "(tidak ada data)";
+    return data.slice(0, 5).map((row, i) => `${i + 1}. ${summarizeForCustomer(row)}`).join("\n");
+  }
+  const lines: string[] = [];
+  for (const [k, v] of Object.entries(data)) {
+    if (v === null || v === undefined || v === "") continue;
+    const label = k.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    if (typeof v === "object") {
+      const inner = summarizeForCustomer(v).split("\n").map(l => "  " + l).join("\n");
+      lines.push(`${label}:\n${inner}`);
+    } else {
+      lines.push(`${label}: ${String(v)}`);
+    }
+    if (lines.length >= 12) break;
+  }
+  return lines.length ? lines.join("\n") : "(tidak ada data)";
 }
 
 // ── Main connector entry ──────────────────────────────────────────────────

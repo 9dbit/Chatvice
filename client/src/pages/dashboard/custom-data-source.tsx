@@ -107,13 +107,18 @@ export default function CustomDataSourcePage() {
   const saveSource = useMutation({
     mutationFn: async (data: Partial<CustomDataSource>) => {
       const res = await apiRequest("PUT", "/api/merchant/custom-data-source", data);
-      return res.json();
+      return res.json() as Promise<CustomDataSource & { apiKey?: string }>;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({ title: "Tersimpan", description: "Konfigurasi panel API berhasil disimpan." });
       setForm({});
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-source"] });
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-intents"] });
+      // Backend returns `apiKey` exactly once on first creation — show it now.
+      if (data && typeof data.apiKey === "string" && data.apiKey) {
+        setNewPlainKey(data.apiKey);
+        setShowKeyDialog(true);
+      }
     },
     onError: () => toast({ title: "Gagal menyimpan", variant: "destructive" }),
   });
