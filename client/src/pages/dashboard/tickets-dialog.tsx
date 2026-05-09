@@ -943,7 +943,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                           prefix={<CountryFlag code={active.session?.countryCode} />}
                         />
                         <Field label={t("dashboard.ticketsDialog.field.city")} value={active.session?.cityName} testId="field-city" />
-                        <Field label={t("dashboard.ticketsDialog.field.requestType")} value={active.requestType || "reset"} testId="field-request-type" />
+                        <Field label={t("dashboard.ticketsDialog.field.requestType")} value={active.requestType || t("dashboard.ticketsDialog.requestTypeFallback")} testId="field-request-type" />
                       </div>
                       {active.session?.userAgent ? (
                         <div className="mt-3 pt-3 border-t border-border/40">

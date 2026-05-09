@@ -2043,7 +2043,8 @@
         "baseUrlRequired": "Base URL wajib diisi",
         "connSuccess": "Koneksi berhasil",
         "connFailed": "Koneksi gagal",
-        "apiKeyCopied": "API key tersalin"
+        "apiKeyCopied": "API key tersalin",
+        "defaultName": "Panel API"
       },
       "settings": {
         "cardTitle": "Pengaturan Koneksi",
@@ -2063,7 +2064,13 @@
         "saved": "Pengaturan tersimpan",
         "savedDesc": "Konfigurasi panel API berhasil disimpan.",
         "enableHint": "AI baru akan memanggil panel API saat opsi ini aktif.",
-        "monitorHint": "Chatvice ping endpoint health-check setiap 60 detik dan kirim alert (email + Telegram) saat error rate >50% dalam 5 menit terakhir."
+        "monitorHint": "Chatvice ping endpoint health-check setiap 60 detik dan kirim alert (email + Telegram) saat error rate >50% dalam 5 menit terakhir.",
+        "placeholder": {
+          "name": "Panel Member API",
+          "baseUrl": "https://panel.example.com/api/v1",
+          "authHeader": "X-API-Key",
+          "healthPath": "/health"
+        }
       },
       "apiKey": {
         "title": "API Key",
@@ -2280,7 +2287,9 @@
           "itemKeyRotation": "API key dirotasi minimal setiap 90 hari (umur saat ini: {days} hari)",
           "untested": "untested",
           "unknown": "?"
-        }
+        },
+        "todo1Pre": "Implementasikan handler ",
+        "todo1Post": " di panel."
       }
     },
     "checklist": {
@@ -2492,7 +2501,8 @@
         "enableFailed": "Gagal mengaktifkan notifikasi",
         "browserTitle": "Notifikasi Chatvice diaktifkan",
         "browserBody": "Anda akan menerima pemberitahuan tiket baru meskipun tab ini di latar belakang."
-      }
+      },
+      "requestTypeFallback": "reset"
     },
     "gettingStarted": {
       "title": "Getting Started",

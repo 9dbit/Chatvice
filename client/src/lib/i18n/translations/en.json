@@ -2066,7 +2066,8 @@
         "baseUrlRequired": "Base URL is required",
         "connSuccess": "Connection successful",
         "connFailed": "Connection failed",
-        "apiKeyCopied": "API key copied"
+        "apiKeyCopied": "API key copied",
+        "defaultName": "Panel API"
       },
       "settings": {
         "cardTitle": "Connection Settings",
@@ -2086,7 +2087,13 @@
         "saved": "Settings saved",
         "savedDesc": "Panel API configuration saved successfully.",
         "enableHint": "AI will only call your panel API when this is on.",
-        "monitorHint": "Chatvice pings the health-check endpoint every 60 seconds and sends alerts (email + Telegram) when error rate >50% over the last 5 minutes."
+        "monitorHint": "Chatvice pings the health-check endpoint every 60 seconds and sends alerts (email + Telegram) when error rate >50% over the last 5 minutes.",
+        "placeholder": {
+          "name": "Panel Member API",
+          "baseUrl": "https://panel.example.com/api/v1",
+          "authHeader": "X-API-Key",
+          "healthPath": "/health"
+        }
       },
       "apiKey": {
         "title": "API Key",
@@ -2303,7 +2310,9 @@
           "itemKeyRotation": "API key rotated at least every 90 days (current age: {days} days)",
           "untested": "untested",
           "unknown": "?"
-        }
+        },
+        "todo1Pre": "Implement handler ",
+        "todo1Post": " on the panel."
       }
     },
     "checklist": {
@@ -2515,7 +2524,8 @@
         "enableFailed": "Failed to enable notifications",
         "browserTitle": "Chatvice notifications enabled",
         "browserBody": "You'll be alerted of new tickets even when this tab is in the background."
-      }
+      },
+      "requestTypeFallback": "reset"
     },
     "gettingStarted": {
       "title": "Getting Started",

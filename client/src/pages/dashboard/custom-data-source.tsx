@@ -372,7 +372,7 @@ export default function CustomDataSourcePage() {
                   <Input
                     value={merged.name || ""}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="Panel Member API"
+                    placeholder={t("dashboard.customDataSource.settings.placeholder.name")}
                     data-testid="input-source-name"
                   />
                 </div>
@@ -381,7 +381,7 @@ export default function CustomDataSourcePage() {
                   <Input
                     value={merged.baseUrl || ""}
                     onChange={(e) => setForm({ ...form, baseUrl: e.target.value })}
-                    placeholder="https://panel.example.com/api/v1"
+                    placeholder={t("dashboard.customDataSource.settings.placeholder.baseUrl")}
                     data-testid="input-base-url"
                   />
                 </div>
@@ -390,7 +390,7 @@ export default function CustomDataSourcePage() {
                   <Input
                     value={merged.headerAuthName || "X-API-Key"}
                     onChange={(e) => setForm({ ...form, headerAuthName: e.target.value })}
-                    placeholder="X-API-Key"
+                    placeholder={t("dashboard.customDataSource.settings.placeholder.authHeader")}
                     data-testid="input-header-name"
                   />
                 </div>
@@ -399,7 +399,7 @@ export default function CustomDataSourcePage() {
                   <Input
                     value={merged.healthPath || "/health"}
                     onChange={(e) => setForm({ ...form, healthPath: e.target.value })}
-                    placeholder="/health"
+                    placeholder={t("dashboard.customDataSource.settings.placeholder.healthPath")}
                     data-testid="input-health-path"
                   />
                 </div>
@@ -1109,7 +1109,7 @@ export function ConnectWizard({
   const isRerun = !!existingSource;
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [presetId, setPresetId] = useState<string>("");
-  const [name, setName] = useState(existingSource?.name || "Panel API");
+  const [name, setName] = useState(existingSource?.name || t("dashboard.customDataSource.wizard.defaultName"));
   const [baseUrl, setBaseUrl] = useState(existingSource?.baseUrl || "");
   const [created, setCreated] = useState(isRerun);
   const [apiKey, setApiKey] = useState<string | null>(null);
@@ -1138,7 +1138,7 @@ export function ConnectWizard({
       // Step 4 will scaffold intents one-by-one, so we save with preset:"none"
       // to skip the legacy auto-seed path.
       const body: Record<string, unknown> = {
-        name: name || "Panel API",
+        name: name || t("dashboard.customDataSource.wizard.defaultName"),
         baseUrl,
         preset: "none",
       };
@@ -1315,7 +1315,7 @@ export function ConnectWizard({
                 <Input
                   value={baseUrl}
                   onChange={(e) => { setBaseUrl(e.target.value); setTestResult(null); setCreated(false); setApiKey(null); }}
-                  placeholder="https://panel.example.com/api/v1"
+                  placeholder={t("dashboard.customDataSource.settings.placeholder.baseUrl")}
                   data-testid="wizard-input-base-url"
                 />
                 <p className="text-xs text-muted-foreground mt-1">

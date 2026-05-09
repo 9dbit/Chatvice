@@ -231,8 +231,10 @@ function buildMarkdown(data: IntegrationStatus, m: (k: string) => string): strin
 
 export default function CustomDataSourceChecklistPage() {
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const cp = (k: string) => t(`dashboard.customDataSource.checklistPage.${k}`);
+  const localeMap: Record<string, string> = { en: "en-US", id: "id-ID", zh: "zh-CN", ja: "ja-JP", ko: "ko-KR", th: "th-TH", vi: "vi-VN", de: "de-DE", ru: "ru-RU", ar: "ar", km: "km-KH", hi: "hi-IN" };
+  const dateLocale = localeMap[language] || "en-US";
   const [testingKey, setTestingKey] = useState<string | null>(null);
   const [openItems, setOpenItems] = useState<string[]>([]);
 
@@ -607,7 +609,7 @@ export default function CustomDataSourceChecklistPage() {
                                 {st.lastStatus === "success" ? cp("stSuccess") : cp("stFailed")} • HTTP {st.lastHttpStatus ?? "-"} • {st.lastLatencyMs ?? 0}ms
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {new Date(st.lastRunAt).toLocaleString("id-ID")}
+                                {new Date(st.lastRunAt).toLocaleString(dateLocale)}
                               </p>
                               {st.lastErrorMessage && (
                                 <p className="text-xs text-red-700 dark:text-red-400 mt-1">{st.lastErrorMessage}</p>
@@ -624,7 +626,7 @@ export default function CustomDataSourceChecklistPage() {
                         <ul className="space-y-1 text-sm pl-1">
                           <li className="flex items-start gap-2">
                             <Circle className="w-3 h-3 mt-1 shrink-0 text-muted-foreground" />
-                            <span>{cp("todo1").split("{method}")[0]}<span className="font-mono">{intent.httpMethod} {intent.endpointPath}</span>{cp("todo1").split("{path}")[1] ?? ""}</span>
+                            <span>{cp("todo1Pre")}<span className="font-mono">{intent.httpMethod} {intent.endpointPath}</span>{cp("todo1Post")}</span>
                           </li>
                           <li className="flex items-start gap-2">
                             <Circle className="w-3 h-3 mt-1 shrink-0 text-muted-foreground" />
