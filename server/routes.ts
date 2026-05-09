@@ -35,6 +35,7 @@ import { db, pool } from "./db";
 import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } from "drizzle-orm";
 import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, blastCampaigns } from "@shared/schema";
 import crypto from "crypto";
+import { encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup, buildPostmanCollection, buildHtmlDocs, DEFAULT_INTENTS } from "./customConnector";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import sharp from "sharp";
 
@@ -1702,7 +1703,45 @@ IMPORTANT: NEVER display the signal tags to the customer.${extraInstr}`;
     // Password recovery signals are optional
   }
 
-  const finalSystemMessage = `${systemMessage}${hospitalitySignals ? `\n${hospitalitySignals}` : ""}${passwordRecoverySignals ? `\n${passwordRecoverySignals}` : ""}
+  // Inject custom data source intent signals if enabled
+  let customDataSignals = "";
+  try {
+    const cdsSource = await storage.getCustomDataSource(merchantId);
+    if (cdsSource && cdsSource.isEnabled && cdsSource.baseUrl) {
+      const cdsIntents = (await storage.getCustomDataIntents(cdsSource.id)).filter(i => i.isEnabled);
+      if (cdsIntents.length > 0) {
+        const intentLines = cdsIntents.map(intent => {
+          const fields: any[] = Array.isArray(intent.requiredFields) ? intent.requiredFields as any[] : [];
+          const fieldList = fields.map((f: any) => `${f.key} (${f.label || f.key})${f.required ? "" : " [opsional]"}`).join(", ");
+          const kw = (intent.triggerKeywords || "").split(",").map(s => s.trim()).filter(Boolean).slice(0, 8).join(", ");
+          return `- intent_key=${intent.intentKey} | nama="${intent.name}"${intent.description ? ` | deskripsi: ${intent.description}` : ""}\n  trigger keywords: ${kw || "(none)"}\n  required fields: ${fieldList || "(none)"}`;
+        }).join("\n");
+        customDataSignals = `
+PANEL DATA LOOKUP (REALTIME):
+Merchant ini terhubung dengan panel backend mereka via Custom Data Source. Anda BISA mengecek data realtime (status deposit/withdraw, turnover, IP login, dll) untuk customer. Untuk memanggil lookup, ikuti aturan:
+
+1. Identifikasi intent yang sesuai dengan pertanyaan customer dari daftar di bawah (cocokkan dengan trigger keywords).
+2. Kumpulkan SEMUA required fields dari customer dengan satu pertanyaan ramah berisi daftar yang dibutuhkan. Contoh: "Untuk cek depo Kakak, mohon kirim: username, nominal depo, bank account, dan metode transfer ya."
+3. Setelah SEMUA required fields lengkap di pesan customer, emit signal di akhir respons:
+   [CUSTOM_LOOKUP:intent_key|field1=value1|field2=value2|...]
+4. JANGAN pernah menjawab dengan data yang dikarang. Selalu gunakan signal di atas — sistem akan memanggil panel API dan menjawab customer dengan data nyata.
+5. JANGAN tampilkan signal tag ke customer (sistem otomatis menyembunyikannya).
+6. Jika customer hanya kirim sebagian field, minta sisa field yang masih kurang dengan sopan dalam bahasa yang sama dengan customer.
+7. Setelah signal dikirim sistem akan otomatis menampilkan jawaban — jangan ulang menjawab pertanyaan yang sama.
+
+DAFTAR INTENT TERSEDIA:
+${intentLines}
+
+Contoh penggunaan signal:
+- Customer: "username Andi123, depo 100000 bank BCA via va"
+- Anda balas: "Sebentar ya Kak, saya cek dulu. [CUSTOM_LOOKUP:deposit_status|username=Andi123|amount=100000|bank_account=BCA|method=va]"`;
+      }
+    }
+  } catch (_err) {
+    // Custom data source signals are optional
+  }
+
+  const finalSystemMessage = `${systemMessage}${hospitalitySignals ? `\n${hospitalitySignals}` : ""}${passwordRecoverySignals ? `\n${passwordRecoverySignals}` : ""}${customDataSignals ? `\n${customDataSignals}` : ""}
 Relevant Company Information:
 ${knowledgeContext || "No specific knowledge base configured yet."}
 
@@ -7017,23 +7056,34 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         .replace(/\[SHOW_PASSWORD_RECOVERY_FORM\]/gi, "")
         .replace(/\[PASSWORD_RECOVERY_DETECTED:[^\]]*\]/gi, "")
         .replace(/\[PASSWORD_LOOKUP_DETECTED:[^\]]*\]/gi, "")
+        .replace(/\[CUSTOM_LOOKUP:[^\]]*\]/gi, "")
         .trim();
 
       const responseClientId = clientMessageId ? `response_${clientMessageId}` : undefined;
 
+      // If a [CUSTOM_LOOKUP] signal is present, suppress AI's pre-lookup prose
+      // (it may contain fabricated facts). Replace with a neutral "checking…" line
+      // so the customer sees something while the panel API call runs. The real
+      // answer is broadcast by the dispatcher below from the panel response.
+      const hasCustomLookupSignal = /\[CUSTOM_LOOKUP:[^\]]+\]/i.test(answer);
+      let answerToSend = cleanAnswer;
+      if (hasCustomLookupSignal) {
+        answerToSend = "Sebentar ya, saya cek dulu datanya…";
+      }
+
       // Only create/broadcast message if there's actual content to send
       // When mode is HUMAN, supervisor will respond manually - no auto-reply needed
-      if (cleanAnswer) {
+      if (answerToSend) {
         await storage.createMessage({
           sessionId,
           from: result.mode === "HUMAN" ? "system" : "chatvice",
-          content: cleanAnswer,
+          content: answerToSend,
           clientMessageId: responseClientId,
         });
 
         broadcastToSession(sessionId, {
           type: "message",
-          message: { from: result.mode === "HUMAN" ? "system" : "chatvice", content: cleanAnswer, clientMessageId: responseClientId },
+          message: { from: result.mode === "HUMAN" ? "system" : "chatvice", content: answerToSend, clientMessageId: responseClientId },
         });
       }
 
@@ -7575,6 +7625,53 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
           }
         } catch (passRecovErr) {
           console.error("[PassRecov Signal] Error handling password recovery signal:", passRecovErr);
+        }
+      }
+
+      // ───── CUSTOM DATA SOURCE LOOKUP ─────
+      const customLookupMatch = answer.match(/\[CUSTOM_LOOKUP:([^\]]+)\]/i);
+      if (customLookupMatch) {
+        try {
+          const raw = customLookupMatch[1];
+          const parts = raw.split("|").map(s => s.trim()).filter(Boolean);
+          const intentKey = parts.shift() || "";
+          const fields: Record<string, string> = {};
+          for (const p of parts) {
+            const eq = p.indexOf("=");
+            if (eq > 0) {
+              const k = p.slice(0, eq).trim();
+              const v = p.slice(eq + 1).trim();
+              if (k) fields[k] = v;
+            }
+          }
+          if (intentKey) {
+            const cdsSource = await storage.getCustomDataSource(resolvedMerchantId);
+            if (cdsSource && cdsSource.isEnabled) {
+              const cdsIntents = await storage.getCustomDataIntents(cdsSource.id);
+              const intent = cdsIntents.find(i => i.intentKey.toLowerCase() === intentKey.toLowerCase() && i.isEnabled);
+              if (intent) {
+                const sessionRow = existingSession || await storage.getSession(sessionId);
+                const lookupRes = await executeIntentLookup({
+                  source: cdsSource,
+                  intent,
+                  fields,
+                  merchantId: resolvedMerchantId,
+                  sessionId,
+                  customerName: sessionRow?.customerName || null,
+                });
+                await storage.createMessage({ sessionId, from: "chatvice", content: lookupRes.text });
+                broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: lookupRes.text } });
+                console.log(`[CustomLookup] intent=${intentKey} status=${lookupRes.status} session=${sessionId}`);
+              } else {
+                console.log(`[CustomLookup] Intent not found or disabled: ${intentKey}`);
+              }
+            }
+          }
+        } catch (cdsErr) {
+          console.error("[CustomLookup Signal] Error handling custom data lookup:", cdsErr);
+          const errMsg = "Maaf, sistem sedang sibuk. Silakan coba lagi sebentar.";
+          await storage.createMessage({ sessionId, from: "chatvice", content: errMsg });
+          broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: errMsg } });
         }
       }
 
@@ -28027,6 +28124,204 @@ Please create a comprehensive help center article that would be useful for custo
       });
     } catch (err) {
       res.status(500).json({ error: "Gagal mengakses sheet. Periksa URL dan pastikan sheet bisa diakses publik." });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CUSTOM DATA SOURCE CONNECTOR (Realtime Panel Lookup)
+  // ═══════════════════════════════════════════════════════════════════════════
+  app.get("/api/merchant/custom-data-source", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const source = await storage.getCustomDataSource(merchantId);
+      if (!source) return res.json(null);
+      // Never return the encrypted API key blob to the client
+      const { apiKeyEncrypted, ...safe } = source;
+      res.json(safe);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch custom data source" });
+    }
+  });
+
+  app.put("/api/merchant/custom-data-source", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { name, baseUrl, headerAuthName, healthPath, cacheTtlSec, rateLimitPerMin, isEnabled } = req.body;
+      const existing = await storage.getCustomDataSource(merchantId);
+      const source = await storage.upsertCustomDataSource(merchantId, {
+        name: name ?? existing?.name ?? "Panel API",
+        baseUrl: baseUrl ?? existing?.baseUrl ?? "",
+        headerAuthName: headerAuthName ?? existing?.headerAuthName ?? "X-API-Key",
+        healthPath: healthPath ?? existing?.healthPath ?? "/health",
+        cacheTtlSec: typeof cacheTtlSec === "number" ? cacheTtlSec : (existing?.cacheTtlSec ?? 30),
+        rateLimitPerMin: typeof rateLimitPerMin === "number" ? rateLimitPerMin : (existing?.rateLimitPerMin ?? 60),
+        isEnabled: isEnabled ?? existing?.isEnabled ?? false,
+      });
+      // Seed default intents on first creation
+      if (!existing) {
+        for (const def of DEFAULT_INTENTS) {
+          await storage.createCustomDataIntent({ ...def, sourceId: source.id });
+        }
+      }
+      const { apiKeyEncrypted, ...safe } = source;
+      res.json(safe);
+    } catch (err) {
+      console.error("[CustomDataSource] save error:", err);
+      res.status(500).json({ error: "Failed to save custom data source" });
+    }
+  });
+
+  app.post("/api/merchant/custom-data-source/rotate-key", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const existing = await storage.getCustomDataSource(merchantId);
+      if (!existing) return res.status(404).json({ error: "Buat custom data source terlebih dahulu" });
+      const plain = generateApiKey();
+      const enc = encryptApiKey(plain);
+      const hint = "…" + plain.slice(-4);
+      await storage.upsertCustomDataSource(merchantId, { apiKeyEncrypted: enc, apiKeyHint: hint });
+      // Plaintext returned ONCE — never stored or returned again.
+      res.json({ apiKey: plain, apiKeyHint: hint });
+    } catch (err) {
+      console.error("[CustomDataSource] rotate error:", err);
+      res.status(500).json({ error: "Failed to rotate API key" });
+    }
+  });
+
+  app.post("/api/merchant/custom-data-source/test", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const source = await storage.getCustomDataSource(merchantId);
+      if (!source || !source.baseUrl) return res.status(400).json({ error: "Atur base URL terlebih dahulu" });
+      const apiKey = decryptApiKey(source.apiKeyEncrypted);
+      const url = (source.baseUrl.replace(/\/+$/, "")) + (source.healthPath || "/health");
+      const t0 = Date.now();
+      try {
+        const resp = await fetch(url, {
+          method: "GET",
+          headers: apiKey ? { [source.headerAuthName]: apiKey, "User-Agent": "Chatvice-Connector/1.0" } : { "User-Agent": "Chatvice-Connector/1.0" },
+          signal: AbortSignal.timeout(10_000),
+        });
+        const latencyMs = Date.now() - t0;
+        const sample = (await resp.text()).slice(0, 200);
+        res.json({ ok: resp.ok, status: resp.status, latencyMs, sample });
+      } catch (err: any) {
+        res.json({ ok: false, status: 0, latencyMs: Date.now() - t0, error: err?.message || "Network error" });
+      }
+    } catch (err) {
+      res.status(500).json({ error: "Failed to test connection" });
+    }
+  });
+
+  app.get("/api/merchant/custom-data-intents", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const source = await storage.getCustomDataSource(merchantId);
+      if (!source) return res.json([]);
+      const intents = await storage.getCustomDataIntents(source.id);
+      res.json(intents);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch intents" });
+    }
+  });
+
+  app.post("/api/merchant/custom-data-intents", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const source = await storage.getCustomDataSource(merchantId);
+      if (!source) return res.status(400).json({ error: "Buat custom data source terlebih dahulu" });
+      const { intentKey, name, description, triggerKeywords, httpMethod, endpointPath, requiredFields, responseTemplate, isEnabled, sortOrder } = req.body;
+      if (!intentKey || !name) return res.status(400).json({ error: "intentKey and name required" });
+      const intent = await storage.createCustomDataIntent({
+        sourceId: source.id,
+        intentKey: String(intentKey).toLowerCase().replace(/[^a-z0-9_]/g, "_"),
+        name,
+        description: description || "",
+        triggerKeywords: triggerKeywords || "",
+        httpMethod: (httpMethod || "GET").toUpperCase(),
+        endpointPath: endpointPath || "",
+        requiredFields: Array.isArray(requiredFields) ? requiredFields : [],
+        responseTemplate: responseTemplate || "",
+        isEnabled: isEnabled !== false,
+        sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
+      });
+      res.json(intent);
+    } catch (err) {
+      console.error("[CustomDataIntent] create error:", err);
+      res.status(500).json({ error: "Failed to create intent" });
+    }
+  });
+
+  app.patch("/api/merchant/custom-data-intents/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const source = await storage.getCustomDataSource(merchantId);
+      const intent = await storage.getCustomDataIntent(req.params.id);
+      if (!source || !intent || intent.sourceId !== source.id) return res.status(404).json({ error: "Not found" });
+      const data: any = {};
+      const allowed = ["name", "description", "triggerKeywords", "httpMethod", "endpointPath", "requiredFields", "responseTemplate", "isEnabled", "sortOrder"];
+      for (const k of allowed) if (k in req.body) data[k] = req.body[k];
+      if (data.httpMethod) data.httpMethod = String(data.httpMethod).toUpperCase();
+      const updated = await storage.updateCustomDataIntent(req.params.id, data);
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to update intent" });
+    }
+  });
+
+  app.delete("/api/merchant/custom-data-intents/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const source = await storage.getCustomDataSource(merchantId);
+      const intent = await storage.getCustomDataIntent(req.params.id);
+      if (!source || !intent || intent.sourceId !== source.id) return res.status(404).json({ error: "Not found" });
+      await storage.deleteCustomDataIntent(req.params.id);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to delete intent" });
+    }
+  });
+
+  app.get("/api/merchant/custom-data-source/audit", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const limit = Math.min(parseInt(String(req.query.limit ?? "50"), 10) || 50, 200);
+      const rows = await storage.getCustomDataAuditLog(merchantId, limit);
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch audit log" });
+    }
+  });
+
+  app.get("/api/merchant/custom-data-source/postman.json", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      const source = await storage.getCustomDataSource(merchantId);
+      if (!source) return res.status(404).json({ error: "Setup custom data source first" });
+      const intents = await storage.getCustomDataIntents(source.id);
+      const collection = buildPostmanCollection({ merchantName: merchant?.companyName || "Merchant", source, intents });
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Content-Disposition", `attachment; filename="chatvice-panel-api.postman_collection.json"`);
+      res.send(JSON.stringify(collection, null, 2));
+    } catch (err) {
+      res.status(500).json({ error: "Failed to build Postman collection" });
+    }
+  });
+
+  app.get("/api/merchant/custom-data-source/docs.html", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      const source = await storage.getCustomDataSource(merchantId);
+      if (!source) return res.status(404).json({ error: "Setup custom data source first" });
+      const intents = await storage.getCustomDataIntents(source.id);
+      const html = buildHtmlDocs({ merchantName: merchant?.companyName || "Merchant", source, intents });
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader("Content-Disposition", `inline; filename="chatvice-panel-api.html"`);
+      res.send(html);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to build docs" });
     }
   });
 

@@ -2682,6 +2682,102 @@ export const insertHospitalityConfigSchema = createInsertSchema(hospitalityConfi
 export type InsertHospitalityConfig = z.infer<typeof insertHospitalityConfigSchema>;
 export type HospitalityConfig = typeof hospitalityConfigs.$inferSelect;
 
+// ── Custom Data Source Connector (Realtime Panel Lookup) ──────────────────
+// Allows merchants to expose realtime data from their own backend panel REST API
+// to the Chatvice AI agent so visitors can check deposit/withdraw/turnover/etc.
+// status without logging in to the panel — they identify themselves via fields
+// the AI collects in chat.
+export const customDataSources = pgTable("custom_data_sources", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull().unique(),
+  name: text("name").notNull().default("Panel API"),
+  baseUrl: text("base_url").notNull().default(""),
+  // API key encrypted at rest. Format: "iv:authTag:cipherHex" (AES-256-GCM)
+  apiKeyEncrypted: text("api_key_encrypted").default(""),
+  // Last 4 chars of plaintext key for UI hint ("…XYZ9")
+  apiKeyHint: text("api_key_hint").default(""),
+  // HTTP header name to send the API key in (default: X-API-Key)
+  headerAuthName: text("header_auth_name").notNull().default("X-API-Key"),
+  // Optional: ping endpoint path for "Test connection" button
+  healthPath: text("health_path").default("/health"),
+  // Cache TTL per (intent + identifier) key, in seconds. Default 30s.
+  cacheTtlSec: integer("cache_ttl_sec").notNull().default(30),
+  // Per-merchant rate limit: max API calls per minute
+  rateLimitPerMin: integer("rate_limit_per_min").notNull().default(60),
+  isEnabled: boolean("is_enabled").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  merchantIdx: index("cds_merchant_idx").on(table.merchantId),
+}));
+
+export const insertCustomDataSourceSchema = createInsertSchema(customDataSources).omit({
+  id: true, createdAt: true, updatedAt: true, apiKeyEncrypted: true, apiKeyHint: true,
+});
+export type InsertCustomDataSource = z.infer<typeof insertCustomDataSourceSchema>;
+export type CustomDataSource = typeof customDataSources.$inferSelect;
+
+// Per-source intent definitions — each describes one lookup the AI can perform.
+// requiredFields example: [{"key":"username","label":"Username","type":"text","required":true}, ...]
+export const customDataIntents = pgTable("custom_data_intents", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  sourceId: varchar("source_id", { length: 32 }).notNull(),
+  // Stable machine key the AI emits, e.g. "deposit_status", "withdraw_status",
+  // "turnover_progress", "last_login_ip", or merchant-defined slug.
+  intentKey: text("intent_key").notNull(),
+  name: text("name").notNull(),
+  description: text("description").default(""),
+  // Comma-separated trigger keywords AI uses to recognise this intent.
+  triggerKeywords: text("trigger_keywords").notNull().default(""),
+  // HTTP method for the merchant's panel endpoint (GET or POST).
+  httpMethod: text("http_method").notNull().default("GET"),
+  // Endpoint path appended to source.baseUrl. Supports {field} placeholders.
+  endpointPath: text("endpoint_path").notNull().default(""),
+  // JSON array of required field definitions — see comment above.
+  requiredFields: jsonb("required_fields").notNull().default([]),
+  // Natural-language template used to format API response into the chat reply.
+  // Supports {jsonpath} placeholders, e.g. "Status depo Anda: {status}, jumlah: {amount}".
+  responseTemplate: text("response_template").notNull().default(""),
+  isEnabled: boolean("is_enabled").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  sourceIdx: index("cdi_source_idx").on(table.sourceId),
+  intentKeyIdx: index("cdi_intent_key_idx").on(table.sourceId, table.intentKey),
+}));
+
+export const insertCustomDataIntentSchema = createInsertSchema(customDataIntents).omit({
+  id: true, createdAt: true, updatedAt: true,
+});
+export type InsertCustomDataIntent = z.infer<typeof insertCustomDataIntentSchema>;
+export type CustomDataIntent = typeof customDataIntents.$inferSelect;
+
+// Audit log of all panel API calls. We store enough for merchants to debug
+// their endpoints without leaking secrets — never log the API key or the raw
+// response body. Identifying fields are stored masked (e.g. "use***ame").
+export const customDataAuditLog = pgTable("custom_data_audit_log", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  intentId: varchar("intent_id", { length: 32 }),
+  intentKey: text("intent_key").notNull(),
+  sessionId: varchar("session_id", { length: 64 }),
+  httpStatus: integer("http_status").notNull().default(0),
+  latencyMs: integer("latency_ms").notNull().default(0),
+  success: boolean("success").notNull().default(false),
+  errorMessage: text("error_message"),
+  maskedFields: jsonb("masked_fields").default({}),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  merchantIdx: index("cda_merchant_idx").on(table.merchantId, table.createdAt),
+}));
+
+export const insertCustomDataAuditLogSchema = createInsertSchema(customDataAuditLog).omit({
+  id: true, createdAt: true,
+});
+export type InsertCustomDataAuditLog = z.infer<typeof insertCustomDataAuditLogSchema>;
+export type CustomDataAuditLog = typeof customDataAuditLog.$inferSelect;
+
 // ── Blast Campaigns ────────────────────────────────────────────────────────
 export const blastCampaigns = pgTable("blast_campaigns", {
   id: varchar("id", { length: 32 }).primaryKey(),

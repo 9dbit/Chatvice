@@ -80,6 +80,7 @@ import DataUsagePage from "./data-usage";
 import ProactiveChatPage from "./proactive-chat";
 import AdditionalServicesPage from "./additional-services";
 import AppointmentsPage from "./appointments";
+import CustomDataSourcePage from "./custom-data-source";
 import type { Merchant } from "@shared/schema";
 
 const pageTranslationKeys: Record<string, string> = {
@@ -211,6 +212,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/widget" component={WidgetPage} />
               <Route path="/dashboard/supervisors" component={SupervisorsPage} />
               <Route path="/dashboard/integrations" component={IntegrationsPage} />
+              <Route path="/dashboard/custom-data-source" component={CustomDataSourcePage} />
               <Route path="/dashboard/work-scheduler" component={WorkSchedulerPage} />
               <Route path="/dashboard/quick-replies" component={QuickRepliesPage} />
               <Route path="/dashboard/welcome-bubble" component={WelcomeBubblePage} />

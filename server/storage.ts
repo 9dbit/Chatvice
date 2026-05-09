@@ -2,6 +2,10 @@ import {
   type AddonConfig, type InsertAddonConfig,
   type MerchantAddon, type InsertMerchantAddon,
   type HospitalityConfig, type InsertHospitalityConfig,
+  type CustomDataSource, type InsertCustomDataSource,
+  type CustomDataIntent, type InsertCustomDataIntent,
+  type CustomDataAuditLog, type InsertCustomDataAuditLog,
+  customDataSources, customDataIntents, customDataAuditLog,
   type PasswordRecoveryConfig, type InsertPasswordRecoveryConfig,
   type PasswordRecoveryRequest, type InsertPasswordRecoveryRequest,
   type AppointmentDivision, type InsertAppointmentDivision,
@@ -605,6 +609,17 @@ export interface IStorage {
   getHospitalityConfig(merchantId: string): Promise<HospitalityConfig | undefined>;
   upsertHospitalityConfig(merchantId: string, data: Partial<InsertHospitalityConfig>): Promise<HospitalityConfig>;
   updateHospitalityCache(merchantId: string, cachedData: string): Promise<void>;
+
+  // Custom Data Source Connector
+  getCustomDataSource(merchantId: string): Promise<CustomDataSource | undefined>;
+  upsertCustomDataSource(merchantId: string, data: Partial<CustomDataSource>): Promise<CustomDataSource>;
+  getCustomDataIntents(sourceId: string): Promise<CustomDataIntent[]>;
+  getCustomDataIntent(id: string): Promise<CustomDataIntent | undefined>;
+  createCustomDataIntent(data: InsertCustomDataIntent): Promise<CustomDataIntent>;
+  updateCustomDataIntent(id: string, data: Partial<CustomDataIntent>): Promise<CustomDataIntent | undefined>;
+  deleteCustomDataIntent(id: string): Promise<boolean>;
+  createCustomDataAuditLog(data: InsertCustomDataAuditLog): Promise<CustomDataAuditLog>;
+  getCustomDataAuditLog(merchantId: string, limit?: number): Promise<CustomDataAuditLog[]>;
 
   // Password Recovery
   getPasswordRecoveryConfig(merchantId: string, agentId?: string): Promise<PasswordRecoveryConfig | undefined>;
@@ -4429,6 +4444,69 @@ export class DatabaseStorage implements IStorage {
     await db.update(hospitalityConfigs)
       .set({ cachedSheetData: cachedData, sheetLastFetched: new Date(), updatedAt: new Date() })
       .where(eq(hospitalityConfigs.merchantId, merchantId));
+  }
+
+  // ── Custom Data Source Connector ──────────────────────────────────────────
+  async getCustomDataSource(merchantId: string): Promise<CustomDataSource | undefined> {
+    const [row] = await db.select().from(customDataSources).where(eq(customDataSources.merchantId, merchantId));
+    return row;
+  }
+
+  async upsertCustomDataSource(merchantId: string, data: Partial<CustomDataSource>): Promise<CustomDataSource> {
+    const existing = await this.getCustomDataSource(merchantId);
+    if (existing) {
+      const [row] = await db.update(customDataSources)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(customDataSources.merchantId, merchantId))
+        .returning();
+      return row;
+    }
+    const id = "cds_" + randomBytes(8).toString("hex");
+    const [row] = await db.insert(customDataSources).values({ id, merchantId, ...data } as any).returning();
+    return row;
+  }
+
+  async getCustomDataIntents(sourceId: string): Promise<CustomDataIntent[]> {
+    return await db.select().from(customDataIntents)
+      .where(eq(customDataIntents.sourceId, sourceId))
+      .orderBy(customDataIntents.sortOrder, customDataIntents.intentKey);
+  }
+
+  async getCustomDataIntent(id: string): Promise<CustomDataIntent | undefined> {
+    const [row] = await db.select().from(customDataIntents).where(eq(customDataIntents.id, id));
+    return row;
+  }
+
+  async createCustomDataIntent(data: InsertCustomDataIntent): Promise<CustomDataIntent> {
+    const id = "cdi_" + randomBytes(8).toString("hex");
+    const [row] = await db.insert(customDataIntents).values({ id, ...data } as any).returning();
+    return row;
+  }
+
+  async updateCustomDataIntent(id: string, data: Partial<CustomDataIntent>): Promise<CustomDataIntent | undefined> {
+    const [row] = await db.update(customDataIntents)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(customDataIntents.id, id))
+      .returning();
+    return row;
+  }
+
+  async deleteCustomDataIntent(id: string): Promise<boolean> {
+    const result = await db.delete(customDataIntents).where(eq(customDataIntents.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async createCustomDataAuditLog(data: InsertCustomDataAuditLog): Promise<CustomDataAuditLog> {
+    const id = "cda_" + randomBytes(8).toString("hex");
+    const [row] = await db.insert(customDataAuditLog).values({ id, ...data } as any).returning();
+    return row;
+  }
+
+  async getCustomDataAuditLog(merchantId: string, limit = 50): Promise<CustomDataAuditLog[]> {
+    return await db.select().from(customDataAuditLog)
+      .where(eq(customDataAuditLog.merchantId, merchantId))
+      .orderBy(desc(customDataAuditLog.createdAt))
+      .limit(limit);
   }
 
   // ── Password Recovery ──────────────────────────────────────────────────────
