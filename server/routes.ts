@@ -7650,7 +7650,6 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
               const cdsIntents = await storage.getCustomDataIntents(cdsSource.id);
               const intent = cdsIntents.find(i => i.intentKey.toLowerCase() === intentKey.toLowerCase() && i.isEnabled);
               if (intent) {
-                const sessionRow = existingSession || await storage.getSession(sessionId);
                 const lookupRes = await executeIntentLookup({
                   source: cdsSource,
                   intent,
