@@ -2767,6 +2767,8 @@ export const customDataAuditLog = pgTable("custom_data_audit_log", {
   success: boolean("success").notNull().default(false),
   errorMessage: text("error_message"),
   maskedFields: jsonb("masked_fields").default({}),
+  endpointUrl: text("endpoint_url"),
+  httpMethod: varchar("http_method", { length: 8 }),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   merchantIdx: index("cda_merchant_idx").on(table.merchantId, table.createdAt),

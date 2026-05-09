@@ -7657,11 +7657,10 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                   fields,
                   merchantId: resolvedMerchantId,
                   sessionId,
-                  customerName: sessionRow?.customerName || null,
                 });
                 await storage.createMessage({ sessionId, from: "chatvice", content: lookupRes.text });
                 broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: lookupRes.text } });
-                console.log(`[CustomLookup] intent=${intentKey} status=${lookupRes.status} session=${sessionId}`);
+                console.log(`[CustomLookup] intent=${intentKey} status=${lookupRes.httpStatus} session=${sessionId}`);
               } else {
                 console.log(`[CustomLookup] Intent not found or disabled: ${intentKey}`);
               }
@@ -28147,6 +28146,13 @@ Please create a comprehensive help center article that would be useful for custo
     try {
       const merchantId = req.session!.merchantId!;
       const { name, baseUrl, headerAuthName, healthPath, cacheTtlSec, rateLimitPerMin, isEnabled } = req.body;
+      // SSRF guard: reject local/private hosts at save time so they can never
+      // make it into the lookup dispatcher.
+      if (baseUrl && String(baseUrl).trim() !== "") {
+        const { validateBaseUrl } = await import("./customConnector");
+        const check = validateBaseUrl(String(baseUrl));
+        if (!check.ok) return res.status(400).json({ error: check.error });
+      }
       const existing = await storage.getCustomDataSource(merchantId);
       const source = await storage.upsertCustomDataSource(merchantId, {
         name: name ?? existing?.name ?? "Panel API",
@@ -28193,6 +28199,9 @@ Please create a comprehensive help center article that would be useful for custo
       const merchantId = req.session!.merchantId!;
       const source = await storage.getCustomDataSource(merchantId);
       if (!source || !source.baseUrl) return res.status(400).json({ error: "Atur base URL terlebih dahulu" });
+      const { validateBaseUrl } = await import("./customConnector");
+      const urlCheck = validateBaseUrl(source.baseUrl);
+      if (!urlCheck.ok) return res.status(400).json({ error: urlCheck.error });
       const apiKey = decryptApiKey(source.apiKeyEncrypted);
       const url = (source.baseUrl.replace(/\/+$/, "")) + (source.healthPath || "/health");
       const t0 = Date.now();

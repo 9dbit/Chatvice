@@ -50,6 +50,43 @@ export function maskValue(v: string | undefined | null): string {
   return s.slice(0, 2) + "***" + s.slice(-2);
 }
 
+// ── SSRF protection ───────────────────────────────────────────────────────
+// Block requests targeting localhost, link-local, or private network ranges
+// to prevent merchants from pointing the connector at internal services or
+// cloud metadata endpoints.
+const PRIVATE_HOST_PATTERNS: RegExp[] = [
+  /^localhost$/i,
+  /^127\./,
+  /^0\./,
+  /^10\./,
+  /^192\.168\./,
+  /^172\.(1[6-9]|2\d|3[0-1])\./,
+  /^169\.254\./,        // link-local (incl. AWS/GCP metadata 169.254.169.254)
+  /^::1$/,
+  /^fc00:/i,
+  /^fe80:/i,
+  /^metadata\.google\.internal$/i,
+];
+
+export function validateBaseUrl(rawUrl: string): { ok: true; url: URL } | { ok: false; error: string } {
+  if (!rawUrl) return { ok: false, error: "Base URL belum diisi." };
+  let u: URL;
+  try { u = new URL(rawUrl); } catch { return { ok: false, error: "Base URL tidak valid." }; }
+  if (u.protocol !== "https:" && u.protocol !== "http:") {
+    return { ok: false, error: "Base URL harus menggunakan http:// atau https://." };
+  }
+  if (process.env.NODE_ENV === "production" && u.protocol !== "https:") {
+    return { ok: false, error: "Base URL wajib menggunakan https:// di production." };
+  }
+  const host = u.hostname.toLowerCase();
+  for (const pat of PRIVATE_HOST_PATTERNS) {
+    if (pat.test(host)) {
+      return { ok: false, error: `Host "${host}" tidak diizinkan (alamat lokal/internal diblokir untuk keamanan).` };
+    }
+  }
+  return { ok: true, url: u };
+}
+
 // ── Per-merchant rate limiter & cache (in-memory) ─────────────────────────
 const rateBuckets = new Map<string, number[]>();
 const responseCache = new Map<string, { at: number; status: number; body: any }>();
@@ -121,9 +158,30 @@ export async function executeIntentLookup(opts: {
   const t0 = Date.now();
   const userFacingError = "Maaf, sistem sedang sibuk. Silakan coba lagi sebentar atau hubungi admin.";
 
+  // Server-side validation: every required field for this intent must be present
+  // and non-empty BEFORE we dispatch to the merchant's panel API. The AI is
+  // instructed to collect them but we never trust the prompt alone.
+  const requiredDefs: Array<{ key: string; required?: boolean }> = Array.isArray(intent.requiredFields) ? (intent.requiredFields as any[]) : [];
+  const missing = requiredDefs
+    .filter(f => f.required !== false)
+    .map(f => f.key)
+    .filter(k => !fields[k] || String(fields[k]).trim() === "");
+  if (missing.length > 0) {
+    const errMsg = `Missing required fields: ${missing.join(", ")}`;
+    await logAudit({ merchantId, intent, sessionId, fields, httpStatus: 0, latencyMs: 0, success: false, errorMessage: errMsg, endpointUrl: null, httpMethod: intent.httpMethod || "GET" });
+    return { ok: false, text: `Kakak, untuk cek ${intent.name.toLowerCase()} saya masih perlu data: ${missing.join(", ")}. Boleh dilengkapi dulu ya.`, httpStatus: 0, latencyMs: 0, errorMessage: errMsg };
+  }
+
+  // SSRF guard on base URL
+  const urlCheck = validateBaseUrl(source.baseUrl || "");
+  if (!urlCheck.ok) {
+    await logAudit({ merchantId, intent, sessionId, fields, httpStatus: 0, latencyMs: 0, success: false, errorMessage: urlCheck.error, endpointUrl: null, httpMethod: intent.httpMethod || "GET" });
+    return { ok: false, text: userFacingError, httpStatus: 0, latencyMs: 0, errorMessage: urlCheck.error };
+  }
+
   // Rate limit
   if (!rateLimitOk(merchantId, source.rateLimitPerMin || 60)) {
-    await logAudit({ merchantId, intent, sessionId, fields, httpStatus: 429, latencyMs: 0, success: false, errorMessage: "Rate limit exceeded" });
+    await logAudit({ merchantId, intent, sessionId, fields, httpStatus: 429, latencyMs: 0, success: false, errorMessage: "Rate limit exceeded", endpointUrl: null, httpMethod: intent.httpMethod || "GET" });
     return { ok: false, text: userFacingError, httpStatus: 429, latencyMs: 0, errorMessage: "Rate limit exceeded" };
   }
 
@@ -168,19 +226,26 @@ export async function executeIntentLookup(opts: {
   let httpStatus = 0;
   let json: any = null;
   let errorMessage: string | undefined;
+  let parseFailed = false;
   try {
     const resp = await fetch(url, { method, headers, body, signal: AbortSignal.timeout(10_000) });
     httpStatus = resp.status;
     const txt = await resp.text();
-    try { json = txt ? JSON.parse(txt) : null; } catch { json = { raw: txt.slice(0, 500) }; }
-    if (!resp.ok) errorMessage = `HTTP ${httpStatus}`;
+    if (txt) {
+      try { json = JSON.parse(txt); } catch {
+        // Spec: malformed JSON must degrade gracefully — do NOT pretend success.
+        parseFailed = true;
+        errorMessage = "Invalid JSON response from panel";
+      }
+    }
+    if (!resp.ok) errorMessage = errorMessage || `HTTP ${httpStatus}`;
   } catch (err: any) {
     errorMessage = err?.name === "TimeoutError" ? "Request timeout" : (err?.message || "Network error");
   }
   const latencyMs = Date.now() - t0;
-  const success = httpStatus >= 200 && httpStatus < 300 && !!json;
+  const success = httpStatus >= 200 && httpStatus < 300 && !!json && !parseFailed;
 
-  await logAudit({ merchantId, intent, sessionId, fields, httpStatus, latencyMs, success, errorMessage });
+  await logAudit({ merchantId, intent, sessionId, fields, httpStatus, latencyMs, success, errorMessage, endpointUrl: url, httpMethod: method });
 
   if (!success) {
     return { ok: false, text: userFacingError, httpStatus, latencyMs, errorMessage };
@@ -206,6 +271,8 @@ async function logAudit(opts: {
   latencyMs: number;
   success: boolean;
   errorMessage?: string;
+  endpointUrl?: string | null;
+  httpMethod?: string | null;
 }): Promise<void> {
   try {
     const masked: Record<string, string> = {};
@@ -220,6 +287,8 @@ async function logAudit(opts: {
       success: opts.success,
       errorMessage: opts.errorMessage || null,
       maskedFields: masked,
+      endpointUrl: opts.endpointUrl ?? null,
+      httpMethod: opts.httpMethod ?? null,
     });
   } catch (err) {
     console.error("[CustomConnector] Audit log failed:", err);
