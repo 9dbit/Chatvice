@@ -29,7 +29,7 @@ import { parseFile, fetchGoogleDoc, fetchGoogleSheet } from "./fileParser";
 import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isTwelvePayConfigured, convertToIDR, formatIDR } from "./twelvePayClient";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification, sendEmailChangeOtp, sendQuota80Email, sendQuota100Email, sendSubscriptionExpiringEmail } from "./resendClient";
-import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests } from "@shared/schema";
+import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests, type InsertCustomPlanRequest } from "@shared/schema";
 import { staticBlogMetaMap } from "@shared/static-blog-meta";
 import { buildOnboardingKnowledgeForGuide, buildOnboardingKnowledgePublic, buildOnboardingWorkflowGuidance } from "@shared/onboarding-content";
 import { db, pool } from "./db";
@@ -5314,33 +5314,49 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
   // NOTE: Notification routes and custom-plan-requests must be registered BEFORE /api/merchant/:merchantId to avoid route conflicts
   
   // Top-up quota: dedicated endpoint for one-shot conversation top-ups.
-  // Stored as a custom_plan_request with a [TOP-UP] message tag so the existing
-  // admin invoice flow handles fulfillment, but the contract is top-up specific.
+  // SECURITY: All pricing is computed server-side from the merchant's effective
+  // plan; client-supplied amount/rate values are ignored. Bundle quantities
+  // are restricted to a fixed set with optional bundle discount.
+  const TOPUP_BUNDLES: Array<{ qty: number; discountPct: number }> = [
+    { qty: 500, discountPct: 0 },
+    { qty: 1500, discountPct: 10 },
+    { qty: 5000, discountPct: 20 },
+  ];
   app.post("/api/merchant/billing/topup-quota", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
       const merchant = await storage.getMerchant(merchantId);
       if (!merchant) return res.status(404).json({ error: "Merchant not found" });
 
-      const conversations = parseInt(req.body?.conversations);
-      const amountIdr = parseInt(req.body?.amountIdr);
-      const overageRateIdr = parseInt(req.body?.overageRateIdr) || 0;
-
-      if (!Number.isFinite(conversations) || conversations < 100) {
-        return res.status(400).json({ error: "Minimum top-up adalah 100 percakapan" });
-      }
-      if (!Number.isFinite(amountIdr) || amountIdr <= 0) {
-        return res.status(400).json({ error: "Jumlah pembayaran tidak valid" });
+      const requestedQty = parseInt(req.body?.conversations);
+      const bundle = TOPUP_BUNDLES.find((b) => b.qty === requestedQty);
+      if (!bundle) {
+        return res.status(400).json({
+          error: "Bundle tidak valid. Pilih 500 / 1.500 / 5.000 percakapan.",
+        });
       }
 
-      const request = await storage.createCustomPlanRequest({
+      // Compute price server-side from the merchant's effective plan.
+      const effectivePlan = await getEffectiveSubscriptionPlan(
+        merchant.subscriptionPlanId || "free",
+      );
+      const overageRateIdr = (effectivePlan as any)?.overageRateIdr;
+      if (!overageRateIdr || overageRateIdr <= 0) {
+        return res.status(400).json({
+          error: "Plan saat ini tidak mendukung top-up. Upgrade plan terlebih dahulu.",
+        });
+      }
+      const baseIdr = bundle.qty * overageRateIdr;
+      const amountIdr = Math.round(baseIdr * (1 - bundle.discountPct / 100));
+
+      const insertPayload: InsertCustomPlanRequest = {
         merchantId,
-        companyName: merchant.companyName,
-        contactName: merchant.picName || merchant.companyName,
+        companyName: merchant.companyName || "",
+        contactName: merchant.picName || merchant.companyName || "",
         contactEmail: merchant.email,
         contactPhone: merchant.phone || null,
         currentPlanId: merchant.subscriptionPlanId || "free",
-        desiredConversations: conversations,
+        desiredConversations: bundle.qty,
         desiredAgents: 0,
         desiredSupervisors: 0,
         desiredSources: 0,
@@ -5349,13 +5365,21 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         complianceNeeds: null,
         additionalFeatures: null,
         additionalNotes: null,
-        message: `[TOP-UP] +${conversations.toLocaleString("id-ID")} percakapan @ Rp ${overageRateIdr}/conv. Total Rp ${amountIdr.toLocaleString("id-ID")}.`,
+        message: `[TOP-UP] +${bundle.qty.toLocaleString("id-ID")} percakapan @ Rp ${overageRateIdr}/conv${bundle.discountPct ? ` (hemat ${bundle.discountPct}%)` : ""}. Total Rp ${amountIdr.toLocaleString("id-ID")}.`,
         budgetRangeMin: amountIdr,
         budgetRangeMax: amountIdr,
         expectedTimeline: "immediate",
-      } as any);
+      };
+      const request = await storage.createCustomPlanRequest(insertPayload);
 
-      res.json({ ok: true, requestId: request.id, conversations, amountIdr });
+      res.json({
+        ok: true,
+        requestId: request.id,
+        conversations: bundle.qty,
+        amountIdr,
+        overageRateIdr,
+        note: "Saldo top-up akan ditambahkan ke kuota setelah pembayaran invoice diterima.",
+      });
     } catch (error: any) {
       console.error("Error creating top-up request:", error);
       res.status(500).json({ error: error.message || "Server error" });
@@ -14648,14 +14672,32 @@ Rules:
       }
       
       const updated = await storage.updateCustomPlanRequest(request.id, updateData);
-      
+
+      // Top-up credit: when admin closes a [TOP-UP] tagged request, the
+      // payment is considered settled; add the bundle qty to the merchant's
+      // extraConversationsBalance so the next billing cycle accounts for it.
+      const isTopUp = typeof request.message === "string" && request.message.startsWith("[TOP-UP]");
+      if (isTopUp && status === "closed" && request.status !== "closed" && request.merchantId) {
+        try {
+          const merchant = await storage.getMerchant(request.merchantId);
+          const currentBalance = (merchant as any)?.extraConversationsBalance || 0;
+          const credit = request.desiredConversations || 0;
+          await db.update(merchants)
+            .set({ extraConversationsBalance: currentBalance + credit })
+            .where(eq(merchants.id, request.merchantId));
+          console.log(`[TOP-UP] Credited +${credit} conversations to merchant ${request.merchantId} (new balance: ${currentBalance + credit})`);
+        } catch (creditErr) {
+          console.error("[TOP-UP] Failed to credit balance:", creditErr);
+        }
+      }
+
       // Notify merchant of status change
       if (request.merchantId && status && status !== request.status) {
         const statusMessages: Record<string, string> = {
           "under_review": "Your custom plan request is now under review.",
           "pricing_proposed": "We've prepared a custom pricing proposal for you!",
           "rejected": "Your custom plan request has been reviewed.",
-          "closed": "Your custom plan request has been closed.",
+          "closed": isTopUp ? "Top-up percakapan berhasil ditambahkan ke kuota Anda." : "Your custom plan request has been closed.",
         };
         
         if (statusMessages[status]) {

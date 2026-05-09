@@ -206,7 +206,35 @@ export function PricingSimulator() {
               </div>
 
               <div className="rounded-md border overflow-hidden">
-                <div className="px-3 py-2 text-xs font-medium bg-muted/40">Sensitivity (margin per skenario pemakaian)</div>
+                <div className="px-3 py-2 text-xs font-medium bg-muted/40 flex items-center justify-between">
+                  <span>Sensitivity (margin per skenario pemakaian)</span>
+                  <button
+                    type="button"
+                    className="text-xs text-purple-600 hover:underline"
+                    data-testid="button-export-sensitivity"
+                    onClick={() => {
+                      const rows = [
+                        ["Plan", plan?.name || selectedPlanId],
+                        ["Revenue/bln (Rp)", String(sim.revenue)],
+                        ["Biaya AI/conv (Rp)", String(costPerConv)],
+                        ["Fixed infra/bln (Rp)", String(fixedInfraIdr)],
+                        [],
+                        ["Pemakaian", "Conversations", "Total Cost (Rp)", "Margin (Rp)"],
+                        ...sensitivity.map((s) => [`${s.pct}%`, String(s.conv), String(s.cost), String(s.margin)]),
+                      ];
+                      const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+                      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `pricing-sim-${selectedPlanId}-${new Date().toISOString().slice(0, 10)}.csv`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                  >
+                    Export CSV
+                  </button>
+                </div>
                 <table className="w-full text-xs">
                   <thead className="text-muted-foreground">
                     <tr className="border-t">

@@ -47,6 +47,7 @@ export const merchants = pgTable("merchants", {
   billingInterval: text("billing_interval").default("monthly"),
   conversationsUsed: integer("conversations_used").default(0),
   conversationsResetAt: timestamp("conversations_reset_at"),
+  extraConversationsBalance: integer("extra_conversations_balance").default(0),
   bgRemovalUsed: integer("bg_removal_used").default(0),
   bgRemovalResetAt: timestamp("bg_removal_reset_at"),
   identitySecretKey: text("identity_secret_key"),
