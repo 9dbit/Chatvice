@@ -326,20 +326,31 @@ export async function executeIntentLookup(opts: {
 
   // Build URL: substitute {field} placeholders in path, then append remaining
   // fields as query params for GET (POST sends them as JSON body).
+  // We build TWO versions:
+  //   - `url`: real URL with substituted values, sent over the wire only.
+  //   - `auditUrl`: PII-safe version for audit log/UI — keeps {field} markers
+  //     in the path and replaces query values with "***" so customer
+  //     identifiers (username, account #, IP) are never persisted.
   const baseUrl = (source.baseUrl || "").replace(/\/+$/, "");
   const usedKeys = new Set<string>();
-  let path = intent.endpointPath || "";
-  path = path.replace(/\{([\w]+)\}/g, (_m, key) => {
+  const rawTemplate = intent.endpointPath || "";
+  let path = rawTemplate.replace(/\{([\w]+)\}/g, (_m, key) => {
     usedKeys.add(key);
     return encodeURIComponent(fields[key] ?? "");
   });
   if (!path.startsWith("/")) path = "/" + path;
+  let auditPath = rawTemplate;
+  if (!auditPath.startsWith("/")) auditPath = "/" + auditPath;
   const method = (intent.httpMethod || "GET").toUpperCase();
   let url = baseUrl + path;
+  let auditUrl = baseUrl + auditPath;
   let body: string | undefined;
   if (method === "GET") {
-    const qs = Object.keys(fields).filter(k => !usedKeys.has(k)).map(k => `${encodeURIComponent(k)}=${encodeURIComponent(fields[k])}`).join("&");
+    const qsKeys = Object.keys(fields).filter(k => !usedKeys.has(k));
+    const qs = qsKeys.map(k => `${encodeURIComponent(k)}=${encodeURIComponent(fields[k])}`).join("&");
     if (qs) url += (url.includes("?") ? "&" : "?") + qs;
+    const auditQs = qsKeys.map(k => `${encodeURIComponent(k)}=***`).join("&");
+    if (auditQs) auditUrl += (auditUrl.includes("?") ? "&" : "?") + auditQs;
   } else {
     body = JSON.stringify(fields);
   }
@@ -364,7 +375,7 @@ export async function executeIntentLookup(opts: {
     if (resp.status >= 300 && resp.status < 400) {
       const latencyNow = Date.now() - t0;
       const errMsg = `Redirect ${resp.status} from panel — merchant endpoints must respond directly (no 3xx).`;
-      await logAudit({ merchantId, intent, sessionId, fields, httpStatus: resp.status, latencyMs: latencyNow, success: false, errorMessage: errMsg, endpointUrl: url, httpMethod: method });
+      await logAudit({ merchantId, intent, sessionId, fields, httpStatus: resp.status, latencyMs: latencyNow, success: false, errorMessage: errMsg, endpointUrl: auditUrl, httpMethod: method });
       return { ok: false, text: userFacingError, httpStatus: resp.status, latencyMs: latencyNow, errorMessage: errMsg };
     }
     httpStatus = resp.status;
@@ -383,7 +394,7 @@ export async function executeIntentLookup(opts: {
   const latencyMs = Date.now() - t0;
   const success = httpStatus >= 200 && httpStatus < 300 && !!json && !parseFailed;
 
-  await logAudit({ merchantId, intent, sessionId, fields, httpStatus, latencyMs, success, errorMessage, endpointUrl: url, httpMethod: method });
+  await logAudit({ merchantId, intent, sessionId, fields, httpStatus, latencyMs, success, errorMessage, endpointUrl: auditUrl, httpMethod: method });
 
   if (!success) {
     return { ok: false, text: userFacingError, httpStatus, latencyMs, errorMessage };

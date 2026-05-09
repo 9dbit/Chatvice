@@ -202,6 +202,40 @@ describe("executeIntentLookup failure modes", () => {
     fetchSpy.mockRestore();
   });
 
+  it("audit endpointUrl masks customer identifiers (no PII leak)", async () => {
+    const storageMock = (await import("../storage")).storage as any;
+    storageMock.createCustomDataAuditLog.mockClear();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ status: "OK" }), { status: 200 }) as any
+    );
+    // Intent with both path-substituted (username) and query-only (token) fields
+    const intent = {
+      ...baseIntent,
+      endpointPath: "/api/deposit/{username}",
+      requiredFields: [
+        { key: "username", label: "Username", type: "text", required: true },
+        { key: "token", label: "Token", type: "text", required: true },
+      ] as any,
+    };
+    await executeIntentLookup({
+      merchantId: "m1",
+      source: baseSource,
+      intent,
+      fields: { username: "andi-secret-123", token: "tok-pii-xyz" },
+      sessionId: "s-mask",
+    });
+    const calls = storageMock.createCustomDataAuditLog.mock.calls;
+    const lastArg = calls[calls.length - 1][0];
+    expect(lastArg.endpointUrl).toBeDefined();
+    // Raw identifier values must NOT appear in the audit row
+    expect(lastArg.endpointUrl).not.toContain("andi-secret-123");
+    expect(lastArg.endpointUrl).not.toContain("tok-pii-xyz");
+    // Template marker preserved + masked query value
+    expect(lastArg.endpointUrl).toContain("{username}");
+    expect(lastArg.endpointUrl).toContain("token=***");
+    fetchSpy.mockRestore();
+  });
+
   it("end-to-end: detect → validate → fetch → render template", async () => {
     // Simulates the full path the chat dispatcher takes: required fields are
     // present, base URL is public, panel returns 200 JSON, template renders.
