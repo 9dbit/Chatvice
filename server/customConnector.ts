@@ -660,6 +660,68 @@ export const PRESET_INTENTS: Record<string, Array<PresetIntent>> = {
   ecommerce: ECOMMERCE_INTENTS,
 };
 
+export type PresetListEntry = {
+  id: string;
+  name: string;
+  description: string;
+  intents: Array<{
+    intentKey: string;
+    name: string;
+    description: string;
+    httpMethod: string;
+    endpointPath: string;
+    requiredFields: PresetIntent["requiredFields"];
+  }>;
+};
+
+export type ScaffoldPresetIntentDeps = {
+  getCustomDataSource: (merchantId: string) => Promise<CustomDataSource | undefined | null>;
+  getCustomDataIntents: (sourceId: string) => Promise<CustomDataIntent[]>;
+  createCustomDataIntent: (data: Omit<PresetIntent, never> & { sourceId: string }) => Promise<CustomDataIntent>;
+};
+
+export type ScaffoldPresetIntentResult =
+  | { ok: true; status: 200; intent: CustomDataIntent }
+  | { ok: false; status: 400 | 404 | 409; error: string; intentKey?: string };
+
+export function listPresetsForApi(): PresetListEntry[] {
+  return Object.values(PRESET_META).map(meta => ({
+    ...meta,
+    intents: (PRESET_INTENTS[meta.id] || []).map(i => ({
+      intentKey: i.intentKey,
+      name: i.name,
+      description: i.description,
+      httpMethod: i.httpMethod,
+      endpointPath: i.endpointPath,
+      requiredFields: i.requiredFields,
+    })),
+  }));
+}
+
+export async function scaffoldPresetIntent(opts: {
+  merchantId: string;
+  preset: unknown;
+  intentKey: unknown;
+  deps: ScaffoldPresetIntentDeps;
+}): Promise<ScaffoldPresetIntentResult> {
+  const { merchantId, preset, intentKey, deps } = opts;
+  const source = await deps.getCustomDataSource(merchantId);
+  if (!source) {
+    return { ok: false, status: 400, error: "Buat custom data source terlebih dahulu" };
+  }
+  const seeds = PRESET_INTENTS[String(preset)] || [];
+  const def = seeds.find(s => s.intentKey === intentKey);
+  if (!def) {
+    return { ok: false, status: 404, error: "Preset intent not found" };
+  }
+  const existing = await deps.getCustomDataIntents(source.id);
+  if (existing.some(e => e.intentKey === def.intentKey)) {
+    return { ok: false, status: 409, error: "Intent already exists", intentKey: def.intentKey };
+  }
+  const intent = await deps.createCustomDataIntent({ ...def, sourceId: source.id });
+  return { ok: true, status: 200, intent };
+}
+
 export const PRESET_META: Record<string, { id: string; name: string; description: string }> = {
   judi: {
     id: "judi",

@@ -36,6 +36,7 @@ import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } fr
 import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, blastCampaigns } from "@shared/schema";
 import crypto from "crypto";
 import { encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup, buildPostmanCollection, buildHtmlDocs, DEFAULT_INTENTS, PRESET_INTENTS, PRESET_META } from "./customConnector";
+import { registerCustomDataPresetRoutes } from "./customDataPresetRoutes";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import sharp from "sharp";
 
@@ -28311,44 +28312,17 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
-  // Wizard helpers — list available presets and the example intents inside each.
-  app.get("/api/merchant/custom-data-source/presets", requireMerchant, async (_req, res) => {
-    const presets = Object.values(PRESET_META).map(meta => ({
-      ...meta,
-      intents: (PRESET_INTENTS[meta.id] || []).map(i => ({
-        intentKey: i.intentKey,
-        name: i.name,
-        description: i.description,
-        httpMethod: i.httpMethod,
-        endpointPath: i.endpointPath,
-        requiredFields: i.requiredFields,
-      })),
-    }));
-    res.json(presets);
-  });
-
-  // Scaffold a single preset intent for the merchant's source. Used by the
-  // wizard's Step 4 "Add example intent" buttons. Idempotent: returns 409 if
-  // an intent with the same intentKey already exists.
-  app.post("/api/merchant/custom-data-intents/from-preset", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session!.merchantId!;
-      const source = await storage.getCustomDataSource(merchantId);
-      if (!source) return res.status(400).json({ error: "Buat custom data source terlebih dahulu" });
-      const { preset, intentKey } = req.body || {};
-      const seeds = PRESET_INTENTS[String(preset)] || [];
-      const def = seeds.find(s => s.intentKey === intentKey);
-      if (!def) return res.status(404).json({ error: "Preset intent not found" });
-      const existing = await storage.getCustomDataIntents(source.id);
-      if (existing.some(e => e.intentKey === def.intentKey)) {
-        return res.status(409).json({ error: "Intent already exists", intentKey: def.intentKey });
-      }
-      const intent = await storage.createCustomDataIntent({ ...def, sourceId: source.id });
-      res.json(intent);
-    } catch (err) {
-      console.error("[CustomDataIntent] from-preset error:", err);
-      res.status(500).json({ error: "Failed to scaffold preset intent" });
-    }
+  // Wizard helpers — list presets and scaffold example intents. Extracted
+  // into customDataPresetRoutes.ts so they can be mounted on a bare express
+  // app for HTTP-boundary tests (see server/__tests__/custom-data-preset-routes.test.ts).
+  registerCustomDataPresetRoutes(app, {
+    requireMerchant,
+    getMerchantId: (req) => req.session?.merchantId,
+    storage: {
+      getCustomDataSource: (mId) => storage.getCustomDataSource(mId),
+      getCustomDataIntents: (sId) => storage.getCustomDataIntents(sId),
+      createCustomDataIntent: (data) => storage.createCustomDataIntent(data),
+    },
   });
 
   app.get("/api/merchant/custom-data-source/audit", requireMerchant, async (req, res) => {

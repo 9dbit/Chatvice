@@ -347,7 +347,10 @@ export default function CustomDataSourcePage() {
                 </Button>
               </div>
               {testResult && (
-                <div className={`p-3 rounded-md border text-sm ${testResult.ok ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-amber-50 dark:bg-amber-950/30"}`}>
+                <div
+                  data-testid={testResult.ok ? "wizard-test-result-ok" : "wizard-test-result-fail"}
+                  className={`p-3 rounded-md border text-sm ${testResult.ok ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-amber-50 dark:bg-amber-950/30"}`}
+                >
                   <div className="flex items-center gap-2 font-medium">
                     {testResult.ok ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-amber-600" />}
                     {testResult.ok ? "Sukses" : "Gagal"} • Status {testResult.status} • {testResult.latencyMs}ms
@@ -712,7 +715,7 @@ interface PresetDef {
   intents: PresetIntentDef[];
 }
 
-function ConnectWizard({ onApiKey, onFinish }: { onApiKey: (key: string) => void; onFinish: () => void }) {
+export function ConnectWizard({ onApiKey, onFinish }: { onApiKey: (key: string) => void; onFinish: () => void }) {
   const { toast } = useToast();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [presetId, setPresetId] = useState<string>("");
@@ -903,7 +906,10 @@ function ConnectWizard({ onApiKey, onFinish }: { onApiKey: (key: string) => void
                 )}
               </div>
               {testResult && (
-                <div className={`p-3 rounded-md border text-sm ${testResult.ok ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-amber-50 dark:bg-amber-950/30"}`}>
+                <div
+                  data-testid={testResult.ok ? "wizard-test-result-ok" : "wizard-test-result-fail"}
+                  className={`p-3 rounded-md border text-sm ${testResult.ok ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-amber-50 dark:bg-amber-950/30"}`}
+                >
                   <div className="flex items-center gap-2 font-medium">
                     {testResult.ok ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-amber-600" />}
                     {testResult.ok ? "Sukses" : "Gagal"} • Status {testResult.status} • {testResult.latencyMs}ms
