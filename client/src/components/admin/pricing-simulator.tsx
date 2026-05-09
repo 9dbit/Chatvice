@@ -59,6 +59,7 @@ export function PricingSimulator() {
   const [selectedPlanId, setSelectedPlanId] = useState<string>("pro");
   const [costPerConv, setCostPerConv] = useState<number>(79);
   const [usagePct, setUsagePct] = useState<number>(70);
+  const [fixedInfraIdr, setFixedInfraIdr] = useState<number>(15000);
 
   const plan = plans.find((p) => p.id === selectedPlanId);
   const conversationsAtUsage = plan ? Math.round((plan.conversationsLimit || 0) * (usagePct / 100)) : 0;
@@ -66,15 +67,26 @@ export function PricingSimulator() {
   const sim = useMemo(() => {
     if (!plan) return null;
     const revenue = plan.monthlyPriceIdr || 0;
-    const baseCost = conversationsAtUsage * costPerConv;
-    const margin = revenue - baseCost;
-    const ratio = revenue > 0 ? baseCost / revenue : 0;
-    const breakEvenConv = costPerConv > 0 ? Math.floor(revenue / costPerConv) : 0;
+    const variableCost = conversationsAtUsage * costPerConv;
+    const totalCost = variableCost + fixedInfraIdr;
+    const margin = revenue - totalCost;
+    const ratio = revenue > 0 ? totalCost / revenue : 0;
+    const breakEvenConv = costPerConv > 0 ? Math.max(0, Math.floor((revenue - fixedInfraIdr) / costPerConv)) : 0;
     const breakEvenPct = (plan.conversationsLimit || 0) > 0
       ? Math.round((breakEvenConv / plan.conversationsLimit) * 100)
       : 0;
-    return { revenue, baseCost, margin, ratio, breakEvenConv, breakEvenPct };
-  }, [plan, conversationsAtUsage, costPerConv]);
+    return { revenue, variableCost, totalCost, margin, ratio, breakEvenConv, breakEvenPct };
+  }, [plan, conversationsAtUsage, costPerConv, fixedInfraIdr]);
+
+  const sensitivity = useMemo(() => {
+    if (!plan) return [] as { pct: number; conv: number; cost: number; margin: number }[];
+    return [25, 50, 75, 100, 125].map((pct) => {
+      const conv = Math.round((plan.conversationsLimit || 0) * (pct / 100));
+      const cost = conv * costPerConv + fixedInfraIdr;
+      const margin = (plan.monthlyPriceIdr || 0) - cost;
+      return { pct, conv, cost, margin };
+    });
+  }, [plan, costPerConv, fixedInfraIdr]);
 
   return (
     <div className="space-y-6" data-testid="pricing-simulator">
@@ -106,18 +118,29 @@ export function PricingSimulator() {
               </select>
             </div>
 
-            <div>
-              <Label>Estimasi biaya AI per percakapan (Rp)</Label>
-              <Input
-                type="number"
-                value={costPerConv}
-                onChange={(e) => setCostPerConv(parseInt(e.target.value) || 0)}
-                className="mt-1"
-                data-testid="input-sim-cost"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Default Rp 79 (GPT-4.1-mini dengan optimasi prompt-cache + FAQ cache).
-              </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Biaya AI / percakapan (Rp)</Label>
+                <Input
+                  type="number"
+                  value={costPerConv}
+                  onChange={(e) => setCostPerConv(parseInt(e.target.value) || 0)}
+                  className="mt-1"
+                  data-testid="input-sim-cost"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Default Rp 79 (GPT-4.1-mini + cache).</p>
+              </div>
+              <div>
+                <Label>Fixed infra / merchant / bln (Rp)</Label>
+                <Input
+                  type="number"
+                  value={fixedInfraIdr}
+                  onChange={(e) => setFixedInfraIdr(parseInt(e.target.value) || 0)}
+                  className="mt-1"
+                  data-testid="input-sim-fixed-infra"
+                />
+                <p className="text-xs text-muted-foreground mt-1">DB row, storage, observability per merchant.</p>
+              </div>
             </div>
 
             <div>
@@ -148,8 +171,11 @@ export function PricingSimulator() {
                   <div className="text-lg font-bold mt-1" data-testid="text-sim-revenue">{fmtIdr(sim.revenue)}</div>
                 </Card>
                 <Card className="p-3">
-                  <div className="text-xs text-muted-foreground">Estimasi biaya AI</div>
-                  <div className="text-lg font-bold mt-1" data-testid="text-sim-cost">{fmtIdr(sim.baseCost)}</div>
+                  <div className="text-xs text-muted-foreground">Total biaya (AI + infra)</div>
+                  <div className="text-lg font-bold mt-1" data-testid="text-sim-cost">{fmtIdr(sim.totalCost)}</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    AI {fmtIdr(sim.variableCost)} + infra {fmtIdr(fixedInfraIdr)}
+                  </div>
                 </Card>
                 <Card className={`p-3 ${sim.margin < 0 ? "border-red-300 dark:border-red-900 bg-red-50/50 dark:bg-red-950/20" : "border-emerald-300 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20"}`}>
                   <div className="text-xs text-muted-foreground flex items-center gap-1">
@@ -177,6 +203,32 @@ export function PricingSimulator() {
                   <span className="font-semibold text-foreground">{fmtNum(sim.breakEvenConv)}</span> percakapan
                   {plan && plan.conversationsLimit ? ` (${sim.breakEvenPct}% kuota)` : ""}.
                 </p>
+              </div>
+
+              <div className="rounded-md border overflow-hidden">
+                <div className="px-3 py-2 text-xs font-medium bg-muted/40">Sensitivity (margin per skenario pemakaian)</div>
+                <table className="w-full text-xs">
+                  <thead className="text-muted-foreground">
+                    <tr className="border-t">
+                      <th className="py-1.5 px-2 text-left">Pemakaian</th>
+                      <th className="py-1.5 px-2 text-right">Conv.</th>
+                      <th className="py-1.5 px-2 text-right">Total cost</th>
+                      <th className="py-1.5 px-2 text-right">Margin</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sensitivity.map((s) => (
+                      <tr key={s.pct} className="border-t" data-testid={`row-sensitivity-${s.pct}`}>
+                        <td className="py-1.5 px-2">{s.pct}%</td>
+                        <td className="py-1.5 px-2 text-right">{fmtNum(s.conv)}</td>
+                        <td className="py-1.5 px-2 text-right">{fmtIdr(s.cost)}</td>
+                        <td className={`py-1.5 px-2 text-right font-medium ${s.margin < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                          {fmtIdr(s.margin)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}

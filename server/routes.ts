@@ -5313,6 +5313,76 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
 
   // NOTE: Notification routes and custom-plan-requests must be registered BEFORE /api/merchant/:merchantId to avoid route conflicts
   
+  // Top-up quota: dedicated endpoint for one-shot conversation top-ups.
+  // Stored as a custom_plan_request with a [TOP-UP] message tag so the existing
+  // admin invoice flow handles fulfillment, but the contract is top-up specific.
+  app.post("/api/merchant/billing/topup-quota", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+      const conversations = parseInt(req.body?.conversations);
+      const amountIdr = parseInt(req.body?.amountIdr);
+      const overageRateIdr = parseInt(req.body?.overageRateIdr) || 0;
+
+      if (!Number.isFinite(conversations) || conversations < 100) {
+        return res.status(400).json({ error: "Minimum top-up adalah 100 percakapan" });
+      }
+      if (!Number.isFinite(amountIdr) || amountIdr <= 0) {
+        return res.status(400).json({ error: "Jumlah pembayaran tidak valid" });
+      }
+
+      const request = await storage.createCustomPlanRequest({
+        merchantId,
+        companyName: merchant.companyName,
+        contactName: merchant.picName || merchant.companyName,
+        contactEmail: merchant.email,
+        contactPhone: merchant.phone || null,
+        currentPlanId: merchant.subscriptionPlanId || "free",
+        desiredConversations: conversations,
+        desiredAgents: 0,
+        desiredSupervisors: 0,
+        desiredSources: 0,
+        desiredSuggestedQuestions: 0,
+        integrationNeeds: null,
+        complianceNeeds: null,
+        additionalFeatures: null,
+        additionalNotes: null,
+        message: `[TOP-UP] +${conversations.toLocaleString("id-ID")} percakapan @ Rp ${overageRateIdr}/conv. Total Rp ${amountIdr.toLocaleString("id-ID")}.`,
+        budgetRangeMin: amountIdr,
+        budgetRangeMax: amountIdr,
+        expectedTimeline: "immediate",
+      } as any);
+
+      res.json({ ok: true, requestId: request.id, conversations, amountIdr });
+    } catch (error: any) {
+      console.error("Error creating top-up request:", error);
+      res.status(500).json({ error: error.message || "Server error" });
+    }
+  });
+
+  // List merchant's top-up requests (filtered subset of custom_plan_requests).
+  app.get("/api/merchant/topup-requests", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const all = await storage.getCustomPlanRequestsByMerchant(merchantId);
+      const topups = all
+        .filter((r: any) => typeof r.message === "string" && r.message.startsWith("[TOP-UP]"))
+        .map((r: any) => ({
+          id: r.id,
+          status: r.status,
+          conversations: r.desiredConversations,
+          amountIdr: r.budgetRangeMin || 0,
+          createdAt: r.createdAt,
+        }));
+      res.json(topups);
+    } catch (error) {
+      console.error("Error fetching top-up requests:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // Get merchant's custom plan requests
   app.get("/api/merchant/custom-plan-requests", requireMerchant, async (req, res) => {
     try {

@@ -108,6 +108,7 @@ interface LandingPageSettings {
 }
 import { useTheme } from "@/components/theme-provider";
 import { subscriptionPlans } from "@shared/schema";
+import { formatPriceIdr, planDisplayName } from "@/lib/pricing";
 
 function useParallaxScroll() {
   useEffect(() => {
@@ -1995,6 +1996,8 @@ function PricingPreview() {
   const { data: dbPlans = [] } = useQuery<any[]>({
     queryKey: ["/api/subscription-plans"],
   });
+
+  const [previewCurrency, setPreviewCurrency] = useState<"IDR" | "USD">("IDR");
   
   const trialDays = (platformSettings as any)?.trial_days ? parseInt((platformSettings as any).trial_days) : 14;
   const allPlanKeys = ["free", "starter", "pro", "enterprise", "custom"] as const;
@@ -2004,10 +2007,10 @@ function PricingPreview() {
   const getPrice = (planKey: string) => {
     const dbPlan = getDbPlan(planKey);
     const basePlan = subscriptionPlans[planKey as keyof typeof subscriptionPlans];
-    const price = dbPlan?.monthlyPrice ?? basePlan.monthlyPrice;
-    if (price === -1) return "Contact";
-    if (price === 0) return "$0";
-    return `$${price}`;
+    const priceUsd = dbPlan?.monthlyPrice ?? basePlan.monthlyPrice;
+    if (priceUsd === -1) return "Contact";
+    const idr = (dbPlan?.monthlyPriceIdr as number | undefined) ?? (basePlan as any).monthlyPriceIdr ?? (priceUsd > 0 ? priceUsd * 17500 : 0);
+    return formatPriceIdr(idr, previewCurrency);
   };
 
   const getFeatures = (planKey: string) => {
@@ -2018,14 +2021,14 @@ function PricingPreview() {
 
   const getPlanName = (planKey: string) => {
     const dbPlan = getDbPlan(planKey);
-    return dbPlan?.name ?? subscriptionPlans[planKey as keyof typeof subscriptionPlans].name;
+    return dbPlan?.name ?? planDisplayName(planKey, subscriptionPlans[planKey as keyof typeof subscriptionPlans].name);
   };
 
   const isNonFreePrice = (planKey: string) => {
     const dbPlan = getDbPlan(planKey);
     const basePlan = subscriptionPlans[planKey as keyof typeof subscriptionPlans];
     const price = dbPlan?.monthlyPrice ?? basePlan.monthlyPrice;
-    return price !== -1;
+    return price !== -1 && price !== 0;
   };
 
   const getCta = (planId: string) => {

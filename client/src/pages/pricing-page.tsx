@@ -41,21 +41,10 @@ interface ActivePromotion {
   bannerImageUrl?: string | null;
 }
 
-type Currency = "IDR" | "USD";
+import { formatPriceIdr, planDisplayName, type Currency } from "@/lib/pricing";
 
-// Single source of truth: IDR is canonical, USD is derived via kurs.
-const KURS_IDR_PER_USD = 17500;
-
-const formatPrice = (_priceUsd: number, priceIdr: number, currency: Currency): string => {
-  if (currency === "IDR") {
-    if (priceIdr === 0) return "Rp 0";
-    return `Rp ${priceIdr.toLocaleString("id-ID")}`;
-  }
-  if (priceIdr === 0) return "$0";
-  const usd = priceIdr / KURS_IDR_PER_USD;
-  // Show whole dollars when >=10, else 2 decimals.
-  return usd >= 10 ? `$${Math.round(usd).toLocaleString("en-US")}` : `$${usd.toFixed(2)}`;
-};
+const formatPrice = (_priceUsd: number, priceIdr: number, currency: Currency): string =>
+  formatPriceIdr(priceIdr, currency);
 
 export default function PricingPage() {
   const [isYearly, setIsYearly] = useState(false);
@@ -132,9 +121,9 @@ export default function PricingPage() {
     return 0;
   };
 
-  const getDbPlanName = (planId: string, fallback: string) => {
+  const getDbPlanName = (planId: string, fallback?: string) => {
     const dbPlan = getDbPlan(planId);
-    return (dbPlan?.name as string) || fallback;
+    return (dbPlan?.name as string) || planDisplayName(planId, fallback);
   };
 
   // Helper to format limit values
@@ -208,7 +197,7 @@ export default function PricingPage() {
     },
     {
       planId: "pro",
-      name: getDbPlanName("pro", "Growth"),
+      name: getDbPlanName("pro", "Pro"),
       description: "Sweet spot untuk bisnis menengah — paling laris.",
       monthlyPrice: getDbPlanPrice('pro', 'monthly') ?? 57,
       yearlyPrice: getDbPlanPrice('pro', 'annual') ?? 43,
@@ -596,7 +585,7 @@ export default function PricingPage() {
                   <th className="text-left py-4 px-4 font-semibold">Fitur</th>
                   <th className="text-center py-4 px-4 font-semibold">{getDbPlanName("free", "Free")}</th>
                   <th className="text-center py-4 px-4 font-semibold">{getDbPlanName("starter", "Starter")}</th>
-                  <th className="text-center py-4 px-4 font-semibold bg-purple-50 dark:bg-purple-950/20">{getDbPlanName("pro", "Growth")}</th>
+                  <th className="text-center py-4 px-4 font-semibold bg-purple-50 dark:bg-purple-950/20">{getDbPlanName("pro", "Pro")}</th>
                   <th className="text-center py-4 px-4 font-semibold">{getDbPlanName("enterprise", "Business")}</th>
                   <th className="text-center py-4 px-4 font-semibold">{getDbPlanName("custom", "Enterprise")}</th>
                 </tr>
