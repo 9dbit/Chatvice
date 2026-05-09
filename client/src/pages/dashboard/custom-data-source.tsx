@@ -79,6 +79,7 @@ export default function CustomDataSourcePage() {
   const [showKeyDialog, setShowKeyDialog] = useState(false);
   const [newPlainKey, setNewPlainKey] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState<boolean | null>(null);
+  const [wizardDialogOpen, setWizardDialogOpen] = useState(false);
   const [intentDialogOpen, setIntentDialogOpen] = useState(false);
   const [editingIntent, setEditingIntent] = useState<Partial<CustomDataIntent> | null>(null);
   const [testResult, setTestResult] = useState<{ ok: boolean; status: number; latencyMs: number; sample?: string; error?: string } | null>(null);
@@ -252,8 +253,38 @@ export default function CustomDataSourcePage() {
               <FileText className="w-4 h-4 mr-1" /> Spec API
             </a>
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setWizardDialogOpen(true)}
+            data-testid="button-open-wizard"
+          >
+            <Wand2 className="w-4 h-4 mr-1" /> Setup wizard
+          </Button>
         </div>
       </div>
+
+      <Dialog open={wizardDialogOpen} onOpenChange={setWizardDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Setup wizard</DialogTitle>
+            <DialogDescription>Konfigurasi ulang panel API dengan panduan langkah demi langkah.</DialogDescription>
+          </DialogHeader>
+          {wizardDialogOpen && (
+            <ConnectWizard
+              existingSource={source || null}
+              existingIntentKeys={intents.map(i => i.intentKey)}
+              inDialog
+              onApiKey={(key) => { setNewPlainKey(key); setShowKeyDialog(true); }}
+              onFinish={() => {
+                setWizardDialogOpen(false);
+                queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-source"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-intents"] });
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Tabs defaultValue="settings">
         <TabsList>
@@ -943,17 +974,31 @@ function WizardTour({
   );
 }
 
-export function ConnectWizard({ onApiKey, onFinish }: { onApiKey: (key: string) => void; onFinish: () => void }) {
+export function ConnectWizard({
+  onApiKey,
+  onFinish,
+  existingSource = null,
+  existingIntentKeys = [],
+  inDialog = false,
+}: {
+  onApiKey: (key: string) => void;
+  onFinish: () => void;
+  existingSource?: CustomDataSource | null;
+  existingIntentKeys?: string[];
+  inDialog?: boolean;
+}) {
   const { toast } = useToast();
+  const isRerun = !!existingSource;
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [presetId, setPresetId] = useState<string>("");
-  const [name, setName] = useState("Panel API");
-  const [baseUrl, setBaseUrl] = useState("");
-  const [created, setCreated] = useState(false);
+  const [name, setName] = useState(existingSource?.name || "Panel API");
+  const [baseUrl, setBaseUrl] = useState(existingSource?.baseUrl || "");
+  const [created, setCreated] = useState(isRerun);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ ok: boolean; status: number; latencyMs: number; sample?: string; error?: string } | null>(null);
   const [scaffolded, setScaffolded] = useState<Set<string>>(new Set());
   const [tourActive, setTourActive] = useState<boolean>(() => {
+    if (existingSource) return false;
     try {
       return localStorage.getItem(tourStorageKey()) !== "1";
     } catch {
@@ -974,12 +1019,14 @@ export function ConnectWizard({ onApiKey, onFinish }: { onApiKey: (key: string) 
     mutationFn: async () => {
       // Step 4 will scaffold intents one-by-one, so we save with preset:"none"
       // to skip the legacy auto-seed path.
-      const res = await apiRequest("PUT", "/api/merchant/custom-data-source", {
+      const body: Record<string, unknown> = {
         name: name || "Panel API",
         baseUrl,
-        isEnabled: true,
         preset: "none",
-      });
+      };
+      // Only force-enable on first creation; preserve toggle state on re-run.
+      if (!isRerun) body.isEnabled = true;
+      const res = await apiRequest("PUT", "/api/merchant/custom-data-source", body);
       return res.json();
     },
     onSuccess: (data: any) => {
@@ -1033,14 +1080,19 @@ export function ConnectWizard({ onApiKey, onFinish }: { onApiKey: (key: string) 
       toast({ title: "Base URL wajib diisi", variant: "destructive" });
       return;
     }
-    if (!created) {
+    // On re-run, always save so edits to name/baseUrl persist before the test.
+    const dirty = isRerun && (
+      (existingSource?.baseUrl || "") !== baseUrl ||
+      (existingSource?.name || "") !== name
+    );
+    if (!created || dirty) {
       await saveSource.mutateAsync();
     }
     testConn.mutate();
   };
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6" data-testid="wizard-connect-panel">
+    <div className={inDialog ? "space-y-6" : "p-6 max-w-3xl mx-auto space-y-6"} data-testid="wizard-connect-panel">
       {tourActive && (
         <WizardTour
           step={step}
@@ -1222,7 +1274,10 @@ export function ConnectWizard({ onApiKey, onFinish }: { onApiKey: (key: string) 
             </div>
           )}
 
-          {step === 4 && (
+          {step === 4 && (() => {
+            const existingKeySet = new Set(existingIntentKeys);
+            const remaining = activePreset?.intents.filter(it => !existingKeySet.has(it.intentKey)) || [];
+            return (
             <div className="space-y-3" data-testid="wizard-step-4">
               <div className="p-3 rounded-md border bg-muted/30 flex items-start justify-between gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">
@@ -1241,13 +1296,17 @@ export function ConnectWizard({ onApiKey, onFinish }: { onApiKey: (key: string) 
               </div>
               {!activePreset || activePreset.intents.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Tidak ada contoh intent untuk preset ini.</p>
+              ) : remaining.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Semua contoh intent dari preset ini sudah ditambahkan. Anda bisa mengelolanya di tab Intent Lookup.
+                </p>
               ) : (
                 <>
                   <p className="text-sm text-muted-foreground">
                     Klik <strong>Tambah</strong> pada intent yang ingin Anda gunakan. Anda bisa mengubahnya kapan saja di tab Intent Lookup.
                   </p>
                   <div className="space-y-2">
-                    {activePreset.intents.map((it) => {
+                    {remaining.map((it) => {
                       const done = scaffolded.has(it.intentKey);
                       return (
                         <div
@@ -1279,7 +1338,8 @@ export function ConnectWizard({ onApiKey, onFinish }: { onApiKey: (key: string) 
                 </>
               )}
             </div>
-          )}
+            );
+          })()}
         </CardContent>
       </Card>
 
@@ -1294,10 +1354,23 @@ export function ConnectWizard({ onApiKey, onFinish }: { onApiKey: (key: string) 
         </Button>
         {step < 4 ? (
           <Button
-            onClick={() => setStep((s) => (Math.min(4, s + 1) as 1 | 2 | 3 | 4))}
+            onClick={async () => {
+              // On re-run, persist edits to name/baseUrl when leaving Step 2
+              // even if the user never clicked "Tes ulang koneksi".
+              if (step === 2 && isRerun) {
+                const dirty =
+                  (existingSource?.baseUrl || "") !== baseUrl ||
+                  (existingSource?.name || "") !== name;
+                if (dirty && baseUrl.trim()) {
+                  try { await saveSource.mutateAsync(); } catch { return; }
+                }
+              }
+              setStep((s) => (Math.min(4, s + 1) as 1 | 2 | 3 | 4));
+            }}
             disabled={
               (step === 1 && !presetId) ||
-              (step === 2 && !created)
+              (step === 2 && !created) ||
+              saveSource.isPending
             }
             data-testid="wizard-button-next"
           >
