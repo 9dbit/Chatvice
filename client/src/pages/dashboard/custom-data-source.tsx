@@ -872,7 +872,8 @@ const findTourEl = (selectors: string[]): HTMLElement | null => {
 };
 
 function HealthBadge({ health, onRefresh, refreshing }: { health: HealthSummary; onRefresh: () => void; refreshing: boolean }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const hbDateLocale = language === "id" ? "id-ID" : "en-US";
   const { status, errorRatePct, totalPings, lastCheckedAt, lastLatencyMs, lastError, monitorEnabled } = health;
   const palette: Record<string, { dot: string; text: string; bg: string; label: string }> = {
     up:       { dot: "bg-emerald-500", text: "text-emerald-700 dark:text-emerald-300", bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900", label: t("dashboard.customDataSource.health.healthy") },
@@ -887,7 +888,7 @@ function HealthBadge({ health, onRefresh, refreshing }: { health: HealthSummary;
         if (ms < 60_000) return t("dashboard.customDataSource.health.justNow");
         if (ms < 3600_000) return t("dashboard.customDataSource.health.minutesAgo").replace("{n}", String(Math.round(ms / 60_000)));
         if (ms < 86400_000) return t("dashboard.customDataSource.health.hoursAgo").replace("{n}", String(Math.round(ms / 3600_000)));
-        return new Date(lastCheckedAt).toLocaleString();
+        return new Date(lastCheckedAt).toLocaleString(hbDateLocale);
       })()
     : "—";
   return (
