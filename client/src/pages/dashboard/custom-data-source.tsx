@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Database, Key, RefreshCw, Plug, Plus, Trash2, Pencil, Download, FileText, CheckCircle2, AlertCircle, Loader2, Copy, ArrowLeft, ArrowRight, Sparkles, Wand2, ClipboardList, Activity, HeartPulse } from "lucide-react";
 import { Link } from "wouter";
+import { useLanguage } from "@/hooks/use-language";
 
 interface CustomDataSource {
   id: string;
@@ -92,6 +93,7 @@ const blankIntent = (): Partial<CustomDataIntent> => ({
 
 export default function CustomDataSourcePage() {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [showKeyDialog, setShowKeyDialog] = useState(false);
   const [newPlainKey, setNewPlainKey] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState<boolean | null>(null);
@@ -144,7 +146,7 @@ export default function CustomDataSourcePage() {
       return res.json() as Promise<CustomDataSource & { apiKey?: string }>;
     },
     onSuccess: (data) => {
-      toast({ title: "Tersimpan", description: "Konfigurasi panel API berhasil disimpan." });
+      toast({ title: t("dashboard.customDataSource.settings.saved"), description: t("dashboard.customDataSource.settings.savedDesc") });
       setForm({});
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-source"] });
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-intents"] });
@@ -154,7 +156,7 @@ export default function CustomDataSourcePage() {
         setShowKeyDialog(true);
       }
     },
-    onError: () => toast({ title: "Gagal menyimpan", variant: "destructive" }),
+    onError: () => toast({ title: t("dashboard.customDataSource.wizard.saveFailed"), variant: "destructive" }),
   });
 
   const rotateKey = useMutation({
@@ -167,7 +169,7 @@ export default function CustomDataSourcePage() {
       setShowKeyDialog(true);
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-source"] });
     },
-    onError: () => toast({ title: "Gagal generate API key", variant: "destructive" }),
+    onError: () => toast({ title: t("dashboard.customDataSource.apiKey.generateFailed"), variant: "destructive" }),
   });
 
   const testConn = useMutation({
@@ -178,7 +180,7 @@ export default function CustomDataSourcePage() {
     onSuccess: (data) => {
       setTestResult(data);
       toast({
-        title: data.ok ? "Koneksi berhasil" : "Koneksi gagal",
+        title: data.ok ? t("dashboard.customDataSource.wizard.connSuccess") : t("dashboard.customDataSource.wizard.connFailed"),
         description: data.ok ? `Status ${data.status} • ${data.latencyMs}ms` : (data.error || `Status ${data.status}`),
         variant: data.ok ? "default" : "destructive",
       });
@@ -196,12 +198,12 @@ export default function CustomDataSourcePage() {
       }
     },
     onSuccess: () => {
-      toast({ title: "Intent tersimpan" });
+      toast({ title: t("dashboard.customDataSource.intent.saved") });
       setIntentDialogOpen(false);
       setEditingIntent(null);
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-intents"] });
     },
-    onError: (err: any) => toast({ title: "Gagal", description: err?.message, variant: "destructive" }),
+    onError: (err: any) => toast({ title: t("dashboard.customDataSource.wizard.failed"), description: err?.message, variant: "destructive" }),
   });
 
   const deleteIntent = useMutation({
@@ -209,14 +211,14 @@ export default function CustomDataSourcePage() {
       await apiRequest("DELETE", `/api/merchant/custom-data-intents/${id}`);
     },
     onSuccess: () => {
-      toast({ title: "Intent dihapus" });
+      toast({ title: t("dashboard.customDataSource.intent.deleted") });
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-intents"] });
     },
   });
 
   const copy = (val: string) => {
     navigator.clipboard.writeText(val);
-    toast({ title: "Tersalin" });
+    toast({ title: t("dashboard.customDataSource.apiKey.copied") });
   };
 
   const openNewIntent = () => {
@@ -262,10 +264,10 @@ export default function CustomDataSourcePage() {
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
             <Database className="w-6 h-6 text-primary" />
-            Custom Data Source
+            {t("dashboard.customDataSource.title")}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Hubungkan AI agent ke panel backend Anda agar bisa cek data realtime (status deposit, withdraw, turnover, IP login, dll).
+            {t("dashboard.customDataSource.headerSubtitle")}
           </p>
           {source && health && (
             <HealthBadge
@@ -278,7 +280,7 @@ export default function CustomDataSourcePage() {
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" asChild>
             <Link href="/dashboard/custom-data-source/integration-checklist" data-testid="link-integration-checklist">
-              <ClipboardList className="w-4 h-4 mr-1" /> Checklist Integrasi
+              <ClipboardList className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.integrationChecklist")}
             </Link>
           </Button>
           <Button variant="outline" size="sm" asChild>
@@ -288,7 +290,7 @@ export default function CustomDataSourcePage() {
           </Button>
           <Button variant="outline" size="sm" asChild>
             <a href="/api/merchant/custom-data-source/docs.html" target="_blank" rel="noreferrer" data-testid="link-view-docs">
-              <FileText className="w-4 h-4 mr-1" /> Spec API
+              <FileText className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.specApi")}
             </a>
           </Button>
           <Button
@@ -297,7 +299,7 @@ export default function CustomDataSourcePage() {
             onClick={() => setWizardDialogOpen(true)}
             data-testid="button-open-wizard"
           >
-            <Wand2 className="w-4 h-4 mr-1" /> Setup wizard
+            <Wand2 className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.setupWizard")}
           </Button>
         </div>
       </div>
@@ -305,8 +307,8 @@ export default function CustomDataSourcePage() {
       <Dialog open={wizardDialogOpen} onOpenChange={setWizardDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="sr-only">
-            <DialogTitle>Setup wizard</DialogTitle>
-            <DialogDescription>Konfigurasi ulang panel API dengan panduan langkah demi langkah.</DialogDescription>
+            <DialogTitle>{t("dashboard.customDataSource.setupWizard")}</DialogTitle>
+            <DialogDescription>{t("dashboard.customDataSource.setupWizardDesc")}</DialogDescription>
           </DialogHeader>
           {wizardDialogOpen && (
             <ConnectWizard
@@ -326,22 +328,22 @@ export default function CustomDataSourcePage() {
 
       <Tabs defaultValue="settings">
         <TabsList>
-          <TabsTrigger value="settings" data-testid="tab-settings">Pengaturan</TabsTrigger>
-          <TabsTrigger value="intents" data-testid="tab-intents">Intent Lookup</TabsTrigger>
-          <TabsTrigger value="audit" data-testid="tab-audit">Riwayat Panggilan</TabsTrigger>
+          <TabsTrigger value="settings" data-testid="tab-settings">{t("dashboard.customDataSource.tabs.settings")}</TabsTrigger>
+          <TabsTrigger value="intents" data-testid="tab-intents">{t("dashboard.customDataSource.tabs.intents")}</TabsTrigger>
+          <TabsTrigger value="audit" data-testid="tab-audit">{t("dashboard.customDataSource.tabs.audit")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="settings" className="space-y-4 mt-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Plug className="w-5 h-5" /> Koneksi Panel API</CardTitle>
-              <CardDescription>Endpoint, autentikasi, dan kontrol cache/rate limit.</CardDescription>
+              <CardTitle className="flex items-center gap-2"><Plug className="w-5 h-5" /> {t("dashboard.customDataSource.connectionTitle")}</CardTitle>
+              <CardDescription>{t("dashboard.customDataSource.connectionDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between gap-3 p-3 rounded-md border">
                 <div>
-                  <Label>Aktifkan koneksi</Label>
-                  <p className="text-xs text-muted-foreground">AI baru akan memanggil panel API saat opsi ini aktif.</p>
+                  <Label>{t("dashboard.customDataSource.settings.enable")}</Label>
+                  <p className="text-xs text-muted-foreground">{t("dashboard.customDataSource.settings.enableHint")}</p>
                 </div>
                 <Switch
                   checked={!!merged.isEnabled}
@@ -352,9 +354,9 @@ export default function CustomDataSourcePage() {
 
               <div className="flex items-center justify-between gap-3 p-3 rounded-md border">
                 <div>
-                  <Label className="flex items-center gap-2"><HeartPulse className="w-4 h-4" /> Monitor kesehatan otomatis</Label>
+                  <Label className="flex items-center gap-2"><HeartPulse className="w-4 h-4" /> {t("dashboard.customDataSource.settings.monitor")}</Label>
                   <p className="text-xs text-muted-foreground">
-                    Chatvice ping endpoint health-check setiap 60 detik dan kirim alert (email + Telegram) saat error rate {'>'}50% dalam 5 menit terakhir.
+                    {t("dashboard.customDataSource.settings.monitorHint")}
                   </p>
                 </div>
                 <Switch
@@ -366,7 +368,7 @@ export default function CustomDataSourcePage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Nama</Label>
+                  <Label>{t("dashboard.customDataSource.settings.name")}</Label>
                   <Input
                     value={merged.name || ""}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -375,7 +377,7 @@ export default function CustomDataSourcePage() {
                   />
                 </div>
                 <div>
-                  <Label>Base URL</Label>
+                  <Label>{t("dashboard.customDataSource.settings.baseUrl")}</Label>
                   <Input
                     value={merged.baseUrl || ""}
                     onChange={(e) => setForm({ ...form, baseUrl: e.target.value })}
@@ -384,7 +386,7 @@ export default function CustomDataSourcePage() {
                   />
                 </div>
                 <div>
-                  <Label>Header autentikasi</Label>
+                  <Label>{t("dashboard.customDataSource.settings.authHeader")}</Label>
                   <Input
                     value={merged.headerAuthName || "X-API-Key"}
                     onChange={(e) => setForm({ ...form, headerAuthName: e.target.value })}
@@ -393,7 +395,7 @@ export default function CustomDataSourcePage() {
                   />
                 </div>
                 <div>
-                  <Label>Path health-check</Label>
+                  <Label>{t("dashboard.customDataSource.settings.healthPath")}</Label>
                   <Input
                     value={merged.healthPath || "/health"}
                     onChange={(e) => setForm({ ...form, healthPath: e.target.value })}
@@ -402,7 +404,7 @@ export default function CustomDataSourcePage() {
                   />
                 </div>
                 <div>
-                  <Label>Cache TTL (detik)</Label>
+                  <Label>{t("dashboard.customDataSource.settings.cacheTtl")}</Label>
                   <Input
                     type="number"
                     min={0}
@@ -413,7 +415,7 @@ export default function CustomDataSourcePage() {
                   />
                 </div>
                 <div>
-                  <Label>Rate limit (per menit)</Label>
+                  <Label>{t("dashboard.customDataSource.settings.rateLimit")}</Label>
                   <Input
                     type="number"
                     min={1}
@@ -428,11 +430,11 @@ export default function CustomDataSourcePage() {
               <div className="flex items-center gap-2 flex-wrap">
                 <Button onClick={() => saveSource.mutate(form)} disabled={saveSource.isPending} data-testid="button-save-source">
                   {saveSource.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
-                  Simpan
+                  {t("dashboard.customDataSource.settings.save")}
                 </Button>
                 <Button variant="outline" onClick={() => testConn.mutate()} disabled={testConn.isPending || !source} data-testid="button-test-connection">
                   {testConn.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
-                  Tes koneksi
+                  {t("dashboard.customDataSource.settings.test")}
                 </Button>
               </div>
               {testResult && (
@@ -442,7 +444,7 @@ export default function CustomDataSourcePage() {
                 >
                   <div className="flex items-center gap-2 font-medium">
                     {testResult.ok ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-amber-600" />}
-                    {testResult.ok ? "Sukses" : "Gagal"} • Status {testResult.status} • {testResult.latencyMs}ms
+                    {testResult.ok ? t("dashboard.customDataSource.wizard.success") : t("dashboard.customDataSource.wizard.failed")} • Status {testResult.status} • {testResult.latencyMs}ms
                   </div>
                   {testResult.sample && <pre className="text-xs mt-2 overflow-auto max-h-32">{testResult.sample}</pre>}
                   {testResult.error && <p className="text-xs mt-2 text-amber-700 dark:text-amber-300">{testResult.error}</p>}
@@ -453,19 +455,19 @@ export default function CustomDataSourcePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Key className="w-5 h-5" /> API Key</CardTitle>
-              <CardDescription>Chatvice mengirim key ini di header autentikasi setiap request. Simpan plaintext di server panel Anda.</CardDescription>
+              <CardTitle className="flex items-center gap-2"><Key className="w-5 h-5" /> {t("dashboard.customDataSource.apiKey.title")}</CardTitle>
+              <CardDescription>{t("dashboard.customDataSource.apiKey.cardDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center gap-2">
-                <Input value={source?.apiKeyHint ? `cv_live_…${source.apiKeyHint.replace(/^…/, "")}` : "Belum di-generate"} readOnly className="font-mono" data-testid="text-api-key-hint" />
+                <Input value={source?.apiKeyHint ? `cv_live_…${source.apiKeyHint.replace(/^…/, "")}` : t("dashboard.customDataSource.apiKey.notGenerated")} readOnly className="font-mono" data-testid="text-api-key-hint" />
                 <Button variant="outline" onClick={() => rotateKey.mutate()} disabled={rotateKey.isPending} data-testid="button-rotate-key">
                   {rotateKey.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}
-                  Generate / Rotate
+                  {t("dashboard.customDataSource.apiKey.generateOrRotate")}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Key plaintext hanya tampil <strong>satu kali</strong> setelah di-generate. Setelah itu Anda hanya bisa rotate ulang.
+                {t("dashboard.customDataSource.apiKey.plainHint")}
               </p>
             </CardContent>
           </Card>
@@ -474,17 +476,17 @@ export default function CustomDataSourcePage() {
         <TabsContent value="intents" className="space-y-4 mt-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-medium">Intent yang dideteksi AI</h2>
-              <p className="text-sm text-muted-foreground">Tiap intent memetakan kata kunci pertanyaan customer ke endpoint panel Anda.</p>
+              <h2 className="text-lg font-medium">{t("dashboard.customDataSource.intentsHeading")}</h2>
+              <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.intentsHeadingDesc")}</p>
             </div>
             <Button onClick={openNewIntent} data-testid="button-add-intent" disabled={!source}>
-              <Plus className="w-4 h-4 mr-1" /> Tambah Intent
+              <Plus className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.addIntent")}
             </Button>
           </div>
           {!source && (
             <Card>
               <CardContent className="p-6 text-sm text-muted-foreground">
-                Simpan koneksi panel API terlebih dahulu pada tab Pengaturan.
+                {t("dashboard.customDataSource.saveFirst")}
               </CardContent>
             </Card>
           )}
@@ -496,14 +498,14 @@ export default function CustomDataSourcePage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="outline" className="font-mono">{i.intentKey}</Badge>
                       <span className="font-medium">{i.name}</span>
-                      {!i.isEnabled && <Badge variant="secondary">Nonaktif</Badge>}
+                      {!i.isEnabled && <Badge variant="secondary">{t("dashboard.customDataSource.intent.inactive")}</Badge>}
                     </div>
                     {i.description && <p className="text-sm text-muted-foreground mt-1">{i.description}</p>}
                     <p className="text-xs text-muted-foreground mt-2">
                       <span className="font-mono">{i.httpMethod} {i.endpointPath}</span>
                     </p>
                     {i.triggerKeywords && (
-                      <p className="text-xs mt-1"><span className="text-muted-foreground">Triggers:</span> {i.triggerKeywords}</p>
+                      <p className="text-xs mt-1"><span className="text-muted-foreground">{t("dashboard.customDataSource.triggers")}:</span> {i.triggerKeywords}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-1">
@@ -515,7 +517,7 @@ export default function CustomDataSourcePage() {
                     <Button size="icon" variant="ghost" onClick={() => openEditIntent(i)} data-testid={`button-edit-intent-${i.id}`}>
                       <Pencil className="w-4 h-4" />
                     </Button>
-                    <Button size="icon" variant="ghost" onClick={() => { if (confirm("Hapus intent ini?")) deleteIntent.mutate(i.id); }} data-testid={`button-delete-intent-${i.id}`}>
+                    <Button size="icon" variant="ghost" onClick={() => { if (confirm(t("dashboard.customDataSource.intent.deleteConfirmShort"))) deleteIntent.mutate(i.id); }} data-testid={`button-delete-intent-${i.id}`}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
@@ -528,8 +530,8 @@ export default function CustomDataSourcePage() {
         <TabsContent value="audit" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>Riwayat Panggilan API</CardTitle>
-              <CardDescription>50 panggilan terakhir. Field input customer otomatis di-mask demi keamanan.</CardDescription>
+              <CardTitle>{t("dashboard.customDataSource.auditTitle")}</CardTitle>
+              <CardDescription>{t("dashboard.customDataSource.auditDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="overflow-auto space-y-3">
               <div className="flex flex-wrap items-center gap-2">
@@ -539,7 +541,7 @@ export default function CustomDataSourcePage() {
                   className="text-xs border rounded-md px-2 py-1 bg-background"
                   data-testid="select-audit-intent"
                 >
-                  <option value="all">Semua Intent</option>
+                  <option value="all">{t("dashboard.customDataSource.audit.filterIntent")}</option>
                   {Array.from(new Set(audit.map(a => a.intentKey))).map(k => (
                     <option key={k} value={k}>{k}</option>
                   ))}
@@ -550,26 +552,26 @@ export default function CustomDataSourcePage() {
                   className="text-xs border rounded-md px-2 py-1 bg-background"
                   data-testid="select-audit-status"
                 >
-                  <option value="all">Semua Status</option>
-                  <option value="success">Sukses (2xx)</option>
-                  <option value="error">Gagal</option>
+                  <option value="all">{t("dashboard.customDataSource.audit.filterStatus")}</option>
+                  <option value="success">{t("dashboard.customDataSource.audit.statusOk")}</option>
+                  <option value="error">{t("dashboard.customDataSource.audit.statusFail")}</option>
                 </select>
-                <span className="text-xs text-muted-foreground">{filteredAudit.length} dari {audit.length}</span>
+                <span className="text-xs text-muted-foreground">{filteredAudit.length} {t("dashboard.customDataSource.ofN")} {audit.length}</span>
               </div>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Waktu</TableHead>
-                    <TableHead>Intent</TableHead>
-                    <TableHead>Endpoint</TableHead>
-                    <TableHead>Field (masked)</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Latency</TableHead>
+                    <TableHead>{t("dashboard.customDataSource.audit.time")}</TableHead>
+                    <TableHead>{t("dashboard.customDataSource.audit.intent")}</TableHead>
+                    <TableHead>{t("dashboard.customDataSource.audit.endpoint")}</TableHead>
+                    <TableHead>{t("dashboard.customDataSource.audit.fields")}</TableHead>
+                    <TableHead>{t("dashboard.customDataSource.audit.status")}</TableHead>
+                    <TableHead>{t("dashboard.customDataSource.audit.latency")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredAudit.length === 0 && (
-                    <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">Belum ada panggilan.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">{t("dashboard.customDataSource.audit.noLogs")}</TableCell></TableRow>
                   )}
                   {filteredAudit.map((a) => {
                     const masked = a.maskedFields
@@ -603,8 +605,8 @@ export default function CustomDataSourcePage() {
       <Dialog open={showKeyDialog} onOpenChange={setShowKeyDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>API Key Baru</DialogTitle>
-            <DialogDescription>Salin sekarang — key ini tidak akan ditampilkan lagi setelah dialog ditutup.</DialogDescription>
+            <DialogTitle>{t("dashboard.customDataSource.apiKey.newDialogTitle")}</DialogTitle>
+            <DialogDescription>{t("dashboard.customDataSource.apiKey.newDialogDesc")}</DialogDescription>
           </DialogHeader>
           <div className="flex items-center gap-2">
             <Input value={newPlainKey || ""} readOnly className="font-mono" data-testid="text-new-api-key" />
@@ -614,7 +616,7 @@ export default function CustomDataSourcePage() {
           </div>
           <DialogFooter>
             <Button onClick={() => { setShowKeyDialog(false); setNewPlainKey(null); }} data-testid="button-close-key-dialog">
-              Saya sudah simpan
+              {t("dashboard.customDataSource.apiKey.iSaved")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -624,14 +626,14 @@ export default function CustomDataSourcePage() {
       <Dialog open={intentDialogOpen} onOpenChange={(v) => { setIntentDialogOpen(v); if (!v) setEditingIntent(null); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-auto">
           <DialogHeader>
-            <DialogTitle>{editingIntent?.id ? "Edit Intent" : "Intent Baru"}</DialogTitle>
-            <DialogDescription>Pemetaan dari pertanyaan customer ke endpoint panel Anda.</DialogDescription>
+            <DialogTitle>{editingIntent?.id ? t("dashboard.customDataSource.intent.edit") : t("dashboard.customDataSource.intent.create")}</DialogTitle>
+            <DialogDescription>{t("dashboard.customDataSource.intent.dialogDesc")}</DialogDescription>
           </DialogHeader>
           {editingIntent && (
             <div className="space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <Label>Intent Key</Label>
+                  <Label>{t("dashboard.customDataSource.intent.intentKey")}</Label>
                   <Input
                     value={editingIntent.intentKey || ""}
                     onChange={(e) => setEditingIntent({ ...editingIntent, intentKey: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_") })}
@@ -641,7 +643,7 @@ export default function CustomDataSourcePage() {
                   />
                 </div>
                 <div>
-                  <Label>Nama</Label>
+                  <Label>{t("dashboard.customDataSource.intent.name")}</Label>
                   <Input
                     value={editingIntent.name || ""}
                     onChange={(e) => setEditingIntent({ ...editingIntent, name: e.target.value })}
@@ -651,7 +653,7 @@ export default function CustomDataSourcePage() {
                 </div>
               </div>
               <div>
-                <Label>Deskripsi</Label>
+                <Label>{t("dashboard.customDataSource.intent.description")}</Label>
                 <Input
                   value={editingIntent.description || ""}
                   onChange={(e) => setEditingIntent({ ...editingIntent, description: e.target.value })}
@@ -660,7 +662,7 @@ export default function CustomDataSourcePage() {
                 />
               </div>
               <div>
-                <Label>Trigger Keywords (pisahkan koma)</Label>
+                <Label>{t("dashboard.customDataSource.intent.triggers")}</Label>
                 <Input
                   value={editingIntent.triggerKeywords || ""}
                   onChange={(e) => setEditingIntent({ ...editingIntent, triggerKeywords: e.target.value })}
@@ -670,7 +672,7 @@ export default function CustomDataSourcePage() {
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <Label>HTTP Method</Label>
+                  <Label>{t("dashboard.customDataSource.intent.method")}</Label>
                   <Select value={editingIntent.httpMethod || "GET"} onValueChange={(v) => setEditingIntent({ ...editingIntent, httpMethod: v })}>
                     <SelectTrigger data-testid="select-http-method"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -680,7 +682,7 @@ export default function CustomDataSourcePage() {
                   </Select>
                 </div>
                 <div className="col-span-2">
-                  <Label>Endpoint Path (gunakan {`{field}`} placeholder)</Label>
+                  <Label>{t("dashboard.customDataSource.intent.endpoint")}</Label>
                   <Input
                     value={editingIntent.endpointPath || ""}
                     onChange={(e) => setEditingIntent({ ...editingIntent, endpointPath: e.target.value })}
@@ -691,12 +693,12 @@ export default function CustomDataSourcePage() {
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <Label>Required Fields</Label>
+                  <Label>{t("dashboard.customDataSource.intent.requiredFields")}</Label>
                   <Button size="sm" variant="ghost" onClick={() => {
                     const cur: RequiredField[] = Array.isArray(editingIntent.requiredFields) ? editingIntent.requiredFields : [];
                     setEditingIntent({ ...editingIntent, requiredFields: [...cur, { key: "", label: "", required: true }] });
                   }} data-testid="button-add-field">
-                    <Plus className="w-3 h-3 mr-1" /> Tambah field
+                    <Plus className="w-3 h-3 mr-1" /> {t("dashboard.customDataSource.intent.addField")}
                   </Button>
                 </div>
                 <div className="space-y-2">
@@ -733,7 +735,7 @@ export default function CustomDataSourcePage() {
                           }}
                           data-testid={`switch-field-required-${idx}`}
                         />
-                        <span className="text-xs text-muted-foreground">wajib</span>
+                        <span className="text-xs text-muted-foreground">{t("dashboard.customDataSource.intent.required")}</span>
                       </div>
                       <Button size="icon" variant="ghost" onClick={() => {
                         const arr = [...(editingIntent.requiredFields || [])];
@@ -747,7 +749,7 @@ export default function CustomDataSourcePage() {
                 </div>
               </div>
               <div>
-                <Label>Template Jawaban (gunakan {`{key}`} atau {`{key.path}`} dari response JSON)</Label>
+                <Label>{t("dashboard.customDataSource.intent.responseTemplate")}</Label>
                 <Textarea
                   rows={4}
                   value={editingIntent.responseTemplate || ""}
@@ -757,7 +759,7 @@ export default function CustomDataSourcePage() {
                   data-testid="input-response-template"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Kosongkan untuk biarkan AI memformat jawaban dari raw JSON response.
+                  {t("dashboard.customDataSource.intent.responseTemplateEmptyHint")}
                 </p>
               </div>
               <div className="flex items-center gap-2 pt-2 border-t">
@@ -766,15 +768,15 @@ export default function CustomDataSourcePage() {
                   onCheckedChange={(v) => setEditingIntent({ ...editingIntent, isEnabled: v })}
                   data-testid="switch-intent-enabled"
                 />
-                <Label className="m-0">Aktif</Label>
+                <Label className="m-0">{t("dashboard.customDataSource.intent.active")}</Label>
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setIntentDialogOpen(false); setEditingIntent(null); }} data-testid="button-cancel-intent">Batal</Button>
+            <Button variant="outline" onClick={() => { setIntentDialogOpen(false); setEditingIntent(null); }} data-testid="button-cancel-intent">{t("dashboard.customDataSource.intent.cancel")}</Button>
             <Button onClick={() => editingIntent && saveIntent.mutate(editingIntent)} disabled={saveIntent.isPending} data-testid="button-save-intent">
               {saveIntent.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-              Simpan
+              {t("dashboard.customDataSource.intent.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -804,49 +806,49 @@ interface PresetDef {
   intents: PresetIntentDef[];
 }
 
-interface TourStage {
+interface TourStageDef {
   id: string;
   selectors: string[];
   wizardStep: 1 | 2 | 3 | 4;
-  title: string;
-  body: string;
+  titleKey: string;
+  bodyKey: string;
 }
 
-const TOUR_STAGES: TourStage[] = [
+const TOUR_STAGES: TourStageDef[] = [
   {
     id: "preset",
     selectors: ["wizard-step-1"],
     wizardStep: 1,
-    title: "Pilih jenis bisnis",
-    body: "Mulai dengan memilih preset yang paling cocok — kami akan menyiapkan contoh intent yang relevan dengan industri Anda.",
+    titleKey: "dashboard.customDataSource.tour.preset.title",
+    bodyKey: "dashboard.customDataSource.tour.preset.body",
   },
   {
     id: "baseUrl",
     selectors: ["wizard-input-base-url"],
     wizardStep: 2,
-    title: "Tempel base URL panel",
-    body: "Masukkan URL dasar API panel backend Anda di sini. Contoh: https://panel.example.com/api/v1.",
+    titleKey: "dashboard.customDataSource.tour.baseUrl.title",
+    bodyKey: "dashboard.customDataSource.tour.baseUrl.body",
   },
   {
     id: "test",
     selectors: ["wizard-test-result-ok", "wizard-test-result-fail"],
     wizardStep: 2,
-    title: "Lihat hasil tes koneksi",
-    body: "Setelah klik Simpan & Tes, hasilnya muncul di sini. Anda boleh lanjut meskipun tes belum sukses.",
+    titleKey: "dashboard.customDataSource.tour.test.title",
+    bodyKey: "dashboard.customDataSource.tour.test.body",
   },
   {
     id: "apiKey",
     selectors: ["wizard-text-api-key"],
     wizardStep: 3,
-    title: "Salin API key sekarang",
-    body: "API key ini hanya muncul satu kali. Tempel ke server panel Anda — Chatvice mengirimnya di header X-API-Key.",
+    titleKey: "dashboard.customDataSource.tour.apiKey.title",
+    bodyKey: "dashboard.customDataSource.tour.apiKey.body",
   },
   {
     id: "intents",
     selectors: ["wizard-step-4"],
     wizardStep: 4,
-    title: "Tambah contoh intent",
-    body: "Klik Tambah pada intent yang ingin diaktifkan. Anda dapat mengubahnya kapan saja di tab Intent Lookup.",
+    titleKey: "dashboard.customDataSource.tour.intents.title",
+    bodyKey: "dashboard.customDataSource.tour.intents.body",
   },
 ];
 
@@ -868,20 +870,21 @@ const findTourEl = (selectors: string[]): HTMLElement | null => {
 };
 
 function HealthBadge({ health, onRefresh, refreshing }: { health: HealthSummary; onRefresh: () => void; refreshing: boolean }) {
+  const { t } = useLanguage();
   const { status, errorRatePct, totalPings, lastCheckedAt, lastLatencyMs, lastError, monitorEnabled } = health;
   const palette: Record<string, { dot: string; text: string; bg: string; label: string }> = {
-    up:       { dot: "bg-emerald-500", text: "text-emerald-700 dark:text-emerald-300", bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900", label: "Sehat" },
-    degraded: { dot: "bg-amber-500",   text: "text-amber-700 dark:text-amber-300",     bg: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900",     label: "Lambat / sebagian gagal" },
-    down:     { dot: "bg-red-500",     text: "text-red-700 dark:text-red-300",         bg: "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900",             label: "Bermasalah" },
-    unknown:  { dot: "bg-zinc-400",    text: "text-zinc-600 dark:text-zinc-300",       bg: "bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800",         label: "Belum ada data" },
+    up:       { dot: "bg-emerald-500", text: "text-emerald-700 dark:text-emerald-300", bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900", label: t("dashboard.customDataSource.health.healthy") },
+    degraded: { dot: "bg-amber-500",   text: "text-amber-700 dark:text-amber-300",     bg: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900",     label: t("dashboard.customDataSource.health.degraded") },
+    down:     { dot: "bg-red-500",     text: "text-red-700 dark:text-red-300",         bg: "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900",             label: t("dashboard.customDataSource.health.unhealthy") },
+    unknown:  { dot: "bg-zinc-400",    text: "text-zinc-600 dark:text-zinc-300",       bg: "bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800",         label: t("dashboard.customDataSource.health.unknown") },
   };
   const p = palette[status] || palette.unknown;
   const lastSeen = lastCheckedAt
     ? (() => {
         const ms = Date.now() - new Date(lastCheckedAt).getTime();
-        if (ms < 60_000) return "baru saja";
-        if (ms < 3600_000) return `${Math.round(ms / 60_000)} menit lalu`;
-        if (ms < 86400_000) return `${Math.round(ms / 3600_000)} jam lalu`;
+        if (ms < 60_000) return t("dashboard.customDataSource.health.justNow");
+        if (ms < 3600_000) return t("dashboard.customDataSource.health.minutesAgo").replace("{n}", String(Math.round(ms / 60_000)));
+        if (ms < 86400_000) return t("dashboard.customDataSource.health.hoursAgo").replace("{n}", String(Math.round(ms / 3600_000)));
         return new Date(lastCheckedAt).toLocaleString();
       })()
     : "—";
@@ -891,7 +894,7 @@ function HealthBadge({ health, onRefresh, refreshing }: { health: HealthSummary;
       <Activity className={`w-4 h-4 ${p.text}`} />
       <span className={`text-sm font-medium ${p.text}`} data-testid="text-health-status">{p.label}</span>
       <span className="text-xs text-muted-foreground">·</span>
-      <span className="text-xs text-muted-foreground" data-testid="text-health-last-checked">Cek terakhir: {lastSeen}</span>
+      <span className="text-xs text-muted-foreground" data-testid="text-health-last-checked">{t("dashboard.customDataSource.health.lastCheck")}: {lastSeen}</span>
       {lastLatencyMs != null && (
         <>
           <span className="text-xs text-muted-foreground">·</span>
@@ -902,12 +905,12 @@ function HealthBadge({ health, onRefresh, refreshing }: { health: HealthSummary;
         <>
           <span className="text-xs text-muted-foreground">·</span>
           <span className="text-xs text-muted-foreground" data-testid="text-health-error-rate">
-            {errorRatePct}% error / 5 menit ({totalPings}x)
+            {errorRatePct}{t("dashboard.customDataSource.health.errorRate")} ({totalPings}x)
           </span>
         </>
       )}
       {!monitorEnabled && (
-        <span className="text-xs text-muted-foreground italic">(monitor dimatikan)</span>
+        <span className="text-xs text-muted-foreground italic">({t("dashboard.customDataSource.health.monitorOff")})</span>
       )}
       <Button
         size="sm"
@@ -921,7 +924,7 @@ function HealthBadge({ health, onRefresh, refreshing }: { health: HealthSummary;
       </Button>
       {status === "down" && lastError && (
         <div className="basis-full text-xs text-red-700 dark:text-red-300 mt-1" data-testid="text-health-last-error">
-          Error terakhir: {lastError}
+          {t("dashboard.customDataSource.health.lastError")}: {lastError}
         </div>
       )}
     </div>
@@ -941,6 +944,7 @@ function WizardTour({
   presetCount: number;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
   const [tourIndex, setTourIndex] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const highlightedRef = useRef<{ el: HTMLElement; prev: string } | null>(null);
@@ -1056,8 +1060,8 @@ function WizardTour({
       <div className="flex items-start gap-2 mb-2">
         <Sparkles className="w-4 h-4 text-primary mt-0.5 shrink-0" />
         <div className="flex-1">
-          <div className="font-medium text-sm">{stage.title}</div>
-          <div className="text-xs text-muted-foreground mt-1">{stage.body}</div>
+          <div className="font-medium text-sm">{t(stage.titleKey)}</div>
+          <div className="text-xs text-muted-foreground mt-1">{t(stage.bodyKey)}</div>
         </div>
       </div>
       <div className="flex items-center justify-between gap-2 mt-3">
@@ -1071,7 +1075,7 @@ function WizardTour({
             onClick={onClose}
             data-testid="button-tour-skip"
           >
-            Lewati
+            {t("dashboard.customDataSource.tour.skip")}
           </Button>
           <Button
             size="sm"
@@ -1079,7 +1083,7 @@ function WizardTour({
             disabled={!isLast && !nextEligible}
             data-testid="button-tour-next"
           >
-            {isLast ? "Selesai" : "Berikutnya"}
+            {isLast ? t("dashboard.customDataSource.tour.done") : t("dashboard.customDataSource.tour.next")}
           </Button>
         </div>
       </div>
@@ -1101,6 +1105,7 @@ export function ConnectWizard({
   inDialog?: boolean;
 }) {
   const { toast } = useToast();
+  const { t } = useLanguage();
   const isRerun = !!existingSource;
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [presetId, setPresetId] = useState<string>("");
@@ -1150,7 +1155,7 @@ export function ConnectWizard({
       // transitions away from the wizard mid-flow. The parent invalidates
       // both queries when the wizard finishes.
     },
-    onError: (err: any) => toast({ title: "Gagal menyimpan", description: err?.message, variant: "destructive" }),
+    onError: (err: any) => toast({ title: t("dashboard.customDataSource.wizard.saveFailed"), description: err?.message, variant: "destructive" }),
   });
 
   const testConn = useMutation({
@@ -1161,7 +1166,7 @@ export function ConnectWizard({
     onSuccess: (data) => {
       setTestResult(data);
       toast({
-        title: data.ok ? "Koneksi berhasil" : "Koneksi gagal",
+        title: data.ok ? t("dashboard.customDataSource.wizard.connSuccess") : t("dashboard.customDataSource.wizard.connFailed"),
         description: data.ok ? `Status ${data.status} • ${data.latencyMs}ms` : (data.error || `Status ${data.status}`),
         variant: data.ok ? "default" : "destructive",
       });
@@ -1180,7 +1185,7 @@ export function ConnectWizard({
       setScaffolded(prev => new Set(prev).add(intentKey));
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-intents"] });
     },
-    onError: (err: any) => toast({ title: "Gagal menambah intent", description: err?.message, variant: "destructive" }),
+    onError: (err: any) => toast({ title: t("dashboard.customDataSource.wizard.addIntentFailed"), description: err?.message, variant: "destructive" }),
   });
 
   const finish = () => {
@@ -1190,7 +1195,7 @@ export function ConnectWizard({
 
   const goSaveAndTest = async () => {
     if (!baseUrl.trim()) {
-      toast({ title: "Base URL wajib diisi", variant: "destructive" });
+      toast({ title: t("dashboard.customDataSource.wizard.baseUrlRequired"), variant: "destructive" });
       return;
     }
     // On re-run, always save so edits to name/baseUrl persist before the test.
@@ -1219,10 +1224,10 @@ export function ConnectWizard({
         <div>
         <h1 className="text-2xl font-semibold flex items-center gap-2">
           <Database className="w-6 h-6 text-primary" />
-          Custom Data Source
+          {t("dashboard.customDataSource.title")}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Hubungkan panel backend Anda agar AI bisa menjawab pertanyaan customer dengan data realtime.
+          {t("dashboard.customDataSource.subtitle")}
         </p>
         </div>
         {!tourActive && (
@@ -1232,7 +1237,7 @@ export function ConnectWizard({
             onClick={() => setTourActive(true)}
             data-testid="button-tour-restart"
           >
-            <Sparkles className="w-4 h-4 mr-1" /> Tampilkan tur
+            <Sparkles className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.tour.show")}
           </Button>
         )}
       </div>
@@ -1256,16 +1261,16 @@ export function ConnectWizard({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wand2 className="w-5 h-5 text-primary" />
-            {step === 1 && "Langkah 1 — Pilih jenis bisnis Anda"}
-            {step === 2 && "Langkah 2 — Hubungkan panel API"}
-            {step === 3 && "Langkah 3 — Simpan API key Anda"}
-            {step === 4 && "Langkah 4 — Tambah contoh intent (opsional)"}
+            {step === 1 && t("dashboard.customDataSource.wizard.step1Title")}
+            {step === 2 && t("dashboard.customDataSource.wizard.step2Title")}
+            {step === 3 && t("dashboard.customDataSource.wizard.step3Title")}
+            {step === 4 && t("dashboard.customDataSource.wizard.step4Title")}
           </CardTitle>
           <CardDescription>
-            {step === 1 && "Kami akan menyiapkan template pertanyaan yang sesuai dengan industri Anda."}
-            {step === 2 && "Tempel base URL panel Anda — kami akan langsung tes koneksinya."}
-            {step === 3 && "Salin API key sekarang. Key ini hanya muncul sekali untuk alasan keamanan."}
-            {step === 4 && "Tambahkan contoh intent satu per satu agar AI tahu pertanyaan apa yang harus dijawab."}
+            {step === 1 && t("dashboard.customDataSource.wizard.step1Desc")}
+            {step === 2 && t("dashboard.customDataSource.wizard.step2Desc")}
+            {step === 3 && t("dashboard.customDataSource.wizard.step3Desc")}
+            {step === 4 && t("dashboard.customDataSource.wizard.step4Desc")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -1287,7 +1292,7 @@ export function ConnectWizard({
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">{p.description}</p>
                   <p className="text-xs mt-3">
-                    <Badge variant="secondary">{p.intents.length} contoh intent</Badge>
+                    <Badge variant="secondary">{t("dashboard.customDataSource.wizard.intentExamples").replace("{n}", String(p.intents.length))}</Badge>
                   </p>
                 </button>
               ))}
@@ -1297,16 +1302,16 @@ export function ConnectWizard({
           {step === 2 && (
             <div className="space-y-3" data-testid="wizard-step-2">
               <div>
-                <Label>Nama koneksi</Label>
+                <Label>{t("dashboard.customDataSource.wizard.nameLabel")}</Label>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Panel Member API"
+                  placeholder={t("dashboard.customDataSource.wizard.namePlaceholder")}
                   data-testid="wizard-input-name"
                 />
               </div>
               <div>
-                <Label>Base URL panel</Label>
+                <Label>{t("dashboard.customDataSource.wizard.baseUrlLabel")}</Label>
                 <Input
                   value={baseUrl}
                   onChange={(e) => { setBaseUrl(e.target.value); setTestResult(null); setCreated(false); setApiKey(null); }}
@@ -1314,7 +1319,7 @@ export function ConnectWizard({
                   data-testid="wizard-input-base-url"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Pastikan endpoint <code>/health</code> di panel Anda mengembalikan status 200 untuk verifikasi.
+                  {t("dashboard.customDataSource.wizard.baseUrlHint")}
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -1324,10 +1329,10 @@ export function ConnectWizard({
                   data-testid="wizard-button-test"
                 >
                   {(saveSource.isPending || testConn.isPending) && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-                  {created ? "Tes ulang koneksi" : "Simpan & Tes Koneksi"}
+                  {created ? t("dashboard.customDataSource.wizard.retestButton") : t("dashboard.customDataSource.wizard.testButton")}
                 </Button>
                 {created && !testResult?.ok && (
-                  <span className="text-xs text-muted-foreground">Tersimpan — Anda boleh lanjut meskipun tes gagal.</span>
+                  <span className="text-xs text-muted-foreground">{t("dashboard.customDataSource.wizard.savedHint")}</span>
                 )}
               </div>
               {testResult && (
@@ -1337,7 +1342,7 @@ export function ConnectWizard({
                 >
                   <div className="flex items-center gap-2 font-medium">
                     {testResult.ok ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-amber-600" />}
-                    {testResult.ok ? "Sukses" : "Gagal"} • Status {testResult.status} • {testResult.latencyMs}ms
+                    {testResult.ok ? t("dashboard.customDataSource.wizard.success") : t("dashboard.customDataSource.wizard.failed")} • Status {testResult.status} • {testResult.latencyMs}ms
                   </div>
                   {testResult.sample && <pre className="text-xs mt-2 overflow-auto max-h-32">{testResult.sample}</pre>}
                   {testResult.error && <p className="text-xs mt-2 text-amber-700 dark:text-amber-300">{testResult.error}</p>}
@@ -1351,15 +1356,15 @@ export function ConnectWizard({
               <div className="p-3 rounded-md border bg-amber-50 dark:bg-amber-950/30 text-sm">
                 <div className="flex items-center gap-2 font-medium">
                   <AlertCircle className="w-4 h-4 text-amber-600" />
-                  Simpan sekarang — key ini tidak akan ditampilkan lagi.
+                  {t("dashboard.customDataSource.wizard.apiKeyWarning")}
                 </div>
                 <p className="text-xs mt-1 text-muted-foreground">
-                  Tempel key ini di server panel Anda. Chatvice akan mengirimnya di header <code>X-API-Key</code> tiap request.
+                  {t("dashboard.customDataSource.wizard.apiKeyHint")}
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <Input
-                  value={apiKey || "(belum di-generate)"}
+                  value={apiKey || t("dashboard.customDataSource.wizard.apiKeyPlaceholder")}
                   readOnly
                   className="font-mono"
                   data-testid="wizard-text-api-key"
@@ -1371,7 +1376,7 @@ export function ConnectWizard({
                   onClick={() => {
                     if (apiKey) {
                       navigator.clipboard.writeText(apiKey);
-                      toast({ title: "API key tersalin" });
+                      toast({ title: t("dashboard.customDataSource.wizard.apiKeyCopied") });
                     }
                   }}
                   data-testid="wizard-button-copy-key"
@@ -1381,7 +1386,7 @@ export function ConnectWizard({
               </div>
               {!apiKey && (
                 <p className="text-xs text-muted-foreground">
-                  Sepertinya source sudah dibuat sebelum wizard ini berjalan. Anda bisa generate ulang dari halaman Pengaturan setelah wizard selesai.
+                  {t("dashboard.customDataSource.wizard.apiKeyMissing")}
                 </p>
               )}
             </div>
@@ -1395,28 +1400,28 @@ export function ConnectWizard({
               <div className="p-3 rounded-md border bg-muted/30 flex items-start justify-between gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium flex items-center gap-2">
-                    <ClipboardList className="w-4 h-4 text-primary" /> Selanjutnya: berikan checklist ke developer panel
+                    <ClipboardList className="w-4 h-4 text-primary" /> {t("dashboard.customDataSource.wizard.checklistTitle")}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Setelah wizard ini selesai, buka Checklist Integrasi untuk melihat daftar TODO endpoint yang harus dibuat di panel Anda — lengkap dengan tombol Tes & Salin cURL.
+                    {t("dashboard.customDataSource.wizard.checklistDesc")}
                   </p>
                 </div>
                 <Button variant="outline" size="sm" asChild data-testid="wizard-link-checklist">
                   <Link href="/dashboard/custom-data-source/integration-checklist">
-                    Buka Checklist <ArrowRight className="w-4 h-4 ml-1" />
+                    {t("dashboard.customDataSource.wizard.openChecklist")} <ArrowRight className="w-4 h-4 ml-1" />
                   </Link>
                 </Button>
               </div>
               {!activePreset || activePreset.intents.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Tidak ada contoh intent untuk preset ini.</p>
+                <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.wizard.noPresetIntents")}</p>
               ) : remaining.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  Semua contoh intent dari preset ini sudah ditambahkan. Anda bisa mengelolanya di tab Intent Lookup.
+                  {t("dashboard.customDataSource.wizard.allAdded")}
                 </p>
               ) : (
                 <>
                   <p className="text-sm text-muted-foreground">
-                    Klik <strong>Tambah</strong> pada intent yang ingin Anda gunakan. Anda bisa mengubahnya kapan saja di tab Intent Lookup.
+                    {t("dashboard.customDataSource.wizard.addHint")}
                   </p>
                   <div className="space-y-2">
                     {remaining.map((it) => {
@@ -1442,7 +1447,7 @@ export function ConnectWizard({
                             onClick={() => scaffoldIntent.mutate(it.intentKey)}
                             data-testid={`wizard-button-add-${it.intentKey}`}
                           >
-                            {done ? <><CheckCircle2 className="w-4 h-4 mr-1" /> Ditambah</> : <><Plus className="w-4 h-4 mr-1" /> Tambah</>}
+                            {done ? <><CheckCircle2 className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.wizard.added")}</> : <><Plus className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.wizard.add")}</>}
                           </Button>
                         </div>
                       );
@@ -1463,7 +1468,7 @@ export function ConnectWizard({
           disabled={step === 1}
           data-testid="wizard-button-back"
         >
-          <ArrowLeft className="w-4 h-4 mr-1" /> Kembali
+          <ArrowLeft className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.wizard.back")}
         </Button>
         {step < 4 ? (
           <Button
@@ -1487,11 +1492,11 @@ export function ConnectWizard({
             }
             data-testid="wizard-button-next"
           >
-            Lanjut <ArrowRight className="w-4 h-4 ml-1" />
+            {t("dashboard.customDataSource.wizard.next")} <ArrowRight className="w-4 h-4 ml-1" />
           </Button>
         ) : (
           <Button onClick={finish} data-testid="wizard-button-finish">
-            Selesai <CheckCircle2 className="w-4 h-4 ml-1" />
+            {t("dashboard.customDataSource.wizard.finish")} <CheckCircle2 className="w-4 h-4 ml-1" />
           </Button>
         )}
       </div>

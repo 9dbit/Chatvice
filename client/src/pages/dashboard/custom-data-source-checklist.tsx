@@ -9,6 +9,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
 import {
   ArrowLeft, CheckCircle2, Circle, AlertTriangle, XCircle, Loader2, Play, Copy,
   Download, FileText, ClipboardList, ShieldCheck, Plug, KeyRound,
@@ -112,10 +113,11 @@ function StatusBadge({ status, labels }: {
   status: Status;
   labels?: { success?: string; error?: string; warn?: string; todo?: string };
 }) {
-  const successLabel = labels?.success ?? "Selesai";
-  const errorLabel = labels?.error ?? "Gagal";
-  const warnLabel = labels?.warn ?? "Perlu perhatian";
-  const todoLabel = labels?.todo ?? "Belum";
+  const { t } = useLanguage();
+  const successLabel = labels?.success ?? t("dashboard.customDataSource.checklistPage.stDone");
+  const errorLabel = labels?.error ?? t("dashboard.customDataSource.checklistPage.stFailed");
+  const warnLabel = labels?.warn ?? t("dashboard.customDataSource.checklistPage.stAttention");
+  const todoLabel = labels?.todo ?? t("dashboard.customDataSource.checklistPage.stTodo");
   if (status === "success") {
     return (
       <Badge variant="secondary" className="gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
@@ -228,6 +230,8 @@ function buildMarkdown(data: IntegrationStatus): string {
 
 export default function CustomDataSourceChecklistPage() {
   const { toast } = useToast();
+  const { t } = useLanguage();
+  const cp = (k: string) => t(`dashboard.customDataSource.checklistPage.${k}`);
   const [testingKey, setTestingKey] = useState<string | null>(null);
   const [openItems, setOpenItems] = useState<string[]>([]);
 
@@ -242,15 +246,15 @@ export default function CustomDataSourceChecklistPage() {
     },
     onSuccess: (result, intentKey) => {
       if (result.ok) {
-        toast({ title: "Tes sukses", description: `${intentKey}: HTTP ${result.status} • ${result.latencyMs}ms` });
+        toast({ title: cp("toastTestSuccess"), description: `${intentKey}: HTTP ${result.status} • ${result.latencyMs}ms` });
       } else {
-        toast({ title: "Tes gagal", description: result.error || `HTTP ${result.status}`, variant: "destructive" });
+        toast({ title: cp("toastTestFailed"), description: result.error || `HTTP ${result.status}`, variant: "destructive" });
       }
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-source/integration-status"] });
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-source/audit"] });
     },
     onError: (err: Error) => {
-      toast({ title: "Tes gagal", description: err?.message || "Network error", variant: "destructive" });
+      toast({ title: cp("toastTestFailed"), description: err?.message || cp("networkError"), variant: "destructive" });
     },
     onSettled: () => setTestingKey(null),
   });
@@ -262,28 +266,28 @@ export default function CustomDataSourceChecklistPage() {
     const items: ChecklistItem[] = [];
     items.push({
       key: "base-url",
-      title: "Base URL panel valid & HTTPS",
-      description: "URL dasar API panel — wajib HTTPS dan dapat diparsing dengan benar.",
+      title: cp("itemBaseUrlTitle"),
+      description: cp("itemBaseUrlDesc"),
       status: !c.baseUrlPresent ? "todo" : (c.baseUrlValid && c.baseUrlIsHttps ? "success" : "error"),
       detail: !c.baseUrlPresent
-        ? "Belum diisi"
+        ? cp("itemBaseUrlNotFilled")
         : c.baseUrlError
           ? `${s.baseUrl} — ${c.baseUrlError}`
           : !c.baseUrlIsHttps
-            ? `${s.baseUrl} — HTTPS wajib di production`
+            ? cp("itemBaseUrlHttpsRequired").replace("{url}", s.baseUrl)
             : s.baseUrl,
     });
     items.push({
       key: "host-public",
-      title: "Host panel dapat diakses publik",
-      description: "Bukan IP private, loopback, atau metadata — Chatvice menolak resolve seperti ini untuk SSRF.",
+      title: cp("itemHostTitle"),
+      description: cp("itemHostDesc"),
       status: !c.baseUrlPresent ? "todo" : (c.hostIsPublic ? "success" : "error"),
-      detail: c.hostError ?? (c.hostIsPublic ? "Host publik terverifikasi" : "Belum diverifikasi"),
+      detail: c.hostError ?? (c.hostIsPublic ? cp("itemHostVerified") : cp("itemHostNotVerified")),
     });
     items.push({
       key: "health-200",
-      title: `Endpoint ${s.healthPath || "/health"} merespons HTTP 200 dengan JSON`,
-      description: "Chatvice memanggil endpoint ini untuk verifikasi koneksi.",
+      title: cp("itemHealthTitle").replace("{path}", s.healthPath || "/health"),
+      description: cp("itemHealthDesc"),
       status: !c.healthChecked
         ? "todo"
         : (c.healthOk && c.healthIsJson)
@@ -292,47 +296,47 @@ export default function CustomDataSourceChecklistPage() {
             ? "warn"
             : "error",
       detail: !c.healthChecked
-        ? "Belum diuji (lengkapi base URL & host publik dulu)"
+        ? cp("itemHealthNotTested")
         : c.healthError
           ? c.healthError
           : `HTTP ${c.healthStatus ?? "?"} • ${c.healthLatencyMs ?? 0}ms${c.healthContentType ? ` • ${c.healthContentType}` : ""}`,
     });
     items.push({
       key: "no-redirect",
-      title: "Health-check tidak mengembalikan HTTP 3xx redirect",
-      description: "Chatvice tidak akan mengikuti redirect — panel API harus merespons langsung.",
+      title: cp("itemNoRedirectTitle"),
+      description: cp("itemNoRedirectDesc"),
       status: !c.healthChecked ? "todo" : (c.healthRedirect ? "error" : "success"),
       detail: !c.healthChecked
-        ? "Menunggu hasil tes"
+        ? cp("itemNoRedirectWaiting")
         : c.healthRedirect
-          ? `Endpoint mengembalikan HTTP ${c.healthStatus}`
-          : "Tidak ada redirect",
+          ? cp("itemNoRedirectReturned").replace("{status}", String(c.healthStatus))
+          : cp("itemNoRedirectNone"),
     });
     items.push({
       key: "latency",
-      title: "Respons di bawah 10 detik",
-      description: "Chatvice timeout di 10 detik. Disarankan respons normal di bawah 5 detik.",
+      title: cp("itemLatencyTitle"),
+      description: cp("itemLatencyDesc"),
       status: !c.healthChecked
         ? "todo"
         : (c.healthError ? "error" : (c.healthUnderTimeout ? "success" : "warn")),
-      detail: c.healthLatencyMs != null ? `${c.healthLatencyMs}ms` : "Belum tersedia",
+      detail: c.healthLatencyMs != null ? `${c.healthLatencyMs}ms` : cp("itemLatencyNotAvail"),
     });
     items.push({
       key: "api-key",
-      title: "API key Chatvice telah di-generate",
-      description: "Pasang key ini di server panel Anda dan validasi di tiap request.",
+      title: cp("itemApiKeyTitle"),
+      description: cp("itemApiKeyDesc"),
       status: s.apiKeyHint ? "success" : "todo",
-      detail: s.apiKeyHint ? `Tersimpan (hint: ${s.apiKeyHint})` : "Belum di-generate — gunakan tombol Generate di tab Pengaturan",
+      detail: s.apiKeyHint ? cp("itemApiKeySaved").replace("{hint}", s.apiKeyHint) : cp("itemApiKeyNotGen"),
     });
     items.push({
       key: "enabled",
-      title: "Koneksi diaktifkan",
-      description: "AI agent baru memanggil panel API saat opsi ini aktif.",
+      title: cp("itemEnabledTitle"),
+      description: cp("itemEnabledDesc"),
       status: s.isEnabled ? "success" : "warn",
-      detail: s.isEnabled ? "Aktif" : "Tidak aktif — AI tidak akan memanggil panel",
+      detail: s.isEnabled ? cp("itemEnabledActive") : cp("itemEnabledInactive"),
     });
     return items;
-  }, [data]);
+  }, [data, t]);
 
   const sectionC: ChecklistItem[] = useMemo(() => {
     const s = data?.source;
@@ -341,49 +345,49 @@ export default function CustomDataSourceChecklistPage() {
     const items: ChecklistItem[] = [];
     items.push({
       key: "ip-whitelist",
-      title: "Panel API membatasi sumber IP (opsional tapi disarankan)",
-      description: "Whitelist IP server Chatvice di firewall panel.",
+      title: cp("itemIpWhitelistTitle"),
+      description: cp("itemIpWhitelistDesc"),
       status: "todo",
     });
     items.push({
       key: "key-storage",
-      title: "API key disimpan terenkripsi di panel",
-      description: "Jangan commit ke repository. Gunakan secret manager atau env var.",
+      title: cp("itemKeyStorageTitle"),
+      description: cp("itemKeyStorageDesc"),
       status: "todo",
     });
     items.push({
       key: "no-redirect",
-      title: "Endpoint tidak pernah merespons HTTP 3xx",
-      description: "Chatvice menolak redirect untuk mencegah SSRF — respons harus langsung.",
+      title: cp("itemCNoRedirectTitle"),
+      description: cp("itemCNoRedirectDesc"),
       status: !c?.healthChecked ? "todo" : (c.healthRedirect ? "error" : "success"),
-      detail: c?.healthChecked ? (c.healthRedirect ? `Health-check mengembalikan HTTP ${c.healthStatus}` : "Verifikasi health-check menunjukkan tidak ada redirect") : undefined,
+      detail: c?.healthChecked ? (c.healthRedirect ? cp("itemCNoRedirectReturned").replace("{status}", String(c.healthStatus)) : cp("itemCNoRedirectNone")) : undefined,
     });
     items.push({
       key: "rate-limit",
-      title: `Panel mendukung rate limit ≥ ${s?.rateLimitPerMin || 60} request/menit`,
-      description: "Sesuaikan dengan setting rate limit Chatvice di tab Pengaturan.",
+      title: cp("itemRateLimitTitle").replace("{n}", String(s?.rateLimitPerMin || 60)),
+      description: cp("itemRateLimitDesc"),
       status: "todo",
     });
     items.push({
       key: "no-sensitive",
-      title: "Field sensitif tidak dikembalikan ke AI",
-      description: "PIN, password, OTP, token — wajib di-mask di sisi panel.",
+      title: cp("itemNoSensitiveTitle"),
+      description: cp("itemNoSensitiveDesc"),
       status: "todo",
     });
     items.push({
       key: "audit-log",
-      title: "Panel mencatat setiap panggilan dari Chatvice",
-      description: "Untuk audit trail dan investigasi anomali.",
+      title: cp("itemAuditLogTitle"),
+      description: cp("itemAuditLogDesc"),
       status: "todo",
     });
     items.push({
       key: "rotate-key",
-      title: "API key dirotasi setidaknya tiap 90 hari",
-      description: data?.apiKeyAgeDays != null ? `Umur saat ini: ${data.apiKeyAgeDays} hari` : "Belum tersedia data umur key.",
+      title: cp("itemRotateKeyTitle"),
+      description: data?.apiKeyAgeDays != null ? cp("itemRotateKeyDescAge").replace("{n}", String(data.apiKeyAgeDays)) : cp("itemRotateKeyDescNoData"),
       status: data?.apiKeyAgeDays == null ? "todo" : (apiKeyOld ? "warn" : "success"),
     });
     return items;
-  }, [data]);
+  }, [data, t]);
 
   const totals = data?.totals;
   const totalItems = sectionA.length + (data?.intents.length || 0) + sectionC.length;
@@ -407,16 +411,16 @@ export default function CustomDataSourceChecklistPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ClipboardList className="w-5 h-5 text-primary" />
-              Checklist Integrasi Panel API
+              {cp("title")}
             </CardTitle>
             <CardDescription>
-              Anda belum mengatur Custom Data Source. Selesaikan setup lebih dulu untuk melihat checklist integrasi.
+              {cp("emptyDesc")}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild data-testid="link-back-to-setup">
               <Link href="/dashboard/custom-data-source">
-                <ArrowLeft className="w-4 h-4 mr-1" /> Buka halaman setup
+                <ArrowLeft className="w-4 h-4 mr-1" /> {cp("openSetup")}
               </Link>
             </Button>
           </CardContent>
@@ -428,16 +432,16 @@ export default function CustomDataSourceChecklistPage() {
   const onCopyCurl = (intent: IntentRow) => {
     const text = buildCurl(data.source!, intent);
     navigator.clipboard.writeText(text).then(
-      () => toast({ title: "cURL tersalin", description: `Contoh request untuk ${intent.intentKey}` }),
-      () => toast({ title: "Gagal menyalin", variant: "destructive" }),
+      () => toast({ title: cp("toastCurlCopied"), description: cp("toastCurlCopiedDesc").replace("{key}", intent.intentKey) }),
+      () => toast({ title: cp("toastCopyFailed"), variant: "destructive" }),
     );
   };
 
   const onCopyAllMarkdown = () => {
     const md = buildMarkdown(data);
     navigator.clipboard.writeText(md).then(
-      () => toast({ title: "Checklist tersalin", description: "Tempel ke ticket / dokumentasi developer panel Anda." }),
-      () => toast({ title: "Gagal menyalin", variant: "destructive" }),
+      () => toast({ title: cp("toastChecklistCopied"), description: cp("toastChecklistCopiedDesc") }),
+      () => toast({ title: cp("toastCopyFailed"), variant: "destructive" }),
     );
   };
 
@@ -447,29 +451,29 @@ export default function CustomDataSourceChecklistPage() {
         <div className="space-y-1">
           <Button variant="ghost" size="sm" asChild className="-ml-2">
             <Link href="/dashboard/custom-data-source" data-testid="link-back">
-              <ArrowLeft className="w-4 h-4 mr-1" /> Kembali ke Custom Data Source
+              <ArrowLeft className="w-4 h-4 mr-1" /> {cp("back")}
             </Link>
           </Button>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
             <ClipboardList className="w-6 h-6 text-primary" />
-            Checklist Integrasi Panel API
+            {cp("title")}
           </h1>
           <p className="text-sm text-muted-foreground max-w-2xl">
-            Berikan halaman ini kepada developer panel Anda. Semua TODO yang harus diimplementasikan agar AI agent Chatvice bisa membaca data realtime dari panel ada di sini. Status diperbarui otomatis dari hasil tes koneksi & audit log.
+            {cp("subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={onCopyAllMarkdown} data-testid="button-copy-markdown">
-            <Copy className="w-4 h-4 mr-1" /> Salin semua TODO (Markdown)
+            <Copy className="w-4 h-4 mr-1" /> {cp("copyMarkdown")}
           </Button>
           <Button variant="outline" size="sm" asChild>
             <a href="/api/merchant/custom-data-source/postman.json" download data-testid="link-download-postman">
-              <Download className="w-4 h-4 mr-1" /> Postman
+              <Download className="w-4 h-4 mr-1" /> {cp("postman")}
             </a>
           </Button>
           <Button variant="outline" size="sm" asChild>
             <a href="/api/merchant/custom-data-source/docs.html" target="_blank" rel="noreferrer" data-testid="link-view-docs">
-              <FileText className="w-4 h-4 mr-1" /> Lihat Spec
+              <FileText className="w-4 h-4 mr-1" /> {cp("viewSpec")}
             </a>
           </Button>
         </div>
@@ -479,20 +483,20 @@ export default function CustomDataSourceChecklistPage() {
         <CardContent className="pt-6 space-y-3">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div>
-              <p className="text-sm font-medium">Progress integrasi</p>
+              <p className="text-sm font-medium">{cp("progressTitle")}</p>
               <p className="text-xs text-muted-foreground">
-                {doneItems} dari {totalItems} item selesai
+                {cp("progressCount").replace("{done}", String(doneItems)).replace("{total}", String(totalItems))}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="secondary" className="gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-                <CheckCircle2 className="w-3 h-3" /> {totals?.successCount ?? 0} sukses
+                <CheckCircle2 className="w-3 h-3" /> {cp("successCount").replace("{n}", String(totals?.successCount ?? 0))}
               </Badge>
               <Badge variant="secondary" className="gap-1 bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300">
-                <XCircle className="w-3 h-3" /> {totals?.errorCount ?? 0} gagal
+                <XCircle className="w-3 h-3" /> {cp("errorCount").replace("{n}", String(totals?.errorCount ?? 0))}
               </Badge>
               <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
-                <Circle className="w-3 h-3" /> {totals?.untestedCount ?? 0} belum diuji
+                <Circle className="w-3 h-3" /> {cp("untestedCount").replace("{n}", String(totals?.untestedCount ?? 0))}
               </Badge>
             </div>
           </div>
@@ -504,10 +508,10 @@ export default function CustomDataSourceChecklistPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Plug className="w-5 h-5 text-primary" />
-            A. Persyaratan Dasar Panel
+            {cp("sectionATitle")}
           </CardTitle>
           <CardDescription>
-            Verifikasi otomatis: Chatvice memanggil endpoint health-check Anda saat halaman ini dibuka untuk memvalidasi koneksi.
+            {cp("sectionADesc")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -526,7 +530,7 @@ export default function CustomDataSourceChecklistPage() {
               </div>
               <StatusBadge
                 status={item.status}
-                labels={{ success: "OK", error: "Gagal", warn: "Perhatian", todo: "Belum" }}
+                labels={{ success: cp("stOk"), error: cp("stFailed"), warn: cp("stWarn"), todo: cp("stTodo") }}
               />
             </div>
           ))}
@@ -537,16 +541,16 @@ export default function CustomDataSourceChecklistPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <KeyRound className="w-5 h-5 text-primary" />
-            B. TODO per Intent Aktif
+            {cp("sectionBTitle")}
           </CardTitle>
           <CardDescription>
-            Hanya intent yang diaktifkan ditampilkan di sini. Klik "Tes Sekarang" untuk memvalidasi atau "Salin cURL" untuk dipakai developer.
+            {cp("sectionBDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {data.intents.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Belum ada intent aktif. Aktifkan dari halaman <Link href="/dashboard/custom-data-source" className="underline">Custom Data Source</Link> tab Intent Lookup.
+              {cp("sectionBNoActivePre")}<Link href="/dashboard/custom-data-source" className="underline">{cp("sectionBNoActiveLink")}</Link>{cp("sectionBNoActivePost")}
             </p>
           ) : (
             <Accordion
@@ -578,9 +582,9 @@ export default function CustomDataSourceChecklistPage() {
                         <StatusBadge
                           status={status}
                           labels={{
-                            success: `Sukses${st?.lastHttpStatus ? ` ${st.lastHttpStatus}` : ""}`,
-                            error: `Gagal${st?.lastHttpStatus ? ` ${st.lastHttpStatus}` : ""}`,
-                            todo: "Belum diuji",
+                            success: `${cp("stSuccess")}${st?.lastHttpStatus ? ` ${st.lastHttpStatus}` : ""}`,
+                            error: `${cp("stFailed")}${st?.lastHttpStatus ? ` ${st.lastHttpStatus}` : ""}`,
+                            todo: cp("stUntested"),
                           }}
                         />
                       </div>
@@ -591,15 +595,15 @@ export default function CustomDataSourceChecklistPage() {
                       )}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                         <div className="p-3 rounded-md border space-y-1">
-                          <p className="text-xs font-medium text-muted-foreground">Endpoint yang harus dibuat</p>
-                          <p className="font-mono text-sm break-all">{intent.httpMethod} {intent.endpointPath || "(belum diisi)"}</p>
+                          <p className="text-xs font-medium text-muted-foreground">{cp("endpointToBuild")}</p>
+                          <p className="font-mono text-sm break-all">{intent.httpMethod} {intent.endpointPath || cp("notFilled")}</p>
                         </div>
                         <div className="p-3 rounded-md border space-y-1">
-                          <p className="text-xs font-medium text-muted-foreground">Tes terakhir</p>
+                          <p className="text-xs font-medium text-muted-foreground">{cp("lastTest")}</p>
                           {st?.lastRunAt ? (
                             <>
                               <p className="text-sm">
-                                {st.lastStatus === "success" ? "Sukses" : "Gagal"} • HTTP {st.lastHttpStatus ?? "-"} • {st.lastLatencyMs ?? 0}ms
+                                {st.lastStatus === "success" ? cp("stSuccess") : cp("stFailed")} • HTTP {st.lastHttpStatus ?? "-"} • {st.lastLatencyMs ?? 0}ms
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 {new Date(st.lastRunAt).toLocaleString("id-ID")}
@@ -609,28 +613,28 @@ export default function CustomDataSourceChecklistPage() {
                               )}
                             </>
                           ) : (
-                            <p className="text-sm text-muted-foreground">Belum pernah diuji</p>
+                            <p className="text-sm text-muted-foreground">{cp("neverTested")}</p>
                           )}
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        <p className="text-xs font-medium">TODO untuk developer panel:</p>
+                        <p className="text-xs font-medium">{cp("todoForDev")}</p>
                         <ul className="space-y-1 text-sm pl-1">
                           <li className="flex items-start gap-2">
                             <Circle className="w-3 h-3 mt-1 shrink-0 text-muted-foreground" />
-                            <span>Implementasikan handler <span className="font-mono">{intent.httpMethod} {intent.endpointPath}</span> di panel.</span>
+                            <span>{cp("todo1").split("{method}")[0]}<span className="font-mono">{intent.httpMethod} {intent.endpointPath}</span>{cp("todo1").split("{path}")[1] ?? ""}</span>
                           </li>
                           <li className="flex items-start gap-2">
                             <Circle className="w-3 h-3 mt-1 shrink-0 text-muted-foreground" />
                             <span>
-                              Validasi API key dari header <span className="font-mono">{data.source?.headerAuthName || "X-API-Key"}</span> sebelum proses request.
+                              {cp("todo2Pre")}<span className="font-mono">{data.source?.headerAuthName || "X-API-Key"}</span>{cp("todo2Post")}
                             </span>
                           </li>
                           <li className="flex items-start gap-2">
                             <Circle className="w-3 h-3 mt-1 shrink-0 text-muted-foreground" />
                             <span>
-                              Terima parameter:{" "}
+                              {cp("todo3Pre")}
                               {intent.requiredFields?.length ? (
                                 intent.requiredFields.map((f, i) => (
                                   <span key={f.key}>
@@ -639,19 +643,19 @@ export default function CustomDataSourceChecklistPage() {
                                     {i < intent.requiredFields.length - 1 ? ", " : ""}
                                   </span>
                                 ))
-                              ) : <span className="text-muted-foreground">(belum ada field — tambahkan di Intent Lookup)</span>}
+                              ) : <span className="text-muted-foreground">{cp("todo3Empty")}</span>}
                             </span>
                           </li>
                           <li className="flex items-start gap-2">
                             <Circle className="w-3 h-3 mt-1 shrink-0 text-muted-foreground" />
                             <span>
-                              Kembalikan JSON yang berisi key yang dipakai di template:{" "}
-                              <span className="font-mono break-all">{intent.responseTemplate || "(template belum diisi)"}</span>
+                              {cp("todo4Pre")}
+                              <span className="font-mono break-all">{intent.responseTemplate || cp("todo4Empty")}</span>
                             </span>
                           </li>
                           <li className="flex items-start gap-2">
                             <Circle className="w-3 h-3 mt-1 shrink-0 text-muted-foreground" />
-                            <span>Pastikan respons di bawah 5 detik (Chatvice timeout di 10 detik) dan bukan HTTP 3xx redirect.</span>
+                            <span>{cp("todo5")}</span>
                           </li>
                         </ul>
                       </div>
@@ -664,7 +668,7 @@ export default function CustomDataSourceChecklistPage() {
                           data-testid={`button-test-intent-${intent.intentKey}`}
                         >
                           {isTesting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Play className="w-4 h-4 mr-1" />}
-                          Tes Sekarang
+                          {cp("testNow")}
                         </Button>
                         <Button
                           size="sm"
@@ -672,7 +676,7 @@ export default function CustomDataSourceChecklistPage() {
                           onClick={() => onCopyCurl(intent)}
                           data-testid={`button-copy-curl-${intent.intentKey}`}
                         >
-                          <Copy className="w-4 h-4 mr-1" /> Salin cURL
+                          <Copy className="w-4 h-4 mr-1" /> {cp("copyCurl")}
                         </Button>
                       </div>
                     </AccordionContent>
@@ -688,10 +692,10 @@ export default function CustomDataSourceChecklistPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <ShieldCheck className="w-5 h-5 text-primary" />
-            C. Aturan Keamanan & Operasional
+            {cp("sectionCTitle")}
           </CardTitle>
           <CardDescription>
-            Praktik wajib agar koneksi panel API tetap aman dan stabil di production.
+            {cp("sectionCDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -710,7 +714,7 @@ export default function CustomDataSourceChecklistPage() {
               </div>
               <StatusBadge
                 status={item.status}
-                labels={{ success: "OK", error: "Gagal", warn: "Perhatian", todo: "Manual" }}
+                labels={{ success: cp("stOk"), error: cp("stFailed"), warn: cp("stWarn"), todo: cp("stManual") }}
               />
             </div>
           ))}
@@ -720,7 +724,7 @@ export default function CustomDataSourceChecklistPage() {
       <Separator />
 
       <p className="text-xs text-muted-foreground text-center">
-        Butuh contoh implementasi? Unduh Postman collection di atas — sudah berisi contoh request siap pakai untuk semua intent Anda.
+        {cp("bottomNote")}
       </p>
     </div>
   );

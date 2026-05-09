@@ -28,6 +28,7 @@ import {
   CircleCheck,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useLanguage } from "@/hooks/use-language";
 import type { Agent, Merchant, MerchantDomain, Source, KnowledgeEntry } from "@shared/schema";
 import {
   onboardingPhases,
@@ -67,6 +68,7 @@ export function GettingStartedChecklist({
   disableAutoDismiss = false,
 }: GettingStartedChecklistProps) {
   const [, navigate] = useLocation();
+  const { t } = useLanguage();
   const [collapsed, setCollapsed] = useState(false);
   const [tutorialPhase, setTutorialPhase] = useState<OnboardingPhase | null>(null);
   const queryClient = useQueryClient();
@@ -180,14 +182,14 @@ export function GettingStartedChecklist({
             <div className="flex items-center gap-2 flex-wrap">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Rocket className="w-4 h-4 text-primary" />
-                Getting Started
+                {t("dashboard.gettingStarted.title")}
               </CardTitle>
               <Badge
                 variant={allDone ? "default" : "secondary"}
                 className="text-[10px]"
                 data-testid="badge-onboarding-progress"
               >
-                {completedCount}/{totalPhases} selesai
+                {t("dashboard.gettingStarted.progress").replace("{done}", String(completedCount)).replace("{total}", String(totalPhases))}
               </Badge>
             </div>
             <div className="flex items-center gap-1">
@@ -235,9 +237,9 @@ export function GettingStartedChecklist({
                 <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center mb-3">
                   <Check className="w-6 h-6 text-emerald-500" />
                 </div>
-                <p className="text-sm font-semibold">Selamat, semua fase sudah selesai!</p>
+                <p className="text-sm font-semibold">{t("dashboard.gettingStarted.congrats")}</p>
                 <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                  Chatbot Anda kini live dan siap melayani percakapan customer.
+                  {t("dashboard.gettingStarted.liveMessage")}
                 </p>
                 <Button
                   size="sm"
@@ -248,7 +250,7 @@ export function GettingStartedChecklist({
                   data-testid="button-dismiss-complete"
                 >
                   <X className="w-3.5 h-3.5 mr-1.5" />
-                  Tutup
+                  {t("dashboard.gettingStarted.close")}
                 </Button>
               </div>
             ) : (
@@ -283,7 +285,7 @@ export function GettingStartedChecklist({
                             completed ? "line-through text-muted-foreground" : ""
                           }`}
                         >
-                          Fase {phase.number}: {phase.title}
+                          {t("dashboard.gettingStarted.phaseLabel").replace("{n}", String(phase.number)).replace("{title}", phase.title)}
                         </p>
                         {!completed && (
                           <p className="text-xs text-muted-foreground mt-0.5">
@@ -300,7 +302,7 @@ export function GettingStartedChecklist({
                               data-testid={`button-tutorial-${phase.id}`}
                             >
                               <BookOpenCheck className="w-3 h-3" />
-                              Tutorial
+                              {t("dashboard.gettingStarted.tutorial")}
                             </Button>
                             <Button
                               size="sm"
@@ -325,7 +327,7 @@ export function GettingStartedChecklist({
                           data-testid={`button-mark-done-${phase.id}`}
                         >
                           <CircleCheck className="w-3.5 h-3.5" />
-                          Tandai selesai
+                          {t("dashboard.gettingStarted.markDone")}
                         </Button>
                       )}
                     </div>
@@ -351,7 +353,7 @@ export function GettingStartedChecklist({
                       return <Icon className="w-4 h-4" />;
                     })()}
                   </span>
-                  Tutorial Fase {tutorialPhase.number}: {tutorialPhase.title}
+                  {t("dashboard.gettingStarted.tutorialTitle").replace("{n}", String(tutorialPhase.number)).replace("{title}", tutorialPhase.title)}
                 </DialogTitle>
                 <DialogDescription className="text-xs">
                   {tutorialPhase.description}
@@ -386,7 +388,7 @@ export function GettingStartedChecklist({
                   onClick={closeTutorial}
                   data-testid="button-tutorial-close"
                 >
-                  Tutup
+                  {t("dashboard.gettingStarted.close")}
                 </Button>
                 <Button
                   size="sm"

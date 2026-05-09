@@ -1979,6 +1979,503 @@
       "title": "Title",
       "content": "Content (Markdown supported)",
       "status": "Status"
+    },
+    "customDataSource": {
+      "title": "Custom Data Source",
+      "subtitle": "Connect your backend panel so the AI can answer customer questions with realtime data.",
+      "tabs": {
+        "settings": "Settings",
+        "intents": "Intent Lookup",
+        "audit": "Call History"
+      },
+      "health": {
+        "healthy": "Healthy",
+        "degraded": "Slow / partial failures",
+        "unhealthy": "Problematic",
+        "unknown": "No data yet",
+        "justNow": "just now",
+        "minutesAgo": "{n} minutes ago",
+        "hoursAgo": "{n} hours ago",
+        "lastCheck": "Last check",
+        "errorRate": "% error / 5 min",
+        "monitorOff": "monitor disabled",
+        "lastError": "Last error"
+      },
+      "tour": {
+        "show": "Show tour",
+        "skip": "Skip",
+        "next": "Next",
+        "done": "Done",
+        "preset": {
+          "title": "Pick your business type",
+          "body": "We'll prepare intent templates that fit your industry. Choose one to continue."
+        },
+        "baseUrl": {
+          "title": "Paste your panel base URL",
+          "body": "Enter the backend panel URL the AI will access. Make sure a health-check endpoint is available."
+        },
+        "test": {
+          "title": "Test the connection",
+          "body": "Click the button to save and test the connection. Green status means the panel is ready."
+        },
+        "apiKey": {
+          "title": "Copy your API key",
+          "body": "This key only appears once. Copy and paste it into your panel server for authentication."
+        },
+        "intents": {
+          "title": "Add example intents",
+          "body": "Pick the intents you want to use. You can change them anytime in the Intent Lookup tab."
+        }
+      },
+      "wizard": {
+        "step1Title": "Step 1 — Pick your business type",
+        "step1Desc": "We'll prepare question templates that fit your industry.",
+        "step2Title": "Step 2 — Connect the panel API",
+        "step2Desc": "Paste your panel base URL — we'll test the connection right away.",
+        "step3Title": "Step 3 — Save your API key",
+        "step3Desc": "Copy the API key now. It only appears once for security reasons.",
+        "step4Title": "Step 4 — Add example intents (optional)",
+        "step4Desc": "Add example intents one by one so the AI knows which questions to answer.",
+        "intentExamples": "{n} example intents",
+        "nameLabel": "Connection name",
+        "namePlaceholder": "Member Panel API",
+        "baseUrlLabel": "Panel base URL",
+        "baseUrlHint": "Make sure /health on your panel returns 200 for verification.",
+        "testButton": "Save & Test Connection",
+        "retestButton": "Re-test connection",
+        "savedHint": "Saved — you may continue even if the test failed.",
+        "success": "Success",
+        "failed": "Failed",
+        "apiKeyWarning": "Save now — this key won't be shown again.",
+        "apiKeyHint": "Paste this key into your panel server. Chatvice will send it in the X-API-Key header on every request.",
+        "apiKeyPlaceholder": "(not generated yet)",
+        "apiKeyMissing": "Looks like the source was created before this wizard ran. You can regenerate it from Settings after the wizard finishes.",
+        "checklistTitle": "Next: hand the checklist to your panel developer",
+        "checklistDesc": "After this wizard, open the Integration Checklist to see TODO endpoints to build in your panel — with Test & Copy cURL buttons.",
+        "openChecklist": "Open Checklist",
+        "noPresetIntents": "No example intents for this preset.",
+        "allAdded": "All example intents from this preset are added. You can manage them in the Intent Lookup tab.",
+        "addHint": "Click Add on the intents you want to use. You can change them anytime in the Intent Lookup tab.",
+        "added": "Added",
+        "add": "Add",
+        "back": "Back",
+        "next": "Next",
+        "finish": "Finish",
+        "saveFailed": "Failed to save",
+        "addIntentFailed": "Failed to add intent",
+        "baseUrlRequired": "Base URL is required",
+        "connSuccess": "Connection successful",
+        "connFailed": "Connection failed",
+        "apiKeyCopied": "API key copied"
+      },
+      "settings": {
+        "cardTitle": "Connection Settings",
+        "cardDesc": "Manage credentials and basic parameters for your panel connection.",
+        "enable": "Enable connection",
+        "monitor": "Auto health monitor (check every 5 min)",
+        "name": "Name",
+        "baseUrl": "Base URL",
+        "authHeader": "Auth header name",
+        "healthPath": "Health-check path",
+        "cacheTtl": "Cache TTL (seconds)",
+        "rateLimit": "Rate limit per minute",
+        "save": "Save Settings",
+        "test": "Test Connection",
+        "testSuccess": "Connection successful",
+        "testFailed": "Connection failed",
+        "saved": "Settings saved",
+        "savedDesc": "Panel API configuration saved successfully.",
+        "enableHint": "AI will only call your panel API when this is on.",
+        "monitorHint": "Chatvice pings the health-check endpoint every 60 seconds and sends alerts (email + Telegram) when error rate >50% over the last 5 minutes."
+      },
+      "apiKey": {
+        "title": "API Key",
+        "desc": "Use this API key on your panel server to verify requests from Chatvice.",
+        "lastFour": "Key suffix",
+        "generate": "Generate New API Key",
+        "rotate": "Rotate API Key",
+        "newDialogTitle": "New API Key",
+        "newDialogDesc": "Copy now — this key won't be shown again.",
+        "copy": "Copy",
+        "copied": "Copied",
+        "close": "Close",
+        "rotateConfirm": "Rotate the API key? The old key will stop working immediately.",
+        "cardDesc": "Chatvice sends this key in the auth header on every request. Store the plaintext on your panel server.",
+        "notGenerated": "Not generated yet",
+        "generateOrRotate": "Generate / Rotate",
+        "plainHint": "The plaintext key is shown only once after generation. After that you can only rotate it.",
+        "iSaved": "I've saved it",
+        "generateFailed": "Failed to generate API key"
+      },
+      "intent": {
+        "addNew": "New Intent",
+        "edit": "Edit Intent",
+        "create": "New Intent",
+        "intentKey": "Intent Key",
+        "name": "Name",
+        "description": "Description",
+        "triggers": "Trigger Keywords",
+        "triggersHint": "Comma-separated. The AI detects these keywords in customer messages.",
+        "method": "HTTP Method",
+        "endpoint": "Endpoint Path",
+        "endpointHint": "Use {field} placeholders. Example: /member/{username}/balance",
+        "requiredFields": "Required Fields",
+        "addField": "Add field",
+        "required": "required",
+        "responseTemplate": "Response Template",
+        "responseTemplateHint": "Use {key} or {key.path} to inject data from the API response.",
+        "active": "Active",
+        "cancel": "Cancel",
+        "save": "Save Intent",
+        "delete": "Delete intent",
+        "deleted": "Intent deleted",
+        "deleteConfirm": "Delete this intent? This cannot be undone.",
+        "saved": "Intent saved",
+        "inactive": "Inactive",
+        "noIntents": "No intents yet. Click New Intent to add one.",
+        "deleteConfirmShort": "Delete this intent?",
+        "dialogDesc": "Map customer questions to your panel endpoints.",
+        "responseTemplateEmptyHint": "Leave empty to let AI format the answer from raw JSON response."
+      },
+      "audit": {
+        "filterIntent": "All Intents",
+        "filterStatus": "All Statuses",
+        "statusOk": "Success 2xx",
+        "statusFail": "Failed",
+        "time": "Time",
+        "intent": "Intent",
+        "endpoint": "Endpoint",
+        "fields": "Fields (masked)",
+        "status": "Status",
+        "latency": "Latency",
+        "noLogs": "No calls recorded yet."
+      },
+      "headerSubtitle": "Connect the AI agent to your backend panel so it can check realtime data (deposit/withdraw status, turnover, last login IP, etc).",
+      "integrationChecklist": "Integration Checklist",
+      "specApi": "API Spec",
+      "setupWizard": "Setup wizard",
+      "setupWizardDesc": "Reconfigure the panel API with a step-by-step guide.",
+      "connectionTitle": "Panel API Connection",
+      "connectionDesc": "Endpoint, authentication, cache and rate-limit controls.",
+      "intentsHeading": "Intents detected by AI",
+      "intentsHeadingDesc": "Each intent maps customer keywords to one of your panel endpoints.",
+      "addIntent": "Add Intent",
+      "saveFirst": "Save the panel API connection first on the Settings tab.",
+      "triggers": "Triggers",
+      "auditTitle": "API Call History",
+      "auditDesc": "Last 50 calls. Customer-supplied fields are auto-masked for safety.",
+      "ofN": "of",
+      "checklistPage": {
+        "back": "Back to Custom Data Source",
+        "title": "Panel API Integration Checklist",
+        "subtitle": "Hand this page to your panel developer. Every TODO needed for the Chatvice AI agent to read realtime data from the panel is listed here. Statuses update automatically from connection tests & audit log.",
+        "copyMarkdown": "Copy all TODOs (Markdown)",
+        "postman": "Postman",
+        "viewSpec": "View Spec",
+        "progressTitle": "Integration progress",
+        "progressCount": "{done} of {total} items done",
+        "successCount": "{n} success",
+        "errorCount": "{n} failed",
+        "untestedCount": "{n} not tested",
+        "sectionATitle": "A. Panel Basics",
+        "sectionADesc": "Auto-verification: Chatvice calls your health-check endpoint when you open this page to validate the connection.",
+        "sectionBTitle": "B. TODO per Active Intent",
+        "sectionBDesc": "Only enabled intents are shown. Click \"Test Now\" to validate or \"Copy cURL\" for the developer.",
+        "sectionBNoActivePre": "No active intents. Enable them from the ",
+        "sectionBNoActiveLink": "Custom Data Source",
+        "sectionBNoActivePost": " Intent Lookup tab.",
+        "sectionCTitle": "C. Security & Operational Rules",
+        "sectionCDesc": "Required practices to keep the panel API connection safe and stable in production.",
+        "stOk": "OK",
+        "stFailed": "Failed",
+        "stWarn": "Attention",
+        "stTodo": "Pending",
+        "stManual": "Manual",
+        "stUntested": "Not tested",
+        "stSuccess": "Success",
+        "stDone": "Done",
+        "stAttention": "Needs attention",
+        "endpointToBuild": "Endpoint to implement",
+        "notFilled": "(not set)",
+        "lastTest": "Last test",
+        "neverTested": "Never tested",
+        "todoForDev": "TODO for the panel developer:",
+        "todo1": "Implement handler {method} {path} on the panel.",
+        "todo2Pre": "Validate the API key from header ",
+        "todo2Post": " before processing the request.",
+        "todo3Pre": "Accept parameters: ",
+        "todo3Empty": "(no fields yet — add them in Intent Lookup)",
+        "todo4Pre": "Return JSON containing the keys used in the template: ",
+        "todo4Empty": "(template not set)",
+        "todo5": "Ensure responses are under 5 seconds (Chatvice timeout is 10s) and not HTTP 3xx redirects.",
+        "testNow": "Test Now",
+        "copyCurl": "Copy cURL",
+        "emptyDesc": "You haven't set up Custom Data Source yet. Finish setup first to see the integration checklist.",
+        "openSetup": "Open setup page",
+        "bottomNote": "Need an implementation example? Download the Postman collection above — it includes ready-to-use sample requests for all your intents.",
+        "toastTestSuccess": "Test succeeded",
+        "toastTestFailed": "Test failed",
+        "toastCurlCopied": "cURL copied",
+        "toastCurlCopiedDesc": "Sample request for {key}",
+        "toastCopyFailed": "Copy failed",
+        "toastChecklistCopied": "Checklist copied",
+        "toastChecklistCopiedDesc": "Paste into your ticket / panel developer documentation.",
+        "networkError": "Network error",
+        "itemBaseUrlTitle": "Base URL valid & HTTPS",
+        "itemBaseUrlDesc": "Panel API base URL — must be HTTPS and parse correctly.",
+        "itemBaseUrlNotFilled": "Not set",
+        "itemBaseUrlHttpsRequired": "{url} — HTTPS required in production",
+        "itemHostTitle": "Panel host is publicly reachable",
+        "itemHostDesc": "Not a private IP, loopback, or metadata host — Chatvice rejects these for SSRF safety.",
+        "itemHostVerified": "Public host verified",
+        "itemHostNotVerified": "Not verified",
+        "itemHealthTitle": "Endpoint {path} responds HTTP 200 with JSON",
+        "itemHealthDesc": "Chatvice calls this endpoint to verify the connection.",
+        "itemHealthNotTested": "Not tested yet (set base URL & public host first)",
+        "itemNoRedirectTitle": "Health-check does not return HTTP 3xx redirect",
+        "itemNoRedirectDesc": "Chatvice will not follow redirects — the panel API must respond directly.",
+        "itemNoRedirectWaiting": "Waiting for test result",
+        "itemNoRedirectReturned": "Endpoint returned HTTP {status}",
+        "itemNoRedirectNone": "No redirect",
+        "itemLatencyTitle": "Response under 10 seconds",
+        "itemLatencyDesc": "Chatvice times out at 10s. We recommend normal responses under 5s.",
+        "itemLatencyNotAvail": "Not available",
+        "itemApiKeyTitle": "Chatvice API key has been generated",
+        "itemApiKeyDesc": "Install this key on your panel server and validate it on each request.",
+        "itemApiKeySaved": "Stored (hint: {hint})",
+        "itemApiKeyNotGen": "Not generated — use the Generate button on the Settings tab",
+        "itemEnabledTitle": "Connection enabled",
+        "itemEnabledDesc": "AI agent only calls the panel API when this is on.",
+        "itemEnabledActive": "Active",
+        "itemEnabledInactive": "Inactive — AI will not call the panel",
+        "itemIpWhitelistTitle": "Panel API restricts source IPs (optional but recommended)",
+        "itemIpWhitelistDesc": "Whitelist Chatvice server IPs in the panel firewall.",
+        "itemKeyStorageTitle": "API key stored encrypted on the panel",
+        "itemKeyStorageDesc": "Do not commit to a repository. Use a secret manager or env var.",
+        "itemCNoRedirectTitle": "Endpoint never responds with HTTP 3xx",
+        "itemCNoRedirectDesc": "Chatvice rejects redirects to prevent SSRF — responses must be direct.",
+        "itemCNoRedirectReturned": "Health-check returned HTTP {status}",
+        "itemCNoRedirectNone": "Health-check verification shows no redirect",
+        "itemRateLimitTitle": "Panel supports rate limit ≥ {n} req/min",
+        "itemRateLimitDesc": "Match it to the Chatvice rate-limit setting on the Settings tab.",
+        "itemNoSensitiveTitle": "Sensitive fields are not returned to AI",
+        "itemNoSensitiveDesc": "PIN, password, OTP, token — must be masked on the panel side.",
+        "itemAuditLogTitle": "Panel logs every Chatvice call",
+        "itemAuditLogDesc": "For audit trail and anomaly investigation.",
+        "itemRotateKeyTitle": "API key rotated at least every 90 days",
+        "itemRotateKeyDescAge": "Current age: {n} days",
+        "itemRotateKeyDescNoData": "Key age data not yet available."
+      }
+    },
+    "checklist": {
+      "title": "Panel Integration Checklist",
+      "subtitle": "Endpoints and steps to prepare on your backend panel.",
+      "untested": "Not tested",
+      "successHttp": "Success HTTP {status}",
+      "failedHttp": "Failed HTTP {status}",
+      "testNow": "Test Now",
+      "copyCurl": "Copy cURL",
+      "copyTodo": "Copy all TODO",
+      "copyPostman": "Copy Postman",
+      "viewSpec": "View Spec",
+      "testSuccess": "Test succeeded",
+      "testFailed": "Test failed",
+      "copied": "Copied",
+      "sectionA": {
+        "title": "A. Core endpoints required",
+        "desc": "Build these endpoints in your panel so the AI can answer customer questions."
+      },
+      "sectionB": {
+        "title": "B. Headers & authentication",
+        "desc": "Make sure your panel accepts the X-API-Key header and returns responses per spec."
+      },
+      "sectionC": {
+        "title": "C. Response format & data hygiene",
+        "desc": "Format rules that make responses easy for the AI to parse."
+      },
+      "todoBullet": "TODO",
+      "items": {
+        "health": {
+          "title": "Health-check endpoint",
+          "description": "GET /health returns 200 OK."
+        },
+        "auth": {
+          "title": "Authenticate via X-API-Key",
+          "description": "Reject requests without X-API-Key with 401."
+        },
+        "depositStatus": {
+          "title": "Latest deposit status",
+          "description": "Endpoint to fetch latest deposit status by username."
+        },
+        "withdrawStatus": {
+          "title": "Latest withdraw status",
+          "description": "Endpoint to fetch latest withdraw status by username."
+        },
+        "turnover": {
+          "title": "Turnover progress",
+          "description": "Endpoint to fetch bonus turnover progress by username."
+        },
+        "lastLogin": {
+          "title": "Last login history",
+          "description": "Endpoint to fetch last login IP & time by username."
+        },
+        "rateLimit": {
+          "title": "Reasonable rate limit",
+          "description": "At least 60 requests per minute per merchant."
+        },
+        "jsonFormat": {
+          "title": "Valid JSON responses",
+          "description": "Content-Type application/json, UTF-8 encoding."
+        },
+        "fieldNames": {
+          "title": "Consistent field names",
+          "description": "Use snake_case and descriptive names."
+        },
+        "noPii": {
+          "title": "Don't expose unnecessary PII",
+          "description": "Don't send sensitive data the AI doesn't use."
+        },
+        "errorShape": {
+          "title": "Standard error shape",
+          "description": "Error body: { error: string, code?: string }."
+        },
+        "timestamps": {
+          "title": "ISO 8601 timestamps",
+          "description": "Use ISO 8601 format for all times."
+        },
+        "currency": {
+          "title": "Consistent currency format",
+          "description": "Show amount + currency code (IDR, USD, etc)."
+        },
+        "pagination": {
+          "title": "Optional pagination",
+          "description": "For list endpoints, support ?limit & ?offset."
+        }
+      }
+    },
+    "ticketsDialog": {
+      "title": "Password Recovery Tickets",
+      "tutorial": "Tutorial",
+      "refresh": "Refresh",
+      "enableNotif": "Enable Desktop Notifications",
+      "search": "Search tickets...",
+      "filterStatus": "Filter status:",
+      "reset": "Reset",
+      "dateAll": "All dates",
+      "dateToday": "Today",
+      "date7d": "Last 7 days",
+      "date30d": "Last 30 days",
+      "dateCustom": "Custom range...",
+      "pickDate": "Pick a date",
+      "clear": "Clear",
+      "back": "Back to list",
+      "done": "Got it",
+      "copy": "Copy",
+      "copied": "Copied",
+      "send": "Send",
+      "hide": "Hide",
+      "showExample": "Show example ticket",
+      "hideExample": "Hide example",
+      "openTutorial": "Open Tutorial",
+      "openSheet": "Open Sheet",
+      "exampleMode": "Example Mode - preview only",
+      "exampleBadge": "Example",
+      "exampleTickets": "Example Tickets",
+      "manual": "Manual",
+      "noTickets": "No tickets right now",
+      "noTicketsDesc": "New tickets will appear here automatically when customers request a password reset via the chat widget.",
+      "exampleClickHint": "Click the card to see the ticket detail view.",
+      "selectTicket": "Pick a ticket to view details.",
+      "selectTicketDesc": "Pick a ticket from the left to view customer data, send password, or update status.",
+      "exampleDetailBanner": "This is an example ticket to help you learn the layout. Real tickets appear automatically when customers request a password reset.",
+      "passwordResetSuccess": "Password reset successful",
+      "sendPassword": "Send Password to Customer",
+      "sent": "Sent",
+      "passwordShareHint": "Share this new password with the customer and ask them to change it to something more secure right away.",
+      "customerInfo": "Customer Information",
+      "field": {
+        "name": "Name",
+        "username": "Username",
+        "phone": "Phone Number",
+        "bank": "Bank Account",
+        "ip": "IP",
+        "country": "Country",
+        "city": "City",
+        "requestType": "Request Type",
+        "userAgent": "User Agent"
+      },
+      "sheetData": "Data from Google Sheet",
+      "replyCustomer": "Reply to Customer",
+      "replyPlaceholder": "Write a message to the customer...",
+      "replyHint": "The message will be delivered to the customer's chat directly.",
+      "lastSynced": "Last synced",
+      "ipUnavailable": "IP unavailable",
+      "type": "Type",
+      "overrideStatus": "Override status:",
+      "status": {
+        "checking": "Checking",
+        "rejected": "Rejected",
+        "solved": "Solved"
+      },
+      "sort": {
+        "newest": "Newest first",
+        "oldest": "Oldest first",
+        "status": "By status",
+        "username": "By username"
+      },
+      "group": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "thisWeek": "This Week",
+        "earlier": "Earlier"
+      },
+      "tutorialDialog": {
+        "title": "Password Recovery Tickets Tutorial",
+        "desc": "Five quick steps to master the ticket flow from intake to resolution."
+      },
+      "tutorialSteps": [
+        {
+          "title": "Tickets arrive automatically",
+          "body": "When a customer requests a password reset via the chat widget, the AI collects their username, bank, and phone, then a ticket appears automatically in the Checking tab. You'll get notified if you've enabled it."
+        },
+        {
+          "title": "Review data and change status if needed",
+          "body": "Click a ticket to see customer details and Google Sheet data. Use the 'Override status' dropdown to move tickets to Checking, Rejected, or Solved per your decision."
+        },
+        {
+          "title": "Send the new password in one tap",
+          "body": "Once a ticket is Solved and a new password is available, click 'Send Password to Customer' to send a message with the new password directly to the customer's chat — no manual writing needed."
+        },
+        {
+          "title": "Open the row in Google Sheet",
+          "body": "The 'Open Sheet' button takes you to the matching row in the Google Sheet for audit, correction, or manual changes. Sheet edits sync back every few seconds."
+        },
+        {
+          "title": "Enable desktop notifications",
+          "body": "Enable desktop notifications from the banner above so you keep getting alerts about new tickets and status changes even when the Chatvice tab is inactive."
+        }
+      ],
+      "sendMessageTemplate": "Hello {name}, your new password for the {username} account is: {password}\n\nPlease log in and change it to a more secure password right away.",
+      "toast": {
+        "passwordCopied": "Password copied",
+        "passwordSent": "Password sent to customer",
+        "sendFailed": "Failed to send password",
+        "statusUpdated": "Status updated",
+        "statusUpdateFailed": "Failed to update status",
+        "replySent": "Reply sent",
+        "replyFailed": "Failed to send reply"
+      }
+    },
+    "gettingStarted": {
+      "title": "Getting Started",
+      "progress": "{done}/{total} done",
+      "congrats": "Congrats! Onboarding complete.",
+      "liveMessage": "Your chatbot is live and ready to serve customers.",
+      "close": "Close",
+      "phaseLabel": "Phase {n}: {title}",
+      "tutorial": "Tutorial",
+      "markDone": "Mark done",
+      "tutorialTitle": "Phase {n} Tutorial: {title}"
     }
   },
   "common": {

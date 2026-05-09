@@ -1956,6 +1956,503 @@
       "title": "Judul",
       "content": "Konten (Markdown didukung)",
       "status": "Status"
+    },
+    "customDataSource": {
+      "title": "Custom Data Source",
+      "subtitle": "Hubungkan panel backend Anda agar AI bisa menjawab pertanyaan customer dengan data realtime.",
+      "tabs": {
+        "settings": "Pengaturan",
+        "intents": "Intent Lookup",
+        "audit": "Riwayat Panggilan"
+      },
+      "health": {
+        "healthy": "Sehat",
+        "degraded": "Lambat sebagian gagal",
+        "unhealthy": "Bermasalah",
+        "unknown": "Belum ada data",
+        "justNow": "baru saja",
+        "minutesAgo": "{n} menit lalu",
+        "hoursAgo": "{n} jam lalu",
+        "lastCheck": "Cek terakhir",
+        "errorRate": "% error / 5 menit",
+        "monitorOff": "monitor dimatikan",
+        "lastError": "Error terakhir"
+      },
+      "tour": {
+        "show": "Tampilkan tur",
+        "skip": "Lewati",
+        "next": "Berikutnya",
+        "done": "Selesai",
+        "preset": {
+          "title": "Pilih jenis bisnis Anda",
+          "body": "Kami akan menyiapkan template intent yang sesuai industri Anda. Pilih satu untuk lanjut."
+        },
+        "baseUrl": {
+          "title": "Tempel base URL panel Anda",
+          "body": "Masukkan URL panel backend yang akan diakses AI. Pastikan endpoint health-check tersedia."
+        },
+        "test": {
+          "title": "Tes koneksinya",
+          "body": "Klik tombol untuk simpan dan tes koneksi. Status hijau berarti panel siap digunakan."
+        },
+        "apiKey": {
+          "title": "Salin API key Anda",
+          "body": "Key ini hanya muncul sekali. Salin dan tempel di server panel Anda untuk autentikasi."
+        },
+        "intents": {
+          "title": "Tambah contoh intent",
+          "body": "Pilih intent yang ingin dipakai. Anda bisa mengubahnya kapan saja di tab Intent Lookup."
+        }
+      },
+      "wizard": {
+        "step1Title": "Langkah 1 — Pilih jenis bisnis Anda",
+        "step1Desc": "Kami akan menyiapkan template pertanyaan yang sesuai dengan industri Anda.",
+        "step2Title": "Langkah 2 — Hubungkan panel API",
+        "step2Desc": "Tempel base URL panel Anda — kami akan langsung tes koneksinya.",
+        "step3Title": "Langkah 3 — Simpan API key Anda",
+        "step3Desc": "Salin API key sekarang. Key ini hanya muncul sekali untuk alasan keamanan.",
+        "step4Title": "Langkah 4 — Tambah contoh intent (opsional)",
+        "step4Desc": "Tambahkan contoh intent satu per satu agar AI tahu pertanyaan apa yang harus dijawab.",
+        "intentExamples": "{n} contoh intent",
+        "nameLabel": "Nama koneksi",
+        "namePlaceholder": "Panel Member API",
+        "baseUrlLabel": "Base URL panel",
+        "baseUrlHint": "Pastikan endpoint /health di panel Anda mengembalikan status 200 untuk verifikasi.",
+        "testButton": "Simpan & Tes Koneksi",
+        "retestButton": "Tes ulang koneksi",
+        "savedHint": "Tersimpan — Anda boleh lanjut meskipun tes gagal.",
+        "success": "Sukses",
+        "failed": "Gagal",
+        "apiKeyWarning": "Simpan sekarang — key ini tidak akan ditampilkan lagi.",
+        "apiKeyHint": "Tempel key ini di server panel Anda. Chatvice akan mengirimnya di header X-API-Key tiap request.",
+        "apiKeyPlaceholder": "(belum di-generate)",
+        "apiKeyMissing": "Sepertinya source sudah dibuat sebelum wizard ini berjalan. Anda bisa generate ulang dari halaman Pengaturan setelah wizard selesai.",
+        "checklistTitle": "Selanjutnya: berikan checklist ke developer panel",
+        "checklistDesc": "Setelah wizard ini selesai, buka Checklist Integrasi untuk melihat daftar TODO endpoint yang harus dibuat di panel Anda — lengkap dengan tombol Tes & Salin cURL.",
+        "openChecklist": "Buka Checklist",
+        "noPresetIntents": "Tidak ada contoh intent untuk preset ini.",
+        "allAdded": "Semua contoh intent dari preset ini sudah ditambahkan. Anda bisa mengelolanya di tab Intent Lookup.",
+        "addHint": "Klik Tambah pada intent yang ingin Anda gunakan. Anda bisa mengubahnya kapan saja di tab Intent Lookup.",
+        "added": "Ditambah",
+        "add": "Tambah",
+        "back": "Kembali",
+        "next": "Lanjut",
+        "finish": "Selesai",
+        "saveFailed": "Gagal menyimpan",
+        "addIntentFailed": "Gagal menambah intent",
+        "baseUrlRequired": "Base URL wajib diisi",
+        "connSuccess": "Koneksi berhasil",
+        "connFailed": "Koneksi gagal",
+        "apiKeyCopied": "API key tersalin"
+      },
+      "settings": {
+        "cardTitle": "Pengaturan Koneksi",
+        "cardDesc": "Atur kredensial dan parameter dasar koneksi panel Anda.",
+        "enable": "Aktifkan koneksi",
+        "monitor": "Monitor kesehatan otomatis (cek tiap 5 menit)",
+        "name": "Nama",
+        "baseUrl": "Base URL",
+        "authHeader": "Nama header autentikasi",
+        "healthPath": "Path health-check",
+        "cacheTtl": "Cache TTL (detik)",
+        "rateLimit": "Rate limit per menit",
+        "save": "Simpan Pengaturan",
+        "test": "Tes Koneksi",
+        "testSuccess": "Koneksi berhasil",
+        "testFailed": "Koneksi gagal",
+        "saved": "Pengaturan tersimpan",
+        "savedDesc": "Konfigurasi panel API berhasil disimpan.",
+        "enableHint": "AI baru akan memanggil panel API saat opsi ini aktif.",
+        "monitorHint": "Chatvice ping endpoint health-check setiap 60 detik dan kirim alert (email + Telegram) saat error rate >50% dalam 5 menit terakhir."
+      },
+      "apiKey": {
+        "title": "API Key",
+        "desc": "Gunakan API key ini di server panel Anda untuk verifikasi request dari Chatvice.",
+        "lastFour": "Akhiran key",
+        "generate": "Generate API Key Baru",
+        "rotate": "Rotasi API Key",
+        "newDialogTitle": "API Key Baru",
+        "newDialogDesc": "Salin sekarang — key ini tidak akan ditampilkan lagi.",
+        "copy": "Salin",
+        "copied": "Tersalin",
+        "close": "Tutup",
+        "rotateConfirm": "Yakin ingin rotasi API key? Key lama akan langsung tidak berlaku.",
+        "cardDesc": "Chatvice mengirim key ini di header autentikasi setiap request. Simpan plaintext di server panel Anda.",
+        "notGenerated": "Belum di-generate",
+        "generateOrRotate": "Generate / Rotate",
+        "plainHint": "Key plaintext hanya tampil satu kali setelah di-generate. Setelah itu Anda hanya bisa rotate ulang.",
+        "iSaved": "Saya sudah simpan",
+        "generateFailed": "Gagal generate API key"
+      },
+      "intent": {
+        "addNew": "Intent Baru",
+        "edit": "Edit Intent",
+        "create": "Intent Baru",
+        "intentKey": "Intent Key",
+        "name": "Nama",
+        "description": "Deskripsi",
+        "triggers": "Trigger Keywords",
+        "triggersHint": "Pisahkan dengan koma. AI akan mendeteksi keyword ini di pesan customer.",
+        "method": "HTTP Method",
+        "endpoint": "Endpoint Path",
+        "endpointHint": "Gunakan {field} untuk placeholder. Contoh: /member/{username}/balance",
+        "requiredFields": "Required Fields",
+        "addField": "Tambah field",
+        "required": "wajib",
+        "responseTemplate": "Template Jawaban",
+        "responseTemplateHint": "Gunakan {key} atau {key.path} untuk inject data dari respons API.",
+        "active": "Aktif",
+        "cancel": "Batal",
+        "save": "Simpan Intent",
+        "delete": "Hapus intent",
+        "deleted": "Intent dihapus",
+        "deleteConfirm": "Hapus intent ini? Tindakan tidak bisa dibatalkan.",
+        "saved": "Intent tersimpan",
+        "inactive": "Nonaktif",
+        "noIntents": "Belum ada intent. Klik Intent Baru untuk menambah.",
+        "deleteConfirmShort": "Hapus intent ini?",
+        "dialogDesc": "Pemetaan dari pertanyaan customer ke endpoint panel Anda.",
+        "responseTemplateEmptyHint": "Kosongkan untuk biarkan AI memformat jawaban dari raw JSON response."
+      },
+      "audit": {
+        "filterIntent": "Semua Intent",
+        "filterStatus": "Semua Status",
+        "statusOk": "Sukses 2xx",
+        "statusFail": "Gagal",
+        "time": "Waktu",
+        "intent": "Intent",
+        "endpoint": "Endpoint",
+        "fields": "Field (masked)",
+        "status": "Status",
+        "latency": "Latency",
+        "noLogs": "Belum ada panggilan tercatat."
+      },
+      "headerSubtitle": "Hubungkan AI agent ke panel backend Anda agar bisa cek data realtime (status deposit, withdraw, turnover, IP login, dll).",
+      "integrationChecklist": "Checklist Integrasi",
+      "specApi": "Spec API",
+      "setupWizard": "Setup wizard",
+      "setupWizardDesc": "Konfigurasi ulang panel API dengan panduan langkah demi langkah.",
+      "connectionTitle": "Koneksi Panel API",
+      "connectionDesc": "Endpoint, autentikasi, dan kontrol cache/rate limit.",
+      "intentsHeading": "Intent yang dideteksi AI",
+      "intentsHeadingDesc": "Tiap intent memetakan kata kunci pertanyaan customer ke endpoint panel Anda.",
+      "addIntent": "Tambah Intent",
+      "saveFirst": "Simpan koneksi panel API terlebih dahulu pada tab Pengaturan.",
+      "triggers": "Triggers",
+      "auditTitle": "Riwayat Panggilan API",
+      "auditDesc": "50 panggilan terakhir. Field input customer otomatis di-mask demi keamanan.",
+      "ofN": "dari",
+      "checklistPage": {
+        "back": "Kembali ke Custom Data Source",
+        "title": "Checklist Integrasi Panel API",
+        "subtitle": "Berikan halaman ini kepada developer panel Anda. Semua TODO yang harus diimplementasikan agar AI agent Chatvice bisa membaca data realtime dari panel ada di sini. Status diperbarui otomatis dari hasil tes koneksi & audit log.",
+        "copyMarkdown": "Salin semua TODO (Markdown)",
+        "postman": "Postman",
+        "viewSpec": "Lihat Spec",
+        "progressTitle": "Progress integrasi",
+        "progressCount": "{done} dari {total} item selesai",
+        "successCount": "{n} sukses",
+        "errorCount": "{n} gagal",
+        "untestedCount": "{n} belum diuji",
+        "sectionATitle": "A. Persyaratan Dasar Panel",
+        "sectionADesc": "Verifikasi otomatis: Chatvice memanggil endpoint health-check Anda saat halaman ini dibuka untuk memvalidasi koneksi.",
+        "sectionBTitle": "B. TODO per Intent Aktif",
+        "sectionBDesc": "Hanya intent yang diaktifkan ditampilkan di sini. Klik \"Tes Sekarang\" untuk memvalidasi atau \"Salin cURL\" untuk dipakai developer.",
+        "sectionBNoActivePre": "Belum ada intent aktif. Aktifkan dari halaman ",
+        "sectionBNoActiveLink": "Custom Data Source",
+        "sectionBNoActivePost": " tab Intent Lookup.",
+        "sectionCTitle": "C. Aturan Keamanan & Operasional",
+        "sectionCDesc": "Praktik wajib agar koneksi panel API tetap aman dan stabil di production.",
+        "stOk": "OK",
+        "stFailed": "Gagal",
+        "stWarn": "Perhatian",
+        "stTodo": "Belum",
+        "stManual": "Manual",
+        "stUntested": "Belum diuji",
+        "stSuccess": "Sukses",
+        "stDone": "Selesai",
+        "stAttention": "Perlu perhatian",
+        "endpointToBuild": "Endpoint yang harus dibuat",
+        "notFilled": "(belum diisi)",
+        "lastTest": "Tes terakhir",
+        "neverTested": "Belum pernah diuji",
+        "todoForDev": "TODO untuk developer panel:",
+        "todo1": "Implementasikan handler {method} {path} di panel.",
+        "todo2Pre": "Validasi API key dari header ",
+        "todo2Post": " sebelum proses request.",
+        "todo3Pre": "Terima parameter: ",
+        "todo3Empty": "(belum ada field — tambahkan di Intent Lookup)",
+        "todo4Pre": "Kembalikan JSON yang berisi key yang dipakai di template: ",
+        "todo4Empty": "(template belum diisi)",
+        "todo5": "Pastikan respons di bawah 5 detik (Chatvice timeout di 10 detik) dan bukan HTTP 3xx redirect.",
+        "testNow": "Tes Sekarang",
+        "copyCurl": "Salin cURL",
+        "emptyDesc": "Anda belum mengatur Custom Data Source. Selesaikan setup lebih dulu untuk melihat checklist integrasi.",
+        "openSetup": "Buka halaman setup",
+        "bottomNote": "Butuh contoh implementasi? Unduh Postman collection di atas — sudah berisi contoh request siap pakai untuk semua intent Anda.",
+        "toastTestSuccess": "Tes sukses",
+        "toastTestFailed": "Tes gagal",
+        "toastCurlCopied": "cURL tersalin",
+        "toastCurlCopiedDesc": "Contoh request untuk {key}",
+        "toastCopyFailed": "Gagal menyalin",
+        "toastChecklistCopied": "Checklist tersalin",
+        "toastChecklistCopiedDesc": "Tempel ke ticket / dokumentasi developer panel Anda.",
+        "networkError": "Kesalahan jaringan",
+        "itemBaseUrlTitle": "Base URL panel valid & HTTPS",
+        "itemBaseUrlDesc": "URL dasar API panel — wajib HTTPS dan dapat diparsing dengan benar.",
+        "itemBaseUrlNotFilled": "Belum diisi",
+        "itemBaseUrlHttpsRequired": "{url} — HTTPS wajib di production",
+        "itemHostTitle": "Host panel dapat diakses publik",
+        "itemHostDesc": "Bukan IP private, loopback, atau metadata — Chatvice menolak resolve seperti ini untuk SSRF.",
+        "itemHostVerified": "Host publik terverifikasi",
+        "itemHostNotVerified": "Belum diverifikasi",
+        "itemHealthTitle": "Endpoint {path} merespons HTTP 200 dengan JSON",
+        "itemHealthDesc": "Chatvice memanggil endpoint ini untuk verifikasi koneksi.",
+        "itemHealthNotTested": "Belum diuji (lengkapi base URL & host publik dulu)",
+        "itemNoRedirectTitle": "Health-check tidak mengembalikan HTTP 3xx redirect",
+        "itemNoRedirectDesc": "Chatvice tidak akan mengikuti redirect — panel API harus merespons langsung.",
+        "itemNoRedirectWaiting": "Menunggu hasil tes",
+        "itemNoRedirectReturned": "Endpoint mengembalikan HTTP {status}",
+        "itemNoRedirectNone": "Tidak ada redirect",
+        "itemLatencyTitle": "Respons di bawah 10 detik",
+        "itemLatencyDesc": "Chatvice timeout di 10 detik. Disarankan respons normal di bawah 5 detik.",
+        "itemLatencyNotAvail": "Belum tersedia",
+        "itemApiKeyTitle": "API key Chatvice telah di-generate",
+        "itemApiKeyDesc": "Pasang key ini di server panel Anda dan validasi di tiap request.",
+        "itemApiKeySaved": "Tersimpan (hint: {hint})",
+        "itemApiKeyNotGen": "Belum di-generate — gunakan tombol Generate di tab Pengaturan",
+        "itemEnabledTitle": "Koneksi diaktifkan",
+        "itemEnabledDesc": "AI agent baru memanggil panel API saat opsi ini aktif.",
+        "itemEnabledActive": "Aktif",
+        "itemEnabledInactive": "Tidak aktif — AI tidak akan memanggil panel",
+        "itemIpWhitelistTitle": "Panel API membatasi sumber IP (opsional tapi disarankan)",
+        "itemIpWhitelistDesc": "Whitelist IP server Chatvice di firewall panel.",
+        "itemKeyStorageTitle": "API key disimpan terenkripsi di panel",
+        "itemKeyStorageDesc": "Jangan commit ke repository. Gunakan secret manager atau env var.",
+        "itemCNoRedirectTitle": "Endpoint tidak pernah merespons HTTP 3xx",
+        "itemCNoRedirectDesc": "Chatvice menolak redirect untuk mencegah SSRF — respons harus langsung.",
+        "itemCNoRedirectReturned": "Health-check mengembalikan HTTP {status}",
+        "itemCNoRedirectNone": "Verifikasi health-check menunjukkan tidak ada redirect",
+        "itemRateLimitTitle": "Panel mendukung rate limit ≥ {n} request/menit",
+        "itemRateLimitDesc": "Sesuaikan dengan setting rate limit Chatvice di tab Pengaturan.",
+        "itemNoSensitiveTitle": "Field sensitif tidak dikembalikan ke AI",
+        "itemNoSensitiveDesc": "PIN, password, OTP, token — wajib di-mask di sisi panel.",
+        "itemAuditLogTitle": "Panel mencatat setiap panggilan dari Chatvice",
+        "itemAuditLogDesc": "Untuk audit trail dan investigasi anomali.",
+        "itemRotateKeyTitle": "API key dirotasi setidaknya tiap 90 hari",
+        "itemRotateKeyDescAge": "Umur saat ini: {n} hari",
+        "itemRotateKeyDescNoData": "Belum tersedia data umur key."
+      }
+    },
+    "checklist": {
+      "title": "Checklist Integrasi Panel",
+      "subtitle": "Daftar endpoint dan langkah yang perlu disiapkan di panel backend Anda.",
+      "untested": "Belum diuji",
+      "successHttp": "Sukses HTTP {status}",
+      "failedHttp": "Gagal HTTP {status}",
+      "testNow": "Tes Sekarang",
+      "copyCurl": "Salin cURL",
+      "copyTodo": "Salin semua TODO",
+      "copyPostman": "Salin Postman",
+      "viewSpec": "Lihat Spec",
+      "testSuccess": "Tes sukses",
+      "testFailed": "Tes gagal",
+      "copied": "Tersalin",
+      "sectionA": {
+        "title": "A. Endpoint inti yang harus tersedia",
+        "desc": "Buat endpoint berikut di panel Anda agar AI bisa menjawab pertanyaan customer."
+      },
+      "sectionB": {
+        "title": "B. Header & autentikasi",
+        "desc": "Pastikan panel menerima header X-API-Key dan mengembalikan respons sesuai spec."
+      },
+      "sectionC": {
+        "title": "C. Format respons & data hygiene",
+        "desc": "Aturan format yang membuat respons mudah diparse oleh AI."
+      },
+      "todoBullet": "TODO",
+      "items": {
+        "health": {
+          "title": "Endpoint health-check",
+          "description": "GET /health mengembalikan 200 OK."
+        },
+        "auth": {
+          "title": "Autentikasi via X-API-Key",
+          "description": "Tolak request tanpa header X-API-Key dengan 401."
+        },
+        "depositStatus": {
+          "title": "Status deposit terbaru",
+          "description": "Endpoint untuk cek status deposit terakhir per username."
+        },
+        "withdrawStatus": {
+          "title": "Status withdraw terbaru",
+          "description": "Endpoint untuk cek status withdraw terakhir per username."
+        },
+        "turnover": {
+          "title": "Progress turnover",
+          "description": "Endpoint untuk cek progress turnover bonus per username."
+        },
+        "lastLogin": {
+          "title": "Riwayat login terakhir",
+          "description": "Endpoint untuk cek IP & waktu login terakhir per username."
+        },
+        "rateLimit": {
+          "title": "Rate limit yang wajar",
+          "description": "Setidaknya 60 request per menit per merchant."
+        },
+        "jsonFormat": {
+          "title": "Respons JSON valid",
+          "description": "Content-Type application/json, encoding UTF-8."
+        },
+        "fieldNames": {
+          "title": "Nama field konsisten",
+          "description": "Gunakan snake_case dan nama yang deskriptif."
+        },
+        "noPii": {
+          "title": "Tidak expose PII tidak perlu",
+          "description": "Jangan kirim data sensitif yang tidak dipakai AI."
+        },
+        "errorShape": {
+          "title": "Format error standar",
+          "description": "Body error: { error: string, code?: string }."
+        },
+        "timestamps": {
+          "title": "Timestamp ISO 8601",
+          "description": "Gunakan format ISO 8601 untuk semua waktu."
+        },
+        "currency": {
+          "title": "Format currency konsisten",
+          "description": "Tampilkan amount + currency code (IDR, USD, dll)."
+        },
+        "pagination": {
+          "title": "Pagination opsional",
+          "description": "Untuk endpoint list, dukung query ?limit & ?offset."
+        }
+      }
+    },
+    "ticketsDialog": {
+      "title": "Tiket Pemulihan Password",
+      "tutorial": "Tutorial",
+      "refresh": "Refresh",
+      "enableNotif": "Aktifkan Notifikasi Desktop",
+      "search": "Cari tiket...",
+      "filterStatus": "Filter status:",
+      "reset": "Reset",
+      "dateAll": "Semua tanggal",
+      "dateToday": "Hari ini",
+      "date7d": "7 hari terakhir",
+      "date30d": "30 hari terakhir",
+      "dateCustom": "Rentang kustom...",
+      "pickDate": "Pilih tanggal",
+      "clear": "Hapus",
+      "back": "Kembali ke daftar",
+      "done": "Mengerti",
+      "copy": "Salin",
+      "copied": "Tersalin",
+      "send": "Kirim",
+      "hide": "Sembunyikan",
+      "showExample": "Lihat contoh tiket",
+      "hideExample": "Sembunyikan contoh",
+      "openTutorial": "Buka Tutorial",
+      "openSheet": "Buka Sheet",
+      "exampleMode": "Mode Contoh - hanya pratinjau",
+      "exampleBadge": "Contoh",
+      "exampleTickets": "Contoh Tiket",
+      "manual": "Manual",
+      "noTickets": "Tidak ada ticket saat ini",
+      "noTicketsDesc": "Tiket baru akan muncul otomatis di sini saat pelanggan meminta reset password lewat chat widget.",
+      "exampleClickHint": "Klik kartu untuk melihat tampilan detail tiket.",
+      "selectTicket": "Pilih sebuah tiket untuk melihat detail.",
+      "selectTicketDesc": "Pilih tiket di kolom kiri untuk melihat data pelanggan, mengirim password, atau memperbarui status.",
+      "exampleDetailBanner": "Ini adalah contoh tiket untuk membantu Anda mengenal tampilan. Tiket nyata akan muncul otomatis saat pelanggan meminta reset password.",
+      "passwordResetSuccess": "Reset password berhasil",
+      "sendPassword": "Kirim Password ke Pelanggan",
+      "sent": "Terkirim",
+      "passwordShareHint": "Bagikan password baru ini ke pelanggan dan minta segera ganti dengan password yang lebih aman.",
+      "customerInfo": "Informasi Pelanggan",
+      "field": {
+        "name": "Nama",
+        "username": "Username",
+        "phone": "Nomor Telepon",
+        "bank": "Nomor Rekening",
+        "ip": "IP",
+        "country": "Negara",
+        "city": "Kota",
+        "requestType": "Tipe Permintaan",
+        "userAgent": "User Agent"
+      },
+      "sheetData": "Data dari Google Sheet",
+      "replyCustomer": "Balas Pelanggan",
+      "replyPlaceholder": "Tulis pesan untuk pelanggan...",
+      "replyHint": "Pesan akan terkirim ke chat pelanggan secara langsung.",
+      "lastSynced": "Terakhir disinkronkan",
+      "ipUnavailable": "IP tidak tersedia",
+      "type": "Tipe",
+      "overrideStatus": "Override status:",
+      "status": {
+        "checking": "Sedang Diperiksa",
+        "rejected": "Ditolak",
+        "solved": "Selesai"
+      },
+      "sort": {
+        "newest": "Terbaru dulu",
+        "oldest": "Terlama dulu",
+        "status": "Berdasarkan status",
+        "username": "Berdasarkan username"
+      },
+      "group": {
+        "today": "Hari Ini",
+        "yesterday": "Kemarin",
+        "thisWeek": "Minggu Ini",
+        "earlier": "Sebelumnya"
+      },
+      "tutorialDialog": {
+        "title": "Tutorial Tiket Pemulihan Password",
+        "desc": "Lima langkah singkat untuk menguasai alur tiket dari masuk hingga selesai."
+      },
+      "tutorialSteps": [
+        {
+          "title": "Tiket masuk otomatis",
+          "body": "Saat pelanggan meminta reset password lewat chat widget, AI akan mengumpulkan username, bank, dan nomor HP, lalu tiket otomatis muncul di tab Sedang Diperiksa di sini. Anda akan menerima notifikasi jika sudah mengaktifkannya."
+        },
+        {
+          "title": "Periksa data dan ubah status bila perlu",
+          "body": "Klik tiket untuk melihat detail pelanggan dan data dari Google Sheet. Gunakan dropdown 'Override status' untuk memindahkan tiket ke Sedang Diperiksa, Ditolak, atau Selesai sesuai keputusan Anda."
+        },
+        {
+          "title": "Kirim password baru satu kali tap",
+          "body": "Setelah tiket berstatus Selesai dan password baru tersedia, klik tombol 'Kirim Password ke Pelanggan' untuk mengirim pesan otomatis berisi password baru langsung ke chat pelanggan, tanpa perlu menulis manual."
+        },
+        {
+          "title": "Buka baris di Google Sheet",
+          "body": "Tombol 'Buka Sheet' akan membawa Anda langsung ke baris yang sesuai di Google Sheet untuk audit, koreksi, atau perubahan manual. Perubahan di Sheet akan tersinkron kembali setiap beberapa detik."
+        },
+        {
+          "title": "Aktifkan notifikasi desktop",
+          "body": "Aktifkan notifikasi desktop dari banner di atas agar Anda tetap mendapat pemberitahuan tiket baru dan perubahan status meskipun tab Chatvice sedang tidak aktif."
+        }
+      ],
+      "sendMessageTemplate": "Halo {name}, password baru Anda untuk akun {username} adalah: {password}\n\nMohon segera login dan ganti dengan password yang lebih aman.",
+      "toast": {
+        "passwordCopied": "Password tersalin",
+        "passwordSent": "Password terkirim ke pelanggan",
+        "sendFailed": "Gagal kirim password",
+        "statusUpdated": "Status diperbarui",
+        "statusUpdateFailed": "Gagal update status",
+        "replySent": "Balasan terkirim",
+        "replyFailed": "Gagal kirim balasan"
+      }
+    },
+    "gettingStarted": {
+      "title": "Getting Started",
+      "progress": "{done}/{total} selesai",
+      "congrats": "Selamat! Onboarding selesai.",
+      "liveMessage": "Chatbot Anda kini live dan siap melayani customer.",
+      "close": "Tutup",
+      "phaseLabel": "Fase {n}: {title}",
+      "tutorial": "Tutorial",
+      "markDone": "Tandai selesai",
+      "tutorialTitle": "Tutorial Fase {n}: {title}"
     }
   },
   "common": {
