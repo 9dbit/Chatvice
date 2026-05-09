@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import {
-  ArrowLeft, CheckCircle2, Circle, AlertTriangle, Loader2, Play, Copy,
+  ArrowLeft, CheckCircle2, Circle, AlertTriangle, XCircle, Loader2, Play, Copy,
   Download, FileText, ClipboardList, ShieldCheck, Plug, KeyRound,
 } from "lucide-react";
 
@@ -57,10 +57,29 @@ interface IntentStatus {
   callCount: number;
 }
 
+interface IntegrationChecks {
+  baseUrlPresent: boolean;
+  baseUrlIsHttps: boolean;
+  baseUrlValid: boolean;
+  baseUrlError: string | null;
+  hostIsPublic: boolean;
+  hostError: string | null;
+  healthChecked: boolean;
+  healthOk: boolean;
+  healthStatus: number | null;
+  healthLatencyMs: number | null;
+  healthRedirect: boolean;
+  healthContentType: string | null;
+  healthIsJson: boolean;
+  healthUnderTimeout: boolean;
+  healthError: string | null;
+}
+
 interface IntegrationStatus {
   source: SourceRow | null;
   intents: IntentRow[];
   intentStatus: Record<string, IntentStatus>;
+  checks: IntegrationChecks | null;
   totals: {
     intents: number;
     enabledIntents: number;
@@ -71,18 +90,43 @@ interface IntegrationStatus {
   apiKeyAgeDays: number | null;
 }
 
-type Status = "done" | "todo" | "warn";
+interface TestResult {
+  ok: boolean;
+  status: number;
+  latencyMs: number;
+  sample?: string;
+  error?: string;
+}
 
-function StatusBadge({ status, doneLabel = "Selesai", todoLabel = "Belum", warnLabel = "Perlu perhatian" }: {
+type Status = "success" | "error" | "warn" | "todo";
+
+interface ChecklistItem {
+  key: string;
+  title: string;
+  description: string;
   status: Status;
-  doneLabel?: string;
-  todoLabel?: string;
-  warnLabel?: string;
+  detail?: string;
+}
+
+function StatusBadge({ status, labels }: {
+  status: Status;
+  labels?: { success?: string; error?: string; warn?: string; todo?: string };
 }) {
-  if (status === "done") {
+  const successLabel = labels?.success ?? "Selesai";
+  const errorLabel = labels?.error ?? "Gagal";
+  const warnLabel = labels?.warn ?? "Perlu perhatian";
+  const todoLabel = labels?.todo ?? "Belum";
+  if (status === "success") {
     return (
       <Badge variant="secondary" className="gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-        <CheckCircle2 className="w-3 h-3" /> {doneLabel}
+        <CheckCircle2 className="w-3 h-3" /> {successLabel}
+      </Badge>
+    );
+  }
+  if (status === "error") {
+    return (
+      <Badge variant="secondary" className="gap-1 bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300">
+        <XCircle className="w-3 h-3" /> {errorLabel}
       </Badge>
     );
   }
@@ -117,7 +161,7 @@ function buildCurl(source: SourceRow, intent: IntentRow): string {
   const method = (intent.httpMethod || "GET").toUpperCase();
   const usedKeys = new Set<string>();
   const sample = buildSampleFields(intent);
-  path = path.replace(/\{([\w]+)\}/g, (_m, key) => {
+  path = path.replace(/\{([\w]+)\}/g, (_m, key: string) => {
     usedKeys.add(key);
     return encodeURIComponent(sample[key] ?? `<${key}>`);
   });
@@ -146,13 +190,17 @@ function buildCurl(source: SourceRow, intent: IntentRow): string {
 
 function buildMarkdown(data: IntegrationStatus): string {
   const lines: string[] = [];
+  const c = data.checks;
+  const mk = (b: boolean) => (b ? "x" : " ");
   lines.push("# Checklist Integrasi Panel API — Chatvice Custom Data Source", "");
   lines.push("## A. Persyaratan Dasar Panel", "");
-  lines.push(`- [${data.source?.baseUrl ? "x" : " "}] Base URL panel telah dikonfigurasi (HTTPS, dapat diakses publik)`);
-  lines.push(`- [${data.source?.apiKeyHint ? "x" : " "}] API key Chatvice telah di-generate dan dipasang di panel`);
-  lines.push(`- [${data.source?.healthPath ? "x" : " "}] Endpoint health-check (\`${data.source?.healthPath || "/health"}\`) merespons HTTP 200`);
-  lines.push(`- [${data.source?.isEnabled ? "x" : " "}] Koneksi diaktifkan dari dashboard Chatvice`);
-  lines.push(`- [ ] Header autentikasi yang dipakai panel = \`${data.source?.headerAuthName || "X-API-Key"}\``);
+  lines.push(`- [${mk(!!c?.baseUrlPresent && !!c?.baseUrlValid && !!c?.baseUrlIsHttps)}] Base URL panel valid & HTTPS`);
+  lines.push(`- [${mk(!!c?.hostIsPublic)}] Host panel dapat diakses publik (bukan IP private/loopback)`);
+  lines.push(`- [${mk(!!c?.healthOk && !!c?.healthIsJson)}] Endpoint \`${data.source?.healthPath || "/health"}\` merespons HTTP 200 dengan JSON`);
+  lines.push(`- [${mk(!!c && c.healthChecked && !c.healthRedirect)}] Endpoint health-check tidak mengembalikan HTTP 3xx redirect`);
+  lines.push(`- [${mk(!!c?.healthChecked && !!c?.healthUnderTimeout && !c?.healthError)}] Health-check selesai di bawah 10 detik tanpa error jaringan`);
+  lines.push(`- [${mk(!!data.source?.apiKeyHint)}] API key Chatvice telah di-generate dan dipasang di panel`);
+  lines.push(`- [${mk(!!data.source?.isEnabled)}] Koneksi diaktifkan dari dashboard Chatvice`);
   lines.push("");
   lines.push("## B. TODO per Intent Aktif", "");
   for (const intent of data.intents) {
@@ -170,11 +218,11 @@ function buildMarkdown(data: IntegrationStatus): string {
   lines.push("## C. Aturan Keamanan & Operasional", "");
   lines.push("- [ ] Panel API hanya menerima koneksi dari IP/server Chatvice (whitelist opsional)");
   lines.push(`- [ ] API key disimpan terenkripsi di panel (jangan commit ke repo)`);
-  lines.push(`- [ ] Endpoint TIDAK pernah merespons dengan HTTP 3xx redirect`);
+  lines.push(`- [${mk(!!c && c.healthChecked && !c.healthRedirect)}] Endpoint TIDAK pernah merespons dengan HTTP 3xx redirect`);
   lines.push(`- [ ] Rate-limit di sisi panel ≥ ${data.source?.rateLimitPerMin || 60} request/menit per merchant`);
   lines.push(`- [ ] Field sensitif (PIN, password, OTP) tidak pernah dikembalikan`);
   lines.push(`- [ ] Audit log internal menyimpan setiap pemanggilan dari Chatvice`);
-  lines.push(`- [ ] API key dirotasi minimal setiap 90 hari (umur saat ini: ${data.apiKeyAgeDays ?? "?"} hari)`);
+  lines.push(`- [${mk((data.apiKeyAgeDays ?? 9999) < 90)}] API key dirotasi minimal setiap 90 hari (umur saat ini: ${data.apiKeyAgeDays ?? "?"} hari)`);
   return lines.join("\n");
 }
 
@@ -187,10 +235,10 @@ export default function CustomDataSourceChecklistPage() {
     queryKey: ["/api/merchant/custom-data-source/integration-status"],
   });
 
-  const testIntent = useMutation({
+  const testIntent = useMutation<TestResult, Error, string>({
     mutationFn: async (intentKey: string) => {
       const res = await apiRequest("POST", "/api/merchant/custom-data-source/test", { intentKey });
-      return res.json() as Promise<{ ok: boolean; status: number; latencyMs: number; sample?: string; error?: string }>;
+      return (await res.json()) as TestResult;
     },
     onSuccess: (result, intentKey) => {
       if (result.ok) {
@@ -201,107 +249,147 @@ export default function CustomDataSourceChecklistPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-source/integration-status"] });
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-source/audit"] });
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast({ title: "Tes gagal", description: err?.message || "Network error", variant: "destructive" });
     },
     onSettled: () => setTestingKey(null),
   });
 
-  const sectionA = useMemo(() => {
+  const sectionA: ChecklistItem[] = useMemo(() => {
     const s = data?.source;
-    return [
-      {
-        key: "base-url",
-        title: "Base URL panel telah dikonfigurasi",
-        description: "URL dasar API panel Anda — wajib HTTPS untuk production.",
-        status: (s?.baseUrl ? "done" : "todo") as Status,
-        detail: s?.baseUrl || "Belum diisi",
-      },
-      {
-        key: "api-key",
-        title: "API key Chatvice telah di-generate",
-        description: "Pasang key ini di server panel Anda dan validasi di tiap request.",
-        status: (s?.apiKeyHint ? "done" : "todo") as Status,
-        detail: s?.apiKeyHint ? `Tersimpan (hint: ${s.apiKeyHint})` : "Belum di-generate",
-      },
-      {
-        key: "health-path",
-        title: "Health-check endpoint dikonfigurasi",
-        description: "Path yang merespons HTTP 200 untuk verifikasi koneksi.",
-        status: (s?.healthPath ? "done" : "todo") as Status,
-        detail: s?.healthPath || "Belum diisi",
-      },
-      {
-        key: "header-auth",
-        title: "Header autentikasi telah disepakati",
-        description: "Nama header yang dipakai Chatvice saat mengirim API key.",
-        status: (s?.headerAuthName ? "done" : "todo") as Status,
-        detail: s?.headerAuthName || "(default: X-API-Key)",
-      },
-      {
-        key: "enabled",
-        title: "Koneksi diaktifkan",
-        description: "AI agent baru memanggil panel API saat opsi ini aktif.",
-        status: (s?.isEnabled ? "done" : "warn") as Status,
-        detail: s?.isEnabled ? "Aktif" : "Tidak aktif — AI tidak akan memanggil panel",
-      },
-    ];
+    const c = data?.checks;
+    if (!s || !c) return [];
+    const items: ChecklistItem[] = [];
+    items.push({
+      key: "base-url",
+      title: "Base URL panel valid & HTTPS",
+      description: "URL dasar API panel — wajib HTTPS dan dapat diparsing dengan benar.",
+      status: !c.baseUrlPresent ? "todo" : (c.baseUrlValid && c.baseUrlIsHttps ? "success" : "error"),
+      detail: !c.baseUrlPresent
+        ? "Belum diisi"
+        : c.baseUrlError
+          ? `${s.baseUrl} — ${c.baseUrlError}`
+          : !c.baseUrlIsHttps
+            ? `${s.baseUrl} — HTTPS wajib di production`
+            : s.baseUrl,
+    });
+    items.push({
+      key: "host-public",
+      title: "Host panel dapat diakses publik",
+      description: "Bukan IP private, loopback, atau metadata — Chatvice menolak resolve seperti ini untuk SSRF.",
+      status: !c.baseUrlPresent ? "todo" : (c.hostIsPublic ? "success" : "error"),
+      detail: c.hostError ?? (c.hostIsPublic ? "Host publik terverifikasi" : "Belum diverifikasi"),
+    });
+    items.push({
+      key: "health-200",
+      title: `Endpoint ${s.healthPath || "/health"} merespons HTTP 200 dengan JSON`,
+      description: "Chatvice memanggil endpoint ini untuk verifikasi koneksi.",
+      status: !c.healthChecked
+        ? "todo"
+        : (c.healthOk && c.healthIsJson)
+          ? "success"
+          : c.healthOk
+            ? "warn"
+            : "error",
+      detail: !c.healthChecked
+        ? "Belum diuji (lengkapi base URL & host publik dulu)"
+        : c.healthError
+          ? c.healthError
+          : `HTTP ${c.healthStatus ?? "?"} • ${c.healthLatencyMs ?? 0}ms${c.healthContentType ? ` • ${c.healthContentType}` : ""}`,
+    });
+    items.push({
+      key: "no-redirect",
+      title: "Health-check tidak mengembalikan HTTP 3xx redirect",
+      description: "Chatvice tidak akan mengikuti redirect — panel API harus merespons langsung.",
+      status: !c.healthChecked ? "todo" : (c.healthRedirect ? "error" : "success"),
+      detail: !c.healthChecked
+        ? "Menunggu hasil tes"
+        : c.healthRedirect
+          ? `Endpoint mengembalikan HTTP ${c.healthStatus}`
+          : "Tidak ada redirect",
+    });
+    items.push({
+      key: "latency",
+      title: "Respons di bawah 10 detik",
+      description: "Chatvice timeout di 10 detik. Disarankan respons normal di bawah 5 detik.",
+      status: !c.healthChecked
+        ? "todo"
+        : (c.healthError ? "error" : (c.healthUnderTimeout ? "success" : "warn")),
+      detail: c.healthLatencyMs != null ? `${c.healthLatencyMs}ms` : "Belum tersedia",
+    });
+    items.push({
+      key: "api-key",
+      title: "API key Chatvice telah di-generate",
+      description: "Pasang key ini di server panel Anda dan validasi di tiap request.",
+      status: s.apiKeyHint ? "success" : "todo",
+      detail: s.apiKeyHint ? `Tersimpan (hint: ${s.apiKeyHint})` : "Belum di-generate — gunakan tombol Generate di tab Pengaturan",
+    });
+    items.push({
+      key: "enabled",
+      title: "Koneksi diaktifkan",
+      description: "AI agent baru memanggil panel API saat opsi ini aktif.",
+      status: s.isEnabled ? "success" : "warn",
+      detail: s.isEnabled ? "Aktif" : "Tidak aktif — AI tidak akan memanggil panel",
+    });
+    return items;
   }, [data]);
 
-  const sectionC = useMemo(() => {
+  const sectionC: ChecklistItem[] = useMemo(() => {
     const s = data?.source;
+    const c = data?.checks;
     const apiKeyOld = (data?.apiKeyAgeDays ?? 0) >= 90;
-    return [
-      {
-        key: "ip-whitelist",
-        title: "Panel API membatasi sumber IP (opsional tapi disarankan)",
-        description: "Whitelist IP server Chatvice di firewall panel.",
-        status: "todo" as Status,
-      },
-      {
-        key: "key-storage",
-        title: "API key disimpan terenkripsi di panel",
-        description: "Jangan commit ke repository. Gunakan secret manager atau env var.",
-        status: "todo" as Status,
-      },
-      {
-        key: "no-redirect",
-        title: "Endpoint tidak pernah merespons HTTP 3xx",
-        description: "Chatvice menolak redirect untuk mencegah SSRF — respons harus langsung.",
-        status: "todo" as Status,
-      },
-      {
-        key: "rate-limit",
-        title: `Panel mendukung rate limit ≥ ${s?.rateLimitPerMin || 60} request/menit`,
-        description: "Sesuaikan dengan setting rate limit Chatvice di tab Pengaturan.",
-        status: "todo" as Status,
-      },
-      {
-        key: "no-sensitive",
-        title: "Field sensitif tidak dikembalikan ke AI",
-        description: "PIN, password, OTP, token — wajib di-mask di sisi panel.",
-        status: "todo" as Status,
-      },
-      {
-        key: "audit-log",
-        title: "Panel mencatat setiap panggilan dari Chatvice",
-        description: "Untuk audit trail dan investigasi anomali.",
-        status: "todo" as Status,
-      },
-      {
-        key: "rotate-key",
-        title: "API key dirotasi setidaknya tiap 90 hari",
-        description: data?.apiKeyAgeDays != null ? `Umur saat ini: ${data.apiKeyAgeDays} hari` : "Belum tersedia data umur key.",
-        status: (apiKeyOld ? "warn" : (data?.apiKeyAgeDays != null ? "done" : "todo")) as Status,
-      },
-    ];
+    const items: ChecklistItem[] = [];
+    items.push({
+      key: "ip-whitelist",
+      title: "Panel API membatasi sumber IP (opsional tapi disarankan)",
+      description: "Whitelist IP server Chatvice di firewall panel.",
+      status: "todo",
+    });
+    items.push({
+      key: "key-storage",
+      title: "API key disimpan terenkripsi di panel",
+      description: "Jangan commit ke repository. Gunakan secret manager atau env var.",
+      status: "todo",
+    });
+    items.push({
+      key: "no-redirect",
+      title: "Endpoint tidak pernah merespons HTTP 3xx",
+      description: "Chatvice menolak redirect untuk mencegah SSRF — respons harus langsung.",
+      status: !c?.healthChecked ? "todo" : (c.healthRedirect ? "error" : "success"),
+      detail: c?.healthChecked ? (c.healthRedirect ? `Health-check mengembalikan HTTP ${c.healthStatus}` : "Verifikasi health-check menunjukkan tidak ada redirect") : undefined,
+    });
+    items.push({
+      key: "rate-limit",
+      title: `Panel mendukung rate limit ≥ ${s?.rateLimitPerMin || 60} request/menit`,
+      description: "Sesuaikan dengan setting rate limit Chatvice di tab Pengaturan.",
+      status: "todo",
+    });
+    items.push({
+      key: "no-sensitive",
+      title: "Field sensitif tidak dikembalikan ke AI",
+      description: "PIN, password, OTP, token — wajib di-mask di sisi panel.",
+      status: "todo",
+    });
+    items.push({
+      key: "audit-log",
+      title: "Panel mencatat setiap panggilan dari Chatvice",
+      description: "Untuk audit trail dan investigasi anomali.",
+      status: "todo",
+    });
+    items.push({
+      key: "rotate-key",
+      title: "API key dirotasi setidaknya tiap 90 hari",
+      description: data?.apiKeyAgeDays != null ? `Umur saat ini: ${data.apiKeyAgeDays} hari` : "Belum tersedia data umur key.",
+      status: data?.apiKeyAgeDays == null ? "todo" : (apiKeyOld ? "warn" : "success"),
+    });
+    return items;
   }, [data]);
 
   const totals = data?.totals;
   const totalItems = sectionA.length + (data?.intents.length || 0) + sectionC.length;
-  const doneItems = sectionA.filter(x => x.status === "done").length
+  const doneItems = sectionA.filter(x => x.status === "success").length
     + (data?.intents.filter(i => data.intentStatus[i.intentKey]?.lastStatus === "success").length || 0)
-    + sectionC.filter(x => x.status === "done").length;
+    + sectionC.filter(x => x.status === "success").length;
   const progressPct = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
 
   if (isLoading) {
@@ -367,7 +455,7 @@ export default function CustomDataSourceChecklistPage() {
             Checklist Integrasi Panel API
           </h1>
           <p className="text-sm text-muted-foreground max-w-2xl">
-            Berikan halaman ini kepada developer panel Anda. Semua TODO yang harus diimplementasikan agar AI agent Chatvice bisa membaca data realtime dari panel ada di sini.
+            Berikan halaman ini kepada developer panel Anda. Semua TODO yang harus diimplementasikan agar AI agent Chatvice bisa membaca data realtime dari panel ada di sini. Status diperbarui otomatis dari hasil tes koneksi & audit log.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -400,8 +488,8 @@ export default function CustomDataSourceChecklistPage() {
               <Badge variant="secondary" className="gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
                 <CheckCircle2 className="w-3 h-3" /> {totals?.successCount ?? 0} sukses
               </Badge>
-              <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
-                <AlertTriangle className="w-3 h-3" /> {totals?.errorCount ?? 0} gagal
+              <Badge variant="secondary" className="gap-1 bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300">
+                <XCircle className="w-3 h-3" /> {totals?.errorCount ?? 0} gagal
               </Badge>
               <Badge variant="outline" className="gap-1">
                 <Circle className="w-3 h-3" /> {totals?.untestedCount ?? 0} belum diuji
@@ -419,7 +507,7 @@ export default function CustomDataSourceChecklistPage() {
             A. Persyaratan Dasar Panel
           </CardTitle>
           <CardDescription>
-            Konfigurasi dasar yang wajib ada sebelum panel bisa terhubung dengan Chatvice.
+            Verifikasi otomatis: Chatvice memanggil endpoint health-check Anda saat halaman ini dibuka untuk memvalidasi koneksi.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -432,9 +520,14 @@ export default function CustomDataSourceChecklistPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">{item.title}</p>
                 <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
-                <p className="text-xs mt-1 font-mono text-muted-foreground break-all">{item.detail}</p>
+                {item.detail && (
+                  <p className="text-xs mt-1 font-mono text-muted-foreground break-all">{item.detail}</p>
+                )}
               </div>
-              <StatusBadge status={item.status} />
+              <StatusBadge
+                status={item.status}
+                labels={{ success: "OK", error: "Gagal", warn: "Perhatian", todo: "Belum" }}
+              />
             </div>
           ))}
         </CardContent>
@@ -447,13 +540,13 @@ export default function CustomDataSourceChecklistPage() {
             B. TODO per Intent Aktif
           </CardTitle>
           <CardDescription>
-            Tiap intent di bawah ini butuh endpoint di panel Anda. Klik "Tes Sekarang" untuk memvalidasi atau "Salin cURL" untuk dipakai developer.
+            Hanya intent yang diaktifkan ditampilkan di sini. Klik "Tes Sekarang" untuk memvalidasi atau "Salin cURL" untuk dipakai developer.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {data.intents.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Belum ada intent. Tambahkan dari halaman <Link href="/dashboard/custom-data-source" className="underline">Custom Data Source</Link> tab Intent Lookup.
+              Belum ada intent aktif. Aktifkan dari halaman <Link href="/dashboard/custom-data-source" className="underline">Custom Data Source</Link> tab Intent Lookup.
             </p>
           ) : (
             <Accordion
@@ -464,9 +557,11 @@ export default function CustomDataSourceChecklistPage() {
             >
               {data.intents.map((intent) => {
                 const st = data.intentStatus[intent.intentKey];
-                const status: Status = st?.lastStatus === "success" ? "done"
-                  : st?.lastStatus === "error" ? "warn"
-                  : "todo";
+                const status: Status = st?.lastStatus === "success"
+                  ? "success"
+                  : st?.lastStatus === "error"
+                    ? "error"
+                    : "todo";
                 const isTesting = testingKey === intent.intentKey;
                 return (
                   <AccordionItem
@@ -479,15 +574,14 @@ export default function CustomDataSourceChecklistPage() {
                         <div className="flex items-center gap-3 min-w-0">
                           <Badge variant="outline" className="font-mono shrink-0">{intent.intentKey}</Badge>
                           <span className="text-sm font-medium truncate text-left">{intent.name}</span>
-                          {!intent.isEnabled && (
-                            <Badge variant="outline" className="text-xs shrink-0">Nonaktif</Badge>
-                          )}
                         </div>
                         <StatusBadge
                           status={status}
-                          doneLabel={`Sukses${st?.lastHttpStatus ? ` ${st.lastHttpStatus}` : ""}`}
-                          warnLabel={`Gagal${st?.lastHttpStatus ? ` ${st.lastHttpStatus}` : ""}`}
-                          todoLabel="Belum diuji"
+                          labels={{
+                            success: `Sukses${st?.lastHttpStatus ? ` ${st.lastHttpStatus}` : ""}`,
+                            error: `Gagal${st?.lastHttpStatus ? ` ${st.lastHttpStatus}` : ""}`,
+                            todo: "Belum diuji",
+                          }}
                         />
                       </div>
                     </AccordionTrigger>
@@ -511,7 +605,7 @@ export default function CustomDataSourceChecklistPage() {
                                 {new Date(st.lastRunAt).toLocaleString("id-ID")}
                               </p>
                               {st.lastErrorMessage && (
-                                <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">{st.lastErrorMessage}</p>
+                                <p className="text-xs text-red-700 dark:text-red-400 mt-1">{st.lastErrorMessage}</p>
                               )}
                             </>
                           ) : (
@@ -610,8 +704,14 @@ export default function CustomDataSourceChecklistPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">{item.title}</p>
                 <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
+                {item.detail && (
+                  <p className="text-xs mt-1 text-muted-foreground">{item.detail}</p>
+                )}
               </div>
-              <StatusBadge status={item.status} />
+              <StatusBadge
+                status={item.status}
+                labels={{ success: "OK", error: "Gagal", warn: "Perhatian", todo: "Manual" }}
+              />
             </div>
           ))}
         </CardContent>

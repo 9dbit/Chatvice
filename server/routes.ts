@@ -28232,9 +28232,14 @@ Please create a comprehensive help center article that would be useful for custo
         // to 1, text to "test_<key>". Caller-supplied values take precedence.
         const supplied: Record<string, string> = (req.body?.fields && typeof req.body.fields === "object") ? req.body.fields : {};
         const fields: Record<string, string> = {};
-        const reqFields = Array.isArray(intent.requiredFields) ? (intent.requiredFields as any[]) : [];
+        type RequiredFieldDef = { key: string; type?: string; required?: boolean; label?: string };
+        const isRequiredFieldDef = (v: unknown): v is RequiredFieldDef =>
+          typeof v === "object" && v !== null && typeof (v as { key?: unknown }).key === "string";
+        const rawReqFields: unknown = intent.requiredFields;
+        const reqFields: RequiredFieldDef[] = Array.isArray(rawReqFields)
+          ? rawReqFields.filter(isRequiredFieldDef)
+          : [];
         for (const f of reqFields) {
-          if (!f || typeof f.key !== "string") continue;
           const provided = supplied[f.key];
           if (provided !== undefined && provided !== null && String(provided).trim() !== "") {
             fields[f.key] = String(provided);
@@ -28285,9 +28290,9 @@ Please create a comprehensive help center article that would be useful for custo
   });
 
   // Integration checklist data — drives the /dashboard/custom-data-source/integration-checklist page.
-  // Returns: source meta (without API key blob), intents, per-intent last audit,
-  // overall counts, and apiKeyAgeDays so the UI can render TODO badges without
-  // having to scan the full audit log on the client.
+  // Returns: source meta (without API key blob), enabled intents only, per-intent last audit,
+  // a LIVE health check (so Section A reflects real verification, not just config presence),
+  // overall counts, and apiKeyAgeDays.
   app.get("/api/merchant/custom-data-source/integration-status", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
@@ -28297,16 +28302,18 @@ Please create a comprehensive help center article that would be useful for custo
           source: null,
           intents: [],
           intentStatus: {},
+          checks: null,
           totals: { intents: 0, enabledIntents: 0, successCount: 0, errorCount: 0, untestedCount: 0 },
           apiKeyAgeDays: null,
         });
       }
       const { apiKeyEncrypted, ...safeSource } = source;
-      const intents = await storage.getCustomDataIntents(source.id);
-      // Pull a generous slice of the audit log so we can find the latest entry
-      // per intent without N+1 queries.
+      // Only enabled intents appear in the checklist — the developer needs to know
+      // which endpoints are *actually* being called by the AI.
+      const allIntents = await storage.getCustomDataIntents(source.id);
+      const intents = allIntents.filter(i => i.isEnabled);
       const auditRows = await storage.getCustomDataAuditLog(merchantId, 500);
-      const intentStatus: Record<string, {
+      type IntentStat = {
         lastStatus: "success" | "error" | "untested";
         lastHttpStatus: number | null;
         lastLatencyMs: number | null;
@@ -28314,7 +28321,8 @@ Please create a comprehensive help center article that would be useful for custo
         lastRunAt: string | null;
         lastSuccessAt: string | null;
         callCount: number;
-      }> = {};
+      };
+      const intentStatus: Record<string, IntentStat> = {};
       for (const intent of intents) {
         const rows = auditRows.filter(r => r.intentKey === intent.intentKey);
         const latest = rows[0];
@@ -28336,6 +28344,91 @@ Please create a comprehensive help center article that would be useful for custo
         else if (s === "error") errorCount++;
         else untestedCount++;
       }
+
+      // Live verification of Section A items. We perform real network checks
+      // here (HTTPS, public-host DNS, GET /health, no 3xx, JSON content-type,
+      // latency <10s) so the UI can show genuine status badges instead of
+      // mere config-presence indicators.
+      const { validateBaseUrl, assertPublicHostExt } = await import("./customConnector");
+      const checks: {
+        baseUrlPresent: boolean;
+        baseUrlIsHttps: boolean;
+        baseUrlValid: boolean;
+        baseUrlError: string | null;
+        hostIsPublic: boolean;
+        hostError: string | null;
+        healthChecked: boolean;
+        healthOk: boolean;
+        healthStatus: number | null;
+        healthLatencyMs: number | null;
+        healthRedirect: boolean;
+        healthContentType: string | null;
+        healthIsJson: boolean;
+        healthUnderTimeout: boolean;
+        healthError: string | null;
+      } = {
+        baseUrlPresent: !!source.baseUrl,
+        baseUrlIsHttps: false,
+        baseUrlValid: false,
+        baseUrlError: null,
+        hostIsPublic: false,
+        hostError: null,
+        healthChecked: false,
+        healthOk: false,
+        healthStatus: null,
+        healthLatencyMs: null,
+        healthRedirect: false,
+        healthContentType: null,
+        healthIsJson: false,
+        healthUnderTimeout: false,
+        healthError: null,
+      };
+      if (source.baseUrl) {
+        const urlCheck = validateBaseUrl(source.baseUrl);
+        if (urlCheck.ok) {
+          checks.baseUrlValid = true;
+          checks.baseUrlIsHttps = urlCheck.url.protocol === "https:";
+          const hostname = urlCheck.url.hostname.replace(/^\[|\]$/g, "");
+          const dnsCheck = await assertPublicHostExt(hostname);
+          if (dnsCheck.ok) {
+            checks.hostIsPublic = true;
+          } else {
+            checks.hostError = dnsCheck.error;
+          }
+          if (checks.hostIsPublic) {
+            const apiKey = decryptApiKey(source.apiKeyEncrypted);
+            const url = source.baseUrl.replace(/\/+$/, "") + (source.healthPath || "/health");
+            const headers: Record<string, string> = { "User-Agent": "Chatvice-Connector/1.0" };
+            if (apiKey) headers[source.headerAuthName] = apiKey;
+            const t0 = Date.now();
+            try {
+              const resp = await fetch(url, {
+                method: "GET",
+                headers,
+                redirect: "manual",
+                signal: AbortSignal.timeout(10_000),
+              });
+              const latencyMs = Date.now() - t0;
+              const ct = resp.headers.get("content-type");
+              checks.healthChecked = true;
+              checks.healthStatus = resp.status;
+              checks.healthLatencyMs = latencyMs;
+              checks.healthRedirect = resp.status >= 300 && resp.status < 400;
+              checks.healthContentType = ct;
+              checks.healthIsJson = !!ct && ct.toLowerCase().includes("application/json");
+              checks.healthUnderTimeout = latencyMs < 10_000;
+              checks.healthOk = resp.ok && !checks.healthRedirect;
+            } catch (err) {
+              checks.healthChecked = true;
+              checks.healthLatencyMs = Date.now() - t0;
+              checks.healthError = err instanceof Error ? err.message : "Network error";
+            }
+          }
+        } else {
+          checks.baseUrlError = urlCheck.error;
+        }
+      }
+
       const apiKeyAgeDays = source.updatedAt
         ? Math.floor((Date.now() - new Date(source.updatedAt).getTime()) / (1000 * 60 * 60 * 24))
         : null;
@@ -28343,9 +28436,10 @@ Please create a comprehensive help center article that would be useful for custo
         source: safeSource,
         intents,
         intentStatus,
+        checks,
         totals: {
           intents: intents.length,
-          enabledIntents: intents.filter(i => i.isEnabled).length,
+          enabledIntents: intents.length,
           successCount,
           errorCount,
           untestedCount,
