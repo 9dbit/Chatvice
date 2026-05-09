@@ -56,6 +56,7 @@ interface AuditRow {
   httpStatus: number | null;
   latencyMs: number | null;
   errorMessage: string | null;
+  maskedFields: Record<string, string> | null;
   createdAt: string;
 }
 
@@ -92,6 +93,16 @@ export default function CustomDataSourcePage() {
 
   const [form, setForm] = useState<Partial<CustomDataSource>>({});
   const merged: Partial<CustomDataSource> = { ...(source || {}), ...form };
+
+  // Audit filters
+  const [auditIntentFilter, setAuditIntentFilter] = useState<string>("all");
+  const [auditStatusFilter, setAuditStatusFilter] = useState<string>("all");
+  const filteredAudit = audit.filter(a => {
+    if (auditIntentFilter !== "all" && a.intentKey !== auditIntentFilter) return false;
+    if (auditStatusFilter === "success" && !(a.httpStatus && a.httpStatus >= 200 && a.httpStatus < 300)) return false;
+    if (auditStatusFilter === "error" && a.httpStatus && a.httpStatus >= 200 && a.httpStatus < 300) return false;
+    return true;
+  });
 
   const saveSource = useMutation({
     mutationFn: async (data: Partial<CustomDataSource>) => {
@@ -402,7 +413,31 @@ export default function CustomDataSourcePage() {
               <CardTitle>Riwayat Panggilan API</CardTitle>
               <CardDescription>50 panggilan terakhir. Field input customer otomatis di-mask demi keamanan.</CardDescription>
             </CardHeader>
-            <CardContent className="overflow-auto">
+            <CardContent className="overflow-auto space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={auditIntentFilter}
+                  onChange={(e) => setAuditIntentFilter(e.target.value)}
+                  className="text-xs border rounded-md px-2 py-1 bg-background"
+                  data-testid="select-audit-intent"
+                >
+                  <option value="all">Semua Intent</option>
+                  {Array.from(new Set(audit.map(a => a.intentKey))).map(k => (
+                    <option key={k} value={k}>{k}</option>
+                  ))}
+                </select>
+                <select
+                  value={auditStatusFilter}
+                  onChange={(e) => setAuditStatusFilter(e.target.value)}
+                  className="text-xs border rounded-md px-2 py-1 bg-background"
+                  data-testid="select-audit-status"
+                >
+                  <option value="all">Semua Status</option>
+                  <option value="success">Sukses (2xx)</option>
+                  <option value="error">Gagal</option>
+                </select>
+                <span className="text-xs text-muted-foreground">{filteredAudit.length} dari {audit.length}</span>
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -415,12 +450,12 @@ export default function CustomDataSourcePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {audit.length === 0 && (
+                  {filteredAudit.length === 0 && (
                     <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">Belum ada panggilan.</TableCell></TableRow>
                   )}
-                  {audit.map((a) => {
-                    const masked = (a as any).maskedFields && typeof (a as any).maskedFields === "object"
-                      ? Object.entries((a as any).maskedFields).map(([k, v]) => `${k}=${v}`).join(", ")
+                  {filteredAudit.map((a) => {
+                    const masked = a.maskedFields
+                      ? Object.entries(a.maskedFields).map(([k, v]) => `${k}=${v}`).join(", ")
                       : "—";
                     return (
                     <TableRow key={a.id} data-testid={`row-audit-${a.id}`}>

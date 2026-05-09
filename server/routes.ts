@@ -28206,9 +28206,11 @@ Please create a comprehensive help center article that would be useful for custo
       const merchantId = req.session!.merchantId!;
       const source = await storage.getCustomDataSource(merchantId);
       if (!source || !source.baseUrl) return res.status(400).json({ error: "Atur base URL terlebih dahulu" });
-      const { validateBaseUrl } = await import("./customConnector");
+      const { validateBaseUrl, assertPublicHostExt } = await import("./customConnector");
       const urlCheck = validateBaseUrl(source.baseUrl);
       if (!urlCheck.ok) return res.status(400).json({ error: urlCheck.error });
+      const dnsCheck = await assertPublicHostExt(urlCheck.url.hostname.replace(/^\[|\]$/g, ""));
+      if (!dnsCheck.ok) return res.status(400).json({ error: dnsCheck.error });
       const apiKey = decryptApiKey(source.apiKeyEncrypted);
       const url = (source.baseUrl.replace(/\/+$/, "")) + (source.healthPath || "/health");
       const t0 = Date.now();

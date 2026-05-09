@@ -149,6 +149,7 @@ function isPrivateIp(ip: string): boolean {
 
 // Resolve a hostname and assert no resolved IP is private. Defends against
 // DNS rebinding and merchant-controlled domains pointing at internal IPs.
+export async function assertPublicHostExt(host: string) { return assertPublicHost(host); }
 async function assertPublicHost(host: string): Promise<{ ok: true } | { ok: false; error: string }> {
   if (net.isIP(host)) {
     return isPrivateIp(host) ? { ok: false, error: `IP "${host}" termasuk alamat internal/private.` } : { ok: true };
@@ -249,6 +250,25 @@ export async function executeIntentLookup(opts: {
     const errMsg = `Missing required fields: ${missing.join(", ")}`;
     await logAudit({ merchantId, intent, sessionId, fields, httpStatus: 0, latencyMs: 0, success: false, errorMessage: errMsg, endpointUrl: null, httpMethod: intent.httpMethod || "GET" });
     return { ok: false, text: `Kakak, untuk cek ${intent.name.toLowerCase()} saya masih perlu data: ${missing.join(", ")}. Boleh dilengkapi dulu ya.`, httpStatus: 0, latencyMs: 0, errorMessage: errMsg };
+  }
+  // Strict format validation per field type — number fields must be numeric.
+  const formatErrors: string[] = [];
+  for (const def of requiredDefs) {
+    const raw = fields[def.key];
+    if (raw === undefined || raw === null || String(raw).trim() === "") continue;
+    const v = String(raw).trim();
+    if (def.type === "number") {
+      // Allow digits and an optional single decimal point. Reject anything else.
+      if (!/^-?\d+(\.\d+)?$/.test(v.replace(/[,\s_]/g, ""))) {
+        formatErrors.push(`${def.label || def.key} harus berupa angka`);
+      }
+    }
+    if (v.length > 200) formatErrors.push(`${def.label || def.key} terlalu panjang`);
+  }
+  if (formatErrors.length > 0) {
+    const errMsg = `Field format invalid: ${formatErrors.join("; ")}`;
+    await logAudit({ merchantId, intent, sessionId, fields, httpStatus: 0, latencyMs: 0, success: false, errorMessage: errMsg, endpointUrl: null, httpMethod: intent.httpMethod || "GET" });
+    return { ok: false, text: `Kakak, ${formatErrors.join("; ")}. Boleh diperbaiki ya.`, httpStatus: 0, latencyMs: 0, errorMessage: errMsg };
   }
 
   // SSRF guard on base URL — string check + DNS resolution check
