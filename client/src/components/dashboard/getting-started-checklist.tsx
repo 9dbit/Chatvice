@@ -197,7 +197,7 @@ export function GettingStartedChecklist({
                 size="icon"
                 variant="ghost"
                 onClick={() => setCollapsed((c) => !c)}
-                aria-label={collapsed ? "Expand checklist" : "Collapse checklist"}
+                aria-label={collapsed ? t("dashboard.gettingStarted.expandAria") : t("dashboard.gettingStarted.collapseAria")}
                 data-testid="button-checklist-collapse"
               >
                 {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
@@ -207,7 +207,7 @@ export function GettingStartedChecklist({
                 variant="ghost"
                 onClick={() => dismissMutation.mutate()}
                 disabled={dismissMutation.isPending}
-                aria-label="Dismiss checklist"
+                aria-label={t("dashboard.gettingStarted.dismissAria")}
                 data-testid="button-checklist-dismiss"
               >
                 <X className="w-4 h-4" />

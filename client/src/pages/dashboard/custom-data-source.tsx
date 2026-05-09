@@ -722,7 +722,7 @@ export default function CustomDataSourcePage() {
                           arr[idx] = { ...arr[idx], label: e.target.value };
                           setEditingIntent({ ...editingIntent, requiredFields: arr });
                         }}
-                        placeholder="Username"
+                        placeholder={t("dashboard.customDataSource.intent.placeholder.fieldLabel")}
                         data-testid={`input-field-label-${idx}`}
                       />
                       <div className="flex items-center gap-1">

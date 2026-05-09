@@ -2502,7 +2502,13 @@
         "browserTitle": "Notifikasi Chatvice diaktifkan",
         "browserBody": "Anda akan menerima pemberitahuan tiket baru meskipun tab ini di latar belakang."
       },
-      "requestTypeFallback": "reset"
+      "requestTypeFallback": "reset",
+      "exampleExtra": {
+        "noteLabel": "Catatan",
+        "noteValue": "Lupa password sejak kemarin",
+        "memberIdLabel": "ID Anggota",
+        "memberIdValue": "MBR-7788"
+      }
     },
     "gettingStarted": {
       "title": "Getting Started",
@@ -2691,7 +2697,10 @@
             }
           ]
         }
-      }
+      },
+      "expandAria": "Buka checklist",
+      "collapseAria": "Tutup checklist",
+      "dismissAria": "Sembunyikan checklist"
     }
   },
   "common": {

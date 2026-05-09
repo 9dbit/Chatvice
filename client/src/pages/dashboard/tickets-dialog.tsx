@@ -285,7 +285,7 @@ const EXAMPLE_TICKET: TicketRow = {
   status: "checking",
   newPassword: null,
   sheetRowIndex: 12,
-  extraData: { Catatan: "Lupa password sejak kemarin", "ID Anggota": "MBR-7788" },
+  extraData: { __exampleNote: "__exampleNoteValue", __exampleMemberId: "__exampleMemberIdValue" },
   manualOverride: false,
   createdAt: new Date().toISOString(),
   lastSyncedAt: new Date().toISOString(),
@@ -428,10 +428,18 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
       .filter(g => g.items.length > 0);
   }, [filtered]);
 
+  const exampleTicket = useMemo<TicketRow>(() => ({
+    ...EXAMPLE_TICKET,
+    extraData: {
+      [t("dashboard.ticketsDialog.exampleExtra.noteLabel")]: t("dashboard.ticketsDialog.exampleExtra.noteValue"),
+      [t("dashboard.ticketsDialog.exampleExtra.memberIdLabel")]: t("dashboard.ticketsDialog.exampleExtra.memberIdValue"),
+    },
+  }), [t]);
+
   const active = useMemo(() => {
-    if (activeId === EXAMPLE_TICKET.id && showExample) return EXAMPLE_TICKET;
+    if (activeId === EXAMPLE_TICKET.id && showExample) return exampleTicket;
     return filtered.find(t => t.id === activeId) || filtered[0] || null;
-  }, [filtered, activeId, showExample]);
+  }, [filtered, activeId, showExample, exampleTicket]);
   const activeStatus = active ? normaliseStatus(active.status) : "checking";
 
   const statusMutation = useMutation({
@@ -736,6 +744,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                     isExampleActive={active?.id === EXAMPLE_TICKET.id}
                     nowTick={nowTick}
                     t={t}
+                    exampleTicket={exampleTicket}
                   />
                 ) : grouped.map(({ group, items }, gi) => (
                   <div key={group ?? `flat-${gi}`} className="flex flex-col gap-2">
@@ -775,7 +784,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                       </Button>
                     </div>
                     <TicketCard
-                      ticket={EXAMPLE_TICKET}
+                      ticket={exampleTicket}
                       isActive={active?.id === EXAMPLE_TICKET.id}
                       onClick={() => openTicket(EXAMPLE_TICKET.id)}
                       isExample
@@ -1107,6 +1116,7 @@ function EmptyState({
   isExampleActive,
   nowTick,
   t,
+  exampleTicket,
 }: {
   showExample: boolean;
   onToggleExample: () => void;
@@ -1114,6 +1124,7 @@ function EmptyState({
   isExampleActive: boolean;
   nowTick?: number;
   t: (k: string) => string;
+  exampleTicket: TicketRow;
 }) {
   return (
     <div className="flex flex-col items-center text-center py-10 px-4 gap-3" data-testid="text-no-tickets">
@@ -1139,7 +1150,7 @@ function EmptyState({
       {showExample && (
         <div className="w-full mt-2">
           <TicketCard
-            ticket={EXAMPLE_TICKET}
+            ticket={exampleTicket}
             isActive={isExampleActive}
             onClick={onSelectExample}
             isExample

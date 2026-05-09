@@ -2525,7 +2525,13 @@
         "browserTitle": "Chatvice notifications enabled",
         "browserBody": "You'll be alerted of new tickets even when this tab is in the background."
       },
-      "requestTypeFallback": "reset"
+      "requestTypeFallback": "reset",
+      "exampleExtra": {
+        "noteLabel": "Note",
+        "noteValue": "Forgotten password since yesterday",
+        "memberIdLabel": "Member ID",
+        "memberIdValue": "MBR-7788"
+      }
     },
     "gettingStarted": {
       "title": "Getting Started",
@@ -2714,7 +2720,10 @@
             }
           ]
         }
-      }
+      },
+      "expandAria": "Expand checklist",
+      "collapseAria": "Collapse checklist",
+      "dismissAria": "Dismiss checklist"
     }
   },
   "common": {
