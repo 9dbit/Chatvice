@@ -35,7 +35,7 @@ import { db, pool } from "./db";
 import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } from "drizzle-orm";
 import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, blastCampaigns } from "@shared/schema";
 import crypto from "crypto";
-import { encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup, buildPostmanCollection, buildHtmlDocs, DEFAULT_INTENTS, PRESET_INTENTS, PRESET_META, getCustomDataHealthSummary, checkOneSourceHealth } from "./customConnector";
+import { encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup, buildPostmanCollection, buildHtmlDocs, DEFAULT_INTENTS, PRESET_INTENTS, PRESET_META, getCustomDataHealthSummary, checkOneSourceHealth, maskValue } from "./customConnector";
 import { registerCustomDataPresetRoutes } from "./customDataPresetRoutes";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import sharp from "sharp";
@@ -7658,9 +7658,56 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                   merchantId: resolvedMerchantId,
                   sessionId,
                 });
-                await storage.createMessage({ sessionId, from: "chatvice", content: lookupRes.text });
-                broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: lookupRes.text } });
-                console.log(`[CustomLookup] intent=${intentKey} status=${lookupRes.httpStatus} session=${sessionId}`);
+
+                let finalText = lookupRes.text;
+
+                // ── Smart follow-up on "not found" ──
+                // The panel responded cleanly but didn't find the record.
+                // Instead of dead-ending the customer with raw template text
+                // (which would be all "(tidak diketahui)" placeholders), ask
+                // the AI to phrase a friendly clarifying question in the
+                // customer's language.
+                if (lookupRes.outcome === "not_found") {
+                  try {
+                    const maskedFieldList = Object.entries(fields)
+                      .map(([k, v]) => `${k}=${maskValue(String(v))}`)
+                      .join(", ") || "(tidak ada)";
+                    const followUpSystem =
+                      `Kamu adalah asisten customer service yang ramah. ` +
+                      `Customer baru saja meminta cek "${intent.name}" ke sistem internal kami, ` +
+                      `tapi datanya TIDAK DITEMUKAN di panel. Field yang dicek (sudah dimask): ${maskedFieldList}. ` +
+                      `Tugasmu: jawab dalam bahasa yang sama dengan pesan terakhir customer. ` +
+                      `1) Akui dengan ramah bahwa data tidak ditemukan, jangan minta maaf berlebihan. ` +
+                      `2) Minta customer mengecek ulang field yang mungkin salah ketik (misal username/nomor/nominal). ` +
+                      `Sebut nama field-nya, jangan tampilkan nilainya. ` +
+                      `3) Tawarkan untuk coba lagi, atau hubungi tim support kalau merasa data sudah benar. ` +
+                      `Maksimal 2-3 kalimat. Jangan tampilkan JSON, jangan pakai emoji, jangan tampilkan tag teknis seperti [CUSTOM_LOOKUP].`;
+                    const followUpResp = await openai.chat.completions.create({
+                      model: "gpt-4.1-mini",
+                      temperature: 0.4,
+                      max_tokens: 220,
+                      messages: [
+                        { role: "system", content: followUpSystem },
+                        { role: "user", content: message },
+                      ],
+                    });
+                    const aiFollowUp = followUpResp.choices?.[0]?.message?.content?.trim();
+                    if (aiFollowUp) {
+                      finalText = aiFollowUp;
+                    } else {
+                      const fieldNames = Object.keys(fields).join(", ") || "data yang dimasukkan";
+                      finalText = `Maaf, datanya belum ketemu untuk ${intent.name.toLowerCase()}. Boleh dicek ulang ${fieldNames}-nya, mungkin ada yang kurang tepat. Kalau sudah yakin benar, saya bantu hubungkan ke tim support ya.`;
+                    }
+                  } catch (followUpErr) {
+                    console.error("[CustomLookup] Follow-up generation failed:", followUpErr);
+                    const fieldNames = Object.keys(fields).join(", ") || "data yang dimasukkan";
+                    finalText = `Maaf, datanya belum ketemu untuk ${intent.name.toLowerCase()}. Boleh dicek ulang ${fieldNames}-nya, mungkin ada yang kurang tepat. Kalau sudah yakin benar, saya bantu hubungkan ke tim support ya.`;
+                  }
+                }
+
+                await storage.createMessage({ sessionId, from: "chatvice", content: finalText });
+                broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: finalText } });
+                console.log(`[CustomLookup] intent=${intentKey} status=${lookupRes.httpStatus} outcome=${lookupRes.outcome || "?"} session=${sessionId}`);
               } else {
                 console.log(`[CustomLookup] Intent not found or disabled: ${intentKey}`);
               }

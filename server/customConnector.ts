@@ -251,6 +251,33 @@ export interface ConnectorResult {
   latencyMs: number;
   rawData?: any;
   errorMessage?: string;
+  // success  — panel returned usable data, `text` is the rendered template
+  // not_found — panel responded but the record/field doesn't exist; the
+  //             dispatcher should ask the AI to generate a clarifying follow-up
+  // error    — network/timeout/5xx/parse failure; show a generic friendly msg
+  outcome?: "success" | "not_found" | "error";
+}
+
+// Heuristic: did the panel respond cleanly but with "no record"? This must be
+// distinguished from system errors so the AI can ask "are you sure the username
+// is correct?" instead of dead-ending the customer with raw template text.
+export function isNotFoundResponse(httpStatus: number, json: any): boolean {
+  if (httpStatus === 404) return true;
+  if (httpStatus < 200 || httpStatus >= 300) return false;
+  if (json === null || json === undefined) return true;
+  if (Array.isArray(json)) return json.length === 0;
+  if (typeof json !== "object") return false;
+  if (Object.keys(json).length === 0) return true;
+  // Common "no record" payload shapes from merchant panels.
+  if (json.success === false) return true;
+  if (json.found === false) return true;
+  if (json.exists === false) return true;
+  if (json.status === "not_found" || json.status === "NOT_FOUND") return true;
+  if (json.code === "not_found" || json.code === 404) return true;
+  if (typeof json.error === "string" && /not[_\s-]?found/i.test(json.error)) return true;
+  if (json.data === null) return true;
+  if (Array.isArray(json.data) && json.data.length === 0) return true;
+  return false;
 }
 
 export async function executeIntentLookup(opts: {
@@ -392,12 +419,22 @@ export async function executeIntentLookup(opts: {
     errorMessage = err?.name === "TimeoutError" ? "Request timeout" : (err?.message || "Network error");
   }
   const latencyMs = Date.now() - t0;
-  const success = httpStatus >= 200 && httpStatus < 300 && !!json && !parseFailed;
+  const transportOk = httpStatus >= 200 && httpStatus < 300 && !parseFailed;
+  // 404 with parsed body is still a valid "not found" response — surface it
+  // to the dispatcher so the AI can ask a clarifying follow-up question.
+  const notFound = !parseFailed && isNotFoundResponse(httpStatus, json);
+  const success = transportOk && !!json && !notFound;
 
-  await logAudit({ merchantId, intent, sessionId, fields, httpStatus, latencyMs, success, errorMessage, endpointUrl: auditUrl, httpMethod: method });
+  await logAudit({ merchantId, intent, sessionId, fields, httpStatus, latencyMs, success, errorMessage: notFound ? "Not found" : errorMessage, endpointUrl: auditUrl, httpMethod: method });
+
+  if (notFound) {
+    // Don't cache misses: the customer may correct their input on the next turn
+    // and we want a fresh lookup rather than a stale "not found" reply.
+    return { ok: false, text: "", httpStatus, latencyMs, rawData: json, outcome: "not_found" };
+  }
 
   if (!success) {
-    return { ok: false, text: userFacingError, httpStatus, latencyMs, errorMessage };
+    return { ok: false, text: userFacingError, httpStatus, latencyMs, errorMessage, outcome: "error" };
   }
 
   responseCache.set(ckey, { at: Date.now(), status: httpStatus, body: json });
@@ -408,7 +445,7 @@ export async function executeIntentLookup(opts: {
   }
 
   const text = renderTemplate(intent.responseTemplate || "", json);
-  return { ok: true, text, httpStatus, latencyMs, rawData: json };
+  return { ok: true, text, httpStatus, latencyMs, rawData: json, outcome: "success" };
 }
 
 async function logAudit(opts: {
