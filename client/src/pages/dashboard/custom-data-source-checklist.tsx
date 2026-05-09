@@ -138,7 +138,7 @@ function StatusBadge({ status, labels }: {
     );
   }
   return (
-    <Badge variant="outline" className="gap-1">
+    <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
       <Circle className="w-3 h-3" /> {todoLabel}
     </Badge>
   );
@@ -491,7 +491,7 @@ export default function CustomDataSourceChecklistPage() {
               <Badge variant="secondary" className="gap-1 bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300">
                 <XCircle className="w-3 h-3" /> {totals?.errorCount ?? 0} gagal
               </Badge>
-              <Badge variant="outline" className="gap-1">
+              <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
                 <Circle className="w-3 h-3" /> {totals?.untestedCount ?? 0} belum diuji
               </Badge>
             </div>
