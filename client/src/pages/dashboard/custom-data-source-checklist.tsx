@@ -190,41 +190,42 @@ function buildCurl(source: SourceRow, intent: IntentRow): string {
   return lines.join("\n");
 }
 
-function buildMarkdown(data: IntegrationStatus): string {
+function buildMarkdown(data: IntegrationStatus, m: (k: string) => string): string {
   const lines: string[] = [];
   const c = data.checks;
   const mk = (b: boolean) => (b ? "x" : " ");
-  lines.push("# Checklist Integrasi Panel API — Chatvice Custom Data Source", "");
-  lines.push("## A. Persyaratan Dasar Panel", "");
-  lines.push(`- [${mk(!!c?.baseUrlPresent && !!c?.baseUrlValid && !!c?.baseUrlIsHttps)}] Base URL panel valid & HTTPS`);
-  lines.push(`- [${mk(!!c?.hostIsPublic)}] Host panel dapat diakses publik (bukan IP private/loopback)`);
-  lines.push(`- [${mk(!!c?.healthOk && !!c?.healthIsJson)}] Endpoint \`${data.source?.healthPath || "/health"}\` merespons HTTP 200 dengan JSON`);
-  lines.push(`- [${mk(!!c && c.healthChecked && !c.healthRedirect)}] Endpoint health-check tidak mengembalikan HTTP 3xx redirect`);
-  lines.push(`- [${mk(!!c?.healthChecked && !!c?.healthUnderTimeout && !c?.healthError)}] Health-check selesai di bawah 10 detik tanpa error jaringan`);
-  lines.push(`- [${mk(!!data.source?.apiKeyHint)}] API key Chatvice telah di-generate dan dipasang di panel`);
-  lines.push(`- [${mk(!!data.source?.isEnabled)}] Koneksi diaktifkan dari dashboard Chatvice`);
+  lines.push(m("title"), "");
+  lines.push(m("sectionA"), "");
+  lines.push(`- [${mk(!!c?.baseUrlPresent && !!c?.baseUrlValid && !!c?.baseUrlIsHttps)}] ${m("itemBaseUrl")}`);
+  lines.push(`- [${mk(!!c?.hostIsPublic)}] ${m("itemHostPublic")}`);
+  lines.push(`- [${mk(!!c?.healthOk && !!c?.healthIsJson)}] ${m("itemHealthOk").replace("{path}", data.source?.healthPath || "/health")}`);
+  lines.push(`- [${mk(!!c && c.healthChecked && !c.healthRedirect)}] ${m("itemHealthNoRedirect")}`);
+  lines.push(`- [${mk(!!c?.healthChecked && !!c?.healthUnderTimeout && !c?.healthError)}] ${m("itemHealthTimeout")}`);
+  lines.push(`- [${mk(!!data.source?.apiKeyHint)}] ${m("itemApiKeyGenerated")}`);
+  lines.push(`- [${mk(!!data.source?.isEnabled)}] ${m("itemEnabled")}`);
   lines.push("");
-  lines.push("## B. TODO per Intent Aktif", "");
+  lines.push(m("sectionB"), "");
   for (const intent of data.intents) {
     const st = data.intentStatus[intent.intentKey];
     const mark = st?.lastStatus === "success" ? "x" : " ";
     lines.push(`### ${intent.name} (\`${intent.intentKey}\`)`);
-    lines.push(`- Status terakhir: **${st?.lastStatus || "untested"}**${st?.lastHttpStatus ? ` (HTTP ${st.lastHttpStatus})` : ""}`);
-    lines.push(`- Endpoint: \`${intent.httpMethod} ${intent.endpointPath}\``);
-    lines.push(`- [${mark}] Implementasikan endpoint di panel`);
-    lines.push(`- [ ] Endpoint mengembalikan JSON dengan field: ${(intent.requiredFields || []).map(f => `\`${f.key}\``).join(", ") || "(belum ada field)"}`);
-    lines.push(`- [ ] Endpoint memvalidasi API key di header \`${data.source?.headerAuthName || "X-API-Key"}\``);
-    lines.push(`- [ ] Endpoint merespons di bawah 5 detik`);
+    lines.push(`- ${m("intentLastStatus")}: **${st?.lastStatus || m("untested")}**${st?.lastHttpStatus ? ` (HTTP ${st.lastHttpStatus})` : ""}`);
+    lines.push(`- ${m("intentEndpoint")}: \`${intent.httpMethod} ${intent.endpointPath}\``);
+    lines.push(`- [${mark}] ${m("intentImplement")}`);
+    const fieldsStr = (intent.requiredFields || []).map(f => `\`${f.key}\``).join(", ") || m("intentNoFields");
+    lines.push(`- [ ] ${m("intentJsonFields").replace("{fields}", fieldsStr)}`);
+    lines.push(`- [ ] ${m("intentValidatesKey").replace("{header}", data.source?.headerAuthName || "X-API-Key")}`);
+    lines.push(`- [ ] ${m("intentResponds")}`);
     lines.push("");
   }
-  lines.push("## C. Aturan Keamanan & Operasional", "");
-  lines.push("- [ ] Panel API hanya menerima koneksi dari IP/server Chatvice (whitelist opsional)");
-  lines.push(`- [ ] API key disimpan terenkripsi di panel (jangan commit ke repo)`);
-  lines.push(`- [${mk(!!c && c.healthChecked && !c.healthRedirect)}] Endpoint TIDAK pernah merespons dengan HTTP 3xx redirect`);
-  lines.push(`- [ ] Rate-limit di sisi panel ≥ ${data.source?.rateLimitPerMin || 60} request/menit per merchant`);
-  lines.push(`- [ ] Field sensitif (PIN, password, OTP) tidak pernah dikembalikan`);
-  lines.push(`- [ ] Audit log internal menyimpan setiap pemanggilan dari Chatvice`);
-  lines.push(`- [${mk((data.apiKeyAgeDays ?? 9999) < 90)}] API key dirotasi minimal setiap 90 hari (umur saat ini: ${data.apiKeyAgeDays ?? "?"} hari)`);
+  lines.push(m("sectionC"), "");
+  lines.push(`- [ ] ${m("itemWhitelist")}`);
+  lines.push(`- [ ] ${m("itemKeyEncrypted")}`);
+  lines.push(`- [${mk(!!c && c.healthChecked && !c.healthRedirect)}] ${m("itemNoRedirect")}`);
+  lines.push(`- [ ] ${m("itemRateLimit").replace("{n}", String(data.source?.rateLimitPerMin || 60))}`);
+  lines.push(`- [ ] ${m("itemSensitive")}`);
+  lines.push(`- [ ] ${m("itemAuditLog")}`);
+  lines.push(`- [${mk((data.apiKeyAgeDays ?? 9999) < 90)}] ${m("itemKeyRotation").replace("{days}", String(data.apiKeyAgeDays ?? m("unknown")))}`);
   return lines.join("\n");
 }
 
@@ -438,7 +439,7 @@ export default function CustomDataSourceChecklistPage() {
   };
 
   const onCopyAllMarkdown = () => {
-    const md = buildMarkdown(data);
+    const md = buildMarkdown(data, (k: string) => cp(`markdown.${k}`));
     navigator.clipboard.writeText(md).then(
       () => toast({ title: cp("toastChecklistCopied"), description: cp("toastChecklistCopiedDesc") }),
       () => toast({ title: cp("toastCopyFailed"), variant: "destructive" }),

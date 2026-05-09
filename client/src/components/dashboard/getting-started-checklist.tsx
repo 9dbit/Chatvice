@@ -285,11 +285,11 @@ export function GettingStartedChecklist({
                             completed ? "line-through text-muted-foreground" : ""
                           }`}
                         >
-                          {t("dashboard.gettingStarted.phaseLabel").replace("{n}", String(phase.number)).replace("{title}", phase.title)}
+                          {t("dashboard.gettingStarted.phaseLabel").replace("{n}", String(phase.number)).replace("{title}", t(`dashboard.gettingStarted.phases.${phase.id}.title`))}
                         </p>
                         {!completed && (
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            {phase.description}
+                            {t(`dashboard.gettingStarted.phases.${phase.id}.description`)}
                           </p>
                         )}
                         {!completed && (
@@ -312,7 +312,7 @@ export function GettingStartedChecklist({
                               data-testid={`button-deeplink-${phase.id}`}
                             >
                               <ArrowRight className="w-3 h-3" />
-                              {phase.deepLinkLabel}
+                              {t(`dashboard.gettingStarted.phases.${phase.id}.deepLinkLabel`)}
                             </Button>
                           </div>
                         )}
@@ -353,10 +353,10 @@ export function GettingStartedChecklist({
                       return <Icon className="w-4 h-4" />;
                     })()}
                   </span>
-                  {t("dashboard.gettingStarted.tutorialTitle").replace("{n}", String(tutorialPhase.number)).replace("{title}", tutorialPhase.title)}
+                  {t("dashboard.gettingStarted.tutorialTitle").replace("{n}", String(tutorialPhase.number)).replace("{title}", t(`dashboard.gettingStarted.phases.${tutorialPhase.id}.title`))}
                 </DialogTitle>
                 <DialogDescription className="text-xs">
-                  {tutorialPhase.description}
+                  {t(`dashboard.gettingStarted.phases.${tutorialPhase.id}.description`)}
                 </DialogDescription>
               </DialogHeader>
               <ol className="space-y-3 mt-2">
@@ -370,16 +370,16 @@ export function GettingStartedChecklist({
                       {idx + 1}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{step.title}</p>
+                      <p className="text-sm font-medium">{t(`dashboard.gettingStarted.phases.${tutorialPhase.id}.tutorial.${idx}.title`)}</p>
                       <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                        {step.body}
+                        {t(`dashboard.gettingStarted.phases.${tutorialPhase.id}.tutorial.${idx}.body`)}
                       </p>
                     </div>
                   </li>
                 ))}
               </ol>
               <p className="text-[11px] text-muted-foreground border-t pt-2 mt-3">
-                {tutorialPhase.autoDetectHint}
+                {t(`dashboard.gettingStarted.phases.${tutorialPhase.id}.autoDetectHint`)}
               </p>
               <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-2">
                 <Button
@@ -400,7 +400,7 @@ export function GettingStartedChecklist({
                   data-testid="button-tutorial-open-page"
                 >
                   <ArrowRight className="w-3.5 h-3.5 mr-1.5" />
-                  {tutorialPhase.deepLinkLabel}
+                  {t(`dashboard.gettingStarted.phases.${tutorialPhase.id}.deepLinkLabel`)}
                 </Button>
               </div>
             </>

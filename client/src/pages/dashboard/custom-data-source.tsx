@@ -647,7 +647,7 @@ export default function CustomDataSourcePage() {
                   <Input
                     value={editingIntent.name || ""}
                     onChange={(e) => setEditingIntent({ ...editingIntent, name: e.target.value })}
-                    placeholder="Cek Status Deposit"
+                    placeholder={t("dashboard.customDataSource.intent.placeholder.name")}
                     data-testid="input-intent-name"
                   />
                 </div>
@@ -657,7 +657,7 @@ export default function CustomDataSourcePage() {
                 <Input
                   value={editingIntent.description || ""}
                   onChange={(e) => setEditingIntent({ ...editingIntent, description: e.target.value })}
-                  placeholder="Cek apakah deposit sudah masuk"
+                  placeholder={t("dashboard.customDataSource.intent.placeholder.description")}
                   data-testid="input-intent-description"
                 />
               </div>
@@ -666,7 +666,7 @@ export default function CustomDataSourcePage() {
                 <Input
                   value={editingIntent.triggerKeywords || ""}
                   onChange={(e) => setEditingIntent({ ...editingIntent, triggerKeywords: e.target.value })}
-                  placeholder="depo, deposit, dp, isi saldo, top up"
+                  placeholder={t("dashboard.customDataSource.intent.placeholder.triggers")}
                   data-testid="input-trigger-keywords"
                 />
               </div>
@@ -754,7 +754,7 @@ export default function CustomDataSourcePage() {
                   rows={4}
                   value={editingIntent.responseTemplate || ""}
                   onChange={(e) => setEditingIntent({ ...editingIntent, responseTemplate: e.target.value })}
-                  placeholder="Status deposit Kakak {username} sebesar {amount}: {status}. Diproses pada {processed_at}."
+                  placeholder={t("dashboard.customDataSource.intent.placeholder.responseTemplate")}
                   className="font-mono text-sm"
                   data-testid="input-response-template"
                 />

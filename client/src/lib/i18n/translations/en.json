@@ -2135,7 +2135,17 @@
         "noIntents": "No intents yet. Click New Intent to add one.",
         "deleteConfirmShort": "Delete this intent?",
         "dialogDesc": "Map customer questions to your panel endpoints.",
-        "responseTemplateEmptyHint": "Leave empty to let AI format the answer from raw JSON response."
+        "responseTemplateEmptyHint": "Leave empty to let AI format the answer from raw JSON response.",
+        "placeholder": {
+          "intentKey": "deposit_status",
+          "name": "Check Deposit Status",
+          "description": "Check whether the deposit was received",
+          "triggers": "deposit, dp, top up, recharge",
+          "endpoint": "/deposits/check?username={username}&amount={amount}",
+          "fieldKey": "username",
+          "fieldLabel": "Username",
+          "responseTemplate": "Deposit status for {username} of {amount}: {status}. Processed at {processed_at}."
+        }
       },
       "audit": {
         "filterIntent": "All Intents",
@@ -2264,7 +2274,36 @@
         "itemAuditLogDesc": "For audit trail and anomaly investigation.",
         "itemRotateKeyTitle": "API key rotated at least every 90 days",
         "itemRotateKeyDescAge": "Current age: {n} days",
-        "itemRotateKeyDescNoData": "Key age data not yet available."
+        "itemRotateKeyDescNoData": "Key age data not yet available.",
+        "markdown": {
+          "title": "# Panel API Integration Checklist — Chatvice Custom Data Source",
+          "sectionA": "## A. Panel Basic Requirements",
+          "sectionB": "## B. TODO per Active Intent",
+          "sectionC": "## C. Security & Operational Rules",
+          "itemBaseUrl": "Panel base URL valid & HTTPS",
+          "itemHostPublic": "Panel host is publicly reachable (not a private/loopback IP)",
+          "itemHealthOk": "Endpoint `{path}` responds with HTTP 200 JSON",
+          "itemHealthNoRedirect": "Health-check endpoint does not return HTTP 3xx redirect",
+          "itemHealthTimeout": "Health-check finishes in under 10 seconds without network error",
+          "itemApiKeyGenerated": "Chatvice API key has been generated and installed in the panel",
+          "itemEnabled": "Connection is enabled from the Chatvice dashboard",
+          "intentLastStatus": "Last status",
+          "intentEndpoint": "Endpoint",
+          "intentImplement": "Implement the endpoint in the panel",
+          "intentJsonFields": "Endpoint returns JSON with fields: {fields}",
+          "intentNoFields": "(no fields yet)",
+          "intentValidatesKey": "Endpoint validates the API key in header `{header}`",
+          "intentResponds": "Endpoint responds within 5 seconds",
+          "itemWhitelist": "Panel API only accepts connections from Chatvice IPs/servers (optional whitelist)",
+          "itemKeyEncrypted": "API key stored encrypted in the panel (do not commit to repo)",
+          "itemNoRedirect": "Endpoint NEVER responds with HTTP 3xx redirect",
+          "itemRateLimit": "Server-side rate-limit ≥ {n} requests/min per merchant",
+          "itemSensitive": "Sensitive fields (PIN, password, OTP) are never returned",
+          "itemAuditLog": "Internal audit log records every call from Chatvice",
+          "itemKeyRotation": "API key rotated at least every 90 days (current age: {days} days)",
+          "untested": "untested",
+          "unknown": "?"
+        }
       }
     },
     "checklist": {
@@ -2464,6 +2503,18 @@
         "statusUpdateFailed": "Failed to update status",
         "replySent": "Reply sent",
         "replyFailed": "Failed to send reply"
+      },
+      "close": "Close",
+      "fallbackCustomerName": "Customer",
+      "notifBannerSubtitle": "Enable so you receive new ticket alerts even when the Chatvice tab is inactive.",
+      "notif": {
+        "unsupported": "Browser does not support desktop notifications",
+        "denied": "Notification permission denied",
+        "deniedDesc": "Enable it from your browser settings to receive ticket notifications.",
+        "enabled": "Desktop notifications enabled",
+        "enableFailed": "Failed to enable notifications",
+        "browserTitle": "Chatvice notifications enabled",
+        "browserBody": "You'll be alerted of new tickets even when this tab is in the background."
       }
     },
     "gettingStarted": {
@@ -2475,7 +2526,185 @@
       "phaseLabel": "Phase {n}: {title}",
       "tutorial": "Tutorial",
       "markDone": "Mark done",
-      "tutorialTitle": "Phase {n} Tutorial: {title}"
+      "tutorialTitle": "Phase {n} Tutorial: {title}",
+      "phases": {
+        "agent": {
+          "title": "Create your first AI Agent",
+          "description": "An agent is your chatbot's brain. Without an agent, the widget cannot answer messages.",
+          "deepLinkLabel": "Open the AI Agents page",
+          "autoDetectHint": "Marked complete automatically once at least one agent is created.",
+          "tutorial": [
+            {
+              "title": "Open the AI Agents page",
+              "body": "In the dashboard sidebar, click the AI Agents menu to open the agent management page."
+            },
+            {
+              "title": "Click Create New Agent",
+              "body": "Press the Create New Agent button in the top right of the page."
+            },
+            {
+              "title": "Fill in agent data",
+              "body": "Enter the agent name (e.g. Store Assistant), pick the AI model (GPT-4.1-mini recommended), and write the agent's personality/role so its replies match your brand."
+            },
+            {
+              "title": "Activate the agent",
+              "body": "Click Save, then set this agent as the Active Agent for the widget. This is the agent that will greet your visitors."
+            }
+          ]
+        },
+        "widget-settings": {
+          "title": "Configure widget appearance",
+          "description": "Tweak colors, position, icon, greeting, and suggested questions so the widget matches your brand.",
+          "deepLinkLabel": "Open the Widget page",
+          "autoDetectHint": "Mark complete after you save the basic widget settings.",
+          "tutorial": [
+            {
+              "title": "Open the Widget page",
+              "body": "From the sidebar, click the Widget menu to access appearance settings."
+            },
+            {
+              "title": "Pick color and position",
+              "body": "Set the widget primary color (preferably matching your brand), pick bubble position (left or right), and light/dark theme."
+            },
+            {
+              "title": "Upload icon and agent photo",
+              "body": "Upload a custom widget icon (optional) and an agent profile photo to make it feel more personal."
+            },
+            {
+              "title": "Set greeting and suggested questions",
+              "body": "Write the welcome message that appears when the widget opens. Add suggested questions so visitors know what they can ask."
+            },
+            {
+              "title": "Pick interaction mode",
+              "body": "Choose click-to-open (widget opens when clicked) or auto-open (widget opens automatically with an AI greeting)."
+            },
+            {
+              "title": "Mark complete",
+              "body": "After all basic settings are saved, click Mark complete on the Getting Started checklist."
+            }
+          ]
+        },
+        "prechat": {
+          "title": "Configure Prechat",
+          "description": "Set welcome bubble, name collection, banner, and AI greeting for an engaging first impression.",
+          "deepLinkLabel": "Open the Prechat tab in Widget",
+          "autoDetectHint": "Mark complete after the prechat settings are saved.",
+          "tutorial": [
+            {
+              "title": "Open the Prechat tab",
+              "body": "On the Widget page, pick the Prechat tab to open the initial form settings."
+            },
+            {
+              "title": "Enable welcome bubble",
+              "body": "Write a short message that appears next to the widget icon to attract visitor attention."
+            },
+            {
+              "title": "Configure name collection",
+              "body": "Enable name collection if you want to ask for the visitor's name (and optionally phone number) before chat starts."
+            },
+            {
+              "title": "Upload prechat banner",
+              "body": "Upload a banner image (optional) to display promotions, business hours, or branding above the prechat form."
+            },
+            {
+              "title": "Enable AI greeting",
+              "body": "If you want the AI to greet visitors first with a personal message, enable AI greeting in settings."
+            },
+            {
+              "title": "Mark complete",
+              "body": "Once everything is saved, click Mark complete on the checklist."
+            }
+          ]
+        },
+        "domain": {
+          "title": "Register your website domain",
+          "description": "Add your website domain to the whitelist so the widget only runs in legitimate places.",
+          "deepLinkLabel": "Open the Embed/Domain tab in Widget",
+          "autoDetectHint": "Marked complete automatically once at least one domain is validated.",
+          "tutorial": [
+            {
+              "title": "Open the Embed/Domain tab",
+              "body": "On the Widget page, pick the Embed (Allowed Domains) tab to manage allowed domains."
+            },
+            {
+              "title": "Add a domain",
+              "body": "Click Add Domain and enter your website domain (example: example.com, no http:// and no www)."
+            },
+            {
+              "title": "Validate the domain",
+              "body": "Click Validate. The system will check that the widget is installed on that domain. If successful, the Validated badge appears."
+            },
+            {
+              "title": "Review Unregistered Domains",
+              "body": "If other domains attempt to use the widget, they appear in the Unregistered Domains panel. Approve legitimate domains or dismiss the rest."
+            }
+          ]
+        },
+        "knowledge": {
+          "title": "Set up Knowledge Base",
+          "description": "Give the AI study material via Training Data, Active Sources, and Create with AI for accurate answers.",
+          "deepLinkLabel": "Open the Knowledge Base page",
+          "autoDetectHint": "Marked complete automatically once at least one active source or training-data entry exists.",
+          "tutorial": [
+            {
+              "title": "Open the Knowledge Base page",
+              "body": "From the sidebar, click Knowledge Base to start training your AI."
+            },
+            {
+              "title": "Training Data tab",
+              "body": "Add core business info (FAQ, policies, hours, prices) as training entries. You can drag-and-drop to reorder."
+            },
+            {
+              "title": "Active Sources tab",
+              "body": "Enter your website URL to be auto-crawled. Content stays in sync periodically so the AI is always up to date."
+            },
+            {
+              "title": "Create with AI tab",
+              "body": "Pick a business type and category, then let the AI draft knowledge articles for you. Edit results as needed."
+            },
+            {
+              "title": "AI auto-format",
+              "body": "On save, the system will auto-format content so it's easier for the AI to understand."
+            },
+            {
+              "title": "Mark complete",
+              "body": "Once at least one source is active, click Mark complete. It also auto-completes when you add a source."
+            }
+          ]
+        },
+        "deploy": {
+          "title": "Deploy to your website",
+          "description": "Install the widget snippet on your website, verify it appears, and send a test message.",
+          "deepLinkLabel": "Open the Embed tab in Widget",
+          "autoDetectHint": "Marked complete automatically once at least one chat session is received (meaning the widget is live).",
+          "tutorial": [
+            {
+              "title": "Copy the embed snippet",
+              "body": "Open the Widget page, pick the Embed tab, then click Copy to copy your widget script tag."
+            },
+            {
+              "title": "Paste before </body>",
+              "body": "Open your website code and paste the snippet right before the closing </body> tag. For WordPress, use a footer code-injection plugin."
+            },
+            {
+              "title": "Refresh the website",
+              "body": "Open your website in a browser and confirm the widget icon appears in the corner you configured."
+            },
+            {
+              "title": "Send a test message",
+              "body": "Click the widget, send a test message, and confirm the AI agent answers correctly."
+            },
+            {
+              "title": "Verify the domain",
+              "body": "Make sure your website domain is validated (see the Register Domain phase) so the widget isn't blocked."
+            },
+            {
+              "title": "Mark complete",
+              "body": "Click Mark complete. Congrats — your chatbot is now live!"
+            }
+          ]
+        }
+      }
     }
   },
   "common": {

@@ -56,7 +56,7 @@ interface NotifSettings {
 const DESKTOP_NOTIF_PROMPT_DISMISSED_KEY = "tickets-desktop-notif-prompt-dismissed";
 const TUTORIAL_SEEN_KEY = "tickets-tutorial-seen";
 
-function useDesktopNotifPrompt(open: boolean) {
+function useDesktopNotifPrompt(open: boolean, t: (k: string) => string) {
   const { toast } = useToast();
   const [dismissed, setDismissed] = useState<boolean>(() => {
     try { return localStorage.getItem(DESKTOP_NOTIF_PROMPT_DISMISSED_KEY) === "1"; } catch { return false; }
@@ -85,7 +85,7 @@ function useDesktopNotifPrompt(open: boolean) {
 
   const enable = async () => {
     if (permission === "unsupported") {
-      toast({ title: "Browser tidak mendukung notifikasi desktop", variant: "destructive" });
+      toast({ title: t("dashboard.ticketsDialog.notif.unsupported"), variant: "destructive" });
       return;
     }
     setEnabling(true);
@@ -96,21 +96,21 @@ function useDesktopNotifPrompt(open: boolean) {
         setPermission(perm);
       }
       if (perm !== "granted") {
-        toast({ title: "Izin notifikasi ditolak", description: "Aktifkan dari pengaturan browser Anda untuk menerima notifikasi tiket.", variant: "destructive" });
+        toast({ title: t("dashboard.ticketsDialog.notif.denied"), description: t("dashboard.ticketsDialog.notif.deniedDesc"), variant: "destructive" });
         return;
       }
       await updateMutation.mutateAsync({ browserPushEnabled: true });
       setDismissed(true);
       try { localStorage.setItem(DESKTOP_NOTIF_PROMPT_DISMISSED_KEY, "1"); } catch {}
       try {
-        new Notification("Chatvice Notifications Enabled", {
-          body: "You'll be alerted of new tickets even when this tab is in the background.",
+        new Notification(t("dashboard.ticketsDialog.notif.browserTitle"), {
+          body: t("dashboard.ticketsDialog.notif.browserBody"),
           icon: "/favicon.ico",
         });
       } catch {}
-      toast({ title: "Notifikasi desktop diaktifkan" });
+      toast({ title: t("dashboard.ticketsDialog.notif.enabled") });
     } catch (err: any) {
-      toast({ title: "Gagal mengaktifkan notifikasi", description: err?.message, variant: "destructive" });
+      toast({ title: t("dashboard.ticketsDialog.notif.enableFailed"), description: err?.message, variant: "destructive" });
     } finally {
       setEnabling(false);
     }
@@ -309,7 +309,7 @@ interface TicketsDialogProps {
 export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogProps) {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const desktopNotif = useDesktopNotifPrompt(open);
+  const desktopNotif = useDesktopNotifPrompt(open, t);
   const [tab, setTab] = useState<TicketStatus>("checking");
   const [search, setSearch] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -461,7 +461,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
 
   const sendPasswordToCustomer = async (ticket: TicketRow) => {
     if (!ticket.sessionId || !ticket.newPassword) return;
-    const displayName = ticket.session?.customerName?.trim() || "Pelanggan";
+    const displayName = ticket.session?.customerName?.trim() || t("dashboard.ticketsDialog.fallbackCustomerName");
     const message = t("dashboard.ticketsDialog.sendMessageTemplate")
       .replace("{name}", displayName)
       .replace("{username}", ticket.username)
@@ -569,7 +569,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                   {t("dashboard.ticketsDialog.enableNotif")}
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  {t("dashboard.ticketsDialog.noTicketsDesc")}
+                  {t("dashboard.ticketsDialog.notifBannerSubtitle")}
                 </div>
               </div>
             </div>
