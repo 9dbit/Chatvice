@@ -2056,7 +2056,8 @@ function PricingPreview() {
             return (
               <Card 
                 key={planKey} 
-                className={`p-4 relative flex-shrink-0 w-[220px] ${isPro ? "border-purple-500 shadow-lg shadow-purple-500/10" : ""} ${isEnterprise ? "bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/30 dark:to-background border-purple-200 dark:border-purple-800/50" : ""}`}
+                className={`p-4 relative flex-shrink-0 w-[220px] ${isPro ? "pro-frosted-card" : ""} ${isEnterprise && !isPro ? "bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/30 dark:to-background border-purple-200 dark:border-purple-800/50" : ""}`}
+                data-testid={`landing-plan-${planKey}`}
               >
                 {isPro && (
                   <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-purple-600 text-xs px-2 py-0.5">

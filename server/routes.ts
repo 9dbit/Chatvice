@@ -16190,7 +16190,7 @@ Rules:
   app.put("/api/admin/subscription-plans/:planId", requireAdmin, async (req, res) => {
     try {
       const { planId } = req.params;
-      const { monthlyPrice, annualPrice, conversationsLimit, agentsLimit, supervisorsLimit, sourcesLimit, suggestedQuestionsLimit, domainsLimit, chatRetentionHours, bgRemovalLimit } = req.body;
+      const { monthlyPrice, annualPrice, monthlyPriceIdr, annualPriceIdr, overageRateIdr, conversationsLimit, agentsLimit, supervisorsLimit, sourcesLimit, suggestedQuestionsLimit, domainsLimit, chatRetentionHours, bgRemovalLimit } = req.body;
       
       // Get existing custom overrides
       const customPlansJson = await storage.getPlatformSetting("subscription_plans_custom") || "{}";
@@ -16206,6 +16206,9 @@ Rules:
         ...(customOverrides[planId] || {}),
         ...(monthlyPrice !== undefined && { monthlyPrice }),
         ...(annualPrice !== undefined && { annualPrice }),
+        ...(monthlyPriceIdr !== undefined && { monthlyPriceIdr }),
+        ...(annualPriceIdr !== undefined && { annualPriceIdr }),
+        ...(overageRateIdr !== undefined && { overageRateIdr }),
         ...(conversationsLimit !== undefined && { conversationsLimit }),
         ...(agentsLimit !== undefined && { agentsLimit }),
         ...(supervisorsLimit !== undefined && { supervisorsLimit }),

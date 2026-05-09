@@ -8,6 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2, Settings, MessageSquare, Users, Database, Bot, Calculator, Send, Sparkles, Shield, Zap, HeadphonesIcon, Globe, BadgeCheck, BarChart3, Crown, Check } from "lucide-react";
+import { formatIdr, KURS_IDR_PER_USD } from "@/lib/pricing";
 import type { Merchant } from "@shared/schema";
 
 // Enterprise plan base values
@@ -173,7 +174,7 @@ export function CustomPlanRequestDialog({ trigger, onSuccess, skipAuthCheck = fa
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto pro-frosted-card">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calculator className="w-5 h-5 text-purple-600" />

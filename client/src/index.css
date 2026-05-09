@@ -1037,3 +1037,44 @@ html {
 .typing-dot:nth-child(3) {
   animation-delay: 0.4s;
 }
+
+/* Pricing Pro plan: animated purple gradient border + frosted glass surface */
+@keyframes pro-gradient-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.pro-frosted-card {
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    hsl(263 70% 60% / 0.18) 0%,
+    hsl(280 65% 55% / 0.10) 50%,
+    hsl(245 75% 60% / 0.18) 100%
+  );
+  background-size: 300% 300%;
+  animation: pro-gradient-flow 12s ease infinite;
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid hsl(263 70% 60% / 0.45);
+  box-shadow:
+    0 8px 30px -10px hsl(263 70% 50% / 0.35),
+    0 0 0 1px hsl(0 0% 100% / 0.06) inset;
+}
+.dark .pro-frosted-card {
+  background: linear-gradient(
+    135deg,
+    hsl(263 70% 50% / 0.22) 0%,
+    hsl(280 65% 45% / 0.14) 50%,
+    hsl(245 75% 50% / 0.22) 100%
+  );
+  background-size: 300% 300%;
+  animation: pro-gradient-flow 12s ease infinite;
+  border: 1px solid hsl(263 70% 65% / 0.55);
+  box-shadow:
+    0 12px 40px -8px hsl(263 70% 30% / 0.55),
+    0 0 0 1px hsl(0 0% 100% / 0.08) inset;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pro-frosted-card { animation: none; }
+}

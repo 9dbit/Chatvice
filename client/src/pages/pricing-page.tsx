@@ -463,10 +463,12 @@ export default function PricingPage() {
             {plans.map((plan, index) => (
               <Card 
                 key={index} 
-                className={`p-8 relative flex flex-col ${plan.popular ? "border-purple-500 shadow-xl shadow-purple-500/10 scale-105" : ""}`}
+                className={`p-8 relative flex flex-col ${plan.popular ? "pro-frosted-card scale-105" : ""}`}
+                data-testid={`card-plan-${plan.planId}`}
               >
                 {plan.popular && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600">
+                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-0">
+                    <Zap className="w-3 h-3 mr-1" />
                     Most Popular
                   </Badge>
                 )}

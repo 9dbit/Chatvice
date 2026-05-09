@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { AdditionalServicesTab } from "@/components/admin/AdditionalServicesTab";
+import { PricingSimulator } from "@/components/admin/pricing-simulator";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Redirect, Link } from "wouter";
 import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
@@ -5765,6 +5766,9 @@ function PricingTab({ toast }: { toast: any }) {
   const [trialDays, setTrialDays] = useState(14);
   const [editMonthlyPrice, setEditMonthlyPrice] = useState(0);
   const [editAnnualPrice, setEditAnnualPrice] = useState(0);
+  const [editMonthlyPriceIdr, setEditMonthlyPriceIdr] = useState(0);
+  const [editAnnualPriceIdr, setEditAnnualPriceIdr] = useState(0);
+  const [editOverageRateIdr, setEditOverageRateIdr] = useState(0);
   const [editConversationsLimit, setEditConversationsLimit] = useState(0);
   const [editAgentsLimit, setEditAgentsLimit] = useState(0);
   const [editSupervisorsLimit, setEditSupervisorsLimit] = useState(0);
@@ -5844,10 +5848,13 @@ function PricingTab({ toast }: { toast: any }) {
   });
   
   const updatePlanMutation = useMutation({
-    mutationFn: async ({ planId, monthlyPrice, annualPrice, conversationsLimit, agentsLimit, supervisorsLimit, sourcesLimit, suggestedQuestionsLimit, domainsLimit, chatRetentionHours, bgRemovalLimit }: { 
+    mutationFn: async (payload: { 
       planId: string; 
       monthlyPrice: number; 
       annualPrice: number;
+      monthlyPriceIdr: number;
+      annualPriceIdr: number;
+      overageRateIdr: number;
       conversationsLimit: number;
       agentsLimit: number;
       supervisorsLimit: number;
@@ -5857,18 +5864,8 @@ function PricingTab({ toast }: { toast: any }) {
       chatRetentionHours: number;
       bgRemovalLimit: number;
     }) => {
-      return apiRequest("PUT", `/api/admin/subscription-plans/${planId}`, {
-        monthlyPrice,
-        annualPrice,
-        conversationsLimit,
-        agentsLimit,
-        supervisorsLimit,
-        sourcesLimit,
-        suggestedQuestionsLimit,
-        domainsLimit,
-        chatRetentionHours,
-        bgRemovalLimit,
-      });
+      const { planId, ...body } = payload;
+      return apiRequest("PUT", `/api/admin/subscription-plans/${planId}`, body);
     },
     onSuccess: () => {
       toast({
@@ -5891,6 +5888,9 @@ function PricingTab({ toast }: { toast: any }) {
     setSelectedPlan(plan);
     setEditMonthlyPrice(plan.monthlyPrice);
     setEditAnnualPrice(plan.annualPrice);
+    setEditMonthlyPriceIdr(plan.monthlyPriceIdr || 0);
+    setEditAnnualPriceIdr(plan.annualPriceIdr || 0);
+    setEditOverageRateIdr(plan.overageRateIdr || 0);
     setEditConversationsLimit(plan.conversationsLimit);
     setEditAgentsLimit(plan.agentsLimit);
     setEditSupervisorsLimit(plan.supervisorsLimit || 0);
@@ -5908,6 +5908,9 @@ function PricingTab({ toast }: { toast: any }) {
         planId: selectedPlan.id,
         monthlyPrice: editMonthlyPrice,
         annualPrice: editAnnualPrice,
+        monthlyPriceIdr: editMonthlyPriceIdr,
+        annualPriceIdr: editAnnualPriceIdr,
+        overageRateIdr: editOverageRateIdr,
         conversationsLimit: editConversationsLimit,
         agentsLimit: editAgentsLimit,
         supervisorsLimit: editSupervisorsLimit,
@@ -6140,6 +6143,8 @@ function PricingTab({ toast }: { toast: any }) {
 
   return (
     <div className="space-y-6">
+      <PricingSimulator />
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -6793,6 +6798,43 @@ function PricingTab({ toast }: { toast: any }) {
                   data-testid="input-edit-plan-annual" 
                 />
               </div>
+            </div>
+            <Separator />
+            <p className="text-sm font-medium text-muted-foreground">Harga IDR (canonical) — kurs USD = Rp 17.500</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Monthly Price (Rp)</Label>
+                <Input 
+                  type="number" 
+                  value={editMonthlyPriceIdr} 
+                  onChange={(e) => setEditMonthlyPriceIdr(parseInt(e.target.value) || 0)}
+                  className="mt-1" 
+                  data-testid="input-edit-plan-monthly-idr" 
+                />
+                <p className="text-xs text-muted-foreground mt-1">≈ ${Math.round((editMonthlyPriceIdr || 0) / 17500)}</p>
+              </div>
+              <div>
+                <Label>Annual Price (Rp/bulan setelah diskon)</Label>
+                <Input 
+                  type="number" 
+                  value={editAnnualPriceIdr} 
+                  onChange={(e) => setEditAnnualPriceIdr(parseInt(e.target.value) || 0)}
+                  className="mt-1" 
+                  data-testid="input-edit-plan-annual-idr" 
+                />
+                <p className="text-xs text-muted-foreground mt-1">≈ ${Math.round((editAnnualPriceIdr || 0) / 17500)}</p>
+              </div>
+            </div>
+            <div>
+              <Label>Overage Rate (Rp / percakapan ekstra)</Label>
+              <Input 
+                type="number" 
+                value={editOverageRateIdr} 
+                onChange={(e) => setEditOverageRateIdr(parseInt(e.target.value) || 0)}
+                className="mt-1" 
+                data-testid="input-edit-plan-overage-idr" 
+              />
+              <p className="text-xs text-muted-foreground mt-1">0 = tidak ada overage (kuota hard-block).</p>
             </div>
             <Separator />
             <p className="text-sm font-medium text-muted-foreground">Feature Limits</p>

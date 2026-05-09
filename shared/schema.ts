@@ -882,7 +882,7 @@ export const subscriptionPlans = {
   },
   pro: {
     id: "pro" as const,
-    name: "Growth",
+    name: "Pro",
     description: "Sweet spot untuk bisnis menengah — paling laris",
     monthlyPrice: 57,
     annualPrice: 43,

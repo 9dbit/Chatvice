@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, TrendingUp, Sparkles, ArrowRight } from "lucide-react";
+import { AlertTriangle, TrendingUp, Sparkles, ArrowRight, Zap } from "lucide-react";
+import { TopUpQuotaDialog } from "./topup-quota-dialog";
 
 interface BillingStatus {
   planId: string;
@@ -33,6 +35,7 @@ function formatIdr(n: number): string {
 }
 
 export function UsageUpsellBanner() {
+  const [topupOpen, setTopupOpen] = useState(false);
   const { data: billingStatus } = useQuery<BillingStatus>({
     queryKey: ["/api/billing/status"],
   });
@@ -112,7 +115,7 @@ export function UsageUpsellBanner() {
           )}
         </div>
 
-        <div className="flex gap-2 w-full md:w-auto shrink-0">
+        <div className="flex flex-wrap gap-2 w-full md:w-auto shrink-0">
           {nextPlan && (
             <Link href="/dashboard/billing-details">
               <Button
@@ -126,13 +129,25 @@ export function UsageUpsellBanner() {
               </Button>
             </Link>
           )}
+          {planId !== "free" && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setTopupOpen(true)}
+              data-testid="button-topup-quota"
+            >
+              <Zap className="w-3.5 h-3.5 mr-1.5" />
+              Top-up percakapan
+            </Button>
+          )}
           <Link href="/pricing">
-            <Button size="sm" variant="outline" data-testid="button-view-plans">
-              Lihat semua plan
+            <Button size="sm" variant="ghost" data-testid="button-view-plans">
+              Lihat plan
             </Button>
           </Link>
         </div>
       </div>
+      <TopUpQuotaDialog open={topupOpen} onOpenChange={setTopupOpen} />
     </Card>
   );
 }
