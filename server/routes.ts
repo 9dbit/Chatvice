@@ -35,7 +35,7 @@ import { db, pool } from "./db";
 import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } from "drizzle-orm";
 import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, blastCampaigns } from "@shared/schema";
 import crypto from "crypto";
-import { encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup, buildPostmanCollection, buildHtmlDocs, DEFAULT_INTENTS } from "./customConnector";
+import { encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup, buildPostmanCollection, buildHtmlDocs, DEFAULT_INTENTS, PRESET_INTENTS, PRESET_META } from "./customConnector";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import sharp from "sharp";
 
@@ -28144,7 +28144,7 @@ Please create a comprehensive help center article that would be useful for custo
   app.put("/api/merchant/custom-data-source", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
-      const { name, baseUrl, headerAuthName, healthPath, cacheTtlSec, rateLimitPerMin, isEnabled } = req.body;
+      const { name, baseUrl, headerAuthName, healthPath, cacheTtlSec, rateLimitPerMin, isEnabled, preset } = req.body;
       // SSRF guard: reject local/private hosts at save time so they can never
       // make it into the lookup dispatcher.
       if (baseUrl && String(baseUrl).trim() !== "") {
@@ -28164,10 +28164,16 @@ Please create a comprehensive help center article that would be useful for custo
       });
       // Seed default intents on first creation, and auto-generate the first
       // API key so merchants don't have to manually rotate before testing.
+      // `preset` lets the wizard pick which template pack to seed:
+      //   "judi" (default / back-compat), "finansial", "ecommerce", or "none".
       let firstApiKey: string | null = null;
       if (!existing) {
-        for (const def of DEFAULT_INTENTS) {
-          await storage.createCustomDataIntent({ ...def, sourceId: source.id });
+        const presetKey = typeof preset === "string" ? preset : "judi";
+        if (presetKey !== "none") {
+          const seeds = PRESET_INTENTS[presetKey] || DEFAULT_INTENTS;
+          for (const def of seeds) {
+            await storage.createCustomDataIntent({ ...def, sourceId: source.id });
+          }
         }
         firstApiKey = generateApiKey();
         const enc = encryptApiKey(firstApiKey);
@@ -28302,6 +28308,46 @@ Please create a comprehensive help center article that would be useful for custo
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ error: "Failed to delete intent" });
+    }
+  });
+
+  // Wizard helpers — list available presets and the example intents inside each.
+  app.get("/api/merchant/custom-data-source/presets", requireMerchant, async (_req, res) => {
+    const presets = Object.values(PRESET_META).map(meta => ({
+      ...meta,
+      intents: (PRESET_INTENTS[meta.id] || []).map(i => ({
+        intentKey: i.intentKey,
+        name: i.name,
+        description: i.description,
+        httpMethod: i.httpMethod,
+        endpointPath: i.endpointPath,
+        requiredFields: i.requiredFields,
+      })),
+    }));
+    res.json(presets);
+  });
+
+  // Scaffold a single preset intent for the merchant's source. Used by the
+  // wizard's Step 4 "Add example intent" buttons. Idempotent: returns 409 if
+  // an intent with the same intentKey already exists.
+  app.post("/api/merchant/custom-data-intents/from-preset", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const source = await storage.getCustomDataSource(merchantId);
+      if (!source) return res.status(400).json({ error: "Buat custom data source terlebih dahulu" });
+      const { preset, intentKey } = req.body || {};
+      const seeds = PRESET_INTENTS[String(preset)] || [];
+      const def = seeds.find(s => s.intentKey === intentKey);
+      if (!def) return res.status(404).json({ error: "Preset intent not found" });
+      const existing = await storage.getCustomDataIntents(source.id);
+      if (existing.some(e => e.intentKey === def.intentKey)) {
+        return res.status(409).json({ error: "Intent already exists", intentKey: def.intentKey });
+      }
+      const intent = await storage.createCustomDataIntent({ ...def, sourceId: source.id });
+      res.json(intent);
+    } catch (err) {
+      console.error("[CustomDataIntent] from-preset error:", err);
+      res.status(500).json({ error: "Failed to scaffold preset intent" });
     }
   });
 

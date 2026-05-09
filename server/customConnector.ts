@@ -445,7 +445,9 @@ async function logAudit(opts: {
 }
 
 // ── Default intents (seeded for new merchants on first save) ──────────────
-export const DEFAULT_INTENTS: Array<Omit<import("@shared/schema").InsertCustomDataIntent, "sourceId">> = [
+type PresetIntent = Omit<import("@shared/schema").InsertCustomDataIntent, "sourceId">;
+
+export const DEFAULT_INTENTS: Array<PresetIntent> = [
   {
     intentKey: "deposit_status",
     name: "Cek Status Deposit",
@@ -511,6 +513,170 @@ export const DEFAULT_INTENTS: Array<Omit<import("@shared/schema").InsertCustomDa
     sortOrder: 4,
   },
 ];
+
+// Finansial / fintech preset — saldo, mutasi, transfer, kartu, kredit.
+const FINANSIAL_INTENTS: Array<PresetIntent> = [
+  {
+    intentKey: "saldo_rekening",
+    name: "Cek Saldo Rekening",
+    description: "Customer menanyakan saldo rekening atau e-wallet mereka.",
+    triggerKeywords: "saldo,sisa saldo,cek saldo,balance,saldo rekening,sisa uang",
+    httpMethod: "GET",
+    endpointPath: "/account/balance",
+    requiredFields: [
+      { key: "account_number", label: "Nomor Rekening", type: "text", required: true },
+      { key: "id_number", label: "No. KTP / ID Verifikasi", type: "text", required: true },
+    ],
+    responseTemplate: "Saldo rekening {account_number}: Rp {balance}. Terakhir update {updated_at}.",
+    isEnabled: true,
+    sortOrder: 1,
+  },
+  {
+    intentKey: "mutasi_terakhir",
+    name: "Cek Mutasi Terakhir",
+    description: "Customer ingin tahu transaksi terakhir di rekening.",
+    triggerKeywords: "mutasi,transaksi terakhir,riwayat transaksi,history transfer,transaksi masuk,transaksi keluar",
+    httpMethod: "GET",
+    endpointPath: "/account/transactions",
+    requiredFields: [
+      { key: "account_number", label: "Nomor Rekening", type: "text", required: true },
+      { key: "id_number", label: "No. KTP / ID Verifikasi", type: "text", required: true },
+    ],
+    responseTemplate: "5 transaksi terakhir rekening {account_number}: {transactions}.",
+    isEnabled: true,
+    sortOrder: 2,
+  },
+  {
+    intentKey: "status_transfer",
+    name: "Cek Status Transfer",
+    description: "Customer menanyakan apakah transfer mereka sudah berhasil.",
+    triggerKeywords: "status transfer,transfer belum masuk,transfer pending,transfer gagal,cek transfer",
+    httpMethod: "GET",
+    endpointPath: "/transfer/status",
+    requiredFields: [
+      { key: "reference_id", label: "Nomor Referensi Transfer", type: "text", required: true },
+      { key: "amount", label: "Nominal Transfer", type: "number", required: true },
+    ],
+    responseTemplate: "Transfer ref {reference_id} sebesar Rp {amount}: status {status}. {message}",
+    isEnabled: true,
+    sortOrder: 3,
+  },
+  {
+    intentKey: "tagihan_kartu",
+    name: "Cek Tagihan Kartu Kredit",
+    description: "Customer menanyakan total tagihan dan jatuh tempo kartu kredit.",
+    triggerKeywords: "tagihan kartu kredit,bill kartu,jatuh tempo,tagihan cc,minimum payment",
+    httpMethod: "GET",
+    endpointPath: "/card/bill",
+    requiredFields: [
+      { key: "card_number_last4", label: "4 Digit Terakhir Kartu", type: "text", required: true },
+      { key: "id_number", label: "No. KTP / ID Verifikasi", type: "text", required: true },
+    ],
+    responseTemplate: "Tagihan kartu …{card_number_last4}: Rp {total_bill}. Minimum: Rp {minimum_payment}. Jatuh tempo {due_date}.",
+    isEnabled: true,
+    sortOrder: 4,
+  },
+];
+
+// E-commerce preset — pesanan, pengiriman, retur, stok, voucher.
+const ECOMMERCE_INTENTS: Array<PresetIntent> = [
+  {
+    intentKey: "status_pesanan",
+    name: "Cek Status Pesanan",
+    description: "Customer menanyakan status pesanan mereka (proses, dikirim, sampai).",
+    triggerKeywords: "status pesanan,order saya,pesanan saya,cek order,kapan dikirim,pesanan belum sampai",
+    httpMethod: "GET",
+    endpointPath: "/orders/{order_id}",
+    requiredFields: [
+      { key: "order_id", label: "Nomor Pesanan", type: "text", required: true },
+      { key: "email", label: "Email Pemesan", type: "text", required: true },
+    ],
+    responseTemplate: "Pesanan {order_id}: status {status}. Estimasi tiba {eta}. Kurir: {courier} ({tracking_number}).",
+    isEnabled: true,
+    sortOrder: 1,
+  },
+  {
+    intentKey: "lacak_pengiriman",
+    name: "Lacak Pengiriman",
+    description: "Customer ingin melacak posisi paket mereka.",
+    triggerKeywords: "lacak,tracking,resi,nomor resi,paket dimana,kurir sampai mana",
+    httpMethod: "GET",
+    endpointPath: "/shipments/{tracking_number}",
+    requiredFields: [
+      { key: "tracking_number", label: "Nomor Resi", type: "text", required: true },
+    ],
+    responseTemplate: "Resi {tracking_number}: {status}. Posisi terakhir {last_location} pada {last_update}.",
+    isEnabled: true,
+    sortOrder: 2,
+  },
+  {
+    intentKey: "stok_produk",
+    name: "Cek Stok Produk",
+    description: "Customer menanyakan ketersediaan produk tertentu.",
+    triggerKeywords: "stok,ready stock,available,masih ada,kosong,restock",
+    httpMethod: "GET",
+    endpointPath: "/products/{sku}/stock",
+    requiredFields: [
+      { key: "sku", label: "Kode SKU / Produk", type: "text", required: true },
+    ],
+    responseTemplate: "Stok {sku} ({product_name}): {stock} unit. Harga Rp {price}.",
+    isEnabled: true,
+    sortOrder: 3,
+  },
+  {
+    intentKey: "status_retur",
+    name: "Cek Status Retur / Refund",
+    description: "Customer menanyakan progress retur barang atau pengembalian dana.",
+    triggerKeywords: "retur,refund,pengembalian,uang kembali,barang dikembalikan,komplain",
+    httpMethod: "GET",
+    endpointPath: "/returns/{return_id}",
+    requiredFields: [
+      { key: "return_id", label: "Nomor Retur", type: "text", required: true },
+      { key: "order_id", label: "Nomor Pesanan Asal", type: "text", required: true },
+    ],
+    responseTemplate: "Retur {return_id} dari pesanan {order_id}: status {status}. {message}",
+    isEnabled: true,
+    sortOrder: 4,
+  },
+  {
+    intentKey: "validasi_voucher",
+    name: "Validasi Voucher / Promo",
+    description: "Customer menanyakan apakah kode voucher masih berlaku.",
+    triggerKeywords: "voucher,kode promo,promo,diskon,kupon,kode voucher",
+    httpMethod: "GET",
+    endpointPath: "/vouchers/{code}",
+    requiredFields: [
+      { key: "code", label: "Kode Voucher", type: "text", required: true },
+    ],
+    responseTemplate: "Voucher {code}: {status}. Diskon {discount}. Berlaku sampai {expires_at}.",
+    isEnabled: true,
+    sortOrder: 5,
+  },
+];
+
+export const PRESET_INTENTS: Record<string, Array<PresetIntent>> = {
+  judi: DEFAULT_INTENTS,
+  finansial: FINANSIAL_INTENTS,
+  ecommerce: ECOMMERCE_INTENTS,
+};
+
+export const PRESET_META: Record<string, { id: string; name: string; description: string }> = {
+  judi: {
+    id: "judi",
+    name: "Judi Online",
+    description: "Cek status deposit, withdraw, turnover, dan IP login terakhir.",
+  },
+  finansial: {
+    id: "finansial",
+    name: "Finansial / Fintech",
+    description: "Saldo rekening, mutasi, status transfer, dan tagihan kartu.",
+  },
+  ecommerce: {
+    id: "ecommerce",
+    name: "E-commerce",
+    description: "Status pesanan, lacak pengiriman, stok produk, retur, dan voucher.",
+  },
+};
 
 // ── Documentation generators ──────────────────────────────────────────────
 export function buildPostmanCollection(opts: {

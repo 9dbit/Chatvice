@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Key, RefreshCw, Plug, Plus, Trash2, Pencil, Download, FileText, CheckCircle2, AlertCircle, Loader2, Copy } from "lucide-react";
+import { Database, Key, RefreshCw, Plug, Plus, Trash2, Pencil, Download, FileText, CheckCircle2, AlertCircle, Loader2, Copy, ArrowLeft, ArrowRight, Sparkles, Wand2 } from "lucide-react";
 
 interface CustomDataSource {
   id: string;
@@ -77,6 +77,7 @@ export default function CustomDataSourcePage() {
   const { toast } = useToast();
   const [showKeyDialog, setShowKeyDialog] = useState(false);
   const [newPlainKey, setNewPlainKey] = useState<string | null>(null);
+  const [wizardOpen, setWizardOpen] = useState<boolean | null>(null);
   const [intentDialogOpen, setIntentDialogOpen] = useState(false);
   const [editingIntent, setEditingIntent] = useState<Partial<CustomDataIntent> | null>(null);
   const [testResult, setTestResult] = useState<{ ok: boolean; status: number; latencyMs: number; sample?: string; error?: string } | null>(null);
@@ -194,11 +195,31 @@ export default function CustomDataSourcePage() {
     setIntentDialogOpen(true);
   };
 
-  if (srcLoading) {
+  // Decide once after the initial load whether to open the wizard. Subsequent
+  // source-query refetches (triggered by the wizard's own save) must NOT flip
+  // this back, otherwise Steps 3 & 4 would unmount.
+  useEffect(() => {
+    if (!srcLoading && wizardOpen === null) setWizardOpen(!source);
+  }, [srcLoading, source, wizardOpen]);
+
+  if (srcLoading || wizardOpen === null) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[300px]">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
+    );
+  }
+
+  if (wizardOpen) {
+    return (
+      <ConnectWizard
+        onApiKey={(key) => { setNewPlainKey(key); setShowKeyDialog(true); }}
+        onFinish={() => {
+          setWizardOpen(false);
+          queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-source"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-intents"] });
+        }}
+      />
     );
   }
 
@@ -666,6 +687,347 @@ export default function CustomDataSourcePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Connect Panel Wizard — first-run setup for non-technical merchants.
+// Shown when no custom data source exists yet. After completion the parent
+// page re-renders into the full Settings/Intents/Audit dashboard automatically.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface PresetIntentDef {
+  intentKey: string;
+  name: string;
+  description: string;
+  httpMethod: string;
+  endpointPath: string;
+  requiredFields: RequiredField[];
+}
+interface PresetDef {
+  id: string;
+  name: string;
+  description: string;
+  intents: PresetIntentDef[];
+}
+
+function ConnectWizard({ onApiKey, onFinish }: { onApiKey: (key: string) => void; onFinish: () => void }) {
+  const { toast } = useToast();
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [presetId, setPresetId] = useState<string>("");
+  const [name, setName] = useState("Panel API");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [created, setCreated] = useState(false);
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<{ ok: boolean; status: number; latencyMs: number; sample?: string; error?: string } | null>(null);
+  const [scaffolded, setScaffolded] = useState<Set<string>>(new Set());
+
+  const { data: presets = [] } = useQuery<PresetDef[]>({
+    queryKey: ["/api/merchant/custom-data-source/presets"],
+  });
+  const activePreset = presets.find(p => p.id === presetId);
+
+  const saveSource = useMutation({
+    mutationFn: async () => {
+      // Step 4 will scaffold intents one-by-one, so we save with preset:"none"
+      // to skip the legacy auto-seed path.
+      const res = await apiRequest("PUT", "/api/merchant/custom-data-source", {
+        name: name || "Panel API",
+        baseUrl,
+        isEnabled: true,
+        preset: "none",
+      });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      setCreated(true);
+      if (typeof data?.apiKey === "string") setApiKey(data.apiKey);
+      // NOTE: do NOT invalidate /api/merchant/custom-data-source here — that
+      // would refetch the source on the parent page and could cause UI
+      // transitions away from the wizard mid-flow. The parent invalidates
+      // both queries when the wizard finishes.
+    },
+    onError: (err: any) => toast({ title: "Gagal menyimpan", description: err?.message, variant: "destructive" }),
+  });
+
+  const testConn = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/merchant/custom-data-source/test", {});
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setTestResult(data);
+      toast({
+        title: data.ok ? "Koneksi berhasil" : "Koneksi gagal",
+        description: data.ok ? `Status ${data.status} • ${data.latencyMs}ms` : (data.error || `Status ${data.status}`),
+        variant: data.ok ? "default" : "destructive",
+      });
+    },
+  });
+
+  const scaffoldIntent = useMutation({
+    mutationFn: async (intentKey: string) => {
+      const res = await apiRequest("POST", "/api/merchant/custom-data-intents/from-preset", {
+        preset: presetId,
+        intentKey,
+      });
+      return { intentKey, body: await res.json() };
+    },
+    onSuccess: ({ intentKey }) => {
+      setScaffolded(prev => new Set(prev).add(intentKey));
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-intents"] });
+    },
+    onError: (err: any) => toast({ title: "Gagal menambah intent", description: err?.message, variant: "destructive" }),
+  });
+
+  const finish = () => {
+    if (apiKey) onApiKey(apiKey);
+    onFinish();
+  };
+
+  const goSaveAndTest = async () => {
+    if (!baseUrl.trim()) {
+      toast({ title: "Base URL wajib diisi", variant: "destructive" });
+      return;
+    }
+    if (!created) {
+      await saveSource.mutateAsync();
+    }
+    testConn.mutate();
+  };
+
+  return (
+    <div className="p-6 max-w-3xl mx-auto space-y-6" data-testid="wizard-connect-panel">
+      <div>
+        <h1 className="text-2xl font-semibold flex items-center gap-2">
+          <Database className="w-6 h-6 text-primary" />
+          Custom Data Source
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Hubungkan panel backend Anda agar AI bisa menjawab pertanyaan customer dengan data realtime.
+        </p>
+      </div>
+
+      <div className="flex items-center gap-2" data-testid="wizard-stepper">
+        {[1, 2, 3, 4].map((n, i) => (
+          <div key={n} className="flex items-center gap-2 flex-1">
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium border ${
+              step === n ? "bg-primary text-primary-foreground border-primary" :
+              step > n ? "bg-emerald-500 text-white border-emerald-500" :
+              "bg-muted text-muted-foreground"
+            }`}>
+              {step > n ? <CheckCircle2 className="w-4 h-4" /> : n}
+            </div>
+            {i < 3 && <div className={`flex-1 h-px ${step > n ? "bg-emerald-500" : "bg-border"}`} />}
+          </div>
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wand2 className="w-5 h-5 text-primary" />
+            {step === 1 && "Langkah 1 — Pilih jenis bisnis Anda"}
+            {step === 2 && "Langkah 2 — Hubungkan panel API"}
+            {step === 3 && "Langkah 3 — Simpan API key Anda"}
+            {step === 4 && "Langkah 4 — Tambah contoh intent (opsional)"}
+          </CardTitle>
+          <CardDescription>
+            {step === 1 && "Kami akan menyiapkan template pertanyaan yang sesuai dengan industri Anda."}
+            {step === 2 && "Tempel base URL panel Anda — kami akan langsung tes koneksinya."}
+            {step === 3 && "Salin API key sekarang. Key ini hanya muncul sekali untuk alasan keamanan."}
+            {step === 4 && "Tambahkan contoh intent satu per satu agar AI tahu pertanyaan apa yang harus dijawab."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {step === 1 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3" data-testid="wizard-step-1">
+              {presets.map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setPresetId(p.id)}
+                  className={`text-left p-4 rounded-md border hover-elevate active-elevate-2 ${
+                    presetId === p.id ? "border-primary ring-1 ring-primary" : ""
+                  }`}
+                  data-testid={`button-preset-${p.id}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    <span className="font-medium">{p.name}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">{p.description}</p>
+                  <p className="text-xs mt-3">
+                    <Badge variant="secondary">{p.intents.length} contoh intent</Badge>
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-3" data-testid="wizard-step-2">
+              <div>
+                <Label>Nama koneksi</Label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Panel Member API"
+                  data-testid="wizard-input-name"
+                />
+              </div>
+              <div>
+                <Label>Base URL panel</Label>
+                <Input
+                  value={baseUrl}
+                  onChange={(e) => { setBaseUrl(e.target.value); setTestResult(null); setCreated(false); setApiKey(null); }}
+                  placeholder="https://panel.example.com/api/v1"
+                  data-testid="wizard-input-base-url"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Pastikan endpoint <code>/health</code> di panel Anda mengembalikan status 200 untuk verifikasi.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  onClick={goSaveAndTest}
+                  disabled={saveSource.isPending || testConn.isPending || !baseUrl.trim()}
+                  data-testid="wizard-button-test"
+                >
+                  {(saveSource.isPending || testConn.isPending) && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                  {created ? "Tes ulang koneksi" : "Simpan & Tes Koneksi"}
+                </Button>
+                {created && !testResult?.ok && (
+                  <span className="text-xs text-muted-foreground">Tersimpan — Anda boleh lanjut meskipun tes gagal.</span>
+                )}
+              </div>
+              {testResult && (
+                <div className={`p-3 rounded-md border text-sm ${testResult.ok ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-amber-50 dark:bg-amber-950/30"}`}>
+                  <div className="flex items-center gap-2 font-medium">
+                    {testResult.ok ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-amber-600" />}
+                    {testResult.ok ? "Sukses" : "Gagal"} • Status {testResult.status} • {testResult.latencyMs}ms
+                  </div>
+                  {testResult.sample && <pre className="text-xs mt-2 overflow-auto max-h-32">{testResult.sample}</pre>}
+                  {testResult.error && <p className="text-xs mt-2 text-amber-700 dark:text-amber-300">{testResult.error}</p>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-3" data-testid="wizard-step-3">
+              <div className="p-3 rounded-md border bg-amber-50 dark:bg-amber-950/30 text-sm">
+                <div className="flex items-center gap-2 font-medium">
+                  <AlertCircle className="w-4 h-4 text-amber-600" />
+                  Simpan sekarang — key ini tidak akan ditampilkan lagi.
+                </div>
+                <p className="text-xs mt-1 text-muted-foreground">
+                  Tempel key ini di server panel Anda. Chatvice akan mengirimnya di header <code>X-API-Key</code> tiap request.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={apiKey || "(belum di-generate)"}
+                  readOnly
+                  className="font-mono"
+                  data-testid="wizard-text-api-key"
+                />
+                <Button
+                  size="icon"
+                  variant="outline"
+                  disabled={!apiKey}
+                  onClick={() => {
+                    if (apiKey) {
+                      navigator.clipboard.writeText(apiKey);
+                      toast({ title: "API key tersalin" });
+                    }
+                  }}
+                  data-testid="wizard-button-copy-key"
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+              {!apiKey && (
+                <p className="text-xs text-muted-foreground">
+                  Sepertinya source sudah dibuat sebelum wizard ini berjalan. Anda bisa generate ulang dari halaman Pengaturan setelah wizard selesai.
+                </p>
+              )}
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="space-y-3" data-testid="wizard-step-4">
+              {!activePreset || activePreset.intents.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Tidak ada contoh intent untuk preset ini.</p>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Klik <strong>Tambah</strong> pada intent yang ingin Anda gunakan. Anda bisa mengubahnya kapan saja di tab Intent Lookup.
+                  </p>
+                  <div className="space-y-2">
+                    {activePreset.intents.map((it) => {
+                      const done = scaffolded.has(it.intentKey);
+                      return (
+                        <div
+                          key={it.intentKey}
+                          className="p-3 rounded-md border flex items-start justify-between gap-3"
+                          data-testid={`wizard-preset-intent-${it.intentKey}`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="outline" className="font-mono">{it.intentKey}</Badge>
+                              <span className="font-medium text-sm">{it.name}</span>
+                            </div>
+                            {it.description && <p className="text-xs text-muted-foreground mt-1">{it.description}</p>}
+                            <p className="text-xs text-muted-foreground mt-1 font-mono">{it.httpMethod} {it.endpointPath}</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant={done ? "outline" : "default"}
+                            disabled={done || scaffoldIntent.isPending}
+                            onClick={() => scaffoldIntent.mutate(it.intentKey)}
+                            data-testid={`wizard-button-add-${it.intentKey}`}
+                          >
+                            {done ? <><CheckCircle2 className="w-4 h-4 mr-1" /> Ditambah</> : <><Plus className="w-4 h-4 mr-1" /> Tambah</>}
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="flex items-center justify-between gap-2">
+        <Button
+          variant="outline"
+          onClick={() => setStep((s) => (Math.max(1, s - 1) as 1 | 2 | 3 | 4))}
+          disabled={step === 1}
+          data-testid="wizard-button-back"
+        >
+          <ArrowLeft className="w-4 h-4 mr-1" /> Kembali
+        </Button>
+        {step < 4 ? (
+          <Button
+            onClick={() => setStep((s) => (Math.min(4, s + 1) as 1 | 2 | 3 | 4))}
+            disabled={
+              (step === 1 && !presetId) ||
+              (step === 2 && !created)
+            }
+            data-testid="wizard-button-next"
+          >
+            Lanjut <ArrowRight className="w-4 h-4 ml-1" />
+          </Button>
+        ) : (
+          <Button onClick={finish} data-testid="wizard-button-finish">
+            Selesai <CheckCircle2 className="w-4 h-4 ml-1" />
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
