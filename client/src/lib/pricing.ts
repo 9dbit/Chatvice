@@ -21,6 +21,29 @@ export const NEXT_PLAN_ID: Record<string, string> = {
   enterprise: "custom",
 };
 
+// Canonical 4-tier IDR pricing dataset. UI fallbacks live here so any
+// surface (landing, /pricing, dashboard) renders consistent numbers
+// when the DB-backed plan list has not loaded yet. DB overrides take
+// precedence — these are baseline defaults that match shared/schema.ts.
+export const CANONICAL_TIERS: PlanPricing[] = [
+  { id: "free", name: "Free", monthlyPriceIdr: 0, annualPriceIdr: 0, overageRateIdr: 0, conversationsLimit: 50 },
+  { id: "starter", name: "Starter", monthlyPriceIdr: 299_000, annualPriceIdr: 2_990_000, overageRateIdr: 250, conversationsLimit: 2_000 },
+  { id: "pro", name: "Pro", monthlyPriceIdr: 899_000, annualPriceIdr: 8_990_000, overageRateIdr: 200, conversationsLimit: 8_000 },
+  { id: "enterprise", name: "Business", monthlyPriceIdr: 2_299_000, annualPriceIdr: 22_990_000, overageRateIdr: 150, conversationsLimit: 25_000 },
+  { id: "custom", name: "Enterprise", monthlyPriceIdr: 7_499_000, annualPriceIdr: 74_990_000, overageRateIdr: 100, conversationsLimit: 100_000 },
+];
+
+export function getCanonicalTier(planId: string): PlanPricing | undefined {
+  return CANONICAL_TIERS.find((t) => t.id === planId);
+}
+
+// Estimate top-up cost for a given quantity using a plan's overage rate
+// plus the official 0/10/20% bundle discount tiers.
+export function estimateTopUpIdr(qty: number, overageRateIdr: number): number {
+  const discount = qty >= 5000 ? 0.20 : qty >= 1500 ? 0.10 : 0;
+  return Math.round(qty * overageRateIdr * (1 - discount));
+}
+
 export function formatIdr(n: number | null | undefined): string {
   if (!n || n <= 0) return "Rp 0";
   return `Rp ${n.toLocaleString("id-ID")}`;

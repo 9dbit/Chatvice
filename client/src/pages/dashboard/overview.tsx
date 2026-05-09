@@ -41,9 +41,9 @@ function getPlanLabel(planId?: string | null) {
   switch (planId) {
     case "free": return "Free";
     case "starter": return "Starter";
-    case "growth": return "Growth";
+    case "growth": return "Pro";
     case "pro": return "Pro";
-    case "enterprise": return "Enterprise";
+    case "enterprise": return "Business";
     case "custom": return "Custom";
     default: return planId ?? "Free";
   }

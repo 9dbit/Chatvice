@@ -159,12 +159,16 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
 }
 
 // Helper function to get effective plan limits (respects custom plan configuration and DB overrides)
+// Top-up balance (merchants.extraConversationsBalance) is added on top of the
+// plan's conversationsLimit so quota checks honour purchased top-ups.
 async function getEffectivePlanLimitsAsync(merchant: Merchant) {
+  const topUpBalance = (merchant as any).extraConversationsBalance || 0;
+  const addTopUp = (limit: number) => (limit === -1 ? -1 : limit + topUpBalance);
   // For custom plans, always use merchant-level custom configuration
   if (merchant.subscriptionPlanId === 'custom') {
     const basePlan = subscriptionPlans.custom;
     return {
-      conversationsLimit: merchant.customConversationsLimit ?? basePlan.conversationsLimit,
+      conversationsLimit: addTopUp(merchant.customConversationsLimit ?? basePlan.conversationsLimit),
       agentsLimit: merchant.customAgentsLimit ?? basePlan.agentsLimit,
       supervisorsLimit: merchant.customSupervisorsLimit ?? basePlan.supervisorsLimit,
       sourcesLimit: merchant.customSourcesLimit ?? basePlan.sourcesLimit,
@@ -192,7 +196,7 @@ async function getEffectivePlanLimitsAsync(merchant: Merchant) {
       };
     }
     return {
-      conversationsLimit: freePlan.conversationsLimit,
+      conversationsLimit: addTopUp(freePlan.conversationsLimit),
       agentsLimit: freePlan.agentsLimit,
       supervisorsLimit: freePlan.supervisorsLimit,
       sourcesLimit: freePlan.sourcesLimit,
@@ -203,7 +207,7 @@ async function getEffectivePlanLimitsAsync(merchant: Merchant) {
   }
   
   return {
-    conversationsLimit: effectivePlan.conversationsLimit,
+    conversationsLimit: addTopUp(effectivePlan.conversationsLimit),
     agentsLimit: effectivePlan.agentsLimit,
     supervisorsLimit: effectivePlan.supervisorsLimit,
     sourcesLimit: effectivePlan.sourcesLimit,
@@ -10251,6 +10255,12 @@ Rules:
         }
       }
       
+      const extraConversationsBalance = (merchant as any).extraConversationsBalance || 0;
+      const baseConversationsLimit = plan.conversationsLimit;
+      const effectiveConversationsLimit = baseConversationsLimit === -1
+        ? -1
+        : baseConversationsLimit + extraConversationsBalance;
+
       res.json({
         status: merchant.subscriptionStatus,
         planId: merchant.subscriptionPlanId,
@@ -10259,7 +10269,9 @@ Rules:
         trialEndsAt: merchant.trialEndsAt,
         currentPeriodEnd: merchant.currentPeriodEnd,
         conversationsUsed,
-        conversationsLimit: plan.conversationsLimit,
+        conversationsLimit: effectiveConversationsLimit,
+        baseConversationsLimit,
+        extraConversationsBalance,
         agentsUsed: agents.length,
         agentsLimit: plan.agentsLimit,
         supervisorsUsed: supervisors.length,
