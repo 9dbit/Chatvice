@@ -7,6 +7,9 @@ export interface EffectiveSubscriptionPlan {
   description: string;
   monthlyPrice: number;
   annualPrice: number;
+  monthlyPriceIdr: number;
+  annualPriceIdr: number;
+  overageRateIdr: number;
   conversationsLimit: number;
   agentsLimit: number;
   supervisorsLimit: number;
@@ -56,6 +59,9 @@ export async function getEffectiveSubscriptionPlan(planId: string): Promise<Effe
     id: planId,
     monthlyPrice: applyOverride('monthlyPrice', basePlan.monthlyPrice),
     annualPrice: applyOverride('annualPrice', basePlan.annualPrice),
+    monthlyPriceIdr: applyOverride('monthlyPriceIdr', (basePlan as any).monthlyPriceIdr ?? 0),
+    annualPriceIdr: applyOverride('annualPriceIdr', (basePlan as any).annualPriceIdr ?? 0),
+    overageRateIdr: applyOverride('overageRateIdr', (basePlan as any).overageRateIdr ?? 0),
     conversationsLimit: applyOverride('conversationsLimit', basePlan.conversationsLimit),
     agentsLimit: applyOverride('agentsLimit', basePlan.agentsLimit),
     supervisorsLimit: applyOverride('supervisorsLimit', basePlan.supervisorsLimit),

@@ -22,6 +22,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { processKnowledgeBase, searchKnowledge } from "./embeddings";
+import { capKnowledgeChunks, capSystemPrompt, AI_LIMITS, getFaqCache, setFaqCache, getFaqCacheStats } from "./aiOptimization";
 import { getAvailableSlots, bookSlot, getUpcomingAppointments } from "./appointment-engine";
 import { extractFAQContent, syncKnowledgeFromUrl, fetchWebContent } from "./crawler";
 import { parseFile, fetchGoogleDoc, fetchGoogleSheet } from "./fileParser";
@@ -995,22 +996,30 @@ async function askChatvice(
   
   let knowledgeContext = "";
   try {
-    // Increased from 3 to 5 chunks for better knowledge coverage
+    // Cost-optimized: max 5 chunks AND max 1500 tokens of KB context
     const relevantChunks = await searchKnowledge(merchantId, message, 5, assignedAgentId);
     if (relevantChunks.length > 0) {
-      knowledgeContext = relevantChunks.join("\n\n---\n\n");
+      knowledgeContext = capKnowledgeChunks(relevantChunks, AI_LIMITS.KB_CONTEXT_MAX_TOKENS, 5);
     } else {
       const knowledge = assignedAgentId 
         ? await storage.getKnowledgeByAgent(assignedAgentId)
         : await storage.getKnowledge(merchantId);
-      knowledgeContext = knowledge?.content || "";
+      knowledgeContext = capKnowledgeChunks([knowledge?.content || ""], AI_LIMITS.KB_CONTEXT_MAX_TOKENS, 5);
     }
   } catch (error) {
     console.error("Knowledge search error:", error);
     const knowledge = assignedAgentId 
       ? await storage.getKnowledgeByAgent(assignedAgentId)
       : await storage.getKnowledge(merchantId);
-    knowledgeContext = knowledge?.content || "";
+    knowledgeContext = capKnowledgeChunks([knowledge?.content || ""], AI_LIMITS.KB_CONTEXT_MAX_TOKENS, 5);
+  }
+  // Cost-optimization: cap merchant-supplied system prompt to prevent runaway token spending.
+  if (agentSystemPrompt) {
+    const capped = capSystemPrompt(agentSystemPrompt, AI_LIMITS.SYSTEM_PROMPT_MAX_TOKENS);
+    if (capped.truncated) {
+      console.warn(`[CostOpt] Agent system prompt truncated for merchant=${merchantId} agent=${assignedAgentId} originalTokens=${capped.originalTokens}`);
+    }
+    agentSystemPrompt = capped.text;
   }
   
   // Detect pricing-related questions and inject subscription plan data
@@ -1803,9 +1812,10 @@ ATURAN KETAT:
       { role: "system", content: enhancedSystemMessage }
     ];
     
-    // Add conversation history (increased from 10 to 20 for extended context memory)
+    // Cost-optimized: cap conversation history to last 10 messages (was 20).
+    // Prompt caching benefits from a stable prefix; older context yields diminishing returns vs token cost.
     if (sessionMessages.length > 0) {
-      const recentMessages = sessionMessages.slice(-20);
+      const recentMessages = sessionMessages.slice(-AI_LIMITS.HISTORY_MAX_MESSAGES);
       for (const msg of recentMessages) {
         if (msg.from === 'customer') {
           chatMessages.push({ role: "user", content: msg.content });
@@ -1865,6 +1875,16 @@ ATURAN KETAT:
       chatMessages.push({ role: "user", content: message });
     }
     
+    // Cost-optimized: try FAQ cache for plain text questions (no vision, no signals).
+    // Skips OpenAI entirely on repeat questions, saving ~$0.0006 per cache hit.
+    if (!useVision) {
+      const cached = getFaqCache(merchantId, assignedAgentId, message);
+      if (cached) {
+        console.log(`[CostOpt] FAQ cache hit merchant=${merchantId} agent=${assignedAgentId || "none"}`);
+        return { answer: cached, mode: "AI", isNewSession };
+      }
+    }
+
     const completion = await openai.chat.completions.create({
       model: useVision ? "gpt-4.1" : "gpt-4.1-mini",
       messages: chatMessages as any,
@@ -1873,6 +1893,10 @@ ATURAN KETAT:
     });
 
     const answer = completion.choices[0]?.message?.content || "I'm sorry, I couldn't process your request. Please try again.";
+    // Cost-optimized: cache plain-text Q&A for repeat questions across all customers (per-agent).
+    if (!useVision && answer && answer.length > 0) {
+      setFaqCache(merchantId, assignedAgentId, message, answer);
+    }
     return { answer, mode: "AI", isNewSession };
   } catch (error) {
     console.error("OpenAI error:", error);
@@ -10155,6 +10179,10 @@ Rules:
         pendingTransaction,
         paypalSubscriptionId: merchant.paypalSubscriptionId || null,
         paymentProvider: merchant.paymentProvider || null,
+        // Effective plan pricing for ROI/cost UIs (Task D)
+        monthlyPriceIdr: (plan as any).monthlyPriceIdr ?? 0,
+        annualPriceIdr: (plan as any).annualPriceIdr ?? 0,
+        overageRateIdr: (plan as any).overageRateIdr ?? 0,
       });
     } catch (error: any) {
       console.error("Billing status error:", error?.message || error);
@@ -13093,6 +13121,80 @@ Rules:
       res.json(safeAdmin);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Task D2: Internal admin cost monitor — per-merchant token usage estimate, cost-to-revenue ratio.
+  // Cost basis: ~Rp 79 per AI conversation (GPT-4.1-mini avg with optimizations applied).
+  // Revenue: monthly plan price in IDR.
+  app.get("/api/admin/cost-monitor", requireAdmin, async (req, res) => {
+    try {
+      const COST_PER_CONVERSATION_IDR = 79;
+      const PLAN_REVENUE_IDR: Record<string, number> = {
+        free: 0,
+        starter: 299_000,
+        pro: 899_000,
+        enterprise: 2_299_000,
+        custom: 7_499_000,
+      };
+
+      const merchants = await storage.getAllMerchants();
+      const rows = await Promise.all(
+        merchants.map(async (m) => {
+          const planId = m.subscriptionPlanId || "free";
+          const plan = await getEffectiveSubscriptionPlan(planId);
+          const monthlyRevenue = plan?.monthlyPriceIdr ?? PLAN_REVENUE_IDR[planId] ?? 0;
+          const conversationsUsed = m.conversationsUsed || 0;
+          const estCost = conversationsUsed * COST_PER_CONVERSATION_IDR;
+          const grossMargin = monthlyRevenue - estCost;
+          const costToRevenue = monthlyRevenue > 0 ? estCost / monthlyRevenue : null;
+          return {
+            merchantId: m.id,
+            companyName: m.companyName || m.username,
+            planId,
+            planName: plan?.name || planId,
+            conversationsUsed,
+            conversationsLimit: plan?.conversationsLimit ?? 0,
+            estCostIdr: estCost,
+            monthlyRevenueIdr: monthlyRevenue,
+            grossMarginIdr: grossMargin,
+            costToRevenueRatio: costToRevenue,
+            unprofitable: monthlyRevenue > 0 && grossMargin < 0,
+          };
+        })
+      );
+
+      const totalRevenue = rows.reduce((s, r) => s + r.monthlyRevenueIdr, 0);
+      const totalCost = rows.reduce((s, r) => s + r.estCostIdr, 0);
+      const totalConversations = rows.reduce((s, r) => s + r.conversationsUsed, 0);
+      const unprofitableCount = rows.filter((r) => r.unprofitable).length;
+
+      res.json({
+        summary: {
+          merchantsTotal: rows.length,
+          unprofitableCount,
+          totalConversations,
+          totalCostIdr: totalCost,
+          totalRevenueIdr: totalRevenue,
+          grossMarginIdr: totalRevenue - totalCost,
+          marginPct: totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue) * 100 : 0,
+          costPerConversationIdr: COST_PER_CONVERSATION_IDR,
+        },
+        merchants: rows.sort((a, b) => (a.grossMarginIdr) - (b.grossMarginIdr)),
+        faqCache: getFaqCacheStats(),
+      });
+    } catch (error) {
+      console.error("Cost monitor error:", error);
+      res.status(500).json({ error: "Failed to compute cost monitor" });
+    }
+  });
+
+  // FAQ cache observability — used by cost monitor and ops debugging.
+  app.get("/api/admin/ai-cache-stats", requireAdmin, async (req, res) => {
+    try {
+      res.json(getFaqCacheStats());
+    } catch (error) {
+      res.status(500).json({ error: "Failed to read cache stats" });
     }
   });
 

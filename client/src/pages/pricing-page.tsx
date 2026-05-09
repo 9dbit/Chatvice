@@ -41,8 +41,25 @@ interface ActivePromotion {
   bannerImageUrl?: string | null;
 }
 
+type Currency = "IDR" | "USD";
+
+// Single source of truth: IDR is canonical, USD is derived via kurs.
+const KURS_IDR_PER_USD = 17500;
+
+const formatPrice = (_priceUsd: number, priceIdr: number, currency: Currency): string => {
+  if (currency === "IDR") {
+    if (priceIdr === 0) return "Rp 0";
+    return `Rp ${priceIdr.toLocaleString("id-ID")}`;
+  }
+  if (priceIdr === 0) return "$0";
+  const usd = priceIdr / KURS_IDR_PER_USD;
+  // Show whole dollars when >=10, else 2 decimals.
+  return usd >= 10 ? `$${Math.round(usd).toLocaleString("en-US")}` : `$${usd.toFixed(2)}`;
+};
+
 export default function PricingPage() {
   const [isYearly, setIsYearly] = useState(false);
+  const [currency, setCurrency] = useState<Currency>("IDR");
   const { toast } = useToast();
   
   const { data: platformSettings } = useQuery({
@@ -106,6 +123,20 @@ export default function PricingPage() {
     return null;
   };
 
+  const getDbPlanPriceIdr = (planId: string, priceType: 'monthly' | 'annual') => {
+    const dbPlan = getDbPlan(planId);
+    if (dbPlan) {
+      const v = priceType === 'monthly' ? dbPlan.monthlyPriceIdr : dbPlan.annualPriceIdr;
+      return typeof v === 'number' ? v : 0;
+    }
+    return 0;
+  };
+
+  const getDbPlanName = (planId: string, fallback: string) => {
+    const dbPlan = getDbPlan(planId);
+    return (dbPlan?.name as string) || fallback;
+  };
+
   // Helper to format limit values
   const formatLimit = (value: number | undefined, suffix: string = "") => {
     if (value === undefined || value === null) return "0";
@@ -152,10 +183,13 @@ export default function PricingPage() {
 
   const plans = [
     {
-      name: "Starter",
-      description: "Perfect for small businesses getting started with AI support.",
-      monthlyPrice: getDbPlanPrice('starter', 'monthly') ?? 29,
-      yearlyPrice: getDbPlanPrice('starter', 'annual') ?? 24,
+      planId: "starter",
+      name: getDbPlanName("starter", "Starter"),
+      description: "Untuk UMKM & toko online yang baru memulai.",
+      monthlyPrice: getDbPlanPrice('starter', 'monthly') ?? 19,
+      yearlyPrice: getDbPlanPrice('starter', 'annual') ?? 14,
+      monthlyPriceIdr: getDbPlanPriceIdr('starter', 'monthly') || 299_000,
+      yearlyPriceIdr: getDbPlanPriceIdr('starter', 'annual') || 224_250,
       features: [
         { text: `${starterLimits.agents} AI Agent${starterLimits.agents !== 1 ? 's' : ''}`, included: true },
         { text: `${starterLimits.supervisors} Supervisor${starterLimits.supervisors !== 1 ? 's' : ''}`, included: true },
@@ -173,10 +207,13 @@ export default function PricingPage() {
       popular: false,
     },
     {
-      name: "Pro",
-      description: "For growing teams that need more power and flexibility.",
-      monthlyPrice: getDbPlanPrice('pro', 'monthly') ?? 99,
-      yearlyPrice: getDbPlanPrice('pro', 'annual') ?? 83,
+      planId: "pro",
+      name: getDbPlanName("pro", "Growth"),
+      description: "Sweet spot untuk bisnis menengah — paling laris.",
+      monthlyPrice: getDbPlanPrice('pro', 'monthly') ?? 57,
+      yearlyPrice: getDbPlanPrice('pro', 'annual') ?? 43,
+      monthlyPriceIdr: getDbPlanPriceIdr('pro', 'monthly') || 899_000,
+      yearlyPriceIdr: getDbPlanPriceIdr('pro', 'annual') || 674_250,
       features: [
         { text: `${proLimits.agents} AI Agent${proLimits.agents !== 1 ? 's' : ''}`, included: true },
         { text: `${proLimits.supervisors} Supervisor${proLimits.supervisors !== 1 ? 's' : ''}`, included: true },
@@ -194,10 +231,13 @@ export default function PricingPage() {
       popular: true,
     },
     {
-      name: "Enterprise",
-      description: "For large organizations with custom needs.",
-      monthlyPrice: getDbPlanPrice('enterprise', 'monthly') ?? 499,
-      yearlyPrice: getDbPlanPrice('enterprise', 'annual') ?? 416,
+      planId: "enterprise",
+      name: getDbPlanName("enterprise", "Business"),
+      description: "Untuk e-commerce besar & perusahaan dengan volume tinggi.",
+      monthlyPrice: getDbPlanPrice('enterprise', 'monthly') ?? 145,
+      yearlyPrice: getDbPlanPrice('enterprise', 'annual') ?? 109,
+      monthlyPriceIdr: getDbPlanPriceIdr('enterprise', 'monthly') || 2_299_000,
+      yearlyPriceIdr: getDbPlanPriceIdr('enterprise', 'annual') || 1_724_250,
       features: [
         { text: `${enterpriseLimits.agents} AI Agent${enterpriseLimits.agents !== 1 && enterpriseLimits.agents !== "Unlimited" ? 's' : ''}`, included: true },
         { text: `${enterpriseLimits.supervisors} Supervisor${enterpriseLimits.supervisors !== 1 && enterpriseLimits.supervisors !== "Unlimited" ? 's' : ''}`, included: true },
@@ -216,10 +256,14 @@ export default function PricingPage() {
       popular: false,
     },
     {
-      name: "Custom",
-      description: "Tailored solutions for unique requirements.",
-      monthlyPrice: null,
-      yearlyPrice: null,
+      planId: "custom",
+      name: getDbPlanName("custom", "Enterprise"),
+      description: "Korporat, marketplace, banking — solusi custom volume besar.",
+      monthlyPrice: getDbPlanPrice('custom', 'monthly') ?? 475,
+      yearlyPrice: getDbPlanPrice('custom', 'annual') ?? 356,
+      monthlyPriceIdr: getDbPlanPriceIdr('custom', 'monthly') || 7_499_000,
+      yearlyPriceIdr: getDbPlanPriceIdr('custom', 'annual') || 5_624_250,
+      isContact: true as const,
       features: [
         { text: "Everything in Enterprise", included: true },
         { text: "Unlimited AI Agents", included: true },
@@ -385,17 +429,30 @@ export default function PricingPage() {
             Choose the plan that fits your business. All plans include a {trialDays}-day free trial.
           </p>
           
-          <div className="flex items-center gap-3">
-            <span className={`text-sm ${!isYearly ? "text-white" : "text-purple-200"}`}>Monthly</span>
-            <Switch
-              checked={isYearly}
-              onCheckedChange={setIsYearly}
-              className="data-[state=checked]:bg-white"
-            />
-            <span className={`text-sm ${isYearly ? "text-white" : "text-purple-200"}`}>
-              Yearly
-              <Badge className="ml-2 bg-green-500 text-white text-xs">Save 20%</Badge>
-            </span>
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="flex items-center gap-3">
+              <span className={`text-sm ${!isYearly ? "text-white" : "text-purple-200"}`}>Bulanan</span>
+              <Switch
+                checked={isYearly}
+                onCheckedChange={setIsYearly}
+                className="data-[state=checked]:bg-white"
+                data-testid="switch-billing-cycle"
+              />
+              <span className={`text-sm ${isYearly ? "text-white" : "text-purple-200"}`}>
+                Tahunan
+                <Badge className="ml-2 bg-green-500 text-white text-xs">Hemat 25%</Badge>
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`text-sm ${currency === "IDR" ? "text-white" : "text-purple-200"}`}>Rupiah</span>
+              <Switch
+                checked={currency === "USD"}
+                onCheckedChange={(v) => setCurrency(v ? "USD" : "IDR")}
+                className="data-[state=checked]:bg-white"
+                data-testid="switch-currency"
+              />
+              <span className={`text-sm ${currency === "USD" ? "text-white" : "text-purple-200"}`}>USD</span>
+            </div>
           </div>
         </div>
       </section>
@@ -419,30 +476,37 @@ export default function PricingPage() {
                   <p className="text-sm text-muted-foreground mb-4">{plan.description}</p>
                   
                   {plan.monthlyPrice ? (() => {
-                    const planId = plan.name.toLowerCase();
-                    const originalPrice = isYearly ? plan.yearlyPrice : plan.monthlyPrice;
+                    const planId = plan.planId;
+                    const originalUsd = isYearly ? (plan.yearlyPrice || 0) : plan.monthlyPrice;
+                    const originalIdr = isYearly ? plan.yearlyPriceIdr : plan.monthlyPriceIdr;
                     const promo = getPromoForPlan(planId);
-                    const discountedPrice = getDiscountedPrice(originalPrice, planId);
-                    const hasDiscount = promo && discountedPrice < originalPrice;
+                    const discountedUsd = getDiscountedPrice(originalUsd, planId);
+                    const discountedIdr = promo ? Math.round(originalIdr * (1 - promo.discountPercent / 100)) : originalIdr;
+                    const hasDiscount = !!promo && discountedUsd < originalUsd;
                     
                     return (
                       <>
                         {hasDiscount && (
                           <Badge className="bg-green-500 text-white text-xs mb-2" data-testid={`badge-discount-${planId}`}>
-                            Save {promo?.discountPercent}%
+                            Hemat {promo?.discountPercent}%
                           </Badge>
                         )}
-                        <div className="flex items-baseline justify-center gap-1">
+                        <div className="flex items-baseline justify-center gap-1 flex-wrap">
                           {hasDiscount && (
-                            <span className="text-2xl text-muted-foreground line-through mr-1">
-                              ${originalPrice}
+                            <span className="text-xl text-muted-foreground line-through mr-1">
+                              {formatPrice(originalUsd, originalIdr, currency)}
                             </span>
                           )}
-                          <span className={`text-5xl font-bold ${hasDiscount ? 'text-green-600' : ''}`}>
-                            ${hasDiscount ? discountedPrice : originalPrice}
+                          <span className={`text-4xl md:text-5xl font-bold ${hasDiscount ? 'text-green-600' : ''}`} data-testid={`text-price-${planId}`}>
+                            {formatPrice(hasDiscount ? discountedUsd : originalUsd, hasDiscount ? discountedIdr : originalIdr, currency)}
                           </span>
-                          <span className="text-muted-foreground">/month</span>
+                          <span className="text-muted-foreground text-sm">/bulan</span>
                         </div>
+                        {currency === "IDR" && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            ≈ ${hasDiscount ? discountedUsd : originalUsd} USD
+                          </p>
+                        )}
                       </>
                     );
                   })() : (
@@ -450,11 +514,18 @@ export default function PricingPage() {
                   )}
                   
                   {isYearly && plan.monthlyPrice && (() => {
-                    const planId = plan.name.toLowerCase();
-                    const discountedPrice = getDiscountedPrice(plan.yearlyPrice || 0, planId);
+                    const planId = plan.planId;
+                    const discountedUsd = getDiscountedPrice(plan.yearlyPrice || 0, planId);
+                    const discountedIdr = (() => {
+                      const promo = getPromoForPlan(planId);
+                      return promo ? Math.round(plan.yearlyPriceIdr * (1 - promo.discountPercent / 100)) : plan.yearlyPriceIdr;
+                    })();
+                    const annualTotal = currency === "IDR" 
+                      ? `Rp ${(discountedIdr * 12).toLocaleString("id-ID")}` 
+                      : `$${discountedUsd * 12}`;
                     return (
                       <p className="text-sm text-muted-foreground mt-2">
-                        Billed ${discountedPrice * 12}/year
+                        Ditagih {annualTotal}/tahun • Hemat 25%
                       </p>
                     );
                   })()}
@@ -475,19 +546,7 @@ export default function PricingPage() {
                   ))}
                 </ul>
 
-                {plan.monthlyPrice ? (
-                  <Link href="/register">
-                    <Button 
-                      className={`w-full ${plan.popular ? "bg-purple-600 hover:bg-purple-700" : ""}`}
-                      variant={plan.popular ? "default" : "outline"}
-                      size="lg"
-                      data-testid={`button-plan-${plan.name.toLowerCase()}`}
-                    >
-                      {plan.cta}
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </Link>
-                ) : (
+                {("isContact" in plan && plan.isContact) ? (
                   <CustomPlanRequestDialog
                     skipAuthCheck
                     trigger={
@@ -495,13 +554,25 @@ export default function PricingPage() {
                         className="w-full"
                         variant="outline"
                         size="lg"
-                        data-testid="button-plan-custom"
+                        data-testid={`button-plan-${plan.planId}`}
                       >
-                        {plan.cta}
+                        Hubungi Sales
                         <ArrowRight className="w-4 h-4 ml-2" />
                       </Button>
                     }
                   />
+                ) : (
+                  <Link href="/register">
+                    <Button 
+                      className={`w-full ${plan.popular ? "bg-purple-600 hover:bg-purple-700" : ""}`}
+                      variant={plan.popular ? "default" : "outline"}
+                      size="lg"
+                      data-testid={`button-plan-${plan.planId}`}
+                    >
+                      {plan.monthlyPrice === 0 ? "Mulai Gratis" : `Mulai Trial ${trialDays} Hari`}
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </Link>
                 )}
               </Card>
             ))}
@@ -520,12 +591,12 @@ export default function PricingPage() {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left py-4 px-4 font-semibold">Feature</th>
-                  <th className="text-center py-4 px-4 font-semibold">Free</th>
-                  <th className="text-center py-4 px-4 font-semibold">Starter</th>
-                  <th className="text-center py-4 px-4 font-semibold bg-purple-50 dark:bg-purple-950/20">Pro</th>
-                  <th className="text-center py-4 px-4 font-semibold">Enterprise</th>
-                  <th className="text-center py-4 px-4 font-semibold">Custom</th>
+                  <th className="text-left py-4 px-4 font-semibold">Fitur</th>
+                  <th className="text-center py-4 px-4 font-semibold">{getDbPlanName("free", "Free")}</th>
+                  <th className="text-center py-4 px-4 font-semibold">{getDbPlanName("starter", "Starter")}</th>
+                  <th className="text-center py-4 px-4 font-semibold bg-purple-50 dark:bg-purple-950/20">{getDbPlanName("pro", "Growth")}</th>
+                  <th className="text-center py-4 px-4 font-semibold">{getDbPlanName("enterprise", "Business")}</th>
+                  <th className="text-center py-4 px-4 font-semibold">{getDbPlanName("custom", "Enterprise")}</th>
                 </tr>
               </thead>
               <tbody>

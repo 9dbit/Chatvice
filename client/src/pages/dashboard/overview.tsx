@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { GettingStartedChecklist } from "@/components/dashboard/getting-started-checklist";
+import { UsageUpsellBanner } from "@/components/dashboard/usage-upsell-banner";
+import { AiSavingsCard } from "@/components/dashboard/ai-savings-card";
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar,
@@ -320,6 +322,12 @@ export default function DashboardOverview() {
           disableAutoDismiss={checklistReopened}
         />
       )}
+
+      {/* ── Usage upsell (Task C2/C3) — appears at >=80% quota ── */}
+      <UsageUpsellBanner />
+
+      {/* ── AI Savings ROI (Task D1) ── */}
+      <AiSavingsCard />
 
       {/* ── Empty State ── */}
       {isEmptyState && (
