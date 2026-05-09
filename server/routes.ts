@@ -5864,8 +5864,14 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       // a matching paymentTransactions row). Store the chosen capacity in
       // gatewayResponse so the webhook can recover the metadata even if 12Pay
       // does not echo our custom metadata back.
+      // NOTE: storage.createPaymentTransaction always generates its own
+      // invoiceNumber via generateInvoiceNumber(); we capture the returned row
+      // and surface the persisted invoiceNumber/id so callers receive
+      // identifiers that exist in the DB.
+      let persistedTxnId: string | null = null;
+      let persistedInvoiceNumber: string | null = null;
       try {
-        await storage.createPaymentTransaction({
+        const persistedTxn = await storage.createPaymentTransaction({
           merchantId: merchant.id,
           externalId: qrisResult.data.transactionId,
           amount: breakdown.totalIdr,
@@ -5888,10 +5894,12 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
             customSupervisorsLimit: cfg.supervisors,
             customMonthlyPrice: breakdown.monthlyPriceIdr,
             customAnnualPrice: breakdown.annualPriceIdr,
+            externalIdHint,
           },
           expiresAt: new Date(qrisResult.data.expiryTime),
-          invoiceNumber: externalIdHint,
         });
+        persistedTxnId = persistedTxn.id;
+        persistedInvoiceNumber = persistedTxn.invoiceNumber ?? null;
       } catch (e) {
         console.warn("Could not save custom plan pending transaction:", e);
       }
@@ -5913,8 +5921,8 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         planId: "custom",
         planName: "Custom Plan",
         billingInterval: cfg.billingInterval,
-        invoiceId: externalIdHint,
-        invoiceNumber: externalIdHint,
+        invoiceId: persistedTxnId,
+        invoiceNumber: persistedInvoiceNumber,
         breakdown,
         config: {
           conversations: cfg.conversations,
