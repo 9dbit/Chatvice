@@ -34,8 +34,8 @@ function getResponseTimeRating(seconds: number): ResponseTimeRating {
   return "slow";
 }
 
-function ResponseTimeBadge({ avgResponseTime }: { avgResponseTime: number | null }) {
-  if (avgResponseTime === null) {
+function ResponseTimeBadge({ avgResponseTime }: { avgResponseTime: number | null | undefined }) {
+  if (avgResponseTime === null || avgResponseTime === undefined || typeof avgResponseTime !== "number" || !isFinite(avgResponseTime)) {
     return (
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground">No data</span>
