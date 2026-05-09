@@ -16,6 +16,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { formatDistanceToNow, format } from "date-fns";
+import { id as dfId, enUS as dfEnUS } from "date-fns/locale";
 import type { DateRange as CalendarDateRange } from "react-day-picker";
 import { invalidateNotificationSoundCache } from "@/lib/sounds";
 import {
@@ -308,7 +309,8 @@ interface TicketsDialogProps {
 
 export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogProps) {
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const dfLocale = language === "id" ? dfId : dfEnUS;
   const desktopNotif = useDesktopNotifPrompt(open, t);
   const [tab, setTab] = useState<TicketStatus>("checking");
   const [search, setSearch] = useState("");
@@ -830,7 +832,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
                   <div className="mt-2 text-xs text-muted-foreground flex items-center gap-x-3 gap-y-1 flex-wrap">
                     {active.ticketId ? <span className="inline-flex items-center gap-1 truncate max-w-full" title={active.ticketId}><Hash className="w-3 h-3 shrink-0" /><span className="truncate">{active.ticketId}</span></span> : null}
                     {active.requestType ? <span className="truncate" title={active.requestType}>{t("dashboard.ticketsDialog.type")}: {active.requestType}</span> : null}
-                    {active.createdAt ? <span className="truncate">{formatDistanceToNow(new Date(active.createdAt), { addSuffix: true })}</span> : null}
+                    {active.createdAt ? <span className="truncate">{formatDistanceToNow(new Date(active.createdAt), { addSuffix: true, locale: dfLocale })}</span> : null}
                     {active.manualOverride ? <Badge variant="outline" className="gap-1 shrink-0 sm:hidden h-5"><ShieldAlert className="w-3 h-3" /> {t("dashboard.ticketsDialog.manual")}</Badge> : null}
                   </div>
 
@@ -1002,7 +1004,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
 
                     {active.lastSyncedAt ? (
                       <p className="text-[10px] text-muted-foreground text-right">
-                        {t("dashboard.ticketsDialog.lastSynced")} {formatDistanceToNow(new Date(active.lastSyncedAt), { addSuffix: true })}
+                        {t("dashboard.ticketsDialog.lastSynced")} {formatDistanceToNow(new Date(active.lastSyncedAt), { addSuffix: true, locale: dfLocale })}
                       </p>
                     ) : null}
                   </div>
@@ -1032,7 +1034,8 @@ const TicketCard = React.memo(function TicketCard({
   isExample?: boolean;
   nowTick?: number;
 }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const dfLocale = language === "id" ? dfId : dfEnUS;
   const st = normaliseStatus(ticket.status);
   return (
     <Card
@@ -1086,7 +1089,7 @@ const TicketCard = React.memo(function TicketCard({
           <span className="truncate min-w-0" title={ticket.session?.clientIp || t("dashboard.ticketsDialog.ipUnavailable")}>
             {ticket.session?.clientIp || t("dashboard.ticketsDialog.ipUnavailable")}
           </span>
-          <span className="shrink-0">{ticket.createdAt ? formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true }) : ""}</span>
+          <span className="shrink-0">{ticket.createdAt ? formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true, locale: dfLocale }) : ""}</span>
         </div>
       </div>
     </Card>

@@ -2318,7 +2318,8 @@
         },
         "todo1Pre": "Implement handler ",
         "todo1Post": " on the panel."
-      }
+      },
+      "postmanLabel": "Postman"
     },
     "checklist": {
       "title": "Panel Integration Checklist",

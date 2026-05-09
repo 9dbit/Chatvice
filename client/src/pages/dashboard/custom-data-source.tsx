@@ -287,7 +287,7 @@ export default function CustomDataSourcePage() {
           </Button>
           <Button variant="outline" size="sm" asChild>
             <a href="/api/merchant/custom-data-source/postman.json" download data-testid="link-download-postman">
-              <Download className="w-4 h-4 mr-1" /> Postman
+              <Download className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.postmanLabel")}
             </a>
           </Button>
           <Button variant="outline" size="sm" asChild>

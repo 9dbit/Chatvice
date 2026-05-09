@@ -2295,7 +2295,8 @@
         },
         "todo1Pre": "Implementasikan handler ",
         "todo1Post": " di panel."
-      }
+      },
+      "postmanLabel": "Postman"
     },
     "checklist": {
       "title": "Checklist Integrasi Panel",
