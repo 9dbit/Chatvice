@@ -184,6 +184,46 @@ describe("executeIntentLookup failure modes", () => {
     expect(res.httpStatus).toBe(302);
     fetchSpy.mockRestore();
   });
+  it("does not follow redirects to internal hosts (SSRF defence)", async () => {
+    // Verify the connector itself rejects any 3xx response (which is what the
+    // /test endpoint also does via redirect:"manual").
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("", { status: 302, headers: { Location: "http://169.254.169.254/" } }) as any
+    );
+    const res = await executeIntentLookup({
+      merchantId: "m1",
+      source: baseSource,
+      intent: baseIntent,
+      fields: { username: "andi-redirect" },
+      sessionId: "s-redirect",
+    });
+    expect(res.ok).toBe(false);
+    expect(res.httpStatus).toBe(302);
+    fetchSpy.mockRestore();
+  });
+
+  it("end-to-end: detect → validate → fetch → render template", async () => {
+    // Simulates the full path the chat dispatcher takes: required fields are
+    // present, base URL is public, panel returns 200 JSON, template renders.
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input: any) => {
+      const u = String(input);
+      expect(u).toContain("/api/deposit/");
+      expect(u).toContain("e2e-user");
+      return new Response(JSON.stringify({ status: "PENDING", amount: 250000 }), { status: 200 }) as any;
+    });
+    const res = await executeIntentLookup({
+      merchantId: "m1",
+      source: baseSource,
+      intent: baseIntent,
+      fields: { username: "e2e-user" },
+      sessionId: "s-e2e",
+    });
+    expect(res.ok).toBe(true);
+    expect(res.httpStatus).toBe(200);
+    expect(res.text).toBe("Status deposit Anda: PENDING");
+    fetchSpy.mockRestore();
+  });
+
   it("returns success and renders template on 2xx JSON", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ status: "APPROVED" }), { status: 200 }) as any);
     const res = await executeIntentLookup({

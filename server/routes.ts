@@ -28218,9 +28218,15 @@ Please create a comprehensive help center article that would be useful for custo
         const resp = await fetch(url, {
           method: "GET",
           headers: apiKey ? { [source.headerAuthName]: apiKey, "User-Agent": "Chatvice-Connector/1.0" } : { "User-Agent": "Chatvice-Connector/1.0" },
+          // SSRF defence: never auto-follow 3xx so a merchant endpoint can't
+          // bounce us into 169.254.169.254 / loopback / private IPs.
+          redirect: "manual",
           signal: AbortSignal.timeout(10_000),
         });
         const latencyMs = Date.now() - t0;
+        if (resp.status >= 300 && resp.status < 400) {
+          return res.json({ ok: false, status: resp.status, latencyMs, error: `Endpoint mengembalikan redirect ${resp.status} — panel API harus respons langsung tanpa 3xx.` });
+        }
         const sample = (await resp.text()).slice(0, 200);
         res.json({ ok: resp.ok, status: resp.status, latencyMs, sample });
       } catch (err: any) {
