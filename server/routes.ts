@@ -35,7 +35,7 @@ import { db, pool } from "./db";
 import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } from "drizzle-orm";
 import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, blastCampaigns } from "@shared/schema";
 import crypto from "crypto";
-import { encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup, buildPostmanCollection, buildHtmlDocs, DEFAULT_INTENTS, PRESET_INTENTS, PRESET_META } from "./customConnector";
+import { encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup, buildPostmanCollection, buildHtmlDocs, DEFAULT_INTENTS, PRESET_INTENTS, PRESET_META, getCustomDataHealthSummary, checkOneSourceHealth } from "./customConnector";
 import { registerCustomDataPresetRoutes } from "./customDataPresetRoutes";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import sharp from "sharp";
@@ -28145,7 +28145,7 @@ Please create a comprehensive help center article that would be useful for custo
   app.put("/api/merchant/custom-data-source", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
-      const { name, baseUrl, headerAuthName, healthPath, cacheTtlSec, rateLimitPerMin, isEnabled, preset } = req.body;
+      const { name, baseUrl, headerAuthName, healthPath, cacheTtlSec, rateLimitPerMin, isEnabled, healthMonitorEnabled, preset } = req.body;
       // SSRF guard: reject local/private hosts at save time so they can never
       // make it into the lookup dispatcher.
       if (baseUrl && String(baseUrl).trim() !== "") {
@@ -28162,6 +28162,7 @@ Please create a comprehensive help center article that would be useful for custo
         cacheTtlSec: typeof cacheTtlSec === "number" ? cacheTtlSec : (existing?.cacheTtlSec ?? 30),
         rateLimitPerMin: typeof rateLimitPerMin === "number" ? rateLimitPerMin : (existing?.rateLimitPerMin ?? 60),
         isEnabled: isEnabled ?? existing?.isEnabled ?? false,
+        healthMonitorEnabled: typeof healthMonitorEnabled === "boolean" ? healthMonitorEnabled : (existing?.healthMonitorEnabled ?? true),
       });
       // Seed default intents on first creation, and auto-generate the first
       // API key so merchants don't have to manually rotate before testing.
@@ -28532,6 +28533,42 @@ Please create a comprehensive help center article that would be useful for custo
       getCustomDataIntents: (sId) => storage.getCustomDataIntents(sId),
       createCustomDataIntent: (data) => storage.createCustomDataIntent(data),
     },
+  });
+
+  // Lightweight health badge endpoint for the dashboard. Returns the latest
+  // verdict cached on the source row plus a freshly-computed 5-minute summary.
+  app.get("/api/merchant/custom-data-source/health", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const summary = await getCustomDataHealthSummary(merchantId);
+      if (!summary) return res.json(null);
+      res.json(summary);
+    } catch (err) {
+      console.error("[CustomDataSource] health summary error:", err);
+      res.status(500).json({ error: "Failed to load health summary" });
+    }
+  });
+
+  // Manual "ping now" — runs one health check immediately for this merchant
+  // and returns the freshly-computed badge data. Useful for the dashboard
+  // refresh button so merchants don't have to wait up to 60s.
+  app.post("/api/merchant/custom-data-source/health/refresh", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const source = await storage.getCustomDataSource(merchantId);
+      if (!source) return res.status(404).json({ error: "Belum ada custom data source" });
+      try {
+        await checkOneSourceHealth(source);
+      } catch (err) {
+        console.error("[health-refresh] failed:", err);
+        return res.status(502).json({ error: "Health check gagal dijalankan", detail: err instanceof Error ? err.message : String(err) });
+      }
+      const summary = await getCustomDataHealthSummary(merchantId);
+      res.json(summary);
+    } catch (err) {
+      console.error("[CustomDataSource] manual health refresh error:", err);
+      res.status(500).json({ error: "Failed to refresh health" });
+    }
   });
 
   app.get("/api/merchant/custom-data-source/audit", requireMerchant, async (req, res) => {

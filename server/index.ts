@@ -949,4 +949,14 @@ function startBackgroundSync(): void {
 
   setTimeout(() => seedBlogPostsFromStaticData().catch(err => console.error("[blog-gen] Seed error:", err)), 8000);
   scheduleDailyBlogGeneration();
+
+  // Custom Data Source connector — health monitor (every 60s).
+  // Pings every enabled merchant's panel API and alerts when error rate spikes.
+  setTimeout(() => {
+    import("./customConnector").then(m => m.runCustomDataHealthMonitor()).catch(err => console.error("[health-monitor] startup tick failed:", err));
+  }, 15 * 1000);
+  setInterval(() => {
+    import("./customConnector").then(m => m.runCustomDataHealthMonitor()).catch(err => console.error("[health-monitor] scheduled tick failed:", err));
+  }, 60 * 1000);
+  console.log("[health-monitor] Custom Data Source health monitor started (60s interval)");
 }

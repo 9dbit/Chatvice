@@ -879,3 +879,268 @@ ${intentsHtml}
 <p class="meta">Tip: open <em>File → Print → Save as PDF</em> to export this document.</p>
 </body></html>`;
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// HEALTH MONITORING — background pinger + alerting
+// ════════════════════════════════════════════════════════════════════════════
+// Every 60s we ping each enabled merchant's panel API (just like the manual
+// "Test connection" button) and store the result in `customDataHealthPings`.
+// We then compute a rolling 5-minute success rate and:
+//   1. Cache the latest "up | degraded | down" verdict on the source row so
+//      the dashboard badge can render without scanning the pings table.
+//   2. Send an alert (email + telegram if configured) when the error rate
+//      exceeds 50% over the rolling window. The alert is de-duplicated:
+//      we only re-alert after the source recovers (status returns to "up")
+//      and then degrades again — never spam the merchant for one outage.
+
+export type HealthStatus = "up" | "degraded" | "down" | "unknown";
+
+export interface HealthPingResult {
+  success: boolean;
+  httpStatus: number;
+  latencyMs: number;
+  errorMessage?: string | null;
+}
+
+// Single ping. Mirrors the test-connection logic but stays self-contained so
+// the background job never depends on Express request/response objects.
+export async function pingCustomDataSourceHealth(source: CustomDataSource): Promise<HealthPingResult> {
+  const t0 = Date.now();
+  if (!source.baseUrl) {
+    return { success: false, httpStatus: 0, latencyMs: 0, errorMessage: "Base URL belum diisi" };
+  }
+  const urlCheck = validateBaseUrl(source.baseUrl);
+  if (!urlCheck.ok) {
+    return { success: false, httpStatus: 0, latencyMs: 0, errorMessage: urlCheck.error };
+  }
+  const dnsCheck = await assertPublicHostExt(urlCheck.url.hostname.replace(/^\[|\]$/g, ""));
+  if (!dnsCheck.ok) {
+    return { success: false, httpStatus: 0, latencyMs: Date.now() - t0, errorMessage: dnsCheck.error };
+  }
+  const apiKey = decryptApiKey(source.apiKeyEncrypted);
+  const url = source.baseUrl.replace(/\/+$/, "") + (source.healthPath || "/health");
+  const headers: Record<string, string> = { "User-Agent": "Chatvice-Connector-Healthcheck/1.0" };
+  if (apiKey) headers[source.headerAuthName || "X-API-Key"] = apiKey;
+  try {
+    const resp = await fetch(url, {
+      method: "GET",
+      headers,
+      // Same SSRF defence as the dispatcher — never auto-follow 3xx.
+      redirect: "manual",
+      signal: AbortSignal.timeout(10_000),
+    });
+    const latencyMs = Date.now() - t0;
+    if (resp.status >= 300 && resp.status < 400) {
+      return { success: false, httpStatus: resp.status, latencyMs, errorMessage: `Redirect ${resp.status}` };
+    }
+    return {
+      success: resp.ok,
+      httpStatus: resp.status,
+      latencyMs,
+      errorMessage: resp.ok ? null : `HTTP ${resp.status}`,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      httpStatus: 0,
+      latencyMs: Date.now() - t0,
+      errorMessage: err?.name === "TimeoutError" ? "Request timeout" : (err?.message || "Network error"),
+    };
+  }
+}
+
+// Compute a verdict from the rolling window. We require a minimum sample
+// size before flagging "down" so a single transient blip during the first
+// minute doesn't immediately page the merchant.
+export function computeHealthVerdict(pings: { success: boolean }[]): {
+  status: HealthStatus;
+  total: number;
+  successCount: number;
+  errorRate: number;
+} {
+  const total = pings.length;
+  if (total === 0) return { status: "unknown", total: 0, successCount: 0, errorRate: 0 };
+  const successCount = pings.filter(p => p.success).length;
+  const errorRate = (total - successCount) / total;
+  let status: HealthStatus;
+  if (errorRate === 0) status = "up";
+  else if (errorRate > 0.5 && total >= 3) status = "down";
+  else status = "degraded";
+  return { status, total, successCount, errorRate };
+}
+
+// Alerting helper. Sends both email (if Resend is configured) and Telegram
+// (if the merchant linked a bot). All sends are best-effort.
+async function sendHealthDownAlert(opts: {
+  merchantId: string;
+  source: CustomDataSource;
+  errorRate: number;
+  total: number;
+  lastError: string | null;
+}): Promise<void> {
+  const { merchantId, source, errorRate, total, lastError } = opts;
+  const merchant = await storage.getMerchant(merchantId);
+  if (!merchant) return;
+
+  const pct = Math.round(errorRate * 100);
+  const subject = `[Chatvice] Panel API "${source.name}" gangguan (${pct}% error)`;
+  const summary = `Panel API merchant Anda mengalami error rate ${pct}% dalam 5 menit terakhir (${total} pemeriksaan). ` +
+    (lastError ? `Pesan error terakhir: ${lastError}.` : "") +
+    ` Endpoint: ${source.baseUrl}${source.healthPath || "/health"}`;
+
+  // Email via Resend — gracefully no-op if Resend connector isn't configured.
+  if (merchant.email) {
+    try {
+      const { sendPanelHealthAlertEmail } = await import("./resendClient");
+      await sendPanelHealthAlertEmail({
+        toEmail: merchant.email,
+        merchantName: merchant.companyName || merchant.username || "Merchant",
+        sourceName: source.name,
+        endpoint: `${source.baseUrl}${source.healthPath || "/health"}`,
+        errorRatePct: pct,
+        totalPings: total,
+        lastError: lastError || null,
+      }).catch((err) => console.error("[health-monitor] email send failed:", err?.message || err));
+    } catch (err) {
+      console.error("[health-monitor] email helper failed:", err);
+    }
+  }
+
+  // Telegram via merchant's notification settings — same pipe used for chat alerts.
+  try {
+    const settings = await storage.getNotificationSettings(merchantId);
+    if (settings?.telegramEnabled && settings.telegramBotToken && settings.telegramChatId) {
+      const { sendTelegramNotification } = await import("./telegram");
+      const text = `🚨 <b>Panel API Down</b>\n` +
+        `Source: <b>${escapeHtmlSafe(source.name)}</b>\n` +
+        `Error rate: <b>${pct}%</b> (${total} ping/5m)\n` +
+        `Endpoint: ${escapeHtmlSafe(source.baseUrl)}${escapeHtmlSafe(source.healthPath || "/health")}\n` +
+        (lastError ? `Last error: ${escapeHtmlSafe(lastError)}` : "");
+      await sendTelegramNotification(settings.telegramBotToken, settings.telegramChatId, text)
+        .catch((err) => console.error("[health-monitor] telegram send failed:", err?.message || err));
+    }
+  } catch (err) {
+    console.error("[health-monitor] telegram lookup failed:", err);
+  }
+
+  console.log(`[health-monitor] Alert sent to merchant ${merchantId} for source ${source.id} (errorRate=${pct}%)`);
+  void summary;
+  void subject;
+}
+
+function escapeHtmlSafe(s: string): string {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Process a single source: ping, persist, recompute verdict, possibly alert.
+export async function checkOneSourceHealth(source: CustomDataSource): Promise<void> {
+  const result = await pingCustomDataSourceHealth(source);
+  await storage.recordCustomDataHealthPing({
+    merchantId: source.merchantId,
+    sourceId: source.id,
+    success: result.success,
+    httpStatus: result.httpStatus,
+    latencyMs: result.latencyMs,
+    errorMessage: result.errorMessage ?? null,
+  });
+
+  const recent = await storage.getRecentCustomDataHealthPings(source.merchantId, 5 * 60 * 1000);
+  const verdict = computeHealthVerdict(recent);
+
+  const previousStatus = (source.lastHealthStatus as HealthStatus) || "unknown";
+  await storage.upsertCustomDataSource(source.merchantId, {
+    lastHealthCheckAt: new Date(),
+    lastHealthStatus: verdict.status,
+    lastHealthLatencyMs: result.latencyMs,
+    lastHealthError: result.success ? null : (result.errorMessage ?? null),
+    // Reset alert dedupe once we recover so the next degradation re-alerts.
+    ...(verdict.status === "up" && previousStatus !== "up" ? { healthAlertSentAt: null } : {}),
+  });
+
+  // Alert when verdict is "down" and we haven't already alerted for this incident.
+  if (verdict.status === "down") {
+    const alreadyAlerted = !!source.healthAlertSentAt;
+    if (!alreadyAlerted) {
+      await sendHealthDownAlert({
+        merchantId: source.merchantId,
+        source,
+        errorRate: verdict.errorRate,
+        total: verdict.total,
+        lastError: result.errorMessage ?? source.lastHealthError ?? null,
+      });
+      await storage.upsertCustomDataSource(source.merchantId, { healthAlertSentAt: new Date() });
+    }
+  }
+}
+
+// Public entrypoint called by the scheduler in server/index.ts. Wraps all
+// per-merchant errors so one slow/broken endpoint can never stall the others.
+let healthJobRunning = false;
+export async function runCustomDataHealthMonitor(): Promise<void> {
+  if (healthJobRunning) return; // skip overlapping ticks if a previous run is still going
+  healthJobRunning = true;
+  const startedAt = Date.now();
+  try {
+    const sources = await storage.getEnabledCustomDataSources();
+    if (sources.length === 0) return;
+    // Run pings concurrently but with a small cap so we don't spike the event loop.
+    const concurrency = 8;
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < sources.length) {
+        const idx = cursor++;
+        const src = sources[idx];
+        try {
+          await checkOneSourceHealth(src);
+        } catch (err) {
+          console.error(`[health-monitor] error processing source ${src.id}:`, err);
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(concurrency, sources.length) }, () => worker()));
+
+    // Hourly housekeeping — drop pings older than 1 hour to keep the table tiny.
+    if (new Date().getMinutes() === 0) {
+      try {
+        const removed = await storage.pruneCustomDataHealthPings(60 * 60 * 1000);
+        if (removed > 0) console.log(`[health-monitor] pruned ${removed} stale ping rows`);
+      } catch (err) {
+        console.error("[health-monitor] prune failed:", err);
+      }
+    }
+
+    const tookMs = Date.now() - startedAt;
+    if (tookMs > 30_000) console.log(`[health-monitor] tick took ${tookMs}ms for ${sources.length} sources`);
+  } catch (err) {
+    console.error("[health-monitor] tick failed:", err);
+  } finally {
+    healthJobRunning = false;
+  }
+}
+
+// Read-side helper used by the dashboard endpoint to render the badge.
+export async function getCustomDataHealthSummary(merchantId: string): Promise<{
+  status: HealthStatus;
+  lastCheckedAt: string | null;
+  lastLatencyMs: number | null;
+  lastError: string | null;
+  totalPings: number;
+  successPings: number;
+  errorRatePct: number;
+  monitorEnabled: boolean;
+} | null> {
+  const source = await storage.getCustomDataSource(merchantId);
+  if (!source) return null;
+  const recent = await storage.getRecentCustomDataHealthPings(merchantId, 5 * 60 * 1000);
+  const verdict = computeHealthVerdict(recent);
+  return {
+    status: (source.lastHealthStatus as HealthStatus) || verdict.status,
+    lastCheckedAt: source.lastHealthCheckAt ? new Date(source.lastHealthCheckAt).toISOString() : null,
+    lastLatencyMs: source.lastHealthLatencyMs ?? null,
+    lastError: source.lastHealthError ?? null,
+    totalPings: verdict.total,
+    successPings: verdict.successCount,
+    errorRatePct: Math.round(verdict.errorRate * 100),
+    monitorEnabled: source.healthMonitorEnabled !== false,
+  };
+}

@@ -5,7 +5,8 @@ import {
   type CustomDataSource, type InsertCustomDataSource,
   type CustomDataIntent, type InsertCustomDataIntent,
   type CustomDataAuditLog, type InsertCustomDataAuditLog,
-  customDataSources, customDataIntents, customDataAuditLog,
+  type CustomDataHealthPing, type InsertCustomDataHealthPing,
+  customDataSources, customDataIntents, customDataAuditLog, customDataHealthPings,
   type PasswordRecoveryConfig, type InsertPasswordRecoveryConfig,
   type PasswordRecoveryRequest, type InsertPasswordRecoveryRequest,
   type AppointmentDivision, type InsertAppointmentDivision,
@@ -620,6 +621,11 @@ export interface IStorage {
   deleteCustomDataIntent(id: string): Promise<boolean>;
   createCustomDataAuditLog(data: InsertCustomDataAuditLog): Promise<CustomDataAuditLog>;
   getCustomDataAuditLog(merchantId: string, limit?: number): Promise<CustomDataAuditLog[]>;
+  // Health monitoring
+  getEnabledCustomDataSources(): Promise<CustomDataSource[]>;
+  recordCustomDataHealthPing(data: InsertCustomDataHealthPing): Promise<CustomDataHealthPing>;
+  getRecentCustomDataHealthPings(merchantId: string, sinceMs: number): Promise<CustomDataHealthPing[]>;
+  pruneCustomDataHealthPings(olderThanMs: number): Promise<number>;
 
   // Password Recovery
   getPasswordRecoveryConfig(merchantId: string, agentId?: string): Promise<PasswordRecoveryConfig | undefined>;
@@ -4474,6 +4480,7 @@ export class DatabaseStorage implements IStorage {
       cacheTtlSec: data.cacheTtlSec ?? 30,
       rateLimitPerMin: data.rateLimitPerMin ?? 60,
       isEnabled: data.isEnabled ?? false,
+      healthMonitorEnabled: data.healthMonitorEnabled ?? true,
     };
     const [row] = await db.insert(customDataSources).values(insertValues).returning();
     return row;
@@ -4520,6 +4527,45 @@ export class DatabaseStorage implements IStorage {
       .where(eq(customDataAuditLog.merchantId, merchantId))
       .orderBy(desc(customDataAuditLog.createdAt))
       .limit(limit);
+  }
+
+  async getEnabledCustomDataSources(): Promise<CustomDataSource[]> {
+    // Health monitor only pings sources where the connector is enabled,
+    // monitoring isn't opted out, AND a non-empty baseUrl is configured.
+    // Without the baseUrl filter, half-configured rows would accumulate
+    // failures and trigger false "down" alerts.
+    const rows = await db.select().from(customDataSources)
+      .where(and(
+        eq(customDataSources.isEnabled, true),
+        eq(customDataSources.healthMonitorEnabled, true),
+        isNotNull(customDataSources.baseUrl),
+        sql`length(trim(${customDataSources.baseUrl})) > 0`,
+      ));
+    return rows;
+  }
+
+  async recordCustomDataHealthPing(data: InsertCustomDataHealthPing): Promise<CustomDataHealthPing> {
+    const id = "cdh_" + randomBytes(8).toString("hex");
+    const [row] = await db.insert(customDataHealthPings).values({ id, ...data }).returning();
+    return row;
+  }
+
+  async getRecentCustomDataHealthPings(merchantId: string, sinceMs: number): Promise<CustomDataHealthPing[]> {
+    const cutoff = new Date(Date.now() - sinceMs);
+    return await db.select().from(customDataHealthPings)
+      .where(and(
+        eq(customDataHealthPings.merchantId, merchantId),
+        gte(customDataHealthPings.createdAt, cutoff),
+      ))
+      .orderBy(desc(customDataHealthPings.createdAt));
+  }
+
+  async pruneCustomDataHealthPings(olderThanMs: number): Promise<number> {
+    const cutoff = new Date(Date.now() - olderThanMs);
+    const result = await db.delete(customDataHealthPings)
+      .where(lt(customDataHealthPings.createdAt, cutoff))
+      .returning({ id: customDataHealthPings.id });
+    return result.length;
   }
 
   // ── Password Recovery ──────────────────────────────────────────────────────

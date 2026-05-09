@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Key, RefreshCw, Plug, Plus, Trash2, Pencil, Download, FileText, CheckCircle2, AlertCircle, Loader2, Copy, ArrowLeft, ArrowRight, Sparkles, Wand2, ClipboardList } from "lucide-react";
+import { Database, Key, RefreshCw, Plug, Plus, Trash2, Pencil, Download, FileText, CheckCircle2, AlertCircle, Loader2, Copy, ArrowLeft, ArrowRight, Sparkles, Wand2, ClipboardList, Activity, HeartPulse } from "lucide-react";
 import { Link } from "wouter";
 
 interface CustomDataSource {
@@ -27,6 +27,22 @@ interface CustomDataSource {
   cacheTtlSec: number;
   rateLimitPerMin: number;
   isEnabled: boolean;
+  healthMonitorEnabled?: boolean;
+  lastHealthStatus?: "up" | "degraded" | "down" | "unknown" | null;
+  lastHealthCheckAt?: string | null;
+  lastHealthLatencyMs?: number | null;
+  lastHealthError?: string | null;
+}
+
+interface HealthSummary {
+  status: "up" | "degraded" | "down" | "unknown";
+  errorRatePct: number;
+  totalPings: number;
+  successPings: number;
+  lastCheckedAt: string | null;
+  lastLatencyMs: number | null;
+  lastError: string | null;
+  monitorEnabled: boolean;
 }
 
 interface RequiredField {
@@ -92,6 +108,21 @@ export default function CustomDataSourcePage() {
   });
   const { data: audit = [] } = useQuery<AuditRow[]>({
     queryKey: ["/api/merchant/custom-data-source/audit"],
+  });
+  const { data: health } = useQuery<HealthSummary | null>({
+    queryKey: ["/api/merchant/custom-data-source/health"],
+    enabled: !!source,
+    refetchInterval: 30_000,
+  });
+  const refreshHealth = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/merchant/custom-data-source/health/refresh");
+      return res.json() as Promise<HealthSummary | null>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-source/health"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-source"] });
+    },
   });
 
   const [form, setForm] = useState<Partial<CustomDataSource>>({});
@@ -236,6 +267,13 @@ export default function CustomDataSourcePage() {
           <p className="text-sm text-muted-foreground mt-1">
             Hubungkan AI agent ke panel backend Anda agar bisa cek data realtime (status deposit, withdraw, turnover, IP login, dll).
           </p>
+          {source && health && (
+            <HealthBadge
+              health={health}
+              onRefresh={() => refreshHealth.mutate()}
+              refreshing={refreshHealth.isPending}
+            />
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" asChild>
@@ -309,6 +347,20 @@ export default function CustomDataSourcePage() {
                   checked={!!merged.isEnabled}
                   onCheckedChange={(v) => setForm({ ...form, isEnabled: v })}
                   data-testid="switch-enabled"
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-3 p-3 rounded-md border">
+                <div>
+                  <Label className="flex items-center gap-2"><HeartPulse className="w-4 h-4" /> Monitor kesehatan otomatis</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Chatvice ping endpoint health-check setiap 60 detik dan kirim alert (email + Telegram) saat error rate {'>'}50% dalam 5 menit terakhir.
+                  </p>
+                </div>
+                <Switch
+                  checked={merged.healthMonitorEnabled !== false}
+                  onCheckedChange={(v) => setForm({ ...form, healthMonitorEnabled: v })}
+                  data-testid="switch-health-monitor"
                 />
               </div>
 
@@ -814,6 +866,67 @@ const findTourEl = (selectors: string[]): HTMLElement | null => {
   }
   return null;
 };
+
+function HealthBadge({ health, onRefresh, refreshing }: { health: HealthSummary; onRefresh: () => void; refreshing: boolean }) {
+  const { status, errorRatePct, totalPings, lastCheckedAt, lastLatencyMs, lastError, monitorEnabled } = health;
+  const palette: Record<string, { dot: string; text: string; bg: string; label: string }> = {
+    up:       { dot: "bg-emerald-500", text: "text-emerald-700 dark:text-emerald-300", bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900", label: "Sehat" },
+    degraded: { dot: "bg-amber-500",   text: "text-amber-700 dark:text-amber-300",     bg: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900",     label: "Lambat / sebagian gagal" },
+    down:     { dot: "bg-red-500",     text: "text-red-700 dark:text-red-300",         bg: "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900",             label: "Bermasalah" },
+    unknown:  { dot: "bg-zinc-400",    text: "text-zinc-600 dark:text-zinc-300",       bg: "bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800",         label: "Belum ada data" },
+  };
+  const p = palette[status] || palette.unknown;
+  const lastSeen = lastCheckedAt
+    ? (() => {
+        const ms = Date.now() - new Date(lastCheckedAt).getTime();
+        if (ms < 60_000) return "baru saja";
+        if (ms < 3600_000) return `${Math.round(ms / 60_000)} menit lalu`;
+        if (ms < 86400_000) return `${Math.round(ms / 3600_000)} jam lalu`;
+        return new Date(lastCheckedAt).toLocaleString();
+      })()
+    : "—";
+  return (
+    <div className={`mt-3 inline-flex flex-wrap items-center gap-2 px-3 py-2 rounded-md border ${p.bg}`} data-testid="badge-panel-health">
+      <span className={`inline-block w-2.5 h-2.5 rounded-full ${p.dot} ${status !== "unknown" ? "animate-pulse" : ""}`} />
+      <Activity className={`w-4 h-4 ${p.text}`} />
+      <span className={`text-sm font-medium ${p.text}`} data-testid="text-health-status">{p.label}</span>
+      <span className="text-xs text-muted-foreground">·</span>
+      <span className="text-xs text-muted-foreground" data-testid="text-health-last-checked">Cek terakhir: {lastSeen}</span>
+      {lastLatencyMs != null && (
+        <>
+          <span className="text-xs text-muted-foreground">·</span>
+          <span className="text-xs text-muted-foreground">{lastLatencyMs}ms</span>
+        </>
+      )}
+      {totalPings > 0 && (
+        <>
+          <span className="text-xs text-muted-foreground">·</span>
+          <span className="text-xs text-muted-foreground" data-testid="text-health-error-rate">
+            {errorRatePct}% error / 5 menit ({totalPings}x)
+          </span>
+        </>
+      )}
+      {!monitorEnabled && (
+        <span className="text-xs text-muted-foreground italic">(monitor dimatikan)</span>
+      )}
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-7 px-2"
+        onClick={onRefresh}
+        disabled={refreshing}
+        data-testid="button-refresh-health"
+      >
+        {refreshing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+      </Button>
+      {status === "down" && lastError && (
+        <div className="basis-full text-xs text-red-700 dark:text-red-300 mt-1" data-testid="text-health-last-error">
+          Error terakhir: {lastError}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function WizardTour({
   step,

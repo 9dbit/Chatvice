@@ -2705,6 +2705,17 @@ export const customDataSources = pgTable("custom_data_sources", {
   // Per-merchant rate limit: max API calls per minute
   rateLimitPerMin: integer("rate_limit_per_min").notNull().default(60),
   isEnabled: boolean("is_enabled").notNull().default(false),
+  // ── Health monitoring (background ping every 60s) ──
+  // Merchants can disable monitoring without disabling the connector entirely.
+  healthMonitorEnabled: boolean("health_monitor_enabled").notNull().default(true),
+  // Latest summary cached on the source row so the dashboard badge loads instantly
+  // without scanning the rolling pings table.
+  lastHealthCheckAt: timestamp("last_health_check_at"),
+  lastHealthStatus: text("last_health_status").default("unknown"), // up | degraded | down | unknown
+  lastHealthLatencyMs: integer("last_health_latency_ms"),
+  lastHealthError: text("last_health_error"),
+  // De-dup window for outbound alerts — we only re-alert after recovery + new degradation.
+  healthAlertSentAt: timestamp("health_alert_sent_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
@@ -2779,6 +2790,28 @@ export const insertCustomDataAuditLogSchema = createInsertSchema(customDataAudit
 });
 export type InsertCustomDataAuditLog = z.infer<typeof insertCustomDataAuditLogSchema>;
 export type CustomDataAuditLog = typeof customDataAuditLog.$inferSelect;
+
+// Rolling health-ping history (last hour). Background job inserts one row per
+// 60s tick per enabled source; we compute the 5-minute success rate from this
+// to drive the dashboard badge and alert thresholds. Older rows are pruned.
+export const customDataHealthPings = pgTable("custom_data_health_pings", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  sourceId: varchar("source_id", { length: 32 }).notNull(),
+  success: boolean("success").notNull().default(false),
+  httpStatus: integer("http_status").notNull().default(0),
+  latencyMs: integer("latency_ms").notNull().default(0),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  merchantTimeIdx: index("cdh_merchant_time_idx").on(table.merchantId, table.createdAt),
+}));
+
+export const insertCustomDataHealthPingSchema = createInsertSchema(customDataHealthPings).omit({
+  id: true, createdAt: true,
+});
+export type InsertCustomDataHealthPing = z.infer<typeof insertCustomDataHealthPingSchema>;
+export type CustomDataHealthPing = typeof customDataHealthPings.$inferSelect;
 
 // ── Blast Campaigns ────────────────────────────────────────────────────────
 export const blastCampaigns = pgTable("blast_campaigns", {

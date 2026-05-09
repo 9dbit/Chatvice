@@ -1079,3 +1079,65 @@ export async function sendQuota100Email(
     return false;
   }
 }
+
+// ───── Panel API health alert (Custom Data Source connector) ─────
+// Sent when the merchant's panel API exceeds the 50%/5min error threshold.
+export async function sendPanelHealthAlertEmail(opts: {
+  toEmail: string;
+  merchantName: string;
+  sourceName: string;
+  endpoint: string;
+  errorRatePct: number;
+  totalPings: number;
+  lastError: string | null;
+}): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getUncachableResendClient();
+    const baseUrl = process.env.REPLIT_DEPLOYMENT_ID
+      ? 'https://chatvice.app'
+      : process.env.REPLIT_DEV_DOMAIN
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : 'http://localhost:5000';
+    const dashUrl = `${baseUrl}/dashboard/custom-data-source`;
+    const escape = (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    const { error } = await client.emails.send({
+      from: fromEmail,
+      to: opts.toEmail,
+      subject: `[Chatvice] Panel API "${opts.sourceName}" gangguan (${opts.errorRatePct}% error)`,
+      html: `<!DOCTYPE html><html><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#f4f4f5;margin:0;padding:0;">
+        <div style="max-width:600px;margin:0 auto;padding:32px 20px;">
+          <div style="background:#fff;border-radius:12px;padding:32px;border:1px solid #e4e4e7;">
+            <h2 style="color:#dc2626;margin:0 0 8px;font-size:20px;">⚠️ Panel API Anda Sedang Bermasalah</h2>
+            <p style="color:#3f3f46;margin:0 0 16px;">Halo ${escape(opts.merchantName)},</p>
+            <p style="color:#3f3f46;margin:0 0 16px;line-height:1.5;">
+              Chatvice mendeteksi bahwa panel API <strong>${escape(opts.sourceName)}</strong> mengalami
+              error rate <strong>${opts.errorRatePct}%</strong> dalam 5 menit terakhir
+              (${opts.totalPings} pemeriksaan otomatis). Ini berarti customer kemungkinan
+              mendapat jawaban "Maaf, sistem sedang sibuk" dari AI agent saat ini.
+            </p>
+            <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:12px 16px;margin:16px 0;border-radius:4px;">
+              <div style="font-size:13px;color:#7f1d1d;"><strong>Endpoint:</strong> ${escape(opts.endpoint)}</div>
+              ${opts.lastError ? `<div style="font-size:13px;color:#7f1d1d;margin-top:6px;"><strong>Pesan error terakhir:</strong> ${escape(opts.lastError)}</div>` : ''}
+            </div>
+            <p style="color:#3f3f46;margin:0 0 20px;line-height:1.5;">
+              Silakan cek panel backend Anda dan pastikan endpoint health-check merespons dengan benar.
+              Anda akan mendapat email lanjutan otomatis jika kondisi terus memburuk setelah pulih.
+            </p>
+            <a href="${dashUrl}" style="display:inline-block;background:#6b5dfc;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:500;">Buka Dashboard</a>
+            <p style="color:#71717a;font-size:12px;margin:24px 0 0;">Email otomatis dari sistem monitoring Chatvice. Untuk berhenti menerima alert ini, matikan toggle "Monitor kesehatan" pada halaman Custom Data Source.</p>
+          </div>
+        </div>
+      </body></html>`,
+    });
+    if (error) {
+      console.error('[panel-health-alert] Resend error:', error);
+      return false;
+    }
+    console.log(`[panel-health-alert] sent to ${opts.toEmail}`);
+    return true;
+  } catch (err) {
+    console.error('[panel-health-alert] failed:', err);
+    return false;
+  }
+}
