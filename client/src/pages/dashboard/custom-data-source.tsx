@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -715,6 +715,228 @@ interface PresetDef {
   intents: PresetIntentDef[];
 }
 
+interface TourStage {
+  id: string;
+  selectors: string[];
+  wizardStep: 1 | 2 | 3 | 4;
+  title: string;
+  body: string;
+}
+
+const TOUR_STAGES: TourStage[] = [
+  {
+    id: "preset",
+    selectors: ["wizard-step-1"],
+    wizardStep: 1,
+    title: "Pilih jenis bisnis",
+    body: "Mulai dengan memilih preset yang paling cocok — kami akan menyiapkan contoh intent yang relevan dengan industri Anda.",
+  },
+  {
+    id: "baseUrl",
+    selectors: ["wizard-input-base-url"],
+    wizardStep: 2,
+    title: "Tempel base URL panel",
+    body: "Masukkan URL dasar API panel backend Anda di sini. Contoh: https://panel.example.com/api/v1.",
+  },
+  {
+    id: "test",
+    selectors: ["wizard-test-result-ok", "wizard-test-result-fail"],
+    wizardStep: 2,
+    title: "Lihat hasil tes koneksi",
+    body: "Setelah klik Simpan & Tes, hasilnya muncul di sini. Anda boleh lanjut meskipun tes belum sukses.",
+  },
+  {
+    id: "apiKey",
+    selectors: ["wizard-text-api-key"],
+    wizardStep: 3,
+    title: "Salin API key sekarang",
+    body: "API key ini hanya muncul satu kali. Tempel ke server panel Anda — Chatvice mengirimnya di header X-API-Key.",
+  },
+  {
+    id: "intents",
+    selectors: ["wizard-step-4"],
+    wizardStep: 4,
+    title: "Tambah contoh intent",
+    body: "Klik Tambah pada intent yang ingin diaktifkan. Anda dapat mengubahnya kapan saja di tab Intent Lookup.",
+  },
+];
+
+const tourStorageKey = () => {
+  try {
+    const mid = localStorage.getItem("merchantId") || "anon";
+    return `chatvice.tour.custom-data-wizard.v1.${mid}`;
+  } catch {
+    return "chatvice.tour.custom-data-wizard.v1.anon";
+  }
+};
+
+const findTourEl = (selectors: string[]): HTMLElement | null => {
+  for (const sel of selectors) {
+    const el = document.querySelector<HTMLElement>(`[data-testid="${sel}"]`);
+    if (el) return el;
+  }
+  return null;
+};
+
+function WizardTour({
+  step,
+  testResultPresent,
+  apiKeyPresent,
+  presetCount,
+  onClose,
+}: {
+  step: 1 | 2 | 3 | 4;
+  testResultPresent: boolean;
+  apiKeyPresent: boolean;
+  presetCount: number;
+  onClose: () => void;
+}) {
+  const [tourIndex, setTourIndex] = useState(0);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const highlightedRef = useRef<{ el: HTMLElement; prev: string } | null>(null);
+
+  // Auto-advance past stages whose wizardStep is now in the past.
+  useEffect(() => {
+    setTourIndex((i) => {
+      let n = i;
+      while (n < TOUR_STAGES.length && TOUR_STAGES[n].wizardStep < step) n++;
+      return n;
+    });
+  }, [step]);
+
+  const stage = tourIndex < TOUR_STAGES.length ? TOUR_STAGES[tourIndex] : null;
+  const gating =
+    !stage ||
+    (stage.wizardStep === step &&
+      (stage.id !== "test" || testResultPresent) &&
+      (stage.id !== "preset" || presetCount > 0) &&
+      (stage.id !== "apiKey" || apiKeyPresent));
+  const visible = !!stage && gating && stage.wizardStep === step;
+
+  // Locate target + position popover; highlight target with ring.
+  useEffect(() => {
+    if (!visible || !stage) {
+      setRect(null);
+      if (highlightedRef.current) {
+        highlightedRef.current.el.style.boxShadow = highlightedRef.current.prev;
+        highlightedRef.current = null;
+      }
+      return;
+    }
+    const el = findTourEl(stage.selectors);
+    if (!el) {
+      setRect(null);
+      return;
+    }
+    if (highlightedRef.current && highlightedRef.current.el !== el) {
+      highlightedRef.current.el.style.boxShadow = highlightedRef.current.prev;
+      highlightedRef.current = null;
+    }
+    if (!highlightedRef.current) {
+      highlightedRef.current = { el, prev: el.style.boxShadow };
+      el.style.boxShadow = "0 0 0 3px hsl(var(--primary) / 0.6)";
+      el.style.borderRadius = el.style.borderRadius || "6px";
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    const update = () => setRect(el.getBoundingClientRect());
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [visible, stage, testResultPresent, apiKeyPresent, presetCount]);
+
+  // Cleanup highlight on unmount.
+  useEffect(() => {
+    return () => {
+      if (highlightedRef.current) {
+        highlightedRef.current.el.style.boxShadow = highlightedRef.current.prev;
+        highlightedRef.current = null;
+      }
+    };
+  }, []);
+
+  if (!stage || !visible) return null;
+
+  const isLast = tourIndex >= TOUR_STAGES.length - 1;
+  const nextStage = !isLast ? TOUR_STAGES[tourIndex + 1] : null;
+  const nextEligible = !nextStage || nextStage.wizardStep <= step;
+  const advance = () => {
+    if (isLast) {
+      onClose();
+      return;
+    }
+    if (!nextEligible) return;
+    setTourIndex((i) => i + 1);
+  };
+
+  // Position the popover below the target, falling back to top of viewport.
+  const popoverWidth = 320;
+  let style: React.CSSProperties = {
+    position: "fixed",
+    zIndex: 1000,
+    width: popoverWidth,
+  };
+  if (rect) {
+    const margin = 12;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let top = rect.bottom + margin;
+    if (top + 200 > vh) top = Math.max(margin, rect.top - 200 - margin);
+    let left = Math.min(
+      Math.max(margin, rect.left),
+      vw - popoverWidth - margin,
+    );
+    style.top = top;
+    style.left = left;
+  } else {
+    style.top = 80;
+    style.right = 24;
+  }
+
+  return (
+    <div
+      className="bg-popover text-popover-foreground border rounded-md shadow-lg p-4"
+      style={style}
+      data-testid={`tour-popover-${stage.id}`}
+    >
+      <div className="flex items-start gap-2 mb-2">
+        <Sparkles className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+        <div className="flex-1">
+          <div className="font-medium text-sm">{stage.title}</div>
+          <div className="text-xs text-muted-foreground mt-1">{stage.body}</div>
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-2 mt-3">
+        <span className="text-xs text-muted-foreground">
+          {tourIndex + 1} / {TOUR_STAGES.length}
+        </span>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onClose}
+            data-testid="button-tour-skip"
+          >
+            Lewati
+          </Button>
+          <Button
+            size="sm"
+            onClick={advance}
+            disabled={!isLast && !nextEligible}
+            data-testid="button-tour-next"
+          >
+            {isLast ? "Selesai" : "Berikutnya"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ConnectWizard({ onApiKey, onFinish }: { onApiKey: (key: string) => void; onFinish: () => void }) {
   const { toast } = useToast();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -725,6 +947,17 @@ export function ConnectWizard({ onApiKey, onFinish }: { onApiKey: (key: string) 
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ ok: boolean; status: number; latencyMs: number; sample?: string; error?: string } | null>(null);
   const [scaffolded, setScaffolded] = useState<Set<string>>(new Set());
+  const [tourActive, setTourActive] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(tourStorageKey()) !== "1";
+    } catch {
+      return true;
+    }
+  });
+  const closeTour = () => {
+    try { localStorage.setItem(tourStorageKey(), "1"); } catch {}
+    setTourActive(false);
+  };
 
   const { data: presets = [] } = useQuery<PresetDef[]>({
     queryKey: ["/api/merchant/custom-data-source/presets"],
@@ -802,7 +1035,17 @@ export function ConnectWizard({ onApiKey, onFinish }: { onApiKey: (key: string) 
 
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6" data-testid="wizard-connect-panel">
-      <div>
+      {tourActive && (
+        <WizardTour
+          step={step}
+          testResultPresent={!!testResult}
+          apiKeyPresent={!!apiKey}
+          presetCount={presets.length}
+          onClose={closeTour}
+        />
+      )}
+      <div className="flex items-start justify-between gap-3">
+        <div>
         <h1 className="text-2xl font-semibold flex items-center gap-2">
           <Database className="w-6 h-6 text-primary" />
           Custom Data Source
@@ -810,6 +1053,17 @@ export function ConnectWizard({ onApiKey, onFinish }: { onApiKey: (key: string) 
         <p className="text-sm text-muted-foreground mt-1">
           Hubungkan panel backend Anda agar AI bisa menjawab pertanyaan customer dengan data realtime.
         </p>
+        </div>
+        {!tourActive && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setTourActive(true)}
+            data-testid="button-tour-restart"
+          >
+            <Sparkles className="w-4 h-4 mr-1" /> Tampilkan tur
+          </Button>
+        )}
       </div>
 
       <div className="flex items-center gap-2" data-testid="wizard-stepper">
