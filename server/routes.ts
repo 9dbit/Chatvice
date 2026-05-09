@@ -7065,7 +7065,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       // (it may contain fabricated facts). Replace with a neutral "checking…" line
       // so the customer sees something while the panel API call runs. The real
       // answer is broadcast by the dispatcher below from the panel response.
-      const hasCustomLookupSignal = /\[CUSTOM_LOOKUP:[^\]]+\]/i.test(answer);
+      const hasCustomLookupSignal = /\[CUSTOM_LOOKUP:[^\]]+\]/i.test(result.answer);
       let answerToSend = cleanAnswer;
       if (hasCustomLookupSignal) {
         answerToSend = "Sebentar ya, saya cek dulu datanya…";
@@ -7629,7 +7629,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       }
 
       // ───── CUSTOM DATA SOURCE LOOKUP ─────
-      const customLookupMatch = answer.match(/\[CUSTOM_LOOKUP:([^\]]+)\]/i);
+      const customLookupMatch = result.answer.match(/\[CUSTOM_LOOKUP:([^\]]+)\]/i);
       if (customLookupMatch) {
         try {
           const raw = customLookupMatch[1];
