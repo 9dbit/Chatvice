@@ -29,7 +29,7 @@ import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, C
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
-import { type SubscriptionPlanId } from "@shared/schema";
+import { type SubscriptionPlanId, type Merchant } from "@shared/schema";
 import { CustomPlanRequestDialog } from "@/components/custom-plan-request-dialog";
 
 interface ActivePromotion {
@@ -173,6 +173,11 @@ export default function BillingPage() {
 
   const { data: billingStatus, isLoading, refetch } = useQuery<BillingStatus>({
     queryKey: ["/api/billing/status"],
+  });
+
+  // Merchant record — needed to surface custom plan capacity (limits + price)
+  const { data: merchant } = useQuery<Merchant>({
+    queryKey: ["/api/merchant/me"],
   });
   
   // Fetch detailed pending payment info
@@ -1164,6 +1169,60 @@ export default function BillingPage() {
         </Card>
       </div>
 
+      {/* Active Custom Plan capacity panel — only when merchant is on a calculator-driven custom plan */}
+      {billingStatus?.planId === "custom" && (merchant?.customConversationsLimit || merchant?.customAgentsLimit || merchant?.customSupervisorsLimit) ? (
+        <Card className="border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20" data-testid="card-custom-plan-capacity">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Crown className="w-5 h-5 text-purple-600" />
+                <CardTitle className="text-base font-semibold">Custom Plan Aktif</CardTitle>
+                <Badge className="bg-purple-600 text-white">Custom</Badge>
+              </div>
+              <CustomPlanRequestDialog
+                trigger={
+                  <Button size="sm" variant="outline" data-testid="button-recalculate-custom">
+                    Hitung Ulang Kapasitas
+                  </Button>
+                }
+              />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <div className="text-xs text-muted-foreground">Percakapan/bulan</div>
+                <div className="text-lg font-semibold" data-testid="text-custom-conversations">
+                  {(merchant?.customConversationsLimit || 0).toLocaleString("id-ID")}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">AI Agents</div>
+                <div className="text-lg font-semibold" data-testid="text-custom-agents">
+                  {merchant?.customAgentsLimit || 0}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Supervisors</div>
+                <div className="text-lg font-semibold" data-testid="text-custom-supervisors">
+                  {merchant?.customSupervisorsLimit || 0}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">
+                  Harga {billingStatus?.billingInterval === "annual" ? "Tahunan" : "Bulanan"}
+                </div>
+                <div className="text-lg font-semibold text-purple-700 dark:text-purple-300" data-testid="text-custom-price">
+                  Rp {((billingStatus?.billingInterval === "annual"
+                    ? merchant?.customAnnualPrice
+                    : merchant?.customMonthlyPrice) || 0).toLocaleString("id-ID")}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {/* Awaiting Payment Section - Unified View for all pending payments */}
       {(pendingPaymentDetails?.hasPendingPayment || customInvoices.filter(inv => inv.status === 'pending').length > 0 || paymentConfirmationStatus?.hasPendingConfirmation) && (
         <Card className="border-amber-500/50 bg-amber-500/5" data-testid="card-pending-transaction">
@@ -1999,15 +2058,13 @@ export default function BillingPage() {
                 <CardFooter className="pt-2">
                   {isCustom ? (
                     <CustomPlanRequestDialog
-                      skipAuthCheck={true}
                       trigger={
                         <Button 
-                          variant="outline" 
-                          className="w-full" 
+                          className="w-full bg-purple-600 hover:bg-purple-700 text-white" 
                           size="sm"
-                          data-testid="button-contact-sales-custom"
+                          data-testid="button-custom-calculator"
                         >
-                          Custom Request
+                          Try Pricing Calculator
                           <ArrowUpRight className="w-3 h-3 ml-1" />
                         </Button>
                       }

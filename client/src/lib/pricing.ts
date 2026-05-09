@@ -70,6 +70,20 @@ export const TOPUP_PACKS: TopUpPack[] = [
   { id: "large", conversations: 5000, priceIdr: 800_000, label: "5.000 percakapan", badge: "Hemat 20%" },
 ];
 
+// Re-export the canonical Custom Plan calculator helpers (live in shared/
+// so server-side checkout can re-validate the same numbers).
+export {
+  CUSTOM_PLAN_BASELINE,
+  CUSTOM_PLAN_LIMITS,
+  CUSTOM_PLAN_MARKUP,
+  calculateCustomPlanPrice,
+  normalizeCustomPlanConfig,
+} from "@shared/customPlanPricing";
+export type {
+  CustomPlanConfig,
+  CustomPlanBreakdown,
+} from "@shared/customPlanPricing";
+
 export function planDisplayName(planId: string, fallback?: string): string {
   const map: Record<string, string> = {
     free: "Free",

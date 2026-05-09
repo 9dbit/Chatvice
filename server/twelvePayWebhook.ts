@@ -113,7 +113,123 @@ export class PaymentWebhookHandler {
       console.log(`Addon ${addonType} activated for merchant ${merchantId} via webhook`);
       return { success: true, message: 'Addon activated' };
     }
-    
+
+    // Handle custom plan subscriptions (type === "custom_subscription")
+    // The calculator-driven custom plan flow stores the chosen limits in
+    // metadata AND in the persisted paymentTransactions.gatewayResponse so the
+    // webhook can apply them when the QRIS payment clears. We also accept the
+    // case where 12Pay does not echo metadata back: in that case we recover the
+    // custom config from the saved gatewayResponse on the pending transaction.
+    let customRecoveredFromTx: Record<string, any> | null = null;
+    if (!(metadata?.type === 'custom_subscription')) {
+      const maybePending = await storage.getPaymentTransactionByExternalId(external_id);
+      const gr = (maybePending?.gatewayResponse as Record<string, any>) || {};
+      if (gr.type === 'custom_subscription' && maybePending?.merchantId) {
+        customRecoveredFromTx = { ...gr, merchantId: maybePending.merchantId };
+      }
+    }
+    if (
+      (metadata?.type === 'custom_subscription' && metadata?.merchantId && metadata?.planId === 'custom')
+      || customRecoveredFromTx
+    ) {
+      const src: Record<string, any> = customRecoveredFromTx ?? (metadata as any);
+      const customMerchantId: string = src.merchantId;
+      const customBillingInterval = src.billingInterval === 'annual' ? 'annual' : 'monthly';
+      const merchant = await storage.getMerchant(customMerchantId);
+      if (!merchant) {
+        return { success: false, message: 'Merchant not found' };
+      }
+
+      // Idempotency / correlation guard: if a transaction row exists for this
+      // external_id and is already paid, do nothing. Otherwise mark it paid.
+      const existing = await storage.getPaymentTransactionByExternalId(external_id);
+      if (existing && (existing.status === 'paid' || existing.status === 'completed')) {
+        console.log(`Custom plan webhook: transaction ${external_id} already processed, skipping.`);
+        return { success: true, message: 'Custom plan already activated' };
+      }
+      // Reject stale duplicate: another newer pending transaction is the active one.
+      if (
+        merchant.pendingTransactionId &&
+        merchant.pendingTransactionId !== transaction_id &&
+        merchant.subscriptionPlanId === 'custom'
+      ) {
+        console.warn(`Custom plan webhook: stale tx ${transaction_id} ignored — current pending is ${merchant.pendingTransactionId}`);
+        if (existing) {
+          await storage.updatePaymentTransaction(existing.id, { status: 'expired' });
+        }
+        return { success: true, message: 'Stale custom plan transaction ignored' };
+      }
+
+      const periodEnd = new Date();
+      if (customBillingInterval === 'annual') {
+        periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+      } else {
+        periodEnd.setMonth(periodEnd.getMonth() + 1);
+      }
+
+      const customConversationsLimit = Number(src.customConversationsLimit) || null;
+      const customAgentsLimit = Number(src.customAgentsLimit) || null;
+      const customSupervisorsLimit = Number(src.customSupervisorsLimit) || null;
+      const customMonthlyPrice = Number(src.customMonthlyPrice) || null;
+      const customAnnualPrice = Number(src.customAnnualPrice) || null;
+
+      if (existing) {
+        await storage.updatePaymentTransaction(existing.id, {
+          status: 'paid',
+          paidAt: paid_at ? new Date(paid_at) : new Date(),
+          paymentMethod: payment_method || existing.paymentMethod || 'QRIS',
+        });
+      }
+
+      await storage.updateMerchantSubscription(customMerchantId, {
+        subscriptionStatus: 'active',
+        subscriptionPlanId: 'custom',
+        billingInterval: customBillingInterval,
+        currentPeriodEnd: periodEnd,
+        paymentSubscriptionId: transaction_id,
+        lastInvoiceId: transaction_id,
+        pendingTransactionId: null,
+        conversationsUsed: 0,
+        conversationsResetAt: new Date(),
+        expiryReminder7dSentAt: null,
+        expiryReminder3dSentAt: null,
+        scheduledPlanId: null,
+        scheduledBillingInterval: null,
+        scheduledPlanActivatesAt: null,
+        scheduledPlanTransactionId: null,
+        customConversationsLimit,
+        customAgentsLimit,
+        customSupervisorsLimit,
+        customMonthlyPrice,
+        customAnnualPrice,
+      });
+
+      await storage.clearSessionLimitFallback(customMerchantId);
+
+      await storage.createMerchantNotification({
+        merchantId: customMerchantId,
+        type: 'subscription',
+        title: 'Custom Plan Activated',
+        message: `Paket Custom Anda aktif: ${customConversationsLimit?.toLocaleString('id-ID')} percakapan / ${customAgentsLimit} agents / ${customSupervisorsLimit} supervisors. Berlaku hingga ${periodEnd.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}.`,
+        metadata: {
+          planId: 'custom',
+          billingInterval: customBillingInterval,
+          customConversationsLimit,
+          customAgentsLimit,
+          customSupervisorsLimit,
+          customMonthlyPrice,
+          expiresAt: periodEnd.toISOString(),
+          status: 'active',
+        },
+        isRead: false,
+      });
+
+      console.log(
+        `Custom plan activated for merchant ${customMerchantId}: ${customConversationsLimit} conv / ${customAgentsLimit} agents / ${customSupervisorsLimit} sup @ Rp ${customMonthlyPrice}/mo`,
+      );
+      return { success: true, message: 'Custom plan activated' };
+    }
+
     let merchantId: string | undefined;
     let planId: SubscriptionPlanId | undefined;
     let billingInterval = 'monthly';

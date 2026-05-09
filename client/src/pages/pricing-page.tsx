@@ -15,6 +15,7 @@ import {
   Gift,
   Clock,
   Copy,
+  Calculator,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import PublicPageLayout from "./public-layout";
@@ -252,7 +253,7 @@ export default function PricingPage() {
       yearlyPrice: getDbPlanPrice('custom', 'annual') ?? 356,
       monthlyPriceIdr: getDbPlanPriceIdr('custom', 'monthly') || 7_499_000,
       yearlyPriceIdr: getDbPlanPriceIdr('custom', 'annual') || 5_624_250,
-      isContact: true as const,
+      isCalculator: true as const,
       features: [
         { text: "Everything in Enterprise", included: true },
         { text: "Unlimited AI Agents", included: true },
@@ -265,7 +266,7 @@ export default function PricingPage() {
         { text: "Personalized onboarding", included: true },
         { text: "Strategic account management", included: true },
       ],
-      cta: "Contact Sales",
+      cta: "Try Pricing Calculator",
       popular: false,
     },
   ];
@@ -537,18 +538,17 @@ export default function PricingPage() {
                   ))}
                 </ul>
 
-                {("isContact" in plan && plan.isContact) ? (
+                {("isCalculator" in plan && plan.isCalculator) ? (
                   <CustomPlanRequestDialog
                     skipAuthCheck
                     trigger={
                       <Button 
-                        className="w-full"
-                        variant="outline"
+                        className="w-full bg-purple-600 hover:bg-purple-700 text-white"
                         size="lg"
                         data-testid={`button-plan-${plan.planId}`}
                       >
-                        Hubungi Sales
-                        <ArrowRight className="w-4 h-4 ml-2" />
+                        <Calculator className="w-4 h-4 mr-2" />
+                        Try Pricing Calculator
                       </Button>
                     }
                   />

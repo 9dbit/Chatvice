@@ -5788,6 +5788,146 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
     }
   });
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Custom Plan: Self-Serve Calculator → QRIS Payment
+  // Merchant configures conversations/agents/supervisors via the calculator
+  // dialog, server re-validates pricing using the canonical helper, then
+  // creates a QRIS payment. Webhook activates the merchant on plan="custom"
+  // with the chosen limits.
+  // ─────────────────────────────────────────────────────────────────────────
+  app.post("/api/merchant/custom-plan/subscribe", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+      const { calculateCustomPlanPrice, normalizeCustomPlanConfig } =
+        await import("@shared/customPlanPricing");
+
+      const cfg = normalizeCustomPlanConfig({
+        conversations: Number(req.body?.conversations),
+        agents: Number(req.body?.agents),
+        supervisors: Number(req.body?.supervisors),
+        billingInterval: req.body?.billingInterval === "annual" ? "annual" : "monthly",
+      });
+      const breakdown = calculateCustomPlanPrice(cfg);
+
+      if (!isTwelvePayConfigured()) {
+        return res.status(503).json({ error: "Payment gateway not configured" });
+      }
+
+      const timestamp = Date.now();
+      const numericOrderId =
+        String(timestamp).slice(-4) + String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+      const externalIdHint = `CUSTOM_${merchant.id}_${cfg.billingInterval}_${timestamp}`;
+
+      const forwardedHost = req.get("x-forwarded-host") || req.get("host");
+      const isLocalhost = !forwardedHost || forwardedHost.includes("localhost");
+      const callbackUrl = isLocalhost
+        ? "https://chatvice.app/api/payment/webhook"
+        : `https://${forwardedHost}/api/payment/webhook`;
+
+      const description = `Chatvice Custom Plan - ${cfg.conversations.toLocaleString("id-ID")} conv / ${cfg.agents} agents / ${cfg.supervisors} supervisors (${cfg.billingInterval === "annual" ? "Annual" : "Monthly"})`;
+
+      const qrisResult = await createQRISPayment({
+        merchantId: merchant.id,
+        orderId: numericOrderId,
+        amount: breakdown.totalIdr,
+        customerName: merchant.companyName,
+        customerEmail: merchant.email,
+        description,
+        expiryMinutes: 30,
+        callbackUrl,
+        metadata: {
+          merchantId: merchant.id,
+          planId: "custom",
+          billingInterval: cfg.billingInterval,
+          type: "custom_subscription",
+          customConversationsLimit: cfg.conversations,
+          customAgentsLimit: cfg.agents,
+          customSupervisorsLimit: cfg.supervisors,
+          customMonthlyPrice: breakdown.monthlyPriceIdr,
+          customAnnualPrice: breakdown.annualPriceIdr,
+          externalIdHint,
+        },
+      });
+
+      if (!qrisResult.success || !qrisResult.data) {
+        console.error("Custom plan QRIS creation failed:", qrisResult.error);
+        return res.status(400).json({
+          error: qrisResult.error || "Gagal membuat pembayaran QRIS",
+        });
+      }
+
+      // Persist a pending payment transaction so the billing UI can render the
+      // QRIS continuation modal (/api/billing/pending-payment-details depends on
+      // a matching paymentTransactions row). Store the chosen capacity in
+      // gatewayResponse so the webhook can recover the metadata even if 12Pay
+      // does not echo our custom metadata back.
+      try {
+        await storage.createPaymentTransaction({
+          merchantId: merchant.id,
+          externalId: qrisResult.data.transactionId,
+          amount: breakdown.totalIdr,
+          status: "pending",
+          paymentMethod: "qris",
+          planId: "custom",
+          planName: "Custom Plan",
+          subscriptionMonths: cfg.billingInterval === "annual" ? 12 : 1,
+          merchantEmail: merchant.email,
+          merchantCompanyName: merchant.companyName,
+          qrisUrl: qrisResult.data.qrisImageUrl,
+          gatewayResponse: {
+            qrisString: qrisResult.data.qrisString,
+            orderId: qrisResult.data.orderId,
+            type: "custom_subscription",
+            planId: "custom",
+            billingInterval: cfg.billingInterval,
+            customConversationsLimit: cfg.conversations,
+            customAgentsLimit: cfg.agents,
+            customSupervisorsLimit: cfg.supervisors,
+            customMonthlyPrice: breakdown.monthlyPriceIdr,
+            customAnnualPrice: breakdown.annualPriceIdr,
+          },
+          expiresAt: new Date(qrisResult.data.expiryTime),
+          invoiceNumber: externalIdHint,
+        });
+      } catch (e) {
+        console.warn("Could not save custom plan pending transaction:", e);
+      }
+
+      await storage.updateMerchantSubscription(merchant.id, {
+        pendingTransactionId: qrisResult.data.transactionId,
+      });
+
+      res.json({
+        paymentMethod: "qris",
+        transactionId: qrisResult.data.transactionId,
+        orderId: qrisResult.data.orderId,
+        qrisString: qrisResult.data.qrisString,
+        qrisImage: qrisResult.data.qrisImageUrl,
+        qrisImageUrl: qrisResult.data.qrisImageUrl,
+        amount: breakdown.totalIdr,
+        amountFormatted: formatIDR(breakdown.totalIdr),
+        expiryTime: qrisResult.data.expiryTime,
+        planId: "custom",
+        planName: "Custom Plan",
+        billingInterval: cfg.billingInterval,
+        breakdown,
+        config: {
+          conversations: cfg.conversations,
+          agents: cfg.agents,
+          supervisors: cfg.supervisors,
+          monthlyPriceIdr: breakdown.monthlyPriceIdr,
+          annualPriceIdr: breakdown.annualPriceIdr,
+        },
+      });
+    } catch (error: any) {
+      console.error("Custom plan subscribe error:", error);
+      res.status(500).json({ error: error.message || "Server error" });
+    }
+  });
+
   // Get current auth methods for the merchant (must be before /api/merchant/:merchantId)
   app.get("/api/merchant/auth-methods", requireMerchant, async (req, res) => {
     try {

@@ -109,6 +109,7 @@ interface LandingPageSettings {
 import { useTheme } from "@/components/theme-provider";
 import { subscriptionPlans } from "@shared/schema";
 import { formatPriceIdr, planDisplayName } from "@/lib/pricing";
+import { CustomPlanRequestDialog } from "@/components/custom-plan-request-dialog";
 
 function useParallaxScroll() {
   useEffect(() => {
@@ -2033,7 +2034,8 @@ function PricingPreview() {
 
   const getCta = (planId: string) => {
     if (planId === "free") return "Start Free";
-    if (planId === "enterprise" || planId === "custom") return "Contact";
+    if (planId === "custom") return "Try Calculator";
+    if (planId === "enterprise") return "Try Free";
     return "Try Free";
   };
 
@@ -2082,15 +2084,31 @@ function PricingPreview() {
                     </li>
                   ))}
                 </ul>
-                <Link href={isEnterprise ? "/contact" : "/pricing"}>
-                  <Button 
-                    size="sm"
-                    className={`w-full text-xs ${isPro || isEnterprise ? "bg-purple-600 hover:bg-purple-700" : ""}`}
-                    variant={isPro || isEnterprise ? "default" : "outline"}
-                  >
-                    {getCta(planKey)}
-                  </Button>
-                </Link>
+                {planKey === "custom" ? (
+                  <CustomPlanRequestDialog
+                    skipAuthCheck
+                    trigger={
+                      <Button
+                        size="sm"
+                        className="w-full text-xs bg-purple-600 hover:bg-purple-700"
+                        data-testid={`landing-cta-${planKey}`}
+                      >
+                        {getCta(planKey)}
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <Link href="/pricing">
+                    <Button 
+                      size="sm"
+                      className={`w-full text-xs ${isPro || isEnterprise ? "bg-purple-600 hover:bg-purple-700" : ""}`}
+                      variant={isPro || isEnterprise ? "default" : "outline"}
+                      data-testid={`landing-cta-${planKey}`}
+                    >
+                      {getCta(planKey)}
+                    </Button>
+                  </Link>
+                )}
               </Card>
             );
           })}
