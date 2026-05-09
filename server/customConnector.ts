@@ -1,6 +1,33 @@
 import crypto, { randomBytes, scryptSync, createCipheriv, createDecipheriv } from "crypto";
+import { promises as dnsPromises } from "dns";
+import net from "net";
 import { storage } from "./storage";
 import type { CustomDataIntent, CustomDataSource } from "@shared/schema";
+
+// Shape of one entry in CustomDataIntent.requiredFields (jsonb column).
+export interface RequiredFieldDef {
+  key: string;
+  label?: string;
+  type?: "text" | "number" | string;
+  required?: boolean;
+}
+
+function parseRequiredFields(raw: unknown): RequiredFieldDef[] {
+  if (!Array.isArray(raw)) return [];
+  const out: RequiredFieldDef[] = [];
+  for (const item of raw) {
+    if (item && typeof item === "object" && typeof (item as any).key === "string") {
+      const f = item as Record<string, unknown>;
+      out.push({
+        key: String(f.key),
+        label: typeof f.label === "string" ? f.label : undefined,
+        type: typeof f.type === "string" ? f.type : "text",
+        required: typeof f.required === "boolean" ? f.required : true,
+      });
+    }
+  }
+  return out;
+}
 
 // ── API key encryption (AES-256-GCM) ──────────────────────────────────────
 // We derive the encryption key from the same SESSION_SECRET that already
@@ -78,13 +105,65 @@ export function validateBaseUrl(rawUrl: string): { ok: true; url: URL } | { ok: 
   if (process.env.NODE_ENV === "production" && u.protocol !== "https:") {
     return { ok: false, error: "Base URL wajib menggunakan https:// di production." };
   }
-  const host = u.hostname.toLowerCase();
+  const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, "");
   for (const pat of PRIVATE_HOST_PATTERNS) {
     if (pat.test(host)) {
       return { ok: false, error: `Host "${host}" tidak diizinkan (alamat lokal/internal diblokir untuk keamanan).` };
     }
   }
+  // If the host is a literal IP, also check it directly.
+  if (net.isIP(host) && isPrivateIp(host)) {
+    return { ok: false, error: `IP "${host}" termasuk alamat internal/private.` };
+  }
   return { ok: true, url: u };
+}
+
+// True for any IP that is private, loopback, link-local, multicast, broadcast,
+// or otherwise unsafe for outbound merchant calls.
+function isPrivateIp(ip: string): boolean {
+  if (net.isIPv4(ip)) {
+    const parts = ip.split(".").map(n => parseInt(n, 10));
+    if (parts.length !== 4 || parts.some(p => Number.isNaN(p))) return true;
+    const [a, b] = parts;
+    if (a === 10) return true;
+    if (a === 127) return true;
+    if (a === 0) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a >= 224) return true; // multicast/reserved/broadcast
+    return false;
+  }
+  if (net.isIPv6(ip)) {
+    const lower = ip.toLowerCase();
+    if (lower === "::1" || lower === "::") return true;
+    if (lower.startsWith("fe80:") || lower.startsWith("fc") || lower.startsWith("fd")) return true;
+    if (lower.startsWith("ff")) return true; // multicast
+    // IPv4-mapped (::ffff:127.0.0.1) → check inner
+    const m = lower.match(/^::ffff:([0-9.]+)$/);
+    if (m && net.isIPv4(m[1])) return isPrivateIp(m[1]);
+    return false;
+  }
+  return true;
+}
+
+// Resolve a hostname and assert no resolved IP is private. Defends against
+// DNS rebinding and merchant-controlled domains pointing at internal IPs.
+async function assertPublicHost(host: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (net.isIP(host)) {
+    return isPrivateIp(host) ? { ok: false, error: `IP "${host}" termasuk alamat internal/private.` } : { ok: true };
+  }
+  try {
+    const records = await dnsPromises.lookup(host, { all: true, verbatim: true });
+    for (const r of records) {
+      if (isPrivateIp(r.address)) {
+        return { ok: false, error: `Host "${host}" mengarah ke IP internal (${r.address}).` };
+      }
+    }
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, error: `Tidak bisa resolve host "${host}": ${err?.message || "DNS error"}` };
+  }
 }
 
 // ── Per-merchant rate limiter & cache (in-memory) ─────────────────────────
@@ -161,7 +240,7 @@ export async function executeIntentLookup(opts: {
   // Server-side validation: every required field for this intent must be present
   // and non-empty BEFORE we dispatch to the merchant's panel API. The AI is
   // instructed to collect them but we never trust the prompt alone.
-  const requiredDefs: Array<{ key: string; required?: boolean }> = Array.isArray(intent.requiredFields) ? (intent.requiredFields as any[]) : [];
+  const requiredDefs = parseRequiredFields(intent.requiredFields);
   const missing = requiredDefs
     .filter(f => f.required !== false)
     .map(f => f.key)
@@ -172,11 +251,16 @@ export async function executeIntentLookup(opts: {
     return { ok: false, text: `Kakak, untuk cek ${intent.name.toLowerCase()} saya masih perlu data: ${missing.join(", ")}. Boleh dilengkapi dulu ya.`, httpStatus: 0, latencyMs: 0, errorMessage: errMsg };
   }
 
-  // SSRF guard on base URL
+  // SSRF guard on base URL — string check + DNS resolution check
   const urlCheck = validateBaseUrl(source.baseUrl || "");
   if (!urlCheck.ok) {
     await logAudit({ merchantId, intent, sessionId, fields, httpStatus: 0, latencyMs: 0, success: false, errorMessage: urlCheck.error, endpointUrl: null, httpMethod: intent.httpMethod || "GET" });
     return { ok: false, text: userFacingError, httpStatus: 0, latencyMs: 0, errorMessage: urlCheck.error };
+  }
+  const dnsCheck = await assertPublicHost(urlCheck.url.hostname.replace(/^\[|\]$/g, ""));
+  if (!dnsCheck.ok) {
+    await logAudit({ merchantId, intent, sessionId, fields, httpStatus: 0, latencyMs: 0, success: false, errorMessage: dnsCheck.error, endpointUrl: null, httpMethod: intent.httpMethod || "GET" });
+    return { ok: false, text: userFacingError, httpStatus: 0, latencyMs: 0, errorMessage: dnsCheck.error };
   }
 
   // Rate limit
@@ -228,7 +312,15 @@ export async function executeIntentLookup(opts: {
   let errorMessage: string | undefined;
   let parseFailed = false;
   try {
-    const resp = await fetch(url, { method, headers, body, signal: AbortSignal.timeout(10_000) });
+    // redirect: "manual" prevents merchant endpoints from chaining into
+    // internal hosts via 3xx responses (open-redirect SSRF defence).
+    const resp = await fetch(url, { method, headers, body, redirect: "manual", signal: AbortSignal.timeout(10_000) });
+    if (resp.status >= 300 && resp.status < 400) {
+      const latencyNow = Date.now() - t0;
+      const errMsg = `Redirect ${resp.status} from panel — merchant endpoints must respond directly (no 3xx).`;
+      await logAudit({ merchantId, intent, sessionId, fields, httpStatus: resp.status, latencyMs: latencyNow, success: false, errorMessage: errMsg, endpointUrl: url, httpMethod: method });
+      return { ok: false, text: userFacingError, httpStatus: resp.status, latencyMs: latencyNow, errorMessage: errMsg };
+    }
     httpStatus = resp.status;
     const txt = await resp.text();
     if (txt) {
@@ -255,7 +347,7 @@ export async function executeIntentLookup(opts: {
   // Prevent unbounded growth
   if (responseCache.size > 5000) {
     const cutoff = Date.now() - ttl;
-    for (const [k, v] of responseCache) if (v.at < cutoff) responseCache.delete(k);
+    responseCache.forEach((v, k) => { if (v.at < cutoff) responseCache.delete(k); });
   }
 
   const text = renderTemplate(intent.responseTemplate || "", json);
@@ -390,7 +482,7 @@ export function buildPostmanCollection(opts: {
       ],
     },
     item: intents.map(intent => {
-      const fields: any[] = Array.isArray(intent.requiredFields) ? intent.requiredFields as any[] : [];
+      const fields: RequiredFieldDef[] = parseRequiredFields(intent.requiredFields);
       const exampleFields: Record<string, string> = {};
       for (const f of fields) {
         exampleFields[f.key] = f.type === "number" ? "100000" : `example_${f.key}`;
@@ -438,7 +530,7 @@ export function buildHtmlDocs(opts: {
   const { merchantName, source, intents } = opts;
   const baseUrl = source.baseUrl || "https://your-panel.example.com";
   const intentsHtml = intents.map(intent => {
-    const fields: any[] = Array.isArray(intent.requiredFields) ? intent.requiredFields as any[] : [];
+    const fields: RequiredFieldDef[] = parseRequiredFields(intent.requiredFields);
     const exampleFields: Record<string, string> = {};
     for (const f of fields) exampleFields[f.key] = f.type === "number" ? "100000" : `example_${f.key}`;
     const method = (intent.httpMethod || "GET").toUpperCase();

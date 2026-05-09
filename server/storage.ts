@@ -4462,7 +4462,20 @@ export class DatabaseStorage implements IStorage {
       return row;
     }
     const id = "cds_" + randomBytes(8).toString("hex");
-    const [row] = await db.insert(customDataSources).values({ id, merchantId, ...data } as any).returning();
+    const insertValues: typeof customDataSources.$inferInsert = {
+      id,
+      merchantId,
+      name: data.name ?? "Panel API",
+      baseUrl: data.baseUrl ?? "",
+      apiKeyEncrypted: data.apiKeyEncrypted ?? null,
+      apiKeyHint: data.apiKeyHint ?? null,
+      headerAuthName: data.headerAuthName ?? "X-API-Key",
+      healthPath: data.healthPath ?? "/health",
+      cacheTtlSec: data.cacheTtlSec ?? 30,
+      rateLimitPerMin: data.rateLimitPerMin ?? 60,
+      isEnabled: data.isEnabled ?? false,
+    };
+    const [row] = await db.insert(customDataSources).values(insertValues).returning();
     return row;
   }
 
@@ -4479,7 +4492,7 @@ export class DatabaseStorage implements IStorage {
 
   async createCustomDataIntent(data: InsertCustomDataIntent): Promise<CustomDataIntent> {
     const id = "cdi_" + randomBytes(8).toString("hex");
-    const [row] = await db.insert(customDataIntents).values({ id, ...data } as any).returning();
+    const [row] = await db.insert(customDataIntents).values({ id, ...data }).returning();
     return row;
   }
 
@@ -4498,7 +4511,7 @@ export class DatabaseStorage implements IStorage {
 
   async createCustomDataAuditLog(data: InsertCustomDataAuditLog): Promise<CustomDataAuditLog> {
     const id = "cda_" + randomBytes(8).toString("hex");
-    const [row] = await db.insert(customDataAuditLog).values({ id, ...data } as any).returning();
+    const [row] = await db.insert(customDataAuditLog).values({ id, ...data }).returning();
     return row;
   }
 

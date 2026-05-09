@@ -28163,14 +28163,21 @@ Please create a comprehensive help center article that would be useful for custo
         rateLimitPerMin: typeof rateLimitPerMin === "number" ? rateLimitPerMin : (existing?.rateLimitPerMin ?? 60),
         isEnabled: isEnabled ?? existing?.isEnabled ?? false,
       });
-      // Seed default intents on first creation
+      // Seed default intents on first creation, and auto-generate the first
+      // API key so merchants don't have to manually rotate before testing.
+      let firstApiKey: string | null = null;
       if (!existing) {
         for (const def of DEFAULT_INTENTS) {
           await storage.createCustomDataIntent({ ...def, sourceId: source.id });
         }
+        firstApiKey = generateApiKey();
+        const enc = encryptApiKey(firstApiKey);
+        const hint = "…" + firstApiKey.slice(-4);
+        await storage.upsertCustomDataSource(merchantId, { apiKeyEncrypted: enc, apiKeyHint: hint });
       }
-      const { apiKeyEncrypted, ...safe } = source;
-      res.json(safe);
+      const refreshed = await storage.getCustomDataSource(merchantId);
+      const { apiKeyEncrypted, ...safe } = refreshed || source;
+      res.json({ ...safe, ...(firstApiKey ? { apiKey: firstApiKey } : {}) });
     } catch (err) {
       console.error("[CustomDataSource] save error:", err);
       res.status(500).json({ error: "Failed to save custom data source" });

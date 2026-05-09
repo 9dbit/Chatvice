@@ -409,19 +409,25 @@ export default function CustomDataSourcePage() {
                     <TableHead>Waktu</TableHead>
                     <TableHead>Intent</TableHead>
                     <TableHead>Endpoint</TableHead>
+                    <TableHead>Field (masked)</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Latency</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {audit.length === 0 && (
-                    <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-6">Belum ada panggilan.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-6">Belum ada panggilan.</TableCell></TableRow>
                   )}
-                  {audit.map((a) => (
+                  {audit.map((a) => {
+                    const masked = (a as any).maskedFields && typeof (a as any).maskedFields === "object"
+                      ? Object.entries((a as any).maskedFields).map(([k, v]) => `${k}=${v}`).join(", ")
+                      : "—";
+                    return (
                     <TableRow key={a.id} data-testid={`row-audit-${a.id}`}>
                       <TableCell className="text-xs whitespace-nowrap">{new Date(a.createdAt).toLocaleString("id-ID")}</TableCell>
                       <TableCell className="font-mono text-xs">{a.intentKey}</TableCell>
-                      <TableCell className="font-mono text-xs max-w-[280px] truncate">{a.endpointUrl}</TableCell>
+                      <TableCell className="font-mono text-xs max-w-[240px] truncate" title={a.endpointUrl}>{a.endpointUrl}</TableCell>
+                      <TableCell className="font-mono text-xs max-w-[200px] truncate" title={masked}>{masked}</TableCell>
                       <TableCell>
                         {a.httpStatus ? (
                           <Badge variant={a.httpStatus >= 200 && a.httpStatus < 300 ? "outline" : "secondary"}>{a.httpStatus}</Badge>
@@ -431,7 +437,8 @@ export default function CustomDataSourcePage() {
                       </TableCell>
                       <TableCell className="text-xs">{a.latencyMs ?? "-"}ms</TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
