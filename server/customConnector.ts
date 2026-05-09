@@ -762,7 +762,7 @@ export async function scaffoldPresetIntent(opts: {
 export const PRESET_META: Record<string, { id: string; name: string; description: string }> = {
   judi: {
     id: "judi",
-    name: "Judi Online",
+    name: "Online Gaming",
     description: "Cek status deposit, withdraw, turnover, dan IP login terakhir.",
   },
   finansial: {
