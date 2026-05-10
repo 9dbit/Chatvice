@@ -497,7 +497,7 @@ function stripHtml(html: string, keepContactSections: boolean = false): string {
   return text;
 }
 
-function formatStructuredDataForAI(data: StructuredData, contacts: string[], prices: string[], hours: string[], footerContent: string): string {
+function formatStructuredDataForAI(data: StructuredData, prices: string[], hours: string[], footerContent: string): string {
   const sections: string[] = [];
   
   if (data.products.length > 0) {
@@ -514,10 +514,11 @@ function formatStructuredDataForAI(data: StructuredData, contacts: string[], pri
   }
   
   if (data.organization || data.localBusiness) {
-    sections.push('\n## BUSINESS INFORMATION:');
+    sections.push('\n## BUSINESS INFORMATION (from structured data):');
     const biz = data.localBusiness || data.organization;
     if (biz?.name) sections.push(`Name: ${biz.name}`);
     if (biz?.telephone) sections.push(`Phone: ${biz.telephone}`);
+    if ((biz as typeof data.organization)?.email) sections.push(`Email: ${(biz as typeof data.organization)?.email}`);
     if (biz?.address) sections.push(`Address: ${biz.address}`);
     if (data.localBusiness?.priceRange) sections.push(`Price Range: ${data.localBusiness.priceRange}`);
   }
@@ -541,11 +542,6 @@ function formatStructuredDataForAI(data: StructuredData, contacts: string[], pri
     });
   }
   
-  if (contacts.length > 0) {
-    sections.push('\n## CONTACT INFORMATION:');
-    contacts.forEach(c => sections.push(`• ${c}`));
-  }
-  
   if (prices.length > 0) {
     sections.push('\n## PRICES FOUND ON PAGE:');
     prices.forEach(p => sections.push(`• ${p}`));
@@ -558,7 +554,7 @@ function formatStructuredDataForAI(data: StructuredData, contacts: string[], pri
   }
   
   if (footerContent) {
-    sections.push('\n## FOOTER CONTENT (may contain contact info):');
+    sections.push('\n## FOOTER CONTENT:');
     sections.push(footerContent);
   }
   
@@ -574,7 +570,6 @@ export async function extractFAQContent(url: string): Promise<{
     const html = await fetchWebContent(url);
     
     const structuredData = extractStructuredData(html);
-    const contacts = extractContactInfo(html);
     const prices = extractPricesFromHtml(html);
     const hours = extractOperatingHours(html);
     const footerContent = extractFooterContent(html);
@@ -588,7 +583,7 @@ export async function extractFAQContent(url: string): Promise<{
       };
     }
     
-    const enrichedData = formatStructuredDataForAI(structuredData, contacts, prices, hours, footerContent);
+    const enrichedData = formatStructuredDataForAI(structuredData, prices, hours, footerContent);
     
     const combinedContent = enrichedData ? 
       `=== EXTRACTED STRUCTURED DATA ===\n${enrichedData}\n\n=== PAGE CONTENT ===\n${textContent}` : 
@@ -601,46 +596,40 @@ export async function extractFAQContent(url: string): Promise<{
           role: "system",
           content: `You are an expert at extracting COMPLETE and DETAILED customer service information from websites for Indonesian and international businesses.
 
-Your task is to analyze the website content and extract EVERY SINGLE piece of information — do NOT summarize, shorten, or skip any detail. The goal is to create a COMPLETE knowledge base so that a customer service AI has full information to answer any question accurately.
+Your task is to analyze the website content and extract information that is EXPLICITLY PRESENT in the provided text. Only report information that is literally written in the page content — do NOT infer, assume, or fill in details that are not directly stated.
 
-Extract ALL of the following categories thoroughly:
+Extract the following categories thoroughly:
 
 1. **Products & Services**:
-   - EVERY product name, description, feature, specification
-   - ALL prices and price ranges (in any currency: Rp, IDR, $, etc.)
-   - Availability, stock status, variants, sizes, colors
+   - EVERY product name, description, feature, specification that is explicitly listed
+   - ALL prices and price ranges (in any currency: Rp, IDR, $, etc.) exactly as shown
+   - Availability, stock status, variants, sizes, colors — only if explicitly mentioned
    - Categories, subcategories, bundles, packages
 
 2. **Business Information**:
-   - Company name, full description, history, mission
-   - Operating hours / Jam operasional (every day listed)
-   - Physical address / Alamat (complete)
+   - Company name, full description, history, mission — only as written
+   - Operating hours / Jam operasional (every day listed, exactly as written)
+   - Physical address / Alamat — only if explicitly stated in visible page text
    - Service areas / coverage / delivery zones
 
-3. **Contact Details**:
-   - ALL phone numbers (including WhatsApp)
-   - ALL email addresses
-   - ALL social media handles and links
-   - Live chat availability
-
-4. **Policies**:
+3. **Policies**:
    - Complete return / refund policies (Kebijakan pengembalian)
    - Full shipping / delivery information (Pengiriman) with rates
    - ALL payment methods accepted (Metode pembayaran)
    - Warranties, guarantees, terms and conditions
 
-5. **FAQs**:
+4. **FAQs**:
    - EVERY question and answer found on the page
    - ALL troubleshooting guides and steps
    - ALL how-to information and tutorials
 
-6. **Special Features**:
-   - ALL promotions, discounts, coupon codes
+5. **Special Features**:
+   - ALL promotions, discounts, coupon codes explicitly mentioned
    - Membership programs with full details
    - Loyalty rewards, referral programs
    - Any other unique features or services
 
-7. **Additional Content**:
+6. **Additional Content**:
    - Testimonials, reviews
    - Blog content, articles, guides
    - Any other text content on the page
@@ -651,9 +640,9 @@ Format the extracted information in a clear, well-organized manner using:
 - Include both Indonesian and English terms where relevant
 
 CRITICAL RULES:
-- Extract EVERYTHING — do not skip, summarize, or abbreviate any information
-- Only include FACTUAL information found on the page
-- Do not make up or infer missing details
+- Only include information that is EXPLICITLY PRESENT in the provided content
+- Do NOT infer, guess, or fabricate any details — especially phone numbers, emails, or addresses
+- Contact details (phone, email, address) should ONLY come from the structured data block provided above — never from raw page text patterns
 - Preserve prices exactly as shown
 - Include operating hours in their original format
 - Include FULL text of policies, not just summaries

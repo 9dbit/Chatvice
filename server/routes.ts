@@ -9088,19 +9088,94 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
         temperature: 0.3,
       });
       const formatted = response.choices[0]?.message?.content || entry.content;
-      await storage.updateKnowledgeEntry(req.params.id, { content: formatted });
 
-      const merchantId = entry.merchantId;
-      const allAgents = await storage.getAgents(merchantId);
-      for (const agent of allAgents) {
-        const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
-        await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
-        processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(() => {});
+      // Only persist to DB if explicitly requested — by default this endpoint is preview-only
+      if (req.body.persist === true) {
+        await storage.updateKnowledgeEntry(req.params.id, { content: formatted });
+        const merchantId = entry.merchantId;
+        const allAgents = await storage.getAgents(merchantId);
+        for (const agent of allAgents) {
+          const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
+          await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
+          processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(() => {});
+        }
       }
 
       res.json({ formatted });
     } catch (error) {
       console.error("Knowledge entry format error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/knowledge-entries/:id/check-clarity", requireMerchant, async (req, res) => {
+    try {
+      const entry = await storage.getKnowledgeEntry(req.params.id);
+      if (!entry || entry.merchantId !== req.session.merchantId) {
+        return res.status(404).json({ error: "Entry not found" });
+      }
+      if (!entry.content || entry.content.trim().length < 20) {
+        return res.json({ hasIssues: false, ambiguities: [], suggestions: [] });
+      }
+      const response = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are a knowledge base quality auditor. Analyze the provided knowledge entry text and identify:
+
+1. **Ambiguities** — sentences or instructions that are vague, contradictory, or could be interpreted in more than one way by a customer service AI. For each ambiguity, provide 2-3 concrete clarification options the merchant can choose from.
+
+2. **Suggestions** — overly verbose sentences that can be simplified without losing meaning.
+
+Return ONLY valid JSON in this exact schema (no markdown fences, no extra text):
+{
+  "hasIssues": boolean,
+  "ambiguities": [
+    {
+      "excerpt": "the exact problematic sentence or phrase (verbatim)",
+      "issue": "brief explanation of why this is ambiguous",
+      "options": ["Option A: clearer version", "Option B: alternative clearer version"]
+    }
+  ],
+  "suggestions": [
+    {
+      "excerpt": "the verbose sentence (verbatim)",
+      "simplified": "the simplified version"
+    }
+  ]
+}
+
+Rules:
+- Only flag genuine ambiguities that would cause an AI to give incorrect or inconsistent answers
+- Do not flag simple/clear statements as ambiguous
+- If everything is clear, return hasIssues: false with empty arrays
+- excerpts must be verbatim text from the input
+- Keep options concise and actionable`
+          },
+          {
+            role: "user",
+            content: entry.content
+          }
+        ],
+        max_tokens: 2000,
+        temperature: 0.2,
+      });
+      const raw = response.choices[0]?.message?.content?.trim() || "{}";
+      let result: { hasIssues: boolean; ambiguities: unknown[]; suggestions: unknown[] } = { hasIssues: false, ambiguities: [], suggestions: [] };
+      try {
+        const parsed = JSON.parse(raw);
+        result = {
+          hasIssues: !!parsed.hasIssues,
+          ambiguities: Array.isArray(parsed.ambiguities) ? parsed.ambiguities : [],
+          suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
+        };
+      } catch {
+        // Return no-issues if JSON parse fails
+      }
+      res.json(result);
+    } catch (error) {
+      console.error("Knowledge clarity check error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });

@@ -226,11 +226,12 @@ interface SortableEntryCardProps {
   onDelete: () => void;
   onToggleActive: (checked: boolean) => void;
   onToggleLink: () => void;
+  onCheckClarity: () => void;
 }
 
 function SortableEntryCard({
   entry, localContent, localName, isSaving, currentStage, hasChanges,
-  onNameChange, onContentChange, onSave, onDelete, onToggleActive, onToggleLink,
+  onNameChange, onContentChange, onSave, onDelete, onToggleActive, onToggleLink, onCheckClarity,
 }: SortableEntryCardProps) {
   const {
     attributes,
@@ -306,6 +307,16 @@ function SortableEntryCard({
                       <span className="text-[10px] text-muted-foreground">{entry.isActive ? "Active" : "Off"}</span>
                     </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={(e) => { e.stopPropagation(); onCheckClarity(); }}
+                    title="Check clarity of this entry"
+                    data-testid={`button-check-clarity-${entry.id}`}
+                  >
+                    <Sparkles className="w-3 h-3 text-muted-foreground" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -559,6 +570,65 @@ export default function KnowledgePage() {
   const [modifyContent, setModifyContent] = useState("");
   const [applyingIndex, setApplyingIndex] = useState<number | null>(null);
 
+  // Clarity Checker state
+  type ClarityAmbiguity = { excerpt: string; issue: string; options: string[] };
+  type ClaritySuggestion = { excerpt: string; simplified: string };
+  const [clarityEntryId, setClarityEntryId] = useState<string | null>(null);
+  const [clarityEntryName, setClarityEntryName] = useState<string>("");
+  const [isClarityOpen, setIsClarityOpen] = useState(false);
+  const [isClarityLoading, setIsClarityLoading] = useState(false);
+  const [clarityResult, setClarityResult] = useState<{ hasIssues: boolean; ambiguities: ClarityAmbiguity[]; suggestions: ClaritySuggestion[] } | null>(null);
+  const [appliedClarityOptions, setAppliedClarityOptions] = useState<Record<number, string>>({});
+  const [appliedSuggestions, setAppliedSuggestions] = useState<Set<number>>(new Set());
+
+  const handleOpenClarityCheck = async (entryId: string, entryName: string) => {
+    setClarityEntryId(entryId);
+    setClarityEntryName(entryName);
+    setClarityResult(null);
+    setAppliedClarityOptions({});
+    setAppliedSuggestions(new Set());
+    setIsClarityOpen(true);
+    setIsClarityLoading(true);
+    try {
+      const res = await apiRequest("POST", `/api/knowledge-entries/${entryId}/check-clarity`, {});
+      const data = await res.json();
+      setClarityResult(data);
+    } catch {
+      toast({ title: "Clarity check failed", description: t("common.tryAgain"), variant: "destructive" });
+      setIsClarityOpen(false);
+    } finally {
+      setIsClarityLoading(false);
+    }
+  };
+
+  const handleApplyClarityOption = async (ambiguityIndex: number, option: string, excerpt: string) => {
+    if (!clarityEntryId) return;
+    const entry = knowledgeEntries.find(e => e.id === clarityEntryId);
+    if (!entry) return;
+    const currentContent = entryContents[clarityEntryId] ?? entry.content ?? "";
+    const newContent = currentContent.includes(excerpt)
+      ? currentContent.replace(excerpt, option)
+      : currentContent;
+    setEntryContents(prev => ({ ...prev, [clarityEntryId]: newContent }));
+    setAppliedClarityOptions(prev => ({ ...prev, [ambiguityIndex]: option }));
+    await apiRequest("POST", `/api/knowledge-entries/${clarityEntryId}/save`, { content: newContent }).catch(() => {});
+    queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
+  };
+
+  const handleApplyClaritySuggestion = async (suggestionIndex: number, simplified: string, excerpt: string) => {
+    if (!clarityEntryId) return;
+    const entry = knowledgeEntries.find(e => e.id === clarityEntryId);
+    if (!entry) return;
+    const currentContent = entryContents[clarityEntryId] ?? entry.content ?? "";
+    const newContent = currentContent.includes(excerpt)
+      ? currentContent.replace(excerpt, simplified)
+      : currentContent;
+    setEntryContents(prev => ({ ...prev, [clarityEntryId]: newContent }));
+    setAppliedSuggestions(prev => new Set([...prev, suggestionIndex]));
+    await apiRequest("POST", `/api/knowledge-entries/${clarityEntryId}/save`, { content: newContent }).catch(() => {});
+    queryClient.invalidateQueries({ queryKey: ["/api/knowledge-entries", selectedAgentId] });
+  };
+
   // Search & Replace state
   const [isSearchReplaceOpen, setIsSearchReplaceOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
@@ -638,26 +708,15 @@ export default function KnowledgePage() {
     mutationFn: async ({ id, content, name }: { id: string; content?: string; name?: string }) => {
       setSavingEntryId(id);
       setSavingStage("saving");
-      const res = await apiRequest("POST", `/api/knowledge-entries/${id}/save`, { content, name, skipEmbeddings: true });
+      const res = await apiRequest("POST", `/api/knowledge-entries/${id}/save`, { content, name });
       return res.json();
     },
-    onSuccess: async (_data, variables) => {
+    onSuccess: async (_data, _variables) => {
       setSavingStage("learning");
-      await new Promise(r => setTimeout(r, 1000));
-
-      setSavingStage("thinking");
-      try {
-        const formatRes = await apiRequest("POST", `/api/knowledge-entries/${variables.id}/format`, {});
-        const result = await formatRes.json();
-        if (result.formatted) {
-          setEntryContents(prev => ({ ...prev, [variables.id]: result.formatted }));
-        }
-      } catch (e) {
-        console.error("Format failed:", e);
-      }
+      await new Promise(r => setTimeout(r, 600));
 
       setSavingStage("done");
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise(r => setTimeout(r, 600));
 
       setSavingEntryId(null);
       setSavingStage(null);
@@ -1942,6 +2001,7 @@ export default function KnowledgePage() {
                       onDelete={() => setDeleteConfirmId(entry.id)}
                       onToggleActive={(checked) => toggleEntryActiveMutation.mutate({ id: entry.id, isActive: checked })}
                       onToggleLink={() => toggleEntryLinkMutation.mutate({ id: entry.id, agentId: selectedAgentId || undefined })}
+                      onCheckClarity={() => handleOpenClarityCheck(entry.id, entry.name)}
                     />
                   );
                 })}
@@ -2103,6 +2163,124 @@ export default function KnowledgePage() {
                 </Button>
               </DialogFooter>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Clarity Checker Dialog */}
+        <Dialog open={isClarityOpen} onOpenChange={(open) => { if (!open) { setIsClarityOpen(false); setClarityResult(null); } }}>
+          <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                Check Clarity — {clarityEntryName}
+              </DialogTitle>
+              <DialogDescription>
+                AI reviews this entry for ambiguous instructions or verbose text that could cause inconsistent answers.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto space-y-4">
+              {isClarityLoading && (
+                <div className="flex flex-col items-center justify-center py-10 gap-3">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <p className="text-muted-foreground text-sm">Analyzing entry for clarity issues...</p>
+                </div>
+              )}
+              {!isClarityLoading && clarityResult && !clarityResult.hasIssues && (
+                <div className="flex flex-col items-center justify-center py-10 gap-3" data-testid="clarity-no-issues">
+                  <CheckCircle2 className="w-10 h-10 text-green-500" />
+                  <p className="font-medium">Entry looks clear!</p>
+                  <p className="text-sm text-muted-foreground">No ambiguous instructions or verbose sentences detected.</p>
+                </div>
+              )}
+              {!isClarityLoading && clarityResult && clarityResult.hasIssues && (
+                <>
+                  {clarityResult.ambiguities.length > 0 && (
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium text-foreground">Ambiguous Instructions</p>
+                      {clarityResult.ambiguities.map((amb, idx) => {
+                        const applied = appliedClarityOptions[idx];
+                        return (
+                          <Card key={idx} className={applied ? "opacity-60" : ""}>
+                            <CardContent className="pt-3 space-y-2">
+                              <div className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground whitespace-pre-wrap">
+                                {amb.excerpt}
+                              </div>
+                              <p className="text-xs text-muted-foreground">{amb.issue}</p>
+                              {applied ? (
+                                <div className="flex items-center gap-1.5 text-xs text-green-600">
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  Applied: {applied}
+                                </div>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  <p className="text-xs font-medium">Choose a clearer version:</p>
+                                  {amb.options.map((opt, oi) => (
+                                    <Button
+                                      key={oi}
+                                      variant="outline"
+                                      size="sm"
+                                      className="w-full justify-start text-left h-auto py-2 text-xs whitespace-normal"
+                                      onClick={() => handleApplyClarityOption(idx, opt, amb.excerpt)}
+                                      data-testid={`button-clarity-option-${idx}-${oi}`}
+                                    >
+                                      {opt}
+                                    </Button>
+                                  ))}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {clarityResult.suggestions.length > 0 && (
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium text-foreground">Simplification Suggestions</p>
+                      {clarityResult.suggestions.map((sug, idx) => {
+                        const applied = appliedSuggestions.has(idx);
+                        return (
+                          <Card key={idx} className={applied ? "opacity-60" : ""}>
+                            <CardContent className="pt-3 space-y-2">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <p className="text-[10px] text-muted-foreground mb-1 font-medium">Original</p>
+                                  <div className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground whitespace-pre-wrap line-clamp-4">
+                                    {sug.excerpt}
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] text-muted-foreground mb-1 font-medium">Simplified</p>
+                                  <div className="rounded-md bg-muted px-3 py-2 text-xs whitespace-pre-wrap line-clamp-4">
+                                    {sug.simplified}
+                                  </div>
+                                </div>
+                              </div>
+                              {applied ? (
+                                <div className="flex items-center gap-1.5 text-xs text-green-600">
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  Applied
+                                </div>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleApplyClaritySuggestion(idx, sug.simplified, sug.excerpt)}
+                                  data-testid={`button-clarity-simplify-${idx}`}
+                                >
+                                  <Check className="w-3 h-3 mr-1" />
+                                  Apply Simplification
+                                </Button>
+                              )}
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
 
