@@ -10683,6 +10683,37 @@ Rules:
         return res.json({ hasPendingPayment: false });
       }
       
+      // --- Real-time gateway sync (Task #349) ---
+      // Actively fetch the authoritative status from the 12Pay gateway on every
+      // poll so that failed/expired/cancelled payments are cleared immediately
+      // without waiting for a webhook or the next DB-expiry check.
+      // The call is attempted unconditionally so that DB-configured gateways
+      // (where env vars are absent) are covered; errors are caught and are
+      // non-fatal so payment instructions remain visible when the gateway is
+      // temporarily unreachable.
+      try {
+        const gatewayResult = await checkPaymentStatus(merchant.pendingTransactionId);
+        if (gatewayResult.success && gatewayResult.data) {
+          const gwStatus = gatewayResult.data.status.toUpperCase();
+          const GATEWAY_TERMINAL = ['FAILED', 'EXPIRED', 'CANCELLED'];
+          if (GATEWAY_TERMINAL.includes(gwStatus)) {
+            const dbStatus = gwStatus.toLowerCase() as 'failed' | 'expired' | 'cancelled';
+            await storage.updatePaymentTransaction(localTransaction.id, { status: dbStatus });
+            await storage.updateMerchantSubscription(merchant.id, {
+              pendingTransactionId: null,
+            });
+            console.log(
+              `[pending-payment] Cleared pending txn ${localTransaction.id} — gateway reported '${gwStatus}'`
+            );
+            return res.json({ hasPendingPayment: false });
+          }
+        }
+      } catch (gatewayErr: any) {
+        // Non-fatal — fall through to local checks so the UI keeps showing
+        // payment instructions even when the gateway is temporarily unreachable.
+        console.warn('[pending-payment] Gateway status check failed, using local state:', gatewayErr.message);
+      }
+
       // Auto-expire rows whose gateway already rejected the payment, regardless
       // of whether the DB expiresAt timestamp has been reached yet.  This
       // covers user cancellations on the gateway side and pre-#340 rows that
@@ -10693,7 +10724,7 @@ Rules:
           pendingTransactionId: null,
         });
         console.log(
-          `[pending-payment] Cleared pending txn ${localTransaction.id} — gateway status is '${localTransaction.status}'`
+          `[pending-payment] Cleared pending txn ${localTransaction.id} — local status is '${localTransaction.status}'`
         );
         return res.json({ hasPendingPayment: false });
       }
