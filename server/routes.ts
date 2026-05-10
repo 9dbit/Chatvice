@@ -28425,9 +28425,13 @@ Please create a comprehensive help center article that would be useful for custo
       const booster = await storage.getBoosterConfig(boosterType);
       if (!booster || !booster.isEnabled) return res.status(404).json({ error: "Booster not available" });
 
-      const validMethods = ["12pay", "paypal", "crypto"];
-      if (!validMethods.includes(paymentMethod)) {
-        return res.status(400).json({ error: "Invalid payment method. Supported: " + validMethods.join(", ") });
+      // Only 12pay/QRIS is operationally fulfilled today (webhook-based).
+      // PayPal/crypto manual flows have no booster fulfillment pipeline yet,
+      // so we explicitly reject them to prevent paid-but-unfulfilled boosters.
+      if (paymentMethod !== "12pay") {
+        return res.status(400).json({
+          error: "Booster payments currently only support QRIS (12pay).",
+        });
       }
 
       const merchant = await storage.getMerchant(merchantId);
