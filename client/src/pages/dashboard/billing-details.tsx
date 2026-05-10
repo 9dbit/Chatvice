@@ -21,8 +21,8 @@ import { Receipt, Mail, Building2, CreditCard, History, FileText, Calendar, Zap,
 import { DialogDescription } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import type { Merchant } from "@shared/schema";
-import chatviceLightLogo from "@assets/Chatvice-02_1767458901049.png";
-import gpnLogo from "@assets/IMG_1410_1767458901049.png";
+import chatviceLightLogo from "@assets/Chatvice-04_1778414460371.png";
+import qrisLogo from "@assets/IMG_6802_1778414496751.jpeg";
 
 interface PendingPaymentDetails {
   hasPendingPayment: boolean;
@@ -1190,11 +1190,10 @@ export default function BillingDetailsPage() {
               {pendingPaymentDetails?.paymentMethod === 'qris' && (
                 <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
                   <img 
-                    src={gpnLogo} 
-                    alt="GPN" 
+                    src={qrisLogo} 
+                    alt="QRIS" 
                     className="h-6 object-contain"
                   />
-                  <span className="text-sm font-bold text-gray-700">QRIS</span>
                 </div>
               )}
               {pendingPaymentDetails?.paymentMethod === 'virtual_account' && (

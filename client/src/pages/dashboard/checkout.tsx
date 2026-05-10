@@ -50,9 +50,9 @@ import {
 } from "lucide-react";
 import { SiWhatsapp, SiTelegram, SiMessenger, SiPaypal, SiBitcoin, SiEthereum, SiSolana, SiBinance, SiTether, SiRipple } from "react-icons/si";
 import PayPalButton from "@/components/PayPalButton";
-import chatviceLogoImg from "@assets/Chatvice-02_1767473402687.png";
+import chatviceLogoImg from "@assets/Chatvice-04_1778414460371.png";
 import chatviceCryptoLogo from "@assets/Chatvice-04_1767550221276.png";
-import gpnLogoImg from "@assets/IMG_1410_1767473402687.png";
+import qrisLogoImg from "@assets/IMG_6802_1778414496751.jpeg";
 
 type PaymentMethod = 'qris' | 'bank_transfer' | 'virtual_account' | 'ewallet' | 'payment_link' | 'credit_card' | 'crypto' | 'paypal';
 
@@ -952,17 +952,17 @@ export default function CheckoutPage() {
           chatviceLogo.src = chatviceLogoImg;
         });
         
-        // Load GPN logo image
-        const gpnLogo = new Image();
-        gpnLogo.crossOrigin = 'anonymous';
-        const gpnLogoLoaded = new Promise<void>((resolve) => {
-          gpnLogo.onload = () => resolve();
-          gpnLogo.onerror = () => resolve(); // Continue even if logo fails
-          gpnLogo.src = gpnLogoImg;
+        // Load QRIS logo image
+        const qrisLogo = new Image();
+        qrisLogo.crossOrigin = 'anonymous';
+        const qrisLogoLoaded = new Promise<void>((resolve) => {
+          qrisLogo.onload = () => resolve();
+          qrisLogo.onerror = () => resolve();
+          qrisLogo.src = qrisLogoImg;
         });
         
         // Wait for both logos to load
-        await Promise.all([chatviceLogoLoaded, gpnLogoLoaded]);
+        await Promise.all([chatviceLogoLoaded, qrisLogoLoaded]);
         
         // Draw Chatvice Logo
         const logoX = cardX + 20;
@@ -989,42 +989,22 @@ export default function CheckoutPage() {
         ctx.textAlign = 'left';
         ctx.fillText('Subscription Payment', logoX, logoY + chatviceLogoHeight + 12);
         
-        // Draw GPN QRIS Badge with actual logo (right side)
-        const badgeX = cardX + cardInnerWidth - 85;
+        // Draw QRIS logo badge (right side)
+        const badgeX = cardX + cardInnerWidth - 90;
         const badgeY = logoY + 2;
-        
-        // GPN Badge background
-        ctx.fillStyle = '#fef2f2';
-        ctx.strokeStyle = '#fecaca';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.roundRect(badgeX, badgeY, 65, 36, 6);
-        ctx.fill();
-        ctx.stroke();
-        
-        if (gpnLogo.complete && gpnLogo.naturalWidth > 0) {
-          // Draw actual GPN logo inside badge
-          const gpnLogoHeight = 22;
-          const gpnLogoWidth = gpnLogo.naturalWidth && gpnLogo.naturalHeight 
-            ? (gpnLogo.naturalWidth / gpnLogo.naturalHeight) * gpnLogoHeight 
-            : 28;
-          const gpnLogoX = badgeX + (65 - gpnLogoWidth) / 2;
-          ctx.drawImage(gpnLogo, gpnLogoX, badgeY + 3, gpnLogoWidth, gpnLogoHeight);
-          
-          // QRIS text below logo
-          ctx.fillStyle = '#1e3a8a';
-          ctx.font = 'bold 8px system-ui';
-          ctx.textAlign = 'center';
-          ctx.fillText('QRIS', badgeX + 32, badgeY + 32);
+
+        if (qrisLogo.complete && qrisLogo.naturalWidth > 0) {
+          const qrisLogoHeight = 28;
+          const qrisLogoWidth = qrisLogo.naturalWidth && qrisLogo.naturalHeight
+            ? (qrisLogo.naturalWidth / qrisLogo.naturalHeight) * qrisLogoHeight
+            : 70;
+          ctx.drawImage(qrisLogo, badgeX, badgeY, qrisLogoWidth, qrisLogoHeight);
         } else {
-          // Fallback: draw text if GPN logo fails to load
-          ctx.fillStyle = '#dc2626';
-          ctx.font = 'bold 10px system-ui';
+          // Fallback text
+          ctx.fillStyle = '#18181b';
+          ctx.font = 'bold 13px system-ui';
           ctx.textAlign = 'center';
-          ctx.fillText('GPN', badgeX + 32, badgeY + 16);
-          ctx.fillStyle = '#1e3a8a';
-          ctx.font = 'bold 9px system-ui';
-          ctx.fillText('QRIS', badgeX + 32, badgeY + 28);
+          ctx.fillText('QRIS', badgeX + 35, badgeY + 20);
         }
         
         // Main content area
@@ -1889,47 +1869,30 @@ export default function CheckoutPage() {
         <div className="space-y-4">
           {/* QRIS Payment - Ticket/Boarding Pass Style */}
           <div 
-            className="relative bg-[radial-gradient(circle,#e5e7eb_1px,white_1px)] dark:bg-[radial-gradient(circle,#3f3f46_1px,#18181b_1px)] bg-[length:16px_16px] rounded-2xl overflow-hidden shadow-lg border border-gray-200 dark:border-zinc-700" 
+            className="relative bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-200" 
             id="qris-receipt"
           >
             {/* Top Header with Logos */}
-            <div className="bg-white dark:bg-zinc-800 px-5 py-4 border-b border-dashed border-gray-300 dark:border-zinc-600">
+            <div className="bg-white px-5 py-4 border-b border-dashed border-gray-300">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  {/* Chatvice Logo - Inline SVG */}
-                  <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-                    <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
-                      <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
-                      <circle cx="12" cy="10" r="2"/>
-                      <circle cx="7" cy="10" r="2"/>
-                      <circle cx="17" cy="10" r="2"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white">Chatvice</h3>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">Subscription Payment</p>
-                  </div>
+                  {/* Chatvice Real Logo */}
+                  <img src={chatviceLogoImg} alt="Chatvice" className="h-7 w-auto object-contain" />
+                  <p className="text-[10px] text-gray-500">Subscription Payment</p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {/* GPN Logo - Inline SVG */}
-                  <div className="flex items-center gap-1.5 px-2 py-1 bg-red-50 dark:bg-red-950/30 rounded border border-red-200 dark:border-red-800">
-                    <svg viewBox="0 0 60 24" className="h-4 w-auto">
-                      <rect x="0" y="2" width="20" height="20" rx="2" fill="#c41e3a"/>
-                      <text x="3" y="17" fontSize="10" fontWeight="bold" fill="white">G</text>
-                      <text x="24" y="17" fontSize="11" fontWeight="bold" fill="#c41e3a">GPN</text>
-                    </svg>
-                    <span className="text-[10px] font-semibold text-red-600 dark:text-red-400">QRIS</span>
-                  </div>
+                  {/* QRIS Logo */}
+                  <img src={qrisLogoImg} alt="QRIS" className="h-6 w-auto object-contain" />
                 </div>
               </div>
             </div>
 
             {/* Main Content */}
-            <div className="relative p-5 bg-white/80 dark:bg-zinc-900/80">
+            <div className="relative p-5 bg-white">
               {/* Ticket Notch Left - positioned relative to content */}
-              <div className="hidden sm:block absolute -left-2 top-1/2 w-4 h-8 bg-gray-100 dark:bg-zinc-950 rounded-r-full -translate-y-1/2"></div>
+              <div className="hidden sm:block absolute -left-2 top-1/2 w-4 h-8 bg-gray-100 rounded-r-full -translate-y-1/2"></div>
               {/* Ticket Notch Right */}
-              <div className="hidden sm:block absolute -right-2 top-1/2 w-4 h-8 bg-gray-100 dark:bg-zinc-950 rounded-l-full -translate-y-1/2"></div>
+              <div className="hidden sm:block absolute -right-2 top-1/2 w-4 h-8 bg-gray-100 rounded-l-full -translate-y-1/2"></div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Left Column - QR Code */}
                 <div className="flex flex-col items-center justify-center space-y-4">
@@ -2082,7 +2045,7 @@ export default function CheckoutPage() {
 
           {/* Powered by */}
           <p className="text-center text-[10px] text-gray-400 dark:text-gray-500">
-            Secured by <span className="font-medium">12Pay</span> • GPN Network
+            Secured by <span className="font-medium">12Pay</span> • QRIS Network
           </p>
         </div>
       )}
