@@ -1,5 +1,6 @@
 import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect, useRef } from "react";
+import chatviceLogoImg from "@assets/Chatvice-02_1778420788538.png";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import { useLocation } from "wouter";
@@ -956,6 +957,168 @@ export default function BillingPage() {
     }
   };
 
+  const handleDownloadInvoice = async () => {
+    if (!pendingPaymentDetails) return;
+    const { paymentMethod, orderId, planName, billingInterval, amountFormatted, expiryTime, bankCode, vaNumber, accountNumber, accountName, uniqueCode } = pendingPaymentDetails;
+    if (paymentMethod !== 'virtual_account' && paymentMethod !== 'bank_transfer') return;
+
+    try {
+      const cardWidth = 400;
+      const cardHeight = 440;
+      const canvas = document.createElement('canvas');
+      canvas.width = cardWidth;
+      canvas.height = cardHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      // Background
+      ctx.fillStyle = '#f4f4f5';
+      ctx.fillRect(0, 0, cardWidth, cardHeight);
+
+      // White card with rounded corners
+      const cx = 16, cy2 = 16;
+      const cw = cardWidth - 32, ch = cardHeight - 32;
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(cx, cy2, cw, ch, 14);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.strokeStyle = '#e4e4e7';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+
+      // Header strip
+      const headerH = 56;
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(cx, cy2, cw, headerH, [14, 14, 0, 0]);
+      ctx.fillStyle = '#18181b';
+      ctx.fill();
+      ctx.restore();
+
+      // Load logo
+      const logo = new Image();
+      logo.crossOrigin = 'anonymous';
+      await new Promise<void>(res => { logo.onload = res; logo.onerror = res; logo.src = chatviceLogoImg; });
+
+      const logoH = 22;
+      const logoW = logo.naturalWidth && logo.naturalHeight ? (logo.naturalWidth / logo.naturalHeight) * logoH : 90;
+      if (logo.complete && logo.naturalWidth > 0) {
+        ctx.drawImage(logo, cx + 16, cy2 + (headerH - logoH) / 2, logoW, logoH);
+      } else {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 15px system-ui';
+        ctx.textAlign = 'left';
+        ctx.fillText('Chatvice', cx + 16, cy2 + 34);
+      }
+
+      // Header right: method badge
+      ctx.fillStyle = '#a1a1aa';
+      ctx.font = '10px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(paymentMethod === 'virtual_account' ? 'VIRTUAL ACCOUNT' : 'BANK TRANSFER', cx + cw - 16, cy2 + headerH / 2 - 4);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 11px system-ui';
+      ctx.fillText('Payment Invoice', cx + cw - 16, cy2 + headerH / 2 + 10);
+
+      // Dashed separator
+      ctx.strokeStyle = '#d1d5db';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(cx + 16, cy2 + headerH);
+      ctx.lineTo(cx + cw - 16, cy2 + headerH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Content rows
+      let rowY = cy2 + headerH + 22;
+      const labelX = cx + 20;
+      const valueX = cx + cw - 20;
+      const rowGap = 30;
+
+      const drawRow = (label: string, value: string, valueColor = '#18181b', valueBold = false) => {
+        ctx.fillStyle = '#71717a';
+        ctx.font = '10px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(label.toUpperCase(), labelX, rowY);
+        ctx.fillStyle = valueColor;
+        ctx.font = `${valueBold ? 'bold ' : ''}12px system-ui, -apple-system, sans-serif`;
+        ctx.textAlign = 'right';
+        ctx.fillText(value, valueX, rowY);
+        rowY += rowGap;
+      };
+
+      drawRow('Plan', `${planName || ''} - ${billingInterval === 'annual' ? 'Annual' : 'Monthly'}`);
+      drawRow('Order ID', orderId || '', '#52525b');
+
+      // Divider
+      ctx.strokeStyle = '#f4f4f5';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(labelX, rowY - 10);
+      ctx.lineTo(valueX, rowY - 10);
+      ctx.stroke();
+
+      drawRow('Bank', getBankName(bankCode || ''), '#18181b', true);
+
+      if (paymentMethod === 'virtual_account') {
+        drawRow('VA Number', vaNumber || '', '#7c3aed', true);
+      } else {
+        if (accountName) drawRow('Account Name', accountName);
+        drawRow('Account Number', accountNumber || '', '#7c3aed', true);
+        if (uniqueCode) drawRow('Unique Code', `+${uniqueCode}`, '#b45309', true);
+      }
+
+      // Amount — large
+      ctx.fillStyle = '#52525b';
+      ctx.font = '10px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('AMOUNT TO PAY', labelX, rowY);
+      ctx.fillStyle = '#7c3aed';
+      ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(amountFormatted || '', valueX, rowY);
+      rowY += rowGap + 4;
+
+      if (expiryTime) {
+        drawRow('Pay Before', format(new Date(expiryTime), 'dd MMM yyyy HH:mm'), '#b45309');
+      }
+
+      // Merchant name row (if available)
+      if (merchant?.companyName) {
+        ctx.fillStyle = '#a1a1aa';
+        ctx.font = '9px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`Issued for: ${merchant.companyName}`, cardWidth / 2, rowY);
+        rowY += 18;
+      }
+
+      // Footer note
+      const footerY = cy2 + ch - 16;
+      ctx.fillStyle = '#a1a1aa';
+      ctx.font = '9px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Transfer exact amount to avoid processing delays · chatvice.app', cardWidth / 2, footerY);
+
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `invoice-${orderId || 'payment'}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        toast({ title: t("dashboard.billing.toast.invoiceSaved"), description: t("dashboard.billing.toast.invoiceSavedDesc") });
+      }, 'image/png');
+    } catch (err) {
+      console.error('Failed to generate invoice:', err);
+      toast({ title: t("dashboard.billing.toast.error") || 'Error', description: t("dashboard.billing.toast.invoiceSaveFailed"), variant: 'destructive' });
+    }
+  };
+
   const handleRetryPayment = () => {
     if (selectedPlan) {
       setPaymentStep('loading');
@@ -1580,7 +1743,7 @@ export default function BillingPage() {
                 )}
 
                 {/* Action Buttons — inside card, full width */}
-                <div className="flex gap-2 p-4 pt-2 border-t border-zinc-700">
+                <div className="flex gap-2 p-4 pt-2 border-t border-zinc-700 flex-wrap">
                   <Button 
                     variant="outline"
                     size="sm"
@@ -1596,6 +1759,18 @@ export default function BillingPage() {
                     )}
                     Cancel
                   </Button>
+                  {(pendingPaymentDetails.paymentMethod === 'virtual_account' || pendingPaymentDetails.paymentMethod === 'bank_transfer') && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 min-w-0 border-zinc-600 text-zinc-300"
+                      onClick={handleDownloadInvoice}
+                      data-testid="button-download-invoice"
+                    >
+                      <Download className="w-4 h-4 mr-1.5" />
+                      {t("dashboard.billing.toast.saveInvoice")}
+                    </Button>
+                  )}
                   <Button 
                     size="sm" 
                     className="flex-1 min-w-0"

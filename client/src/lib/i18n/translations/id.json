@@ -1461,7 +1461,11 @@
         "accountNumberCopiedToDesc": "Nomor rekening disalin ke clipboard.",
         "refreshing": "Memperbarui...",
         "checkingPaymentStatusDesc": "Memeriksa status pembayaran.",
-        "codeCopied": "Kode disalin"
+        "codeCopied": "Kode disalin",
+        "invoiceSaved": "Invoice tersimpan",
+        "invoiceSavedDesc": "Instruksi pembayaran diunduh sebagai PNG.",
+        "invoiceSaveFailed": "Tidak dapat membuat invoice. Silakan coba lagi.",
+        "saveInvoice": "Simpan"
       },
       "subscriptionActivated": "Langganan diaktifkan",
       "billingCycle": "Siklus tagihan",

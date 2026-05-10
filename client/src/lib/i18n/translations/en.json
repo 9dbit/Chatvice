@@ -1484,7 +1484,11 @@
         "accountNumberCopiedToDesc": "Account number copied to clipboard.",
         "refreshing": "Refreshing...",
         "checkingPaymentStatusDesc": "Checking payment status.",
-        "codeCopied": "Code copied"
+        "codeCopied": "Code copied",
+        "invoiceSaved": "Invoice saved",
+        "invoiceSavedDesc": "Payment instructions downloaded as PNG.",
+        "invoiceSaveFailed": "Could not generate invoice. Please try again.",
+        "saveInvoice": "Save"
       },
       "subscriptionActivated": "Subscription activated",
       "billingCycle": "Billing cycle",
