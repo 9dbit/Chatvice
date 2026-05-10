@@ -10836,7 +10836,7 @@ Rules:
   app.get("/api/exchange-rate", async (req, res) => {
     try {
       // Try to fetch from free forex API
-      let rate = 16500; // Default fallback rate
+      let rate = 17500; // Default fallback rate
       let source = "Default";
       let lastUpdated = new Date().toISOString();
       
@@ -10894,7 +10894,7 @@ Rules:
       // Return cached/default rate on error
       const savedRate = await storage.getPlatformSetting("exchange_rate");
       res.json({
-        rate: savedRate ? parseInt(savedRate) : 16500,
+        rate: savedRate ? parseInt(savedRate) : 17500,
         source: "Cached Rate",
         lastUpdated: new Date().toISOString(),
         currency: "IDR",
@@ -10928,7 +10928,7 @@ Rules:
           return res.status(400).json({ error: "Addon sudah aktif" });
         }
         const savedRate = await storage.getPlatformSetting("exchange_rate");
-        const exchangeRate = savedRate ? parseInt(savedRate) : 16500;
+        const exchangeRate = savedRate ? parseInt(savedRate) : 17500;
         const priceIDR = Math.max(Math.round(addonConfig.monthlyPriceUsd * exchangeRate), 10000);
         const timestamp = Date.now();
         const orderId = `ADDON_${merchant.id}_${addonType}_${timestamp}`;
@@ -11057,7 +11057,7 @@ Rules:
       
       // Get exchange rate from settings
       const savedRate = await storage.getPlatformSetting("exchange_rate");
-      const exchangeRate = savedRate ? parseInt(savedRate) : 16500;
+      const exchangeRate = savedRate ? parseInt(savedRate) : 17500;
       
       // For custom plans, fetch pending invoice and use invoice amount (already in IDR)
       // Invoice checkout requires both planId === 'custom' AND invoiceId
@@ -11881,7 +11881,7 @@ Rules:
         });
 
         const savedRate = await storage.getPlatformSetting("exchange_rate");
-        const exchangeRate = savedRate ? parseInt(savedRate) : 16500;
+        const exchangeRate = savedRate ? parseInt(savedRate) : 17500;
         const amountIDR = Math.round(resolvedAmountUsd * exchangeRate);
 
         const planName = merchant.subscriptionPlanId === 'custom' ? 'Custom Plan'
@@ -12013,7 +12013,7 @@ Rules:
         
         // Convert to IDR for billing record
         const savedRate = await storage.getPlatformSetting("exchange_rate");
-        const exchangeRate = savedRate ? parseInt(savedRate) : 16500;
+        const exchangeRate = savedRate ? parseInt(savedRate) : 17500;
         const amountIDR = Math.round(amountUSD * exchangeRate);
         
         // Create billing transaction record
@@ -18585,7 +18585,7 @@ Use the knowledge base above to answer questions. If you don't have specific inf
         const merchant = await storage.getMerchant(merchantId);
         if (merchant) {
           const exchangeRateStr = await storage.getPlatformSetting("exchange_rate");
-          const exchangeRate = parseFloat(exchangeRateStr || "16500");
+          const exchangeRate = parseFloat(exchangeRateStr || "17500");
           
           // Get current plan details
           const planId = merchant.subscriptionPlanId || "free";
@@ -28360,11 +28360,19 @@ Please create a comprehensive help center article that would be useful for custo
 
   let boostersSeededOnce = false;
   async function ensureBoostersSeeded() {
-    // Always upsert defaults at most once per server process so featured/order
-    // changes in code propagate to existing DB rows on next deploy.
+    // Insert-missing-only: never overwrite admin-edited rows. Only insert
+    // defaults for boosterTypes that don't already exist in the DB so admins
+    // can adjust price/labels/featured/enabled without redeploys clobbering them.
     if (!boostersSeededOnce) {
-      for (const b of DEFAULT_BOOSTERS) {
-        try { await storage.upsertBoosterConfig(b); } catch (e) { console.error("Seed booster failed", b.boosterType, e); }
+      try {
+        const existing = await storage.getBoosterConfigs();
+        const existingTypes = new Set(existing.map((b) => b.boosterType));
+        for (const b of DEFAULT_BOOSTERS) {
+          if (existingTypes.has(b.boosterType)) continue;
+          try { await storage.upsertBoosterConfig(b); } catch (e) { console.error("Seed booster failed", b.boosterType, e); }
+        }
+      } catch (e) {
+        console.error("Booster seeding skipped due to read error", e);
       }
       boostersSeededOnce = true;
     }
@@ -28519,7 +28527,7 @@ Please create a comprehensive help center article that would be useful for custo
       const configs = await storage.getAddonConfigs();
       const enabled = configs.filter(c => c.isEnabled);
       const savedRate = await storage.getPlatformSetting("exchange_rate");
-      const exchangeRate = savedRate ? parseInt(savedRate) : 16500;
+      const exchangeRate = savedRate ? parseInt(savedRate) : 17500;
       const items = enabled.map((c: any) => {
         const priceIdr = Math.max(Math.round((c.monthlyPriceUsd || 0) * exchangeRate), 10000);
         return {
