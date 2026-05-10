@@ -28677,7 +28677,12 @@ Please create a comprehensive help center article that would be useful for custo
       if (!merchant) return res.status(404).json({ error: "Merchant not found" });
 
       const orderId = `addon_${merchantId}_${addonType}_${Date.now()}`;
-      const amountIDR = convertToIDR(addonConfig.monthlyPriceUsd);
+      // Use the platform `exchange_rate` setting (default 17500) so the
+      // charged IDR matches what the marketplace UI displays. Never fall
+      // back to the hardcoded convertToIDR() rate.
+      const savedRate = await storage.getPlatformSetting("exchange_rate");
+      const exchangeRate = savedRate ? parseInt(savedRate) : 17500;
+      const amountIDR = Math.round(addonConfig.monthlyPriceUsd * exchangeRate);
 
       if (paymentMethod === "12pay") {
         if (!isTwelvePayConfigured()) {
