@@ -898,29 +898,28 @@ export default function CheckoutPage() {
       if (svgElement && qrisData.qrisString) {
         const svgData = new XMLSerializer().serializeToString(svgElement);
         
-        // Create clean light mode invoice design matching checkout UI
+        // Create clean compact invoice matching the new compact UI
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
         
-        // Card dimensions (mobile-friendly portrait)
-        const cardWidth = 420;
-        const cardHeight = 720;
+        // Compact card dimensions
+        const cardWidth = 400;
+        const cardHeight = 590;
         canvas.width = cardWidth;
         canvas.height = cardHeight;
         
-        // Draw light gray background
+        // Light grey background
         ctx.fillStyle = '#f4f4f5';
         ctx.fillRect(0, 0, cardWidth, cardHeight);
         
-        // Main white card with rounded corners
-        const cardX = 20;
-        const cardY = 20;
-        const cardInnerWidth = cardWidth - 40;
-        const cardInnerHeight = cardHeight - 40;
-        const borderRadius = 16;
+        // White card with rounded corners
+        const cardX = 16;
+        const cardY = 16;
+        const cardInnerWidth = cardWidth - 32;
+        const cardInnerHeight = cardHeight - 32;
+        const borderRadius = 14;
         
-        // Draw white card background
         ctx.save();
         ctx.beginPath();
         ctx.roundRect(cardX, cardY, cardInnerWidth, cardInnerHeight, borderRadius);
@@ -931,122 +930,100 @@ export default function CheckoutPage() {
         ctx.stroke();
         ctx.restore();
         
-        // Header section — two-line layout (logo + subtitle | QRIS)
-        const headerHeight = 76;
+        // ── HEADER (compact: h-6 logo + 9px subtitle) ──
+        const headerHeight = 56;
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(cardX, cardY, cardInnerWidth, headerHeight);
         ctx.strokeStyle = '#d1d5db';
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
-        ctx.moveTo(cardX + 20, cardY + headerHeight);
-        ctx.lineTo(cardX + cardInnerWidth - 20, cardY + headerHeight);
+        ctx.moveTo(cardX + 16, cardY + headerHeight);
+        ctx.lineTo(cardX + cardInnerWidth - 16, cardY + headerHeight);
         ctx.stroke();
         ctx.setLineDash([]);
         
-        // Load Chatvice logo image
+        // Load logos in parallel
         const chatviceLogo = new Image();
         chatviceLogo.crossOrigin = 'anonymous';
-        const chatviceLogoLoaded = new Promise<void>((resolve) => {
-          chatviceLogo.onload = () => resolve();
-          chatviceLogo.onerror = () => resolve();
-          chatviceLogo.src = chatviceLogoImg;
-        });
-        
-        // Load QRIS logo image
         const qrisLogo = new Image();
         qrisLogo.crossOrigin = 'anonymous';
-        const qrisLogoLoaded = new Promise<void>((resolve) => {
-          qrisLogo.onload = () => resolve();
-          qrisLogo.onerror = () => resolve();
-          qrisLogo.src = qrisLogoImg;
-        });
+        await Promise.all([
+          new Promise<void>(res => { chatviceLogo.onload = res; chatviceLogo.onerror = res; chatviceLogo.src = chatviceLogoImg; }),
+          new Promise<void>(res => { qrisLogo.onload = res; qrisLogo.onerror = res; qrisLogo.src = qrisLogoImg; }),
+        ]);
         
-        // Wait for both logos to load
-        await Promise.all([chatviceLogoLoaded, qrisLogoLoaded]);
-        
-        // Draw Chatvice Logo (left, line 1)
-        const logoX = cardX + 20;
-        const logoY = cardY + 14;
-        const chatviceLogoHeight = 30;
-        const chatviceLogoWidth = chatviceLogo.naturalWidth && chatviceLogo.naturalHeight 
-          ? (chatviceLogo.naturalWidth / chatviceLogo.naturalHeight) * chatviceLogoHeight 
-          : 120;
-        
+        // Chatvice logo: h-6 = 24px
+        const logoX = cardX + 16;
+        const logoY = cardY + 10;
+        const chatviceLogoH = 24;
+        const chatviceLogoW = chatviceLogo.naturalWidth && chatviceLogo.naturalHeight
+          ? (chatviceLogo.naturalWidth / chatviceLogo.naturalHeight) * chatviceLogoH : 100;
         if (chatviceLogo.complete && chatviceLogo.naturalWidth > 0) {
-          ctx.drawImage(chatviceLogo, logoX, logoY, chatviceLogoWidth, chatviceLogoHeight);
+          ctx.drawImage(chatviceLogo, logoX, logoY, chatviceLogoW, chatviceLogoH);
         } else {
           ctx.fillStyle = '#8b5cf6';
-          ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
+          ctx.font = 'bold 15px system-ui';
           ctx.textAlign = 'left';
-          ctx.fillText('Chatvice', logoX, logoY + 22);
+          ctx.fillText('Chatvice', logoX, logoY + 18);
         }
-        
-        // "Subscription Payment" text — line 2 below logo
+        // "Subscription Payment" subtitle — line below logo (9px)
         ctx.fillStyle = '#71717a';
-        ctx.font = '10px system-ui, -apple-system, sans-serif';
+        ctx.font = '9px system-ui, -apple-system, sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText('Subscription Payment', logoX, logoY + chatviceLogoHeight + 14);
+        ctx.fillText('Subscription Payment', logoX, logoY + chatviceLogoH + 10);
         
-        // Draw QRIS logo (right side, vertically centred in header)
-        const qrisW = 72;
-        const qrisH = 36;
-        const qrisBadgeX = cardX + cardInnerWidth - qrisW - 16;
+        // QRIS logo: w-16 h-8 = 60×30px, object-contain
+        const qrisW = 60;
+        const qrisH = 30;
+        const qrisBadgeX = cardX + cardInnerWidth - qrisW - 14;
         const qrisBadgeY = cardY + (headerHeight - qrisH) / 2;
-
         if (qrisLogo.complete && qrisLogo.naturalWidth > 0) {
-          // Draw with object-contain: scale to fit qrisW×qrisH preserving ratio
           const ratio = Math.min(qrisW / qrisLogo.naturalWidth, qrisH / qrisLogo.naturalHeight);
           const dw = qrisLogo.naturalWidth * ratio;
           const dh = qrisLogo.naturalHeight * ratio;
-          const dx = qrisBadgeX + (qrisW - dw) / 2;
-          const dy = qrisBadgeY + (qrisH - dh) / 2;
-          ctx.drawImage(qrisLogo, dx, dy, dw, dh);
+          ctx.drawImage(qrisLogo, qrisBadgeX + (qrisW - dw) / 2, qrisBadgeY + (qrisH - dh) / 2, dw, dh);
         } else {
           ctx.fillStyle = '#18181b';
-          ctx.font = 'bold 13px system-ui';
+          ctx.font = 'bold 11px system-ui';
           ctx.textAlign = 'center';
-          ctx.fillText('QRIS', qrisBadgeX + qrisW / 2, qrisBadgeY + qrisH / 2 + 5);
+          ctx.fillText('QRIS', qrisBadgeX + qrisW / 2, qrisBadgeY + qrisH / 2 + 4);
         }
         
-        // Main content area
-        const contentY = cardY + headerHeight + 30;
-        
-        // Scan to Pay title
+        // ── SCAN TO PAY area ──
+        let cy = cardY + headerHeight + 14;
         ctx.fillStyle = '#374151';
-        ctx.font = 'bold 12px system-ui, -apple-system, sans-serif';
+        ctx.font = 'bold 10px system-ui, -apple-system, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('SCAN TO PAY', cardWidth / 2, contentY);
-        
+        ctx.fillText('SCAN TO PAY', cardWidth / 2, cy);
+        cy += 13;
         ctx.fillStyle = '#9ca3af';
-        ctx.font = '11px system-ui, -apple-system, sans-serif';
-        ctx.fillText(t('dashboard.checkout.useEwalletOrMobileBanking'), cardWidth / 2, contentY + 18);
+        ctx.font = '9px system-ui, -apple-system, sans-serif';
+        ctx.fillText(t('dashboard.checkout.useEwalletOrMobileBanking'), cardWidth / 2, cy);
+        cy += 12;
         
-        // QR Code container
+        // ── QR Code: size 160, padding 8 ──
         const qrSize = 160;
-        const qrX = (cardWidth - qrSize - 24) / 2;
-        const qrY = contentY + 35;
-        
-        // White QR background with border
+        const qrPad = 8;
+        const qrBoxSize = qrSize + qrPad * 2;
+        const qrX = (cardWidth - qrBoxSize) / 2;
+        const qrY = cy;
         ctx.fillStyle = '#ffffff';
         ctx.strokeStyle = '#e5e7eb';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(qrX, qrY, qrSize + 24, qrSize + 24, 12);
+        ctx.roundRect(qrX, qrY, qrBoxSize, qrBoxSize, 10);
         ctx.fill();
         ctx.stroke();
         
-        // Draw QR code
         const qrImg = new Image();
         await new Promise<void>((resolve, reject) => {
-          qrImg.onload = () => {
-            ctx.drawImage(qrImg, qrX + 12, qrY + 12, qrSize, qrSize);
-            resolve();
-          };
+          qrImg.onload = () => { ctx.drawImage(qrImg, qrX + qrPad, qrY + qrPad, qrSize, qrSize); resolve(); };
           qrImg.onerror = reject;
           qrImg.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
         });
+        cy += qrBoxSize + 10;
         
-        // Bank/wallet logo pills below QR
+        // ── Bank pills (text-[7px], px-1 = 4px padding each side) ──
         const banks = [
           { name: "GoPay",     bg: "#00AED6", fg: "#ffffff" },
           { name: "OVO",       bg: "#4C3494", fg: "#ffffff" },
@@ -1059,111 +1036,116 @@ export default function CheckoutPage() {
           { name: "BNI",      bg: "#F78220", fg: "#ffffff" },
           { name: "CIMB",     bg: "#CC0000", fg: "#ffffff" },
         ];
-        const pillH = 14;
-        const pillR = 3;
-        const pillGapX = 4;
-        const pillGapY = 5;
-        const pillFont = 'bold 8px system-ui, -apple-system, sans-serif';
+        const pillH = 12;
+        const pillR = 2;
+        const pillGapX = 3;
+        const pillGapY = 3;
+        const pillFont = 'bold 7px system-ui, -apple-system, sans-serif';
         ctx.font = pillFont;
-        // Measure pill widths
-        const pillWidths = banks.map(b => ctx.measureText(b.name).width + 10);
-        const rowMaxW = cardInnerWidth - 40;
-        // Layout rows
+        const pillWidths = banks.map(b => ctx.measureText(b.name).width + 8);
+        const rowMaxW = cardInnerWidth - 32;
         let rowStart = 0;
         const rows: number[][] = [];
         while (rowStart < banks.length) {
-          let rowW = 0;
-          let end = rowStart;
+          let rowW = 0; let end = rowStart;
           while (end < banks.length && rowW + pillWidths[end] + (end > rowStart ? pillGapX : 0) <= rowMaxW) {
-            rowW += pillWidths[end] + (end > rowStart ? pillGapX : 0);
-            end++;
+            rowW += pillWidths[end] + (end > rowStart ? pillGapX : 0); end++;
           }
-          if (end === rowStart) end = rowStart + 1; // at least one pill per row
+          if (end === rowStart) end = rowStart + 1;
           rows.push(banks.slice(rowStart, end).map((_, i) => rowStart + i));
           rowStart = end;
         }
-        let pillsStartY = qrY + qrSize + 34;
         for (const row of rows) {
           const totalW = row.reduce((s, i) => s + pillWidths[i], 0) + (row.length - 1) * pillGapX;
           let px = (cardWidth - totalW) / 2;
           for (const i of row) {
-            const b = banks[i];
-            const pw = pillWidths[i];
+            const b = banks[i]; const pw = pillWidths[i];
             ctx.fillStyle = b.bg;
-            ctx.beginPath();
-            ctx.roundRect(px, pillsStartY, pw, pillH, pillR);
-            ctx.fill();
-            ctx.fillStyle = b.fg;
-            ctx.font = pillFont;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(b.name, px + pw / 2, pillsStartY + pillH / 2);
+            ctx.beginPath(); ctx.roundRect(px, cy, pw, pillH, pillR); ctx.fill();
+            ctx.fillStyle = b.fg; ctx.font = pillFont;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(b.name, px + pw / 2, cy + pillH / 2);
             px += pw + pillGapX;
           }
-          pillsStartY += pillH + pillGapY;
+          cy += pillH + pillGapY;
         }
         ctx.textBaseline = 'alphabetic';
+        cy += 10;
         
-        // Order Details section with orange left border
-        const detailsY = pillsStartY + 12;
-        const detailsX = cardX + 30;
+        // ── ORDER DETAILS ──
+        const detailsX = cardX + 16;
+        const detailsW = cardInnerWidth - 32;
         
-        // Orange left border
-        ctx.fillStyle = '#f97316';
-        ctx.fillRect(detailsX, detailsY, 4, 80);
-        
-        // ORDER DETAILS title
-        ctx.fillStyle = '#18181b';
-        ctx.font = 'bold 11px system-ui, -apple-system, sans-serif';
+        // Section label
+        ctx.fillStyle = '#7c3aed';
+        ctx.fillRect(detailsX, cy, 3, 12);
+        ctx.fillStyle = '#374151';
+        ctx.font = 'bold 9px system-ui, -apple-system, sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText('ORDER DETAILS', detailsX + 14, detailsY + 14);
+        ctx.fillText('ORDER DETAILS', detailsX + 8, cy + 10);
+        cy += 18;
         
-        // Details rows
-        ctx.font = '11px system-ui, -apple-system, sans-serif';
-        ctx.fillStyle = '#6b7280';
-        ctx.fillText('Product', detailsX + 14, detailsY + 34);
-        ctx.fillStyle = '#18181b';
-        ctx.font = '11px system-ui, -apple-system, sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(`${qrisData.planName} Plan`, cardX + cardInnerWidth - 30, detailsY + 34);
-        
-        ctx.textAlign = 'left';
-        ctx.fillStyle = '#6b7280';
-        ctx.fillText('Period', detailsX + 14, detailsY + 52);
-        ctx.textAlign = 'right';
-        ctx.fillStyle = '#18181b';
-        ctx.fillText(qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly', cardX + cardInnerWidth - 30, detailsY + 52);
-        
-        ctx.textAlign = 'left';
-        ctx.fillStyle = '#6b7280';
-        ctx.fillText('Order ID', detailsX + 14, detailsY + 70);
-        ctx.textAlign = 'right';
-        ctx.fillStyle = '#18181b';
-        ctx.font = '9px monospace';
-        const shortOrderId = qrisData.orderId.length > 24 ? qrisData.orderId.slice(-24) : qrisData.orderId;
-        ctx.fillText(shortOrderId, cardX + cardInnerWidth - 30, detailsY + 70);
-        
-        // Order Details card — light grey background
+        // Card background (drawn first, text on top)
+        const cardBgY = cy;
+        const rowH = 14;
+        const rowGap = 4;
+        const cardPad = 8;
+        const detailsCardH = cardPad + rowH + rowGap + rowH + rowGap + 1 + rowGap + rowH + cardPad;
         ctx.fillStyle = '#f3f4f6';
         ctx.beginPath();
-        ctx.roundRect(detailsX - 4, detailsY - 4, cardInnerWidth - 52, 92, 6);
+        ctx.roundRect(detailsX, cardBgY, detailsW, detailsCardH, 6);
         ctx.fill();
         
-        // Total section at bottom
-        const totalY = detailsY + 106;
-        ctx.fillStyle = '#f4f4f5';
-        ctx.beginPath();
-        ctx.roundRect(cardX + 20, totalY, cardInnerWidth - 40, 50, 8);
-        ctx.fill();
-        
-        ctx.fillStyle = '#6b7280';
+        const textY0 = cardBgY + cardPad + rowH - 2;
         ctx.font = '10px system-ui, -apple-system, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(t('dashboard.checkout.totalPayment'), cardWidth / 2, totalY + 18);
+        ctx.fillStyle = '#6b7280'; ctx.textAlign = 'left';
+        ctx.fillText('Product', detailsX + cardPad, textY0);
+        ctx.fillStyle = '#111827'; ctx.textAlign = 'right'; ctx.font = 'bold 10px system-ui, -apple-system, sans-serif';
+        ctx.fillText(`${qrisData.planName} Plan`, detailsX + detailsW - cardPad, textY0);
         
-        ctx.fillStyle = '#f97316';
-        ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
-        ctx.fillText(`Rp ${(qrisData.amount || 0).toLocaleString('id-ID')}`, cardWidth / 2, totalY + 40);
+        const textY1 = textY0 + rowH + rowGap;
+        ctx.font = '10px system-ui, -apple-system, sans-serif';
+        ctx.fillStyle = '#6b7280'; ctx.textAlign = 'left';
+        ctx.fillText('Period', detailsX + cardPad, textY1);
+        ctx.fillStyle = '#111827'; ctx.textAlign = 'right';
+        ctx.fillText(qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly', detailsX + detailsW - cardPad, textY1);
+        
+        // Dashed divider inside card
+        const divY = textY1 + rowGap;
+        ctx.strokeStyle = '#d1d5db'; ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(detailsX + cardPad, divY); ctx.lineTo(detailsX + detailsW - cardPad, divY); ctx.stroke();
+        ctx.setLineDash([]);
+        
+        const textY2 = divY + rowGap + rowH - 2;
+        ctx.font = '10px system-ui, -apple-system, sans-serif';
+        ctx.fillStyle = '#6b7280'; ctx.textAlign = 'left';
+        ctx.fillText('Order ID', detailsX + cardPad, textY2);
+        ctx.fillStyle = '#111827'; ctx.textAlign = 'right';
+        ctx.font = '8px monospace';
+        const shortOrderId = qrisData.orderId.length > 26 ? qrisData.orderId.slice(-26) : qrisData.orderId;
+        ctx.fillText(shortOrderId, detailsX + detailsW - cardPad, textY2);
+        
+        cy += detailsCardH + 10;
+        
+        // Dashed divider
+        ctx.strokeStyle = '#d1d5db'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(detailsX, cy); ctx.lineTo(detailsX + detailsW, cy); ctx.stroke();
+        ctx.setLineDash([]);
+        cy += 10;
+        
+        // ── TOTAL PAYMENT (py-2 = 16px vertical, text-xl = 18px) ──
+        const totalH = 46;
+        ctx.fillStyle = '#fdf5ff';
+        ctx.beginPath(); ctx.roundRect(detailsX, cy, detailsW, totalH, 8); ctx.fill();
+        ctx.strokeStyle = '#e9d5ff'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.roundRect(detailsX, cy, detailsW, totalH, 8); ctx.stroke();
+        
+        ctx.fillStyle = '#6b7280'; ctx.font = '9px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(t('dashboard.checkout.totalPayment').toUpperCase(), cardWidth / 2, cy + 14);
+        ctx.fillStyle = '#f97316'; ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
+        ctx.fillText(`Rp ${(qrisData.amount || 0).toLocaleString('id-ID')}`, cardWidth / 2, cy + 36);
+        cy += totalH;
         
         // Save as JPG
         canvas.toBlob((jpgBlob) => {
