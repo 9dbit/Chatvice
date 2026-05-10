@@ -28371,6 +28371,10 @@ Please create a comprehensive help center article that would be useful for custo
     return storage.getBoosterConfigs();
   }
 
+  // Seed defaults at startup so /initiate-payment works on a fresh env even
+  // before anyone hits the listing endpoint.
+  ensureBoostersSeeded().catch((e) => console.error("Startup booster seed failed", e));
+
   app.get("/api/marketplace/boosters", async (req, res) => {
     try {
       const configs = await ensureBoostersSeeded();
