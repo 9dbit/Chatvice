@@ -821,7 +821,7 @@ export function AppSidebar() {
               className={`flex items-center gap-2.5 px-2.5 py-1.5 w-full rounded-lg text-sm transition-all duration-200 ${
                 isItemActive("/dashboard/additional-services")
                   ? "bg-accent text-accent-foreground font-medium"
-                  : "text-white hover-elevate"
+                  : "text-purple-600 dark:text-white hover-elevate"
               }`}
             >
               <Sparkles className="w-4 h-4 shrink-0" />
