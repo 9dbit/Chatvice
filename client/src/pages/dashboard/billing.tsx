@@ -2300,9 +2300,7 @@ export default function BillingPage() {
                 </CardHeader>
                 <CardContent className="space-y-4 flex-1">
                   <div>
-                    {isCustom ? (
-                      <span className="text-2xl font-bold">Simulate Your Needs</span>
-                    ) : isFree ? (
+                    {isFree ? (
                       <span className="text-2xl font-bold">$0</span>
                     ) : (() => {
                       const originalPrice = isAnnual ? plan.annualMonthlyDisplay : plan.monthlyDisplay;
