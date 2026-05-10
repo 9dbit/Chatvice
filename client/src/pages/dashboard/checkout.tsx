@@ -50,7 +50,7 @@ import {
 } from "lucide-react";
 import { SiWhatsapp, SiTelegram, SiMessenger, SiPaypal, SiBitcoin, SiEthereum, SiSolana, SiBinance, SiTether, SiRipple } from "react-icons/si";
 import PayPalButton from "@/components/PayPalButton";
-import chatviceLogoImg from "@assets/Chatvice-04_1778414460371.png";
+import chatviceLogoImg from "@assets/Chatvice-02_1778420788538.png";
 import chatviceCryptoLogo from "@assets/Chatvice-04_1767550221276.png";
 import qrisLogoImg from "@assets/IMG_6802_1778414496751.jpeg";
 
@@ -931,8 +931,8 @@ export default function CheckoutPage() {
         ctx.stroke();
         ctx.restore();
         
-        // Header section with border-bottom
-        const headerHeight = 70;
+        // Header section — two-line layout (logo + subtitle | QRIS)
+        const headerHeight = 76;
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(cardX, cardY, cardInnerWidth, headerHeight);
         ctx.strokeStyle = '#d1d5db';
@@ -948,7 +948,7 @@ export default function CheckoutPage() {
         chatviceLogo.crossOrigin = 'anonymous';
         const chatviceLogoLoaded = new Promise<void>((resolve) => {
           chatviceLogo.onload = () => resolve();
-          chatviceLogo.onerror = () => resolve(); // Continue even if logo fails
+          chatviceLogo.onerror = () => resolve();
           chatviceLogo.src = chatviceLogoImg;
         });
         
@@ -964,11 +964,10 @@ export default function CheckoutPage() {
         // Wait for both logos to load
         await Promise.all([chatviceLogoLoaded, qrisLogoLoaded]);
         
-        // Draw Chatvice Logo
+        // Draw Chatvice Logo (left, line 1)
         const logoX = cardX + 20;
-        const logoY = cardY + 15;
-        const chatviceLogoHeight = 28;
-        // Calculate width while maintaining aspect ratio
+        const logoY = cardY + 14;
+        const chatviceLogoHeight = 30;
         const chatviceLogoWidth = chatviceLogo.naturalWidth && chatviceLogo.naturalHeight 
           ? (chatviceLogo.naturalWidth / chatviceLogo.naturalHeight) * chatviceLogoHeight 
           : 120;
@@ -976,35 +975,37 @@ export default function CheckoutPage() {
         if (chatviceLogo.complete && chatviceLogo.naturalWidth > 0) {
           ctx.drawImage(chatviceLogo, logoX, logoY, chatviceLogoWidth, chatviceLogoHeight);
         } else {
-          // Fallback: draw text if logo fails to load
           ctx.fillStyle = '#8b5cf6';
           ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
           ctx.textAlign = 'left';
-          ctx.fillText('Chatvice', logoX, logoY + 20);
+          ctx.fillText('Chatvice', logoX, logoY + 22);
         }
         
-        // Subscription Payment text below logo
+        // "Subscription Payment" text — line 2 below logo
         ctx.fillStyle = '#71717a';
         ctx.font = '10px system-ui, -apple-system, sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText('Subscription Payment', logoX, logoY + chatviceLogoHeight + 12);
+        ctx.fillText('Subscription Payment', logoX, logoY + chatviceLogoHeight + 14);
         
-        // Draw QRIS logo badge (right side)
-        const badgeX = cardX + cardInnerWidth - 90;
-        const badgeY = logoY + 2;
+        // Draw QRIS logo (right side, vertically centred in header)
+        const qrisW = 72;
+        const qrisH = 36;
+        const qrisBadgeX = cardX + cardInnerWidth - qrisW - 16;
+        const qrisBadgeY = cardY + (headerHeight - qrisH) / 2;
 
         if (qrisLogo.complete && qrisLogo.naturalWidth > 0) {
-          const qrisLogoHeight = 28;
-          const qrisLogoWidth = qrisLogo.naturalWidth && qrisLogo.naturalHeight
-            ? (qrisLogo.naturalWidth / qrisLogo.naturalHeight) * qrisLogoHeight
-            : 70;
-          ctx.drawImage(qrisLogo, badgeX, badgeY, qrisLogoWidth, qrisLogoHeight);
+          // Draw with object-contain: scale to fit qrisW×qrisH preserving ratio
+          const ratio = Math.min(qrisW / qrisLogo.naturalWidth, qrisH / qrisLogo.naturalHeight);
+          const dw = qrisLogo.naturalWidth * ratio;
+          const dh = qrisLogo.naturalHeight * ratio;
+          const dx = qrisBadgeX + (qrisW - dw) / 2;
+          const dy = qrisBadgeY + (qrisH - dh) / 2;
+          ctx.drawImage(qrisLogo, dx, dy, dw, dh);
         } else {
-          // Fallback text
           ctx.fillStyle = '#18181b';
           ctx.font = 'bold 13px system-ui';
           ctx.textAlign = 'center';
-          ctx.fillText('QRIS', badgeX + 35, badgeY + 20);
+          ctx.fillText('QRIS', qrisBadgeX + qrisW / 2, qrisBadgeY + qrisH / 2 + 5);
         }
         
         // Main content area
@@ -1045,16 +1046,66 @@ export default function CheckoutPage() {
           qrImg.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
         });
         
-        // Supported apps text
-        const appsY = qrY + qrSize + 45;
-        ctx.fillStyle = '#9ca3af';
-        ctx.font = '10px system-ui, -apple-system, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('GoPay \u2022 OVO \u2022 DANA \u2022 ShopeePay \u2022 LinkAja', cardWidth / 2, appsY);
-        ctx.fillText('BCA \u2022 Mandiri \u2022 BRI \u2022 BNI \u2022 CIMB', cardWidth / 2, appsY + 14);
+        // Bank/wallet logo pills below QR
+        const banks = [
+          { name: "GoPay",     bg: "#00AED6", fg: "#ffffff" },
+          { name: "OVO",       bg: "#4C3494", fg: "#ffffff" },
+          { name: "DANA",      bg: "#108BE3", fg: "#ffffff" },
+          { name: "ShopeePay",bg: "#EE4D2D", fg: "#ffffff" },
+          { name: "LinkAja",  bg: "#E82529", fg: "#ffffff" },
+          { name: "BCA",      bg: "#003A6F", fg: "#ffffff" },
+          { name: "Mandiri",  bg: "#003087", fg: "#F5A623" },
+          { name: "BRI",      bg: "#003282", fg: "#ffffff" },
+          { name: "BNI",      bg: "#F78220", fg: "#ffffff" },
+          { name: "CIMB",     bg: "#CC0000", fg: "#ffffff" },
+        ];
+        const pillH = 14;
+        const pillR = 3;
+        const pillGapX = 4;
+        const pillGapY = 5;
+        const pillFont = 'bold 8px system-ui, -apple-system, sans-serif';
+        ctx.font = pillFont;
+        // Measure pill widths
+        const pillWidths = banks.map(b => ctx.measureText(b.name).width + 10);
+        const rowMaxW = cardInnerWidth - 40;
+        // Layout rows
+        let rowStart = 0;
+        const rows: number[][] = [];
+        while (rowStart < banks.length) {
+          let rowW = 0;
+          let end = rowStart;
+          while (end < banks.length && rowW + pillWidths[end] + (end > rowStart ? pillGapX : 0) <= rowMaxW) {
+            rowW += pillWidths[end] + (end > rowStart ? pillGapX : 0);
+            end++;
+          }
+          if (end === rowStart) end = rowStart + 1; // at least one pill per row
+          rows.push(banks.slice(rowStart, end).map((_, i) => rowStart + i));
+          rowStart = end;
+        }
+        let pillsStartY = qrY + qrSize + 34;
+        for (const row of rows) {
+          const totalW = row.reduce((s, i) => s + pillWidths[i], 0) + (row.length - 1) * pillGapX;
+          let px = (cardWidth - totalW) / 2;
+          for (const i of row) {
+            const b = banks[i];
+            const pw = pillWidths[i];
+            ctx.fillStyle = b.bg;
+            ctx.beginPath();
+            ctx.roundRect(px, pillsStartY, pw, pillH, pillR);
+            ctx.fill();
+            ctx.fillStyle = b.fg;
+            ctx.font = pillFont;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(b.name, px + pw / 2, pillsStartY + pillH / 2);
+            px += pw + pillGapX;
+          }
+          pillsStartY += pillH + pillGapY;
+        }
+        ctx.textBaseline = 'alphabetic';
         
         // Order Details section with orange left border
-        const detailsY = appsY + 40;
+        const detailsY = pillsStartY + 12;
         const detailsX = cardX + 30;
         
         // Orange left border
@@ -1092,8 +1143,14 @@ export default function CheckoutPage() {
         const shortOrderId = qrisData.orderId.length > 24 ? qrisData.orderId.slice(-24) : qrisData.orderId;
         ctx.fillText(shortOrderId, cardX + cardInnerWidth - 30, detailsY + 70);
         
+        // Order Details card — light grey background
+        ctx.fillStyle = '#f3f4f6';
+        ctx.beginPath();
+        ctx.roundRect(detailsX - 4, detailsY - 4, cardInnerWidth - 52, 92, 6);
+        ctx.fill();
+        
         // Total section at bottom
-        const totalY = detailsY + 100;
+        const totalY = detailsY + 106;
         ctx.fillStyle = '#f4f4f5';
         ctx.beginPath();
         ctx.roundRect(cardX + 20, totalY, cardInnerWidth - 40, 50, 8);
@@ -1873,16 +1930,18 @@ export default function CheckoutPage() {
             id="qris-receipt"
           >
             {/* Top Header with Logos */}
-            <div className="bg-white px-5 py-4 border-b border-dashed border-gray-300">
+            <div className="bg-white px-5 py-3 border-b border-dashed border-gray-300">
               <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-0.5">
                   {/* Chatvice Real Logo */}
-                  <img src={chatviceLogoImg} alt="Chatvice" className="h-7 w-auto object-contain" />
-                  <p className="text-[10px] text-gray-500">Subscription Payment</p>
+                  <img src={chatviceLogoImg} alt="Chatvice" className="h-8 w-auto object-contain object-left" />
+                  <p className="text-[10px] text-gray-500 leading-none">Subscription Payment</p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {/* QRIS Logo */}
-                  <img src={qrisLogoImg} alt="QRIS" className="h-6 w-auto object-contain" />
+                  {/* QRIS Logo - masked & enlarged */}
+                  <div className="w-20 h-10 overflow-hidden rounded flex items-center justify-center bg-white">
+                    <img src={qrisLogoImg} alt="QRIS" className="w-full h-full object-contain" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1926,12 +1985,28 @@ export default function CheckoutPage() {
                     )}
                   </div>
                   
-                  {/* Supported Apps */}
-                  <div className="text-center">
-                    <p className="text-[9px] text-gray-400 dark:text-gray-500 leading-relaxed">
-                      GoPay • OVO • DANA • ShopeePay • LinkAja<br/>
-                      BCA • Mandiri • BRI • BNI • CIMB
-                    </p>
+                  {/* Supported Apps - Bank/Wallet Logo Pills */}
+                  <div className="flex flex-wrap justify-center gap-1.5 max-w-[260px]">
+                    {[
+                      { name: "GoPay",      bg: "#00AED6", text: "#fff" },
+                      { name: "OVO",        bg: "#4C3494", text: "#fff" },
+                      { name: "DANA",       bg: "#108BE3", text: "#fff" },
+                      { name: "ShopeePay", bg: "#EE4D2D", text: "#fff" },
+                      { name: "LinkAja",   bg: "#E82529", text: "#fff" },
+                      { name: "BCA",       bg: "#003A6F", text: "#fff" },
+                      { name: "Mandiri",   bg: "#003087", text: "#F5A623" },
+                      { name: "BRI",       bg: "#003282", text: "#fff" },
+                      { name: "BNI",       bg: "#F78220", text: "#fff" },
+                      { name: "CIMB",      bg: "#CC0000", text: "#fff" },
+                    ].map((b) => (
+                      <span
+                        key={b.name}
+                        style={{ backgroundColor: b.bg, color: b.text }}
+                        className="text-[8px] font-bold px-1.5 py-0.5 rounded-sm leading-none"
+                      >
+                        {b.name}
+                      </span>
+                    ))}
                   </div>
                 </div>
                 
@@ -1947,18 +2022,18 @@ export default function CheckoutPage() {
                       <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Order Details</span>
                     </div>
                     
-                    <div className="space-y-2 bg-gray-50 dark:bg-zinc-800 rounded-lg p-3">
+                    <div className="space-y-2 bg-gray-100 rounded-lg p-3">
                       <div className="flex justify-between text-xs">
-                        <span className="text-gray-500 dark:text-gray-400">Product</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{qrisData.planName} Plan</span>
+                        <span className="text-gray-500">Product</span>
+                        <span className="font-semibold text-gray-900">{qrisData.planName} Plan</span>
                       </div>
                       <div className="flex justify-between text-xs">
-                        <span className="text-gray-500 dark:text-gray-400">Period</span>
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</span>
+                        <span className="text-gray-500">Period</span>
+                        <span className="font-medium text-gray-700">{qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</span>
                       </div>
-                      <div className="border-t border-dashed border-gray-200 dark:border-zinc-700 pt-2">
+                      <div className="border-t border-dashed border-gray-300 pt-2">
                         <div className="flex justify-between text-xs items-start">
-                          <span className="text-gray-500 dark:text-gray-400">Order ID</span>
+                          <span className="text-gray-500">Order ID</span>
                           <button 
                             onClick={() => copyToClipboard(qrisData.orderId)}
                             className="font-mono text-[10px] text-gray-600 dark:text-gray-400 hover:text-primary flex items-center gap-1 text-right"
