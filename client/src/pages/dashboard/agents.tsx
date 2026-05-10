@@ -858,26 +858,68 @@ export default function AgentsPage() {
                   <FormField
                     control={form.control}
                     name="systemPrompt"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Zap className="w-4 h-4" />
-                          Custom System Prompt (Optional)
-                        </FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Additional instructions for the AI agent..."
-                            className="min-h-[80px]"
-                            data-testid="input-agent-system-prompt"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription className="text-xs">
-                          Custom instructions in addition to tone style settings
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const value = (field.value || "") as string;
+                      const approxTokens = Math.ceil(value.length / 4);
+                      const MAX_TOKENS = 800;
+                      const pct = Math.min(100, (approxTokens / MAX_TOKENS) * 100);
+                      const overLimit = approxTokens > MAX_TOKENS;
+                      const nearLimit = !overLimit && approxTokens > MAX_TOKENS * 0.8;
+                      return (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            <Zap className="w-4 h-4" />
+                            Custom System Prompt (Optional)
+                          </FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Additional instructions for the AI agent..."
+                              className="min-h-[80px]"
+                              data-testid="input-agent-system-prompt"
+                              {...field}
+                            />
+                          </FormControl>
+                          <div className="flex items-center justify-between gap-3 mt-1.5">
+                            <FormDescription className="text-xs">
+                              Custom instructions in addition to tone style settings
+                            </FormDescription>
+                            <span
+                              className={`text-[11px] tabular-nums ${
+                                overLimit
+                                  ? "text-amber-600 dark:text-amber-400 font-medium"
+                                  : nearLimit
+                                    ? "text-amber-600 dark:text-amber-400"
+                                    : "text-muted-foreground"
+                              }`}
+                              data-testid="text-prompt-token-count"
+                            >
+                              ~{approxTokens.toLocaleString("id-ID")} / {MAX_TOKENS} tokens
+                            </span>
+                          </div>
+                          <div className="h-1 w-full bg-muted rounded-full overflow-hidden mt-1">
+                            <div
+                              className={`h-full transition-all ${
+                                overLimit
+                                  ? "bg-amber-500"
+                                  : nearLimit
+                                    ? "bg-amber-400"
+                                    : "bg-primary/60"
+                              }`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          {overLimit && (
+                            <p
+                              className="text-[11px] text-amber-700 dark:text-amber-300 mt-1.5"
+                              data-testid="text-prompt-token-warning"
+                            >
+                              Prompt melebihi {MAX_TOKENS} token. Bagian setelah batas akan dipotong otomatis di sisi AI untuk efisiensi biaya — pertimbangkan memindahkan detail ke Knowledge Base.
+                            </p>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                   </div>
                   </ScrollArea>
