@@ -1,7 +1,7 @@
 import { randomBytes } from 'crypto';
 import { verifyWebhookSignature, getActiveGatewayName } from './twelvePayClient';
 import { storage } from './storage';
-import { subscriptionPlans, type SubscriptionPlanId, type BoosterEntitlementSnapshot, type BoosterConfig } from '@shared/schema';
+import { subscriptionPlans, type SubscriptionPlanId, type BoosterEntitlementSnapshot, type BoosterQuotaField } from '@shared/schema';
 import { getEffectiveSubscriptionPlan } from './subscriptionPlanUtils';
 import { sendPaymentReceiptEmail, sendAdminPaymentNotificationEmail } from './resendClient';
 
@@ -130,32 +130,30 @@ export class PaymentWebhookHandler {
       // pending payments created before snapshotting was added).
       const gw = (txForMerchant.gatewayResponse ?? {}) as { snapshot?: BoosterEntitlementSnapshot };
       const snap = gw.snapshot;
-      const allowedQuotaFields: ReadonlySet<string> = new Set([
+      const allowedQuotaFields: ReadonlySet<BoosterQuotaField> = new Set<BoosterQuotaField>([
         'extraSupervisorSlots','extraAgentSlots','extraDomainSlots',
         'extraSourceSlots','extraVisionQuota','extraConversationsBalance',
       ]);
-      let booster: BoosterConfig;
-      if (snap && allowedQuotaFields.has(snap.quotaField) && typeof snap.quotaAmount === 'number') {
-        booster = {
-          id: `snapshot:${boosterType}`,
-          boosterType,
-          name: snap.name || boosterType,
-          quotaField: snap.quotaField,
-          quotaAmount: snap.quotaAmount,
-          priceUsd: snap.priceUsd ?? 0,
-          billingMode: snap.billingMode ?? 'one_time',
-          iconName: '',
-          gradientFrom: '',
-          gradientTo: '',
-          sortOrder: 0,
-          isFeatured: false,
-          isEnabled: true,
-          createdAt: new Date(),
-        };
+      let entitlement: BoosterEntitlementSnapshot;
+      if (
+        snap &&
+        allowedQuotaFields.has(snap.quotaField) &&
+        typeof snap.quotaAmount === 'number'
+      ) {
+        entitlement = snap;
       } else {
         const live = await storage.getBoosterConfig(boosterType);
         if (!live) return { success: false, message: 'Booster config not found' };
-        booster = live;
+        if (!allowedQuotaFields.has(live.quotaField as BoosterQuotaField)) {
+          return { success: false, message: `Invalid booster quotaField: ${live.quotaField}` };
+        }
+        entitlement = {
+          name: live.name,
+          quotaField: live.quotaField as BoosterQuotaField,
+          quotaAmount: live.quotaAmount,
+          priceUsd: live.priceUsd,
+          billingMode: live.billingMode === 'monthly' ? 'monthly' : 'one_time',
+        };
       }
 
       // True idempotency + atomicity: require a pending payment_transactions
@@ -175,7 +173,7 @@ export class PaymentWebhookHandler {
         outcome = await storage.fulfillBoosterPaymentAtomic({
           paymentTransactionId: existingTx.id,
           merchantId,
-          booster,
+          entitlement,
           paidAt: paid_at ? new Date(paid_at) : new Date(),
         });
       } catch (e: any) {
@@ -195,7 +193,7 @@ export class PaymentWebhookHandler {
         merchantId,
         type: 'invoice',
         title: 'Booster Activated',
-        message: `Your ${booster.name} has been added to your account.`,
+        message: `Your ${entitlement.name} has been added to your account.`,
         metadata: { boosterType, transactionId: transaction_id, amount },
         isRead: false,
       });

@@ -1,7 +1,7 @@
 import {
   type AddonConfig, type InsertAddonConfig,
   type MerchantAddon, type InsertMerchantAddon,
-  type BoosterConfig, type InsertBoosterConfig, type BoosterQuotaField,
+  type BoosterConfig, type InsertBoosterConfig, type BoosterQuotaField, type BoosterEntitlementSnapshot,
   type HospitalityConfig, type InsertHospitalityConfig,
   type CustomDataSource, type InsertCustomDataSource,
   type CustomDataIntent, type InsertCustomDataIntent,
@@ -600,11 +600,11 @@ export interface IStorage {
   getBoosterConfigs(): Promise<BoosterConfig[]>;
   getBoosterConfig(boosterType: string): Promise<BoosterConfig | undefined>;
   upsertBoosterConfig(data: InsertBoosterConfig): Promise<BoosterConfig>;
-  applyBoosterToMerchant(merchantId: string, booster: BoosterConfig): Promise<void>;
+  applyBoosterToMerchant(merchantId: string, entitlement: BoosterEntitlementSnapshot): Promise<void>;
   fulfillBoosterPaymentAtomic(params: {
     paymentTransactionId: string;
     merchantId: string;
-    booster: BoosterConfig;
+    entitlement: BoosterEntitlementSnapshot;
     paidAt: Date;
   }): Promise<"applied" | "already_processed" | "tx_not_found">;
   upsertAddonConfig(data: InsertAddonConfig): Promise<AddonConfig>;
@@ -4430,23 +4430,12 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
-  async applyBoosterToMerchant(merchantId: string, booster: BoosterConfig): Promise<void> {
+  async applyBoosterToMerchant(merchantId: string, entitlement: BoosterEntitlementSnapshot): Promise<void> {
     const merchant = await this.getMerchant(merchantId);
     if (!merchant) throw new Error("Merchant not found");
-    const allowedFields = new Set([
-      "extraSupervisorSlots",
-      "extraAgentSlots",
-      "extraDomainSlots",
-      "extraSourceSlots",
-      "extraVisionQuota",
-      "extraConversationsBalance",
-    ]);
-    if (!allowedFields.has(booster.quotaField)) {
-      throw new Error(`Invalid booster quotaField: ${booster.quotaField}`);
-    }
-    const field = booster.quotaField as BoosterQuotaField;
+    const field = entitlement.quotaField;
     const current = merchant[field] ?? 0;
-    const next = current + (booster.quotaAmount || 0);
+    const next = current + (entitlement.quotaAmount || 0);
     await this.updateMerchant(merchantId, { [field]: next });
   }
 
@@ -4466,20 +4455,9 @@ export class DatabaseStorage implements IStorage {
   async fulfillBoosterPaymentAtomic(params: {
     paymentTransactionId: string;
     merchantId: string;
-    booster: BoosterConfig;
+    entitlement: BoosterEntitlementSnapshot;
     paidAt: Date;
   }): Promise<"applied" | "already_processed" | "tx_not_found"> {
-    const allowedFields = new Set([
-      "extraSupervisorSlots",
-      "extraAgentSlots",
-      "extraDomainSlots",
-      "extraSourceSlots",
-      "extraVisionQuota",
-      "extraConversationsBalance",
-    ]);
-    if (!allowedFields.has(params.booster.quotaField)) {
-      throw new Error(`Invalid booster quotaField: ${params.booster.quotaField}`);
-    }
     return await db.transaction(async (tx) => {
       // Conditional flip pending → paid. RETURNING gives us 1 row only when
       // the row was actually flipped (not when it was already 'paid').
@@ -4510,9 +4488,9 @@ export class DatabaseStorage implements IStorage {
         .from(merchants)
         .where(eq(merchants.id, params.merchantId));
       if (!merchantRow) throw new Error("Merchant not found");
-      const field = params.booster.quotaField as BoosterQuotaField;
+      const field = params.entitlement.quotaField;
       const current = merchantRow[field] ?? 0;
-      const next = current + (params.booster.quotaAmount || 0);
+      const next = current + (params.entitlement.quotaAmount || 0);
       await tx
         .update(merchants)
         .set({ [field]: next })
