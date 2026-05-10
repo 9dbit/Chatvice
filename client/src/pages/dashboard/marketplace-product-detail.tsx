@@ -172,6 +172,21 @@ export default function MarketplaceProductDetailPage() {
     return a.isActive || !!onTrial;
   };
 
+  const getAddonTrialEndsAt = (addonType: string): Date | null => {
+    const a = merchantAddons.find((m) => m.addonType === addonType);
+    if (!a || !a.trialEndsAt) return null;
+    const d = new Date(a.trialEndsAt);
+    return d > new Date() ? d : null;
+  };
+
+  const formatTrialDate = (date: Date): string => {
+    return date.toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
   const subscribeAddonMutation = useMutation({
     mutationFn: async (addonType: string) => {
       const res = await fetch("/api/merchant/addons/initiate-payment", {
@@ -265,6 +280,7 @@ export default function MarketplaceProductDetailPage() {
       to: "to-purple-700",
     };
     const active = isAddonActive(addon.addonType);
+    const trialEndsAt = getAddonTrialEndsAt(addon.addonType);
     const isPending =
       subscribeAddonMutation.isPending &&
       subscribeAddonMutation.variables === addon.addonType;
@@ -292,7 +308,9 @@ export default function MarketplaceProductDetailPage() {
                 Add-on ini sedang aktif
               </p>
               <p className="text-xs text-green-700/80 dark:text-green-400/80 mt-0.5">
-                {addon.name} sudah berjalan di akun Anda.
+                {trialEndsAt
+                  ? `Masa percobaan berakhir ${formatTrialDate(trialEndsAt)}`
+                  : `${addon.name} sudah berjalan di akun Anda.`}
               </p>
             </div>
           </div>
