@@ -151,7 +151,10 @@ export default function MarketplacePage() {
         body: JSON.stringify({ addonType, paymentMethod: "12pay" }),
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body.error || "Failed to start payment");
+      if (!res.ok) {
+        const msg = typeof body.error === "string" ? body.error : body.error ? JSON.stringify(body.error) : "Failed to start payment";
+        throw new Error(msg);
+      }
       return body as InitiatePaymentResponse;
     },
     onSuccess: (payment, addonType) => {
@@ -176,7 +179,10 @@ export default function MarketplacePage() {
         body: JSON.stringify({ boosterType, paymentMethod: "12pay" }),
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body.error || "Failed to start payment");
+      if (!res.ok) {
+        const msg = typeof body.error === "string" ? body.error : body.error ? JSON.stringify(body.error) : "Failed to start payment";
+        throw new Error(msg);
+      }
       return body as InitiatePaymentResponse;
     },
     onSuccess: (payment, boosterType) => {
