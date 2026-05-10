@@ -28429,6 +28429,10 @@ Please create a comprehensive help center article that would be useful for custo
         return res.status(400).json({ error: "boosterType and paymentMethod required" });
       }
 
+      // Cold-start robustness: if startup seeding failed and the listing
+      // endpoint was never hit, the booster row may not yet exist. Force a
+      // seed pass before lookup so /initiate-payment never 404s on a fresh env.
+      await ensureBoostersSeeded();
       const booster = await storage.getBoosterConfig(boosterType);
       if (!booster || !booster.isEnabled) return res.status(404).json({ error: "Booster not available" });
 
