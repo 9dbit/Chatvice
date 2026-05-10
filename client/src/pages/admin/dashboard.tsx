@@ -131,6 +131,8 @@ import {
   Sun,
   Moon,
   Mail,
+  PiggyBank,
+  ArrowUpDown,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -405,6 +407,7 @@ export default function AdminDashboard() {
     { id: "reports", label: "Performance", icon: TrendingUp },
     { id: "usage", label: "Data Usage", icon: Database },
     { id: "billing", label: "Billing", icon: CreditCard },
+    { id: "cost-monitor", label: "Cost Monitor", icon: PiggyBank },
     { id: "transactions", label: "Transactions", icon: FileText },
     { id: "payment", label: "Payment Integration", icon: Zap },
     { id: "menuorder", label: "Menu Order", icon: Layers },
@@ -591,6 +594,7 @@ export default function AdminDashboard() {
             {activeTab === "usage" && <UsageTab stats={stats} />}
             
             {activeTab === "billing" && <BillingTab stats={stats} />}
+            {activeTab === "cost-monitor" && <CostMonitorTab />}
             
             {activeTab === "transactions" && <TransactionsTab toast={toast} />}
             
@@ -9020,6 +9024,340 @@ interface TransactionData {
   createdAt: string;
   paidAt: string | null;
   expiresAt: string | null;
+}
+
+interface CostMonitorMerchantRow {
+  merchantId: string;
+  email: string;
+  companyName: string;
+  subscriptionPlanId: string;
+  subscriptionStatus: string;
+  billingInterval: string;
+  conversationsUsed: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  requests: number;
+  costUsd: number;
+  costIdr: number;
+  mrrIdr: number;
+  costToRevenueRatio: number | null;
+  unprofitable: boolean;
+}
+
+interface CostMonitorResponse {
+  days: number;
+  since: string;
+  merchants: CostMonitorMerchantRow[];
+  totals: {
+    totalCostIdr: number;
+    totalMrrIdr: number;
+    totalTokens: number;
+    unprofitableCount: number;
+    merchantCount: number;
+    netMarginIdr: number;
+    marginPercent: number | null;
+  };
+}
+
+type CostMonitorSortKey = "name" | "plan" | "tokens" | "cost" | "mrr" | "ratio";
+
+function CostMonitorTab() {
+  const [days, setDays] = useState<string>("30");
+  const [sortKey, setSortKey] = useState<CostMonitorSortKey>("ratio");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [search, setSearch] = useState("");
+
+  const { data, isLoading } = useQuery<CostMonitorResponse>({
+    queryKey: [`/api/admin/cost-monitor?days=${days}`],
+  });
+
+  const formatIdr = (n: number): string => {
+    const sign = n < 0 ? "-" : "";
+    const abs = Math.abs(n);
+    if (abs >= 1_000_000_000) return `${sign}Rp ${(abs / 1_000_000_000).toFixed(2)} M`;
+    if (abs >= 1_000_000) return `${sign}Rp ${(abs / 1_000_000).toFixed(2)} jt`;
+    if (abs >= 1_000) return `${sign}Rp ${Math.round(abs / 1_000).toLocaleString("id-ID")} rb`;
+    return `${sign}Rp ${abs.toLocaleString("id-ID")}`;
+  };
+
+  const handleSort = (key: CostMonitorSortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "name" || key === "plan" ? "asc" : "desc");
+    }
+  };
+
+  const sortedRows = useMemo(() => {
+    if (!data?.merchants) return [];
+    const filtered = search.trim()
+      ? data.merchants.filter(m =>
+          (m.companyName || "").toLowerCase().includes(search.toLowerCase()) ||
+          (m.email || "").toLowerCase().includes(search.toLowerCase())
+        )
+      : data.merchants;
+    const sorted = [...filtered].sort((a, b) => {
+      // For the ratio column, always push merchants with no MRR (null ratio)
+      // to the bottom regardless of sort direction.
+      if (sortKey === "ratio") {
+        const aNull = a.costToRevenueRatio === null;
+        const bNull = b.costToRevenueRatio === null;
+        if (aNull && !bNull) return 1;
+        if (!aNull && bNull) return -1;
+        if (aNull && bNull) return 0;
+      }
+      let av: number | string = 0;
+      let bv: number | string = 0;
+      switch (sortKey) {
+        case "name": av = (a.companyName || a.email).toLowerCase(); bv = (b.companyName || b.email).toLowerCase(); break;
+        case "plan": av = a.subscriptionPlanId; bv = b.subscriptionPlanId; break;
+        case "tokens": av = a.totalTokens; bv = b.totalTokens; break;
+        case "cost": av = a.costIdr; bv = b.costIdr; break;
+        case "mrr": av = a.mrrIdr; bv = b.mrrIdr; break;
+        case "ratio":
+          av = a.costToRevenueRatio as number;
+          bv = b.costToRevenueRatio as number;
+          break;
+      }
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [data, search, sortKey, sortDir]);
+
+  const handleExport = () => {
+    if (!data) return;
+    const rows = sortedRows.map(r => ({
+      merchant: r.companyName,
+      email: r.email,
+      plan: r.subscriptionPlanId,
+      status: r.subscriptionStatus,
+      total_tokens: r.totalTokens,
+      requests: r.requests,
+      openai_cost_usd: r.costUsd,
+      openai_cost_idr: r.costIdr,
+      mrr_idr: r.mrrIdr,
+      cost_to_revenue_pct: r.costToRevenueRatio ?? "",
+      unprofitable: r.unprofitable ? "yes" : "",
+    }));
+    const columns = [
+      { key: "merchant", label: "Merchant" },
+      { key: "email", label: "Email" },
+      { key: "plan", label: "Plan" },
+      { key: "status", label: "Status" },
+      { key: "total_tokens", label: "Total Tokens" },
+      { key: "requests", label: "Requests" },
+      { key: "openai_cost_usd", label: "OpenAI Cost (USD)" },
+      { key: "openai_cost_idr", label: "OpenAI Cost (IDR)" },
+      { key: "mrr_idr", label: "MRR (IDR)" },
+      { key: "cost_to_revenue_pct", label: "Cost/Revenue %" },
+      { key: "unprofitable", label: "Unprofitable" },
+    ];
+    const csv = generateCSV(rows, columns);
+    downloadCSV(csv, `cost_monitor_${days}d_${format(new Date(), "yyyy-MM-dd")}.csv`);
+  };
+
+  const SortHeader = ({ k, label, className }: { k: CostMonitorSortKey; label: string; className?: string }) => (
+    <TableHead className={className}>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 hover-elevate active-elevate-2 px-2 py-1 rounded-md"
+        onClick={() => handleSort(k)}
+        data-testid={`button-sort-${k}`}
+      >
+        {label}
+        <ArrowUpDown className={`w-3 h-3 ${sortKey === k ? "text-foreground" : "text-muted-foreground"}`} />
+      </button>
+    </TableHead>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-cost-monitor-title">
+          <PiggyBank className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+          Cost Monitor
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Per-merchant OpenAI token usage, cost, MRR, and cost-to-revenue ratio. Lower ratio = healthier margin.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs text-muted-foreground font-normal">Total OpenAI Cost</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold" data-testid="text-total-openai-cost">
+              {data ? formatIdr(data.totals.totalCostIdr) : "—"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Last {days} days</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs text-muted-foreground font-normal">Total MRR (active)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold" data-testid="text-total-mrr">
+              {data ? formatIdr(data.totals.totalMrrIdr) : "—"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Active subscriptions only</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs text-muted-foreground font-normal">Net Margin</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p
+              className={`text-2xl font-bold ${data && data.totals.netMarginIdr >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}
+              data-testid="text-net-margin"
+            >
+              {data ? formatIdr(data.totals.netMarginIdr) : "—"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {data?.totals.marginPercent !== null && data?.totals.marginPercent !== undefined
+                ? `${data.totals.marginPercent}% margin`
+                : "No paid revenue yet"}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs text-muted-foreground font-normal">Unprofitable Merchants</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p
+              className={`text-2xl font-bold ${data && data.totals.unprofitableCount > 0 ? "text-amber-600 dark:text-amber-400" : ""}`}
+              data-testid="text-unprofitable-count"
+            >
+              {data ? data.totals.unprofitableCount : "—"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Cost &gt; MRR</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle>Per-merchant breakdown</CardTitle>
+              <CardDescription>Sortable. Snapshot from `merchant_token_usage_daily`.</CardDescription>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Cari merchant..."
+                  className="pl-9 w-48"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  data-testid="input-search-cost-monitor"
+                />
+              </div>
+              <Select value={days} onValueChange={setDays}>
+                <SelectTrigger className="w-32" data-testid="select-cost-monitor-days">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Last 7 days</SelectItem>
+                  <SelectItem value="30">Last 30 days</SelectItem>
+                  <SelectItem value="90">Last 90 days</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" onClick={handleExport} data-testid="button-export-cost-monitor">
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <SortHeader k="name" label="Merchant" />
+                  <SortHeader k="plan" label="Plan" />
+                  <SortHeader k="tokens" label="Tokens" className="text-right" />
+                  <SortHeader k="cost" label="OpenAI Cost" className="text-right" />
+                  <SortHeader k="mrr" label="MRR" className="text-right" />
+                  <SortHeader k="ratio" label="Cost/Rev %" className="text-right" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      Loading...
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!isLoading && sortedRows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      No merchants found.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {sortedRows.map(r => (
+                  <TableRow key={r.merchantId} data-testid={`row-cost-merchant-${r.merchantId}`}>
+                    <TableCell>
+                      <div className="font-medium" data-testid={`text-merchant-name-${r.merchantId}`}>{r.companyName}</div>
+                      <div className="text-xs text-muted-foreground">{r.email}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">
+                        {r.subscriptionPlanId}
+                      </Badge>
+                      {r.subscriptionStatus !== 'active' && (
+                        <div className="text-xs text-muted-foreground mt-1 capitalize">{r.subscriptionStatus}</div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-xs">
+                      <div data-testid={`text-tokens-${r.merchantId}`}>{r.totalTokens.toLocaleString("id-ID")}</div>
+                      <div className="text-muted-foreground">{r.requests} req</div>
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-xs">
+                      <div data-testid={`text-cost-idr-${r.merchantId}`}>{formatIdr(r.costIdr)}</div>
+                      <div className="text-muted-foreground">${r.costUsd.toFixed(4)}</div>
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-xs" data-testid={`text-mrr-${r.merchantId}`}>
+                      {r.mrrIdr > 0 ? formatIdr(r.mrrIdr) : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {r.costToRevenueRatio === null ? (
+                        <span className="text-xs text-muted-foreground">n/a</span>
+                      ) : (
+                        <Badge
+                          className={
+                            r.unprofitable
+                              ? "bg-amber-600 text-white"
+                              : r.costToRevenueRatio > 50
+                                ? "bg-yellow-600 text-white"
+                                : "bg-emerald-600 text-white"
+                          }
+                          data-testid={`badge-ratio-${r.merchantId}`}
+                        >
+                          {r.costToRevenueRatio}%
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 function TransactionsTab({ toast }: { toast: any }) {

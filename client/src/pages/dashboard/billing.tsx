@@ -25,6 +25,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
+import { AiSavingsCard } from "@/components/dashboard/ai-savings-card";
 import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp, QrCode, Timer, RefreshCw, Download, XCircle, Tag, Smartphone, Copy, ShieldCheck, FileText, ArrowRight, CreditCard, X, Bot, Database, Hotel, CheckCircle } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -1027,6 +1028,8 @@ export default function BillingPage() {
           {t("dashboard.billing.subtitle")}
         </p>
       </div>
+
+      <AiSavingsCard />
 
       {showSuccessMessage && (
         <Card className="border-green-500/50 bg-green-500/10">

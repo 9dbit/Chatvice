@@ -778,6 +778,30 @@ async function migrateLegacyCrawledLinks(): Promise<void> {
   }
 }
 
+async function runDailyTokenUsageMaintenance(): Promise<void> {
+  try {
+    // Keep 90 days of per-day token usage; older rows are aggregated already in
+    // dashboards and not needed for the admin cost-monitor view.
+    const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const removed = await storage.cleanupOldTokenUsage(cutoff);
+    if (removed > 0) {
+      console.log(`[token-usage] Pruned ${removed} token-usage rows older than ${cutoff}`);
+    }
+  } catch (err) {
+    console.error("[token-usage] Daily maintenance error:", err);
+  }
+}
+
+function scheduleDailyTokenUsageMaintenance(): void {
+  // Runs once at startup and then every 24 hours. Keeps the daily snapshot
+  // table fast for the admin cost-monitor query.
+  setTimeout(() => runDailyTokenUsageMaintenance(), 60 * 1000);
+  setInterval(() => runDailyTokenUsageMaintenance(), 24 * 60 * 60 * 1000);
+  console.log("[token-usage] Daily token-usage maintenance scheduled (24h interval)");
+}
+
 function scheduleDailyBlogGeneration(): void {
   const now = new Date();
   const next01UTC = new Date(Date.UTC(
@@ -949,6 +973,7 @@ function startBackgroundSync(): void {
 
   setTimeout(() => seedBlogPostsFromStaticData().catch(err => console.error("[blog-gen] Seed error:", err)), 8000);
   scheduleDailyBlogGeneration();
+  scheduleDailyTokenUsageMaintenance();
 
   // Custom Data Source connector — health monitor (every 60s).
   // Pings every enabled merchant's panel API and alerts when error rate spikes.

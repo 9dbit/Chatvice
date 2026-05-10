@@ -2856,3 +2856,26 @@ export const insertBlastCampaignSchema = createInsertSchema(blastCampaigns).omit
 export type InsertBlastCampaign = z.infer<typeof insertBlastCampaignSchema>;
 export type BlastCampaign = typeof blastCampaigns.$inferSelect;
 
+// Daily aggregated OpenAI/LLM token usage per merchant per model
+// Used for the merchant savings widget and the admin cost-monitor table.
+// Cost is stored as `cost_micro_usd` (integer micro-USD = USD * 1_000_000)
+// to avoid floating-point drift across many incremental updates.
+export const merchantTokenUsageDaily = pgTable("merchant_token_usage_daily", {
+  id: varchar("id", { length: 32 }).primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  date: text("date").notNull(), // YYYY-MM-DD (UTC)
+  model: text("model").notNull(),
+  promptTokens: integer("prompt_tokens").default(0).notNull(),
+  completionTokens: integer("completion_tokens").default(0).notNull(),
+  requests: integer("requests").default(0).notNull(),
+  costMicroUsd: integer("cost_micro_usd").default(0).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  uniq: uniqueIndex("merchant_token_usage_daily_uniq").on(table.merchantId, table.date, table.model),
+  merchantIdx: index("merchant_token_usage_daily_merchant_idx").on(table.merchantId),
+  dateIdx: index("merchant_token_usage_daily_date_idx").on(table.date),
+}));
+
+export type MerchantTokenUsageDaily = typeof merchantTokenUsageDaily.$inferSelect;
+export type InsertMerchantTokenUsageDaily = typeof merchantTokenUsageDaily.$inferInsert;
+

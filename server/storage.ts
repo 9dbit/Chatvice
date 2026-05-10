@@ -100,6 +100,7 @@ import {
   messagingBridgeSessions, type MessagingBridgeSession, type InsertMessagingBridgeSession,
   blogPosts, type BlogPost, type InsertBlogPost,
   blogGenerationLogs, type BlogGenerationLog, type InsertBlogGenerationLog,
+  merchantTokenUsageDaily, type MerchantTokenUsageDaily,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, gt, and, or, lt, isNull, isNotNull, sql, count, inArray, ne, SQL } from "drizzle-orm";
@@ -678,6 +679,12 @@ export interface IStorage {
   updateAppointment(id: string, data: Partial<Appointment>): Promise<Appointment | undefined>;
   cancelAppointment(id: string): Promise<Appointment | undefined>;
   getAppointmentsBySession(sessionId: string): Promise<Appointment[]>;
+
+  // Token usage tracking (OpenAI cost monitoring)
+  recordTokenUsage(merchantId: string, model: string, promptTokens: number, completionTokens: number, costMicroUsd: number): Promise<void>;
+  getMerchantTokenUsageSummary(merchantId: string, since: Date): Promise<{ promptTokens: number; completionTokens: number; requests: number; costMicroUsd: number }>;
+  getAllMerchantsTokenUsageSummary(since: Date): Promise<Array<{ merchantId: string; promptTokens: number; completionTokens: number; requests: number; costMicroUsd: number }>>;
+  cleanupOldTokenUsage(beforeDate: string): Promise<number>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -4798,6 +4805,104 @@ export class DatabaseStorage implements IStorage {
 
   async getAppointmentsBySession(sessionId: string): Promise<Appointment[]> {
     return db.select().from(appointments).where(eq(appointments.sessionId, sessionId)).orderBy(desc(appointments.createdAt));
+  }
+
+  async recordTokenUsage(
+    merchantId: string,
+    model: string,
+    promptTokens: number,
+    completionTokens: number,
+    costMicroUsd: number,
+  ): Promise<void> {
+    const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD UTC
+    const safePrompt = Math.max(0, Math.round(promptTokens || 0));
+    const safeCompletion = Math.max(0, Math.round(completionTokens || 0));
+    const safeCost = Math.max(0, Math.round(costMicroUsd || 0));
+
+    await db
+      .insert(merchantTokenUsageDaily)
+      .values({
+        id: generateId(),
+        merchantId,
+        date,
+        model,
+        promptTokens: safePrompt,
+        completionTokens: safeCompletion,
+        requests: 1,
+        costMicroUsd: safeCost,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: [
+          merchantTokenUsageDaily.merchantId,
+          merchantTokenUsageDaily.date,
+          merchantTokenUsageDaily.model,
+        ],
+        set: {
+          promptTokens: sql`${merchantTokenUsageDaily.promptTokens} + ${safePrompt}`,
+          completionTokens: sql`${merchantTokenUsageDaily.completionTokens} + ${safeCompletion}`,
+          requests: sql`${merchantTokenUsageDaily.requests} + 1`,
+          costMicroUsd: sql`${merchantTokenUsageDaily.costMicroUsd} + ${safeCost}`,
+          updatedAt: new Date(),
+        },
+      });
+  }
+
+  async getMerchantTokenUsageSummary(
+    merchantId: string,
+    since: Date,
+  ): Promise<{ promptTokens: number; completionTokens: number; requests: number; costMicroUsd: number }> {
+    const sinceDate = since.toISOString().slice(0, 10);
+    const [row] = await db
+      .select({
+        promptTokens: sql<number>`COALESCE(SUM(${merchantTokenUsageDaily.promptTokens}), 0)`,
+        completionTokens: sql<number>`COALESCE(SUM(${merchantTokenUsageDaily.completionTokens}), 0)`,
+        requests: sql<number>`COALESCE(SUM(${merchantTokenUsageDaily.requests}), 0)`,
+        costMicroUsd: sql<number>`COALESCE(SUM(${merchantTokenUsageDaily.costMicroUsd}), 0)`,
+      })
+      .from(merchantTokenUsageDaily)
+      .where(and(
+        eq(merchantTokenUsageDaily.merchantId, merchantId),
+        gte(merchantTokenUsageDaily.date, sinceDate),
+      ));
+    return {
+      promptTokens: Number(row?.promptTokens || 0),
+      completionTokens: Number(row?.completionTokens || 0),
+      requests: Number(row?.requests || 0),
+      costMicroUsd: Number(row?.costMicroUsd || 0),
+    };
+  }
+
+  async getAllMerchantsTokenUsageSummary(
+    since: Date,
+  ): Promise<Array<{ merchantId: string; promptTokens: number; completionTokens: number; requests: number; costMicroUsd: number }>> {
+    const sinceDate = since.toISOString().slice(0, 10);
+    const rows = await db
+      .select({
+        merchantId: merchantTokenUsageDaily.merchantId,
+        promptTokens: sql<number>`COALESCE(SUM(${merchantTokenUsageDaily.promptTokens}), 0)`,
+        completionTokens: sql<number>`COALESCE(SUM(${merchantTokenUsageDaily.completionTokens}), 0)`,
+        requests: sql<number>`COALESCE(SUM(${merchantTokenUsageDaily.requests}), 0)`,
+        costMicroUsd: sql<number>`COALESCE(SUM(${merchantTokenUsageDaily.costMicroUsd}), 0)`,
+      })
+      .from(merchantTokenUsageDaily)
+      .where(gte(merchantTokenUsageDaily.date, sinceDate))
+      .groupBy(merchantTokenUsageDaily.merchantId);
+    return rows.map(r => ({
+      merchantId: r.merchantId,
+      promptTokens: Number(r.promptTokens || 0),
+      completionTokens: Number(r.completionTokens || 0),
+      requests: Number(r.requests || 0),
+      costMicroUsd: Number(r.costMicroUsd || 0),
+    }));
+  }
+
+  async cleanupOldTokenUsage(beforeDate: string): Promise<number> {
+    const result = await db
+      .delete(merchantTokenUsageDaily)
+      .where(lt(merchantTokenUsageDaily.date, beforeDate))
+      .returning({ id: merchantTokenUsageDaily.id });
+    return result.length;
   }
 }
 

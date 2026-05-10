@@ -113,6 +113,46 @@ const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
 });
 
+// OpenAI public list pricing (USD per 1M tokens) — used for cost monitoring only.
+// Values intentionally conservative to avoid under-reporting. Update when pricing changes.
+const OPENAI_MODEL_PRICING_PER_M_TOKENS: Record<string, { input: number; output: number }> = {
+  "gpt-4.1-mini": { input: 0.40, output: 1.60 },
+  "gpt-4.1": { input: 2.00, output: 8.00 },
+  "gpt-4o-mini": { input: 0.15, output: 0.60 },
+  "gpt-4o": { input: 2.50, output: 10.00 },
+  "text-embedding-3-small": { input: 0.02, output: 0 },
+  "text-embedding-3-large": { input: 0.13, output: 0 },
+};
+
+function calcOpenAiCostMicroUsd(model: string, promptTokens: number, completionTokens: number): number {
+  const baseModel = model.split(":")[0]; // strip any version suffix
+  const pricing = OPENAI_MODEL_PRICING_PER_M_TOKENS[baseModel] ?? OPENAI_MODEL_PRICING_PER_M_TOKENS["gpt-4.1-mini"];
+  const usd = (promptTokens / 1_000_000) * pricing.input + (completionTokens / 1_000_000) * pricing.output;
+  return Math.round(usd * 1_000_000);
+}
+
+/**
+ * Records OpenAI usage for a merchant. Best-effort: never throws so chat flows
+ * are not affected by cost-tracking failures. Pass `usage` straight from the
+ * SDK response (`completion.usage`).
+ */
+async function recordOpenAiUsage(
+  merchantId: string | null | undefined,
+  model: string,
+  usage: { prompt_tokens?: number | null; completion_tokens?: number | null } | null | undefined,
+): Promise<void> {
+  if (!merchantId || !usage) return;
+  const promptTokens = usage.prompt_tokens || 0;
+  const completionTokens = usage.completion_tokens || 0;
+  if (promptTokens === 0 && completionTokens === 0) return;
+  try {
+    const costMicroUsd = calcOpenAiCostMicroUsd(model, promptTokens, completionTokens);
+    await storage.recordTokenUsage(merchantId, model, promptTokens, completionTokens, costMicroUsd);
+  } catch (err) {
+    console.error("[token-usage] Failed to record OpenAI usage:", err);
+  }
+}
+
 const SALT_ROUNDS = 10;
 
 async function hashPassword(password: string): Promise<string> {
@@ -1889,12 +1929,14 @@ ATURAN KETAT:
       }
     }
 
+    const chatModel = useVision ? "gpt-4.1" : "gpt-4.1-mini";
     const completion = await openai.chat.completions.create({
-      model: useVision ? "gpt-4.1" : "gpt-4.1-mini",
+      model: chatModel,
       messages: chatMessages as any,
       max_completion_tokens: 800, // Increased from 500 for more comprehensive responses
       temperature: temperature,
     });
+    void recordOpenAiUsage(merchantId, chatModel, completion.usage);
 
     const answer = completion.choices[0]?.message?.content || "I'm sorry, I couldn't process your request. Please try again.";
     // Cost-optimized: cache plain-text Q&A for repeat questions across all customers (per-agent).
@@ -1997,8 +2039,9 @@ async function analyzeMediaWithAI(
         imageUrl = `${baseUrl}${fileUrl}`;
       }
 
+      const visionModel = "gpt-4.1-mini";
       const completion = await openai.chat.completions.create({
-        model: "gpt-4.1-mini",
+        model: visionModel,
         messages: [
           {
             role: "system",
@@ -2037,6 +2080,7 @@ ${conversationContext ? `Recent Conversation:\n${conversationContext}` : ""}`
         ],
         max_completion_tokens: 500,
       });
+      void recordOpenAiUsage(merchantId, visionModel, completion.usage);
 
       return completion.choices[0]?.message?.content || 
         "Saya melihat gambar yang Anda kirim. Bagaimana saya bisa membantu Anda terkait ini?";
@@ -2064,8 +2108,9 @@ ${conversationContext ? `Recent Conversation:\n${conversationContext}` : ""}`
           const content = await fs.promises.readFile(filePath, "utf-8");
           const preview = content.substring(0, 1000);
           
+          const docModel = "gpt-4.1-mini";
           const completion = await openai.chat.completions.create({
-            model: "gpt-4.1-mini",
+            model: docModel,
             messages: [
               {
                 role: "system",
@@ -2084,6 +2129,7 @@ ${knowledgeContext || "No specific knowledge base configured yet."}`
             ],
             max_completion_tokens: 500,
           });
+          void recordOpenAiUsage(merchantId, docModel, completion.usage);
           
           return completion.choices[0]?.message?.content || 
             `Saya sudah menerima dokumen "${filename}". Bagaimana saya bisa membantu Anda?`;
@@ -10295,6 +10341,62 @@ Rules:
     }
   });
 
+  // Merchant AI savings — this calendar month. Used by the dashboard
+  // "Estimated Savings This Month" widget. Formula:
+  //   savingsIdr = aiDeflectedConversations * SUPERVISOR_HANDLE_COST_IDR
+  // where aiDeflectedConversations = number of sessions started this month
+  // that the AI handled end-to-end (mode === "AI" / never escalated).
+  app.get("/api/billing/ai-savings", requireMerchantOrSupervisor, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const SUPERVISOR_HANDLE_COST_IDR = 87_500;
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const allSessions = await storage.getSessionsByMerchant(merchantId);
+      const monthSessions = allSessions.filter(s => {
+        const created = s.createdAt ? new Date(s.createdAt) : null;
+        return created && created >= monthStart;
+      });
+      const aiDeflected = monthSessions.filter(s => s.mode === "AI").length;
+      const humanHandled = monthSessions.filter(s => s.mode === "HUMAN").length;
+      const totalThisMonth = monthSessions.length;
+      const grossSavingsIdr = aiDeflected * SUPERVISOR_HANDLE_COST_IDR;
+      res.json({
+        monthStart: monthStart.toISOString(),
+        aiDeflected,
+        humanHandled,
+        totalThisMonth,
+        supervisorHandleCostIdr: SUPERVISOR_HANDLE_COST_IDR,
+        estimatedSavingsIdr: grossSavingsIdr,
+      });
+    } catch (error) {
+      console.error("AI savings error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Merchant token-usage summary (last N days). Used for the savings widget so
+  // merchants can see how much they're spending on the AI vs supervisor cost.
+  app.get("/api/billing/token-usage", requireMerchantOrSupervisor, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const days = Math.min(365, Math.max(1, parseInt(String(req.query.days || "30"), 10) || 30));
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const summary = await storage.getMerchantTokenUsageSummary(merchantId, since);
+      res.json({
+        days,
+        promptTokens: summary.promptTokens,
+        completionTokens: summary.completionTokens,
+        totalTokens: summary.promptTokens + summary.completionTokens,
+        requests: summary.requests,
+        costUsd: Number((summary.costMicroUsd / 1_000_000).toFixed(4)),
+      });
+    } catch (error) {
+      console.error("Token usage error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/billing/plans", async (req, res) => {
     try {
       const plans = Object.values(subscriptionPlans).map(plan => ({
@@ -13494,6 +13596,91 @@ Rules:
       });
       res.json(stripBase64Photos(safeMerchants));
     } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Admin cost-monitor: per-merchant token usage, OpenAI cost, MRR, and cost-to-revenue ratio.
+  // Reads from the daily aggregated `merchant_token_usage_daily` snapshot for fast queries.
+  app.get("/api/admin/cost-monitor", requireAdmin, async (req, res) => {
+    try {
+      const days = Math.min(365, Math.max(1, parseInt(String(req.query.days || "30"), 10) || 30));
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      const [allMerchants, usageRows] = await Promise.all([
+        storage.getAllMerchants(),
+        storage.getAllMerchantsTokenUsageSummary(since),
+      ]);
+
+      const usageByMerchant = new Map(usageRows.map(r => [r.merchantId, r]));
+
+      // Same pricing logic as the merchant savings card (~Rp 87,500 per AI-handled chat).
+      // Convert OpenAI USD cost to IDR using a fixed exchange rate constant for monitoring;
+      // exact FX rate is not critical since this is for relative cost-to-revenue comparison.
+      const USD_TO_IDR = 16_300;
+
+      const rows = allMerchants.map(m => {
+        const usage = usageByMerchant.get(m.id) || { promptTokens: 0, completionTokens: 0, requests: 0, costMicroUsd: 0 };
+        const basePlan = subscriptionPlans[m.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+        const isCustom = m.subscriptionPlanId === 'custom';
+        const monthlyPriceIdr = isCustom
+          ? (m.customMonthlyPrice ?? basePlan.monthlyPriceIdr)
+          : basePlan.monthlyPriceIdr;
+        const annualPriceIdr = isCustom
+          ? (m.customAnnualPrice ?? basePlan.annualPriceIdr)
+          : basePlan.annualPriceIdr;
+        const isAnnual = m.billingInterval === 'annual';
+        const mrrIdr = m.subscriptionStatus === 'active'
+          ? (isAnnual && annualPriceIdr > 0 ? Math.round(annualPriceIdr / 12) : monthlyPriceIdr)
+          : 0;
+
+        const costUsd = usage.costMicroUsd / 1_000_000;
+        const costIdr = Math.round(costUsd * USD_TO_IDR);
+        // Cost-to-revenue ratio (%): how much of MRR is consumed by OpenAI.
+        // Higher = less profitable. Free / unpaid merchants with usage show as null (no MRR).
+        const costToRevenueRatio = mrrIdr > 0 ? (costIdr / mrrIdr) * 100 : null;
+
+        return {
+          merchantId: m.id,
+          email: m.email,
+          companyName: m.companyName || m.email,
+          subscriptionPlanId: m.subscriptionPlanId || 'free',
+          subscriptionStatus: m.subscriptionStatus || 'free',
+          billingInterval: m.billingInterval || 'monthly',
+          conversationsUsed: m.conversationsUsed || 0,
+          promptTokens: usage.promptTokens,
+          completionTokens: usage.completionTokens,
+          totalTokens: usage.promptTokens + usage.completionTokens,
+          requests: usage.requests,
+          costUsd: Number(costUsd.toFixed(4)),
+          costIdr,
+          mrrIdr,
+          costToRevenueRatio: costToRevenueRatio !== null ? Number(costToRevenueRatio.toFixed(1)) : null,
+          unprofitable: mrrIdr > 0 && costIdr > mrrIdr,
+        };
+      });
+
+      const totalCostIdr = rows.reduce((s, r) => s + r.costIdr, 0);
+      const totalMrrIdr = rows.reduce((s, r) => s + r.mrrIdr, 0);
+      const totalTokens = rows.reduce((s, r) => s + r.totalTokens, 0);
+      const unprofitableCount = rows.filter(r => r.unprofitable).length;
+
+      res.json({
+        days,
+        since: since.toISOString(),
+        merchants: rows,
+        totals: {
+          totalCostIdr,
+          totalMrrIdr,
+          totalTokens,
+          unprofitableCount,
+          merchantCount: rows.length,
+          netMarginIdr: totalMrrIdr - totalCostIdr,
+          marginPercent: totalMrrIdr > 0 ? Number(((1 - totalCostIdr / totalMrrIdr) * 100).toFixed(1)) : null,
+        },
+      });
+    } catch (error) {
+      console.error("Cost monitor error:", error);
       res.status(500).json({ error: "Server error" });
     }
   });
