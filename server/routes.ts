@@ -28520,20 +28520,10 @@ Please create a comprehensive help center article that would be useful for custo
         });
       }
 
-      // PayPal / crypto: manual reference flow
-      return res.json({
-        orderId,
-        boosterType,
-        paymentMethod,
-        amount: booster.priceUsd,
-        amountIDR,
-        currency: "IDR",
-        qrisUrl: null,
-        qrisString: null,
-        transactionId: orderId,
-        expiresAt: null,
-        manualReference: true,
-      });
+      // Unreachable: paymentMethod !== "12pay" is rejected above. Kept here
+      // intentionally as a defensive 500 in case the guard above is ever
+      // refactored without updating this branch.
+      return res.status(500).json({ error: "Unsupported payment method for boosters" });
     } catch (err: any) {
       console.error("Initiate booster payment error", err);
       res.status(500).json({ error: err?.message || "Failed to initiate payment" });
