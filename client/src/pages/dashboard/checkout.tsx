@@ -1135,15 +1135,19 @@ export default function CheckoutPage() {
         
         // ── TOTAL PAYMENT (py-2 = 16px vertical, text-xl = 18px) ──
         const totalH = 46;
-        ctx.fillStyle = '#fdf5ff';
+        // Gradient matching from-primary/5 to-primary/10 (primary = hsl(250 85% 58%) ≈ #7c3aed)
+        const totalGrad = ctx.createLinearGradient(detailsX, cy, detailsX + detailsW, cy + totalH);
+        totalGrad.addColorStop(0, 'rgba(124,58,237,0.05)');
+        totalGrad.addColorStop(1, 'rgba(124,58,237,0.10)');
+        ctx.fillStyle = totalGrad;
         ctx.beginPath(); ctx.roundRect(detailsX, cy, detailsW, totalH, 8); ctx.fill();
-        ctx.strokeStyle = '#e9d5ff'; ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(124,58,237,0.20)'; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.roundRect(detailsX, cy, detailsW, totalH, 8); ctx.stroke();
         
         ctx.fillStyle = '#6b7280'; ctx.font = '9px system-ui, -apple-system, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(t('dashboard.checkout.totalPayment').toUpperCase(), cardWidth / 2, cy + 14);
-        ctx.fillStyle = '#f97316'; ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
+        ctx.fillStyle = '#7c3aed'; ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
         ctx.fillText(`Rp ${(qrisData.amount || 0).toLocaleString('id-ID')}`, cardWidth / 2, cy + 36);
         cy += totalH;
         
