@@ -1022,7 +1022,7 @@ export default function CheckoutPage() {
         ctx.fillText(t('dashboard.checkout.useEwalletOrMobileBanking'), cardWidth / 2, contentY + 18);
         
         // QR Code container
-        const qrSize = 200;
+        const qrSize = 160;
         const qrX = (cardWidth - qrSize - 24) / 2;
         const qrY = contentY + 35;
         
@@ -1449,7 +1449,7 @@ export default function CheckoutPage() {
       : (isAnnual ? 'annual' : 'monthly');
 
   return (
-    <div className="max-w-4xl mx-auto py-6 px-4 md:py-8 space-y-4">
+    <div className="max-w-4xl mx-auto py-2 px-4 md:py-3 space-y-3">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleBack} data-testid="button-back">
           <ArrowLeft className="w-4 h-4" />
@@ -1930,16 +1930,16 @@ export default function CheckoutPage() {
             id="qris-receipt"
           >
             {/* Top Header with Logos */}
-            <div className="bg-white px-5 py-3 border-b border-dashed border-gray-300">
-              <div className="flex items-center justify-between gap-4">
+            <div className="bg-white px-4 py-2 border-b border-dashed border-gray-300">
+              <div className="flex items-center justify-between gap-3">
                 <div className="flex flex-col gap-0.5">
                   {/* Chatvice Real Logo */}
-                  <img src={chatviceLogoImg} alt="Chatvice" className="h-8 w-auto object-contain object-left" />
-                  <p className="text-[10px] text-gray-500 leading-none">Subscription Payment</p>
+                  <img src={chatviceLogoImg} alt="Chatvice" className="h-6 w-auto object-contain object-left" />
+                  <p className="text-[9px] text-gray-500 leading-none">Subscription Payment</p>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center flex-shrink-0">
                   {/* QRIS Logo - masked & enlarged */}
-                  <div className="w-20 h-10 overflow-hidden rounded flex items-center justify-center bg-white">
+                  <div className="w-16 h-8 overflow-hidden rounded flex items-center justify-center bg-white">
                     <img src={qrisLogoImg} alt="QRIS" className="w-full h-full object-contain" />
                   </div>
                 </div>
@@ -1947,46 +1947,46 @@ export default function CheckoutPage() {
             </div>
 
             {/* Main Content */}
-            <div className="relative p-5 bg-white">
-              {/* Ticket Notch Left - positioned relative to content */}
+            <div className="relative p-3 bg-white">
+              {/* Ticket Notch Left */}
               <div className="hidden sm:block absolute -left-2 top-1/2 w-4 h-8 bg-gray-100 rounded-r-full -translate-y-1/2"></div>
               {/* Ticket Notch Right */}
               <div className="hidden sm:block absolute -right-2 top-1/2 w-4 h-8 bg-gray-100 rounded-l-full -translate-y-1/2"></div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {/* Left Column - QR Code */}
-                <div className="flex flex-col items-center justify-center space-y-4">
-                  <div className="text-center space-y-1">
-                    <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Scan to Pay</h4>
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">{t("dashboard.checkout.useEwalletOrMobileBanking")}</p>
+                <div className="flex flex-col items-center justify-center space-y-2">
+                  <div className="text-center">
+                    <h4 className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Scan to Pay</h4>
+                    <p className="text-[9px] text-gray-500 dark:text-gray-400">{t("dashboard.checkout.useEwalletOrMobileBanking")}</p>
                   </div>
                   
                   {/* QR Code Container */}
-                  <div className="relative p-3 bg-white rounded-xl shadow-sm border-2 border-gray-100 dark:border-zinc-700" id="qris-code-container">
+                  <div className="relative p-2 bg-white rounded-xl shadow-sm border-2 border-gray-100 dark:border-zinc-700" id="qris-code-container">
                     {qrisData.qrisString ? (
                       <QRCodeSVG 
                         value={qrisData.qrisString}
-                        size={200}
+                        size={160}
                         level="M"
                         includeMargin={false}
-                        className="w-44 h-44 md:w-48 md:h-48"
+                        className="w-36 h-36"
                         data-testid="img-qris-code"
                       />
                     ) : qrisData.qrisImage ? (
                       <img 
                         src={qrisData.qrisImage} 
                         alt="QRIS Payment Code" 
-                        className="w-44 h-44 md:w-48 md:h-48 object-contain"
+                        className="w-36 h-36 object-contain"
                         data-testid="img-qris-code"
                       />
                     ) : (
-                      <div className="w-44 h-44 md:w-48 md:h-48 flex items-center justify-center bg-gray-50 rounded">
+                      <div className="w-36 h-36 flex items-center justify-center bg-gray-50 rounded">
                         <p className="text-xs text-gray-400 text-center px-4">{t("dashboard.checkout.qrCodeNotAvailable")}</p>
                       </div>
                     )}
                   </div>
                   
                   {/* Supported Apps - Bank/Wallet Logo Pills */}
-                  <div className="flex flex-wrap justify-center gap-1.5 max-w-[260px]">
+                  <div className="flex flex-wrap justify-center gap-1 max-w-[240px]">
                     {[
                       { name: "GoPay",      bg: "#00AED6", text: "#fff" },
                       { name: "OVO",        bg: "#4C3494", text: "#fff" },
@@ -2002,7 +2002,7 @@ export default function CheckoutPage() {
                       <span
                         key={b.name}
                         style={{ backgroundColor: b.bg, color: b.text }}
-                        className="text-[8px] font-bold px-1.5 py-0.5 rounded-sm leading-none"
+                        className="text-[7px] font-bold px-1 py-0.5 rounded-sm leading-none"
                       >
                         {b.name}
                       </span>
@@ -2011,32 +2011,32 @@ export default function CheckoutPage() {
                 </div>
                 
                 {/* Right Column - Details */}
-                <div className="flex flex-col justify-center space-y-4">
+                <div className="flex flex-col justify-center space-y-2">
                   {/* Dashed Divider - Mobile */}
-                  <div className="md:hidden border-t border-dashed border-gray-300 dark:border-zinc-600 -mx-5 px-5"></div>
+                  <div className="md:hidden border-t border-dashed border-gray-300 dark:border-zinc-600 -mx-3 px-3"></div>
                   
                   {/* Order Details Section */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-1 h-4 bg-primary rounded-full"></div>
-                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Order Details</span>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <div className="w-1 h-3 bg-primary rounded-full"></div>
+                      <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Order Details</span>
                     </div>
                     
-                    <div className="space-y-2 bg-gray-100 rounded-lg p-3">
-                      <div className="flex justify-between text-xs">
+                    <div className="space-y-1 bg-gray-100 rounded-lg p-2">
+                      <div className="flex justify-between text-[11px]">
                         <span className="text-gray-500">Product</span>
                         <span className="font-semibold text-gray-900">{qrisData.planName} Plan</span>
                       </div>
-                      <div className="flex justify-between text-xs">
+                      <div className="flex justify-between text-[11px]">
                         <span className="text-gray-500">Period</span>
                         <span className="font-medium text-gray-700">{qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</span>
                       </div>
-                      <div className="border-t border-dashed border-gray-300 pt-2">
-                        <div className="flex justify-between text-xs items-start">
+                      <div className="border-t border-dashed border-gray-300 pt-1">
+                        <div className="flex justify-between text-[11px] items-start">
                           <span className="text-gray-500">Order ID</span>
                           <button 
                             onClick={() => copyToClipboard(qrisData.orderId)}
-                            className="font-mono text-[10px] text-gray-600 dark:text-gray-400 hover:text-primary flex items-center gap-1 text-right"
+                            className="font-mono text-[9px] text-gray-600 dark:text-gray-400 hover:text-primary flex items-center gap-1 text-right"
                             title="Click to copy"
                           >
                             <span className="break-all text-right leading-tight">{qrisData.orderId}</span>
@@ -2051,40 +2051,42 @@ export default function CheckoutPage() {
                   <div className="border-t border-dashed border-gray-300 dark:border-zinc-600"></div>
 
                   {/* Total Amount */}
-                  <div className="text-center py-3 bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 rounded-xl border border-primary/20">
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Total Payment</p>
-                    <div className="text-2xl md:text-3xl font-bold text-primary" data-testid="text-qris-amount">
+                  <div className="text-center py-2 bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 rounded-xl border border-primary/20">
+                    <p className="text-[9px] text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-0.5">Total Payment</p>
+                    <div className="text-xl font-bold text-primary" data-testid="text-qris-amount">
                       Rp {(qrisData.amount || 0).toLocaleString('id-ID')}
                     </div>
                     {qrisData.amountUSD && (
-                      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">≈ ${qrisData.amountUSD?.toFixed(2)} USD</p>
+                      <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5">≈ ${qrisData.amountUSD?.toFixed(2)} USD</p>
                     )}
                   </div>
 
                   {/* Timer */}
-                  <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-amber-50 dark:bg-amber-950/40 rounded-lg border border-amber-200 dark:border-amber-800/50">
-                    <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                    <span className="font-mono text-lg font-bold text-amber-700 dark:text-amber-300" data-testid="text-qris-countdown">
+                  <div className="flex items-center justify-center gap-2 py-1.5 px-3 bg-amber-50 dark:bg-amber-950/40 rounded-lg border border-amber-200 dark:border-amber-800/50">
+                    <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                    <span className="font-mono text-base font-bold text-amber-700 dark:text-amber-300" data-testid="text-qris-countdown">
                       {formatTime(timeRemaining)}
                     </span>
-                    <span className="text-xs text-amber-600 dark:text-amber-400">remaining</span>
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400">remaining</span>
                   </div>
 
                   {/* Action Buttons */}
                   <div className="flex gap-2">
                     <Button 
                       variant="outline" 
-                      className="flex-1 h-10" 
+                      size="sm"
+                      className="flex-1" 
                       onClick={handleSaveQRIS}
                       data-testid="button-save-qris"
                     >
-                      <Download className="w-4 h-4 mr-2" />
+                      <Download className="w-3.5 h-3.5 mr-1.5" />
                       Save
                     </Button>
                     {import.meta.env.DEV && (
                       <Button 
                         variant="outline" 
-                        className="flex-1 h-10" 
+                        size="sm"
+                        className="flex-1" 
                         onClick={handleDemoPayment}
                         data-testid="button-demo-payment"
                       >
@@ -2100,7 +2102,7 @@ export default function CheckoutPage() {
             <div className="border-t border-dashed border-gray-300 dark:border-zinc-600"></div>
 
             {/* Footer */}
-            <div className="bg-white dark:bg-zinc-800 px-5 py-3">
+            <div className="bg-white dark:bg-zinc-800 px-4 py-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
