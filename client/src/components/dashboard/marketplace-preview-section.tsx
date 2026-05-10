@@ -42,7 +42,7 @@ import { QRCodeSVG } from "qrcode.react";
 /* Interfaces                                                           */
 /* ------------------------------------------------------------------ */
 
-interface BoosterItem {
+export interface BoosterItem {
   boosterType: string;
   name: string;
   priceUsd: number;
@@ -57,11 +57,11 @@ interface BoosterItem {
   isFeatured: boolean;
 }
 
-interface BoosterResponse {
+export interface BoosterResponse {
   items: BoosterItem[];
 }
 
-interface AddonItem {
+export interface AddonItem {
   addonType: string;
   name: string;
   description: string | null;
@@ -71,11 +71,11 @@ interface AddonItem {
   isEnabled: boolean;
 }
 
-interface AddonResponse {
+export interface AddonResponse {
   items: AddonItem[];
 }
 
-interface MerchantAddon {
+export interface MarketplaceMerchantAddon {
   addonType: string;
   isActive: boolean;
   trialEndsAt: string | null;
@@ -189,7 +189,7 @@ function safeMsg(body: any, fallback: string): string {
   return fallback;
 }
 
-function isAddonActive(merchantAddons: MerchantAddon[], addonType: string): boolean {
+function isAddonActive(merchantAddons: MarketplaceMerchantAddon[], addonType: string): boolean {
   const a = merchantAddons.find((m) => m.addonType === addonType);
   if (!a) return false;
   const onTrial = a.trialEndsAt && new Date(a.trialEndsAt) > new Date();
@@ -217,7 +217,7 @@ interface UnifiedProduct {
 
 type Phase = "info" | "qr" | "success" | "failed";
 
-function ProductPopup({
+export function ProductPopup({
   productId,
   addonsData,
   boostersData,
@@ -227,7 +227,7 @@ function ProductPopup({
   productId: string | null;
   addonsData: AddonResponse | undefined;
   boostersData: BoosterResponse | undefined;
-  merchantAddons: MerchantAddon[];
+  merchantAddons: MarketplaceMerchantAddon[];
   onClose: () => void;
 }) {
   const { toast } = useToast();
@@ -615,7 +615,7 @@ export function MarketplacePreviewSection() {
   const { data: addonsData, isLoading: loadingAddons } =
     useQuery<AddonResponse>({ queryKey: ["/api/marketplace/addons"] });
 
-  const { data: merchantAddons = [] } = useQuery<MerchantAddon[]>({
+  const { data: merchantAddons = [] } = useQuery<MarketplaceMerchantAddon[]>({
     queryKey: ["/api/merchant/addons"],
   });
 
