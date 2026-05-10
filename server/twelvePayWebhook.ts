@@ -110,42 +110,37 @@ export class PaymentWebhookHandler {
       const booster = await storage.getBoosterConfig(boosterType);
       if (!booster) return { success: false, message: 'Booster config not found' };
 
-      // True idempotency + entitlement-safe ordering:
-      //  1) Require a pending payment_transactions row created by
-      //     /initiate-payment. Replays / unknown external_ids are refused.
-      //  2) If already 'paid', no-op (replay).
-      //  3) Apply booster FIRST, then mark transaction 'paid'. If the apply
-      //     step fails the row stays 'pending' so a webhook retry will try
-      //     again (no lost entitlement).
+      // True idempotency + atomicity: require a pending payment_transactions
+      // row, then atomically (single DB transaction) flip pending → paid AND
+      // increment merchant quota. The conditional flip is the lock — only
+      // the first concurrent webhook delivery wins; replays are no-ops. If
+      // the quota update fails, the entire transaction rolls back so the row
+      // stays 'pending' for a safe retry (no lost entitlement, no double credit).
       const existingTx = await storage.getPaymentTransactionByExternalId(external_id);
       if (!existingTx) {
         console.warn(`Booster webhook for ${external_id} has no pending transaction, refusing to apply`);
         return { success: false, message: 'Unknown transaction' };
       }
-      if (existingTx.status === 'paid') {
-        console.log(`Booster webhook for ${external_id} already processed, skipping`);
-        return { success: true, message: 'Already processed' };
-      }
 
+      let outcome: "applied" | "already_processed" | "tx_not_found";
       try {
-        await storage.applyBoosterToMerchant(merchantId, booster);
+        outcome = await storage.fulfillBoosterPaymentAtomic({
+          paymentTransactionId: existingTx.id,
+          merchantId,
+          booster,
+          paidAt: paid_at ? new Date(paid_at) : new Date(),
+        });
       } catch (e: any) {
-        console.error('Apply booster failed (transaction left pending for retry)', e);
+        console.error('Atomic booster fulfillment failed (tx rolled back, will retry)', e);
         return { success: false, message: e?.message || 'Failed to apply booster' };
       }
 
-      try {
-        await storage.updatePaymentTransaction(existingTx.id, {
-          status: 'paid',
-          paidAt: paid_at ? new Date(paid_at) : new Date(),
-        });
-      } catch (e) {
-        // Booster already applied; failing to flip status will cause a
-        // safe replay that hits the catch in applyBoosterToMerchant... but
-        // applyBoosterToMerchant is not naturally idempotent (it increments).
-        // Log loudly so ops can manually reconcile.
-        console.error('CRITICAL: booster applied but tx status update failed', external_id, e);
-        return { success: false, message: 'Booster applied; status update failed' };
+      if (outcome === 'tx_not_found') {
+        return { success: false, message: 'Unknown transaction' };
+      }
+      if (outcome === 'already_processed') {
+        console.log(`Booster webhook for ${external_id} already processed, skipping`);
+        return { success: true, message: 'Already processed' };
       }
 
       await storage.createMerchantNotification({

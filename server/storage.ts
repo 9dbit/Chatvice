@@ -601,6 +601,12 @@ export interface IStorage {
   getBoosterConfig(boosterType: string): Promise<BoosterConfig | undefined>;
   upsertBoosterConfig(data: InsertBoosterConfig): Promise<BoosterConfig>;
   applyBoosterToMerchant(merchantId: string, booster: BoosterConfig): Promise<void>;
+  fulfillBoosterPaymentAtomic(params: {
+    paymentTransactionId: string;
+    merchantId: string;
+    booster: BoosterConfig;
+    paidAt: Date;
+  }): Promise<"applied" | "already_processed" | "tx_not_found">;
   upsertAddonConfig(data: InsertAddonConfig): Promise<AddonConfig>;
   updateAddonConfigById(id: number, data: Partial<{ monthlyPriceUsd: number; isEnabled: boolean; name: string; description: string | null }>): Promise<AddonConfig | undefined>;
 
@@ -4441,6 +4447,76 @@ export class DatabaseStorage implements IStorage {
     const current = (merchant as any)[booster.quotaField] || 0;
     const next = current + (booster.quotaAmount || 0);
     await this.updateMerchant(merchantId, { [booster.quotaField]: next } as Partial<Merchant>);
+  }
+
+  /**
+   * Atomic, idempotent booster fulfillment for webhook handlers.
+   *
+   * Wraps the conditional payment_transactions status flip (pending → paid)
+   * AND the merchant quota increment in a single database transaction so
+   * either both succeed or both roll back. The status flip is gated on
+   * `status = 'pending'`, which acts as the lock — only the first concurrent
+   * webhook delivery will be able to flip it, so quota can be incremented
+   * at most once per transaction. Returns:
+   *   - "applied": this call performed the increment.
+   *   - "already_processed": status was already 'paid' (replay no-op).
+   *   - "tx_not_found": no payment row for the external_id.
+   */
+  async fulfillBoosterPaymentAtomic(params: {
+    paymentTransactionId: string;
+    merchantId: string;
+    booster: BoosterConfig;
+    paidAt: Date;
+  }): Promise<"applied" | "already_processed" | "tx_not_found"> {
+    const allowedFields = new Set([
+      "extraSupervisorSlots",
+      "extraAgentSlots",
+      "extraDomainSlots",
+      "extraSourceSlots",
+      "extraVisionQuota",
+      "extraConversationsBalance",
+    ]);
+    if (!allowedFields.has(params.booster.quotaField)) {
+      throw new Error(`Invalid booster quotaField: ${params.booster.quotaField}`);
+    }
+    return await db.transaction(async (tx) => {
+      // Conditional flip pending → paid. RETURNING gives us 1 row only when
+      // the row was actually flipped (not when it was already 'paid').
+      const flipped = await tx
+        .update(paymentTransactions)
+        .set({ status: "paid", paidAt: params.paidAt })
+        .where(and(
+          eq(paymentTransactions.id, params.paymentTransactionId),
+          eq(paymentTransactions.status, "pending"),
+        ))
+        .returning({ id: paymentTransactions.id });
+
+      if (flipped.length === 0) {
+        // Determine whether the row exists at all (for diagnostics).
+        const [existing] = await tx
+          .select({ status: paymentTransactions.status })
+          .from(paymentTransactions)
+          .where(eq(paymentTransactions.id, params.paymentTransactionId));
+        if (!existing) return "tx_not_found";
+        return "already_processed";
+      }
+
+      // We won the flip — apply quota inside the same transaction so any
+      // failure here rolls the status back to 'pending', allowing a safe
+      // webhook retry.
+      const [merchantRow] = await tx
+        .select()
+        .from(merchants)
+        .where(eq(merchants.id, params.merchantId));
+      if (!merchantRow) throw new Error("Merchant not found");
+      const current = (merchantRow as any)[params.booster.quotaField] || 0;
+      const next = current + (params.booster.quotaAmount || 0);
+      await tx
+        .update(merchants)
+        .set({ [params.booster.quotaField]: next, updatedAt: new Date() } as any)
+        .where(eq(merchants.id, params.merchantId));
+      return "applied";
+    });
   }
 
   // ── Merchant Addons ────────────────────────────────────────────────────────
