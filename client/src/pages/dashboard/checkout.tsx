@@ -1,6 +1,12 @@
 import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
+import binanceLogo from "@assets/binance_nobg.png";
+import mastercardLogo from "@assets/mastercard_nobg.png";
+import paypalLogo from "@assets/paypal_nobg.png";
+import visaLogo from "@assets/visa_nobg.png";
+import trustWalletLogo from "@assets/trustwallet_nobg.png";
+import twelvePayLogo from "@assets/twelvepay_nobg.png";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -3552,6 +3558,54 @@ export default function CheckoutPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Trusted Payment Partners Footer */}
+      <div className="pt-6 mt-2 border-t border-border/60" data-testid="footer-payment-partners">
+        <p className="text-center text-[10px] uppercase tracking-wider text-muted-foreground mb-3">
+          Trusted &amp; Secure Payment Partners
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 sm:gap-x-8 md:gap-x-10 px-2">
+          <img
+            src={visaLogo}
+            alt="Visa"
+            className="h-5 sm:h-6 md:h-7 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity dark:brightness-0 dark:invert"
+            data-testid="img-logo-visa"
+          />
+          <img
+            src={mastercardLogo}
+            alt="Mastercard"
+            className="h-7 sm:h-8 md:h-9 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
+            data-testid="img-logo-mastercard"
+          />
+          <img
+            src={paypalLogo}
+            alt="PayPal"
+            className="h-5 sm:h-6 md:h-7 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
+            data-testid="img-logo-paypal"
+          />
+          <img
+            src={binanceLogo}
+            alt="Binance"
+            className="h-4 sm:h-5 md:h-6 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
+            data-testid="img-logo-binance"
+          />
+          <img
+            src={trustWalletLogo}
+            alt="Trust Wallet"
+            className="h-4 sm:h-5 md:h-6 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity"
+            data-testid="img-logo-trustwallet"
+          />
+          <img
+            src={twelvePayLogo}
+            alt="12Pay"
+            className="h-5 sm:h-6 md:h-7 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity dark:brightness-110"
+            data-testid="img-logo-twelvepay"
+          />
+        </div>
+        <p className="text-center text-[10px] text-muted-foreground/70 mt-3">
+          Pembayaran Anda dilindungi enkripsi tingkat bank &amp; PCI-DSS compliant
+        </p>
+      </div>
     </div>
   );
 }
