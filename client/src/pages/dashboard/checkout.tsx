@@ -905,7 +905,7 @@ export default function CheckoutPage() {
         
         // Compact card dimensions
         const cardWidth = 400;
-        const cardHeight = 590;
+        const cardHeight = 520;
         canvas.width = cardWidth;
         canvas.height = cardHeight;
         
@@ -1072,10 +1072,10 @@ export default function CheckoutPage() {
         ctx.textBaseline = 'alphabetic';
         cy += 10;
         
-        // ── ORDER DETAILS ──
+        // ── ORDER DETAILS (2-column sub-grid matching on-screen layout) ──
         const detailsX = cardX + 16;
         const detailsW = cardInnerWidth - 32;
-        
+
         // Section label
         ctx.fillStyle = '#7c3aed';
         ctx.fillRect(detailsX, cy, 3, 12);
@@ -1084,72 +1084,115 @@ export default function CheckoutPage() {
         ctx.textAlign = 'left';
         ctx.fillText('ORDER DETAILS', detailsX + 8, cy + 10);
         cy += 18;
-        
-        // Card background (drawn first, text on top)
-        const cardBgY = cy;
-        const rowH = 14;
-        const rowGap = 4;
-        const cardPad = 8;
-        const detailsCardH = cardPad + rowH + rowGap + rowH + rowGap + 1 + rowGap + rowH + cardPad;
+
+        // 2-column card layout
+        const subCardY = cy;
+        const subCardPad = 8;
+        const subCardGap = 6;
+        const subColW = Math.floor((detailsW - subCardPad * 2 - subCardGap) / 2);
+        const leftColX = detailsX + subCardPad;
+        const rightColX = leftColX + subColW + subCardGap;
+
+        // Calculate left-column height:
+        // PRODUCT label(11) + value(13) + gap(4) + PERIOD label(11) + value(13) + divider(12) + ORDER ID label(11) + value(11) = 86
+        const subCardInnerH = 86;
+        const subCardH = subCardInnerH + subCardPad * 2;
+
+        // Card background
         ctx.fillStyle = '#f3f4f6';
         ctx.beginPath();
-        ctx.roundRect(detailsX, cardBgY, detailsW, detailsCardH, 6);
+        ctx.roundRect(detailsX, subCardY, detailsW, subCardH, 6);
         ctx.fill();
-        
-        const textY0 = cardBgY + cardPad + rowH - 2;
-        ctx.font = '10px system-ui, -apple-system, sans-serif';
-        ctx.fillStyle = '#6b7280'; ctx.textAlign = 'left';
-        ctx.fillText('Product', detailsX + cardPad, textY0);
-        ctx.fillStyle = '#111827'; ctx.textAlign = 'right'; ctx.font = 'bold 10px system-ui, -apple-system, sans-serif';
-        ctx.fillText(`${qrisData.planName} Plan`, detailsX + detailsW - cardPad, textY0);
-        
-        const textY1 = textY0 + rowH + rowGap;
-        ctx.font = '10px system-ui, -apple-system, sans-serif';
-        ctx.fillStyle = '#6b7280'; ctx.textAlign = 'left';
-        ctx.fillText('Period', detailsX + cardPad, textY1);
-        ctx.fillStyle = '#111827'; ctx.textAlign = 'right';
-        ctx.fillText(qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly', detailsX + detailsW - cardPad, textY1);
-        
-        // Dashed divider inside card
-        const divY = textY1 + rowGap;
-        ctx.strokeStyle = '#d1d5db'; ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(detailsX + cardPad, divY); ctx.lineTo(detailsX + detailsW - cardPad, divY); ctx.stroke();
-        ctx.setLineDash([]);
-        
-        const textY2 = divY + rowGap + rowH - 2;
-        ctx.font = '10px system-ui, -apple-system, sans-serif';
-        ctx.fillStyle = '#6b7280'; ctx.textAlign = 'left';
-        ctx.fillText('Order ID', detailsX + cardPad, textY2);
-        ctx.fillStyle = '#111827'; ctx.textAlign = 'right';
-        ctx.font = '8px monospace';
-        const shortOrderId = qrisData.orderId.length > 26 ? qrisData.orderId.slice(-26) : qrisData.orderId;
-        ctx.fillText(shortOrderId, detailsX + detailsW - cardPad, textY2);
-        
-        cy += detailsCardH + 10;
-        
+
+        // ── Left column: Product / Period / Order ID ──
+        let lcy = subCardY + subCardPad;
+
+        // Product
+        ctx.fillStyle = '#9ca3af'; ctx.font = '8px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.fillText('PRODUCT', leftColX, lcy);
+        lcy += 11;
+        ctx.fillStyle = '#111827'; ctx.font = 'bold 10px system-ui, -apple-system, sans-serif';
+        ctx.fillText(`${qrisData.planName} Plan`, leftColX, lcy);
+        lcy += 13;
+        lcy += 4; // gap
+
+        // Period
+        ctx.fillStyle = '#9ca3af'; ctx.font = '8px system-ui, -apple-system, sans-serif';
+        ctx.fillText('PERIOD', leftColX, lcy);
+        lcy += 11;
+        ctx.fillStyle = '#111827'; ctx.font = '10px system-ui, -apple-system, sans-serif';
+        ctx.fillText(qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly', leftColX, lcy);
+        lcy += 13;
+        lcy += 5; // gap before divider
+
         // Dashed divider
-        ctx.strokeStyle = '#d1d5db'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(detailsX, cy); ctx.lineTo(detailsX + detailsW, cy); ctx.stroke();
+        ctx.strokeStyle = '#d1d5db'; ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(leftColX, lcy);
+        ctx.lineTo(leftColX + subColW, lcy);
+        ctx.stroke();
         ctx.setLineDash([]);
-        cy += 10;
-        
-        // ── TOTAL PAYMENT (py-2 = 16px vertical, text-xl = 18px) ──
-        const totalH = 46;
-        // Gradient matching from-primary/5 to-primary/10 (primary = hsl(250 85% 58%) ≈ #7c3aed)
-        const totalGrad = ctx.createLinearGradient(detailsX, cy, detailsX + detailsW, cy + totalH);
+        lcy += 7;
+
+        // Order ID
+        ctx.fillStyle = '#9ca3af'; ctx.font = '8px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('ORDER ID', leftColX, lcy);
+        lcy += 11;
+        ctx.fillStyle = '#374151'; ctx.font = '7px monospace';
+        const shortOrderId = qrisData.orderId.length > 22 ? qrisData.orderId.slice(-22) : qrisData.orderId;
+        ctx.fillText(shortOrderId, leftColX, lcy);
+
+        // ── Right column: Total amount + countdown ──
+        let rcy = subCardY + subCardPad;
+
+        // Total Payment gradient box
+        const totalBoxH = 52;
+        const totalGrad = ctx.createLinearGradient(rightColX, rcy, rightColX + subColW, rcy + totalBoxH);
         totalGrad.addColorStop(0, 'rgba(124,58,237,0.05)');
         totalGrad.addColorStop(1, 'rgba(124,58,237,0.10)');
         ctx.fillStyle = totalGrad;
-        ctx.beginPath(); ctx.roundRect(detailsX, cy, detailsW, totalH, 8); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(rightColX, rcy, subColW, totalBoxH, 6); ctx.fill();
         ctx.strokeStyle = 'rgba(124,58,237,0.20)'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.roundRect(detailsX, cy, detailsW, totalH, 8); ctx.stroke();
-        
-        ctx.fillStyle = '#6b7280'; ctx.font = '9px system-ui, -apple-system, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(t('dashboard.checkout.totalPayment').toUpperCase(), cardWidth / 2, cy + 14);
-        ctx.fillStyle = '#7c3aed'; ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
-        ctx.fillText(`Rp ${(qrisData.amount || 0).toLocaleString('id-ID')}`, cardWidth / 2, cy + 36);
-        cy += totalH;
+        ctx.beginPath(); ctx.roundRect(rightColX, rcy, subColW, totalBoxH, 6); ctx.stroke();
+
+        ctx.fillStyle = '#6b7280'; ctx.font = '8px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        ctx.fillText(t('dashboard.checkout.totalPayment').toUpperCase(), rightColX + subColW / 2, rcy + 8);
+        ctx.fillStyle = '#7c3aed'; ctx.font = 'bold 13px system-ui, -apple-system, sans-serif';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillText(`Rp ${(qrisData.amount || 0).toLocaleString('id-ID')}`, rightColX + subColW / 2, rcy + 38);
+        if (qrisData.amountUSD) {
+          ctx.fillStyle = '#9ca3af'; ctx.font = '7px system-ui, -apple-system, sans-serif';
+          ctx.fillText(`≈ $${qrisData.amountUSD.toFixed(2)} USD`, rightColX + subColW / 2, rcy + 50);
+        }
+        rcy += totalBoxH + 5;
+
+        // Countdown timer box (amber)
+        const timerBoxH = 26;
+        const remainMins = Math.floor(timeRemaining / 60);
+        const remainSecs = timeRemaining % 60;
+        const timerStr = `${String(remainMins).padStart(2, '0')}:${String(remainSecs).padStart(2, '0')}`;
+        ctx.fillStyle = '#fffbeb';
+        ctx.strokeStyle = '#fcd34d'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.roundRect(rightColX, rcy, subColW, timerBoxH, 5); ctx.fill(); ctx.stroke();
+
+        // Clock icon (circle + hands)
+        const clkX = rightColX + 10;
+        const clkY = rcy + timerBoxH / 2;
+        ctx.strokeStyle = '#d97706'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(clkX, clkY, 5, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(clkX, clkY); ctx.lineTo(clkX, clkY - 3); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(clkX, clkY); ctx.lineTo(clkX + 2.5, clkY); ctx.stroke();
+
+        // Timer text
+        ctx.fillStyle = '#b45309'; ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(timerStr, rightColX + subColW / 2 + 5, rcy + timerBoxH / 2);
+
+        ctx.textBaseline = 'alphabetic';
+        cy += subCardH;
         
         // Save as JPG
         canvas.toBlob((jpgBlob) => {
