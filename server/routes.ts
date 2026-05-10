@@ -28497,6 +28497,17 @@ Please create a comprehensive help center article that would be useful for custo
               type: "booster",
               qrisString: qrisResult.data?.qrisString,
               orderId,
+              // Immutable entitlement snapshot taken at purchase time.
+              // The webhook uses this as the source of truth so that
+              // admin edits/deletions of booster_configs after a payment
+              // is initiated cannot corrupt or lose the entitlement.
+              snapshot: {
+                name: booster.name,
+                quotaField: booster.quotaField,
+                quotaAmount: booster.quotaAmount,
+                priceUsd: booster.priceUsd,
+                billingMode: booster.billingMode,
+              },
             },
             expiresAt: qrisResult.data?.expiryTime ? new Date(qrisResult.data.expiryTime) : null,
             invoiceNumber: orderId,

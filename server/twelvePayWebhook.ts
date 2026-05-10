@@ -122,8 +122,28 @@ export class PaymentWebhookHandler {
       const merchantId = txForMerchant.merchantId;
       const merchant = await storage.getMerchant(merchantId);
       if (!merchant) return { success: false, message: 'Merchant not found' };
-      const booster = await storage.getBoosterConfig(boosterType);
-      if (!booster) return { success: false, message: 'Booster config not found' };
+
+      // Prefer the immutable snapshot persisted on the payment_transactions
+      // row at /initiate-payment time, so admin edits/deletions to
+      // booster_configs after payment cannot corrupt or lose entitlement.
+      // Fall back to the live config only if no snapshot exists (legacy
+      // pending payments created before snapshotting was added).
+      const gw = (txForMerchant.gatewayResponse as any) || {};
+      const snap = gw?.snapshot;
+      let booster: any;
+      if (snap && typeof snap.quotaField === 'string' && typeof snap.quotaAmount === 'number') {
+        booster = {
+          boosterType,
+          name: snap.name || boosterType,
+          quotaField: snap.quotaField,
+          quotaAmount: snap.quotaAmount,
+          priceUsd: snap.priceUsd,
+          billingMode: snap.billingMode,
+        };
+      } else {
+        booster = await storage.getBoosterConfig(boosterType);
+        if (!booster) return { success: false, message: 'Booster config not found' };
+      }
 
       // True idempotency + atomicity: require a pending payment_transactions
       // row, then atomically (single DB transaction) flip pending → paid AND
