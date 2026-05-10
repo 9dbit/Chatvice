@@ -95,8 +95,8 @@ export class PaymentWebhookHandler {
 
     if (!boosterMerchantId || !boosterTypeResolved) {
       const candidateTx = await storage.getPaymentTransactionByExternalId(external_id);
-      const gw = (candidateTx?.gatewayResponse as any) || {};
-      if (gw?.type === 'booster' && typeof gw?.boosterType === 'string' && candidateTx?.merchantId) {
+      const gw = (candidateTx?.gatewayResponse ?? {}) as Record<string, unknown>;
+      if (gw.type === 'booster' && typeof gw.boosterType === 'string' && candidateTx?.merchantId) {
         boosterMerchantId = candidateTx.merchantId;
         boosterTypeResolved = gw.boosterType;
       }
