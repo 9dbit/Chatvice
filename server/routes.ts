@@ -28459,7 +28459,11 @@ Please create a comprehensive help center article that would be useful for custo
         const transactionId = qrisResult.data?.transactionId || orderId;
 
         // Persist a pending payment transaction so the webhook can correlate +
-        // dedupe replays via getPaymentTransactionByExternalId.
+        // dedupe replays via getPaymentTransactionByExternalId. This row is the
+        // single source of truth for booster fulfillment (the webhook handler
+        // refuses to apply quota when no row exists), so failure to persist
+        // must hard-fail the request to prevent users paying for an
+        // un-recoverable booster.
         try {
           const txId = "ptx_" + crypto.randomBytes(8).toString("hex");
           await storage.createPaymentTransaction({
@@ -28482,7 +28486,10 @@ Please create a comprehensive help center article that would be useful for custo
             invoiceNumber: orderId,
           });
         } catch (saveErr) {
-          console.warn("[booster] Could not save QRIS transaction to local DB:", saveErr);
+          console.error("[booster] CRITICAL: Could not save QRIS transaction to local DB; aborting to avoid lost entitlement:", saveErr);
+          return res.status(500).json({
+            error: "Could not persist payment record. Please try again.",
+          });
         }
 
         return res.json({
