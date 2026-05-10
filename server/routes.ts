@@ -28972,6 +28972,70 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  // Poll QRIS payment status for addon/booster payments
+  interface AddonGatewayFields {
+    addonType?: string;
+    addon_type?: string;
+    type?: string;
+  }
+  function parseAddonGatewayFields(raw: unknown): AddonGatewayFields {
+    if (raw !== null && typeof raw === "object" && !Array.isArray(raw)) {
+      const obj = raw as { [key: string]: unknown };
+      return {
+        addonType: typeof obj.addonType === "string" ? obj.addonType : undefined,
+        addon_type: typeof obj.addon_type === "string" ? obj.addon_type : undefined,
+        type: typeof obj.type === "string" ? obj.type : undefined,
+      };
+    }
+    return {};
+  }
+
+  app.get("/api/merchant/addons/payment-status/:transactionId", requireMerchant, async (req, res) => {
+    try {
+      const { transactionId } = req.params;
+      const merchantId = req.session!.merchantId!;
+
+      const localTx = await storage.getPaymentTransactionByExternalId(transactionId);
+      if (!localTx || localTx.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Transaction not found" });
+      }
+
+      const gr = parseAddonGatewayFields(localTx.gatewayResponse);
+      const addonType: string | null = gr.addonType ?? gr.addon_type ?? null;
+      const txType: string = gr.type ?? "addon";
+
+      // If already confirmed locally (webhook may have fired)
+      if (localTx.status === "paid" || localTx.status === "settled") {
+        let isAddonActive = false;
+        if (addonType) {
+          const addonRecord = await storage.getMerchantAddon(merchantId, addonType);
+          isAddonActive = !!addonRecord?.isActive;
+        }
+        return res.json({ status: "PAID", addonType, txType, isAddonActive });
+      }
+
+      // Check gateway for real-time status
+      const statusResult = await checkPaymentStatus(transactionId);
+      if (!statusResult.success) {
+        return res.json({ status: localTx.status?.toUpperCase() ?? "PENDING", addonType, txType, isAddonActive: false });
+      }
+
+      const gatewayStatus: string = statusResult.data?.status ?? "PENDING";
+      const isPaid = gatewayStatus === "PAID" || gatewayStatus === "SETTLED";
+
+      let isAddonActive = false;
+      if (isPaid && addonType) {
+        const addonRecord = await storage.getMerchantAddon(merchantId, addonType);
+        isAddonActive = !!addonRecord?.isActive;
+      }
+
+      return res.json({ status: gatewayStatus, addonType, txType, isAddonActive });
+    } catch (err) {
+      console.error("[addon-payment-status] error:", err);
+      res.status(500).json({ error: "Failed to check payment status" });
+    }
+  });
+
   // Start 7-day trial for an addon
   app.post("/api/merchant/addons/start-trial", requireMerchant, async (req, res) => {
     try {

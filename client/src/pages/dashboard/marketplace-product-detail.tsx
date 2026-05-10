@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ import {
   ArrowRight,
   CheckCircle,
   ShieldCheck,
+  PartyPopper,
   type LucideIcon,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -462,6 +463,8 @@ export default function MarketplaceProductDetailPage() {
   return null;
 }
 
+type PaymentPhase = "qr" | "confirmed" | "expired";
+
 function PaymentDialog({
   open,
   payment,
@@ -473,47 +476,168 @@ function PaymentDialog({
   title: string;
   onClose: () => void;
 }) {
+  const [, navigate] = useLocation();
+  const [phase, setPhase] = useState<PaymentPhase>("qr");
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPolling = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    if (!open || !payment?.transactionId || phase !== "qr") {
+      stopPolling();
+      return;
+    }
+
+    const poll = async () => {
+      try {
+        const res = await fetch(
+          `/api/merchant/addons/payment-status/${encodeURIComponent(payment.transactionId)}`,
+          { credentials: "include" }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        const status: string = data.status || "";
+        if (status === "PAID" || status === "SETTLED") {
+          stopPolling();
+          queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
+          queryClient.refetchQueries({ queryKey: ["/api/merchant/addons"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
+          setPhase("confirmed");
+        } else if (status === "EXPIRED" || status === "CANCELLED" || status === "FAILED") {
+          stopPolling();
+          setPhase("expired");
+        }
+      } catch {
+        // Network error — keep polling
+      }
+    };
+
+    poll(); // immediate first check, don't wait 3s
+    intervalRef.current = setInterval(poll, 3000);
+    return stopPolling;
+  }, [open, payment?.transactionId, phase]);
+
+  // Reset phase whenever a new payment dialog is opened
+  useEffect(() => {
+    if (open) setPhase("qr");
+    else stopPolling();
+  }, [open]);
+
+  const handleClose = () => {
+    stopPolling();
+    onClose();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DialogContent className="sm:max-w-md" data-testid="dialog-detail-payment">
-        <DialogHeader>
-          <DialogTitle>Selesaikan pembayaran</DialogTitle>
-          <DialogDescription>
-            {payment ? (
-              <>
-                Bayar{" "}
-                <strong>Rp {payment.amountIDR.toLocaleString("id-ID")}</strong>{" "}
-                untuk mengaktifkan <strong>{title}</strong>.
-              </>
-            ) : (
-              "Memuat..."
-            )}
-          </DialogDescription>
-        </DialogHeader>
-        {payment?.qrisString ? (
-          <div className="flex flex-col items-center gap-3">
-            <div className="p-3 bg-white rounded-lg">
-              <QRCodeSVG value={payment.qrisString} size={200} />
+        {phase === "confirmed" ? (
+          <div className="flex flex-col items-center gap-4 py-4 text-center">
+            <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-950/60 flex items-center justify-center">
+              <PartyPopper className="w-8 h-8 text-green-600 dark:text-green-400" />
             </div>
-            <p className="text-xs text-muted-foreground text-center">
-              Pindai QR code di atas dengan aplikasi pembayaran QRIS Anda.
-              Akan otomatis aktif setelah pembayaran terverifikasi.
-            </p>
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold" data-testid="text-payment-success-title">
+                Pembayaran berhasil!
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {payment?.boosterType
+                  ? <>Kuota <strong>{title}</strong> telah ditambahkan ke akun Anda.</>
+                  : <><strong>{title}</strong> telah diaktifkan di akun Anda.</>}
+              </p>
+            </div>
+            <div className="flex gap-2 flex-wrap justify-center mt-2">
+              {payment?.boosterType ? (
+                <Button
+                  onClick={() => {
+                    handleClose();
+                    navigate("/dashboard/marketplace?tab=boosters");
+                  }}
+                  data-testid="button-view-boosters"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Kembali ke Marketplace
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => {
+                    handleClose();
+                    navigate("/dashboard/additional-services");
+                  }}
+                  data-testid="button-view-active-addons"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Lihat add-on aktif
+                </Button>
+              )}
+              <Button variant="outline" onClick={handleClose} data-testid="button-close-payment-success">
+                Tutup
+              </Button>
+            </div>
           </div>
+        ) : phase === "expired" ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>Pembayaran kedaluwarsa</DialogTitle>
+              <DialogDescription>
+                QR code sudah tidak berlaku. Silakan coba lagi.
+              </DialogDescription>
+            </DialogHeader>
+            <Button variant="outline" onClick={handleClose} data-testid="button-close-detail-payment">
+              Tutup
+            </Button>
+          </>
         ) : (
-          <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
-            <Loader2 className="w-5 h-5 animate-spin mr-2" /> Menunggu data
-            pembayaran...
-          </div>
+          <>
+            <DialogHeader>
+              <DialogTitle>Selesaikan pembayaran</DialogTitle>
+              <DialogDescription>
+                {payment ? (
+                  <>
+                    Bayar{" "}
+                    <strong>Rp {payment.amountIDR.toLocaleString("id-ID")}</strong>{" "}
+                    untuk mengaktifkan <strong>{title}</strong>.
+                  </>
+                ) : (
+                  "Memuat..."
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            {payment?.qrisString ? (
+              <div className="flex flex-col items-center gap-3">
+                <div className="p-3 bg-white rounded-lg">
+                  <QRCodeSVG value={payment.qrisString} size={200} />
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                  <span>Menunggu konfirmasi pembayaran...</span>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Pindai QR code di atas dengan aplikasi pembayaran QRIS Anda.
+                  Akan otomatis aktif setelah pembayaran terverifikasi.
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
+                <Loader2 className="w-5 h-5 animate-spin mr-2" /> Menunggu data
+                pembayaran...
+              </div>
+            )}
+            <Button
+              variant="outline"
+              onClick={handleClose}
+              data-testid="button-close-detail-payment"
+            >
+              Tutup &amp; lihat status
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </>
         )}
-        <Button
-          variant="outline"
-          onClick={onClose}
-          data-testid="button-close-detail-payment"
-        >
-          Tutup &amp; lihat status
-          <ArrowRight className="w-4 h-4 ml-2" />
-        </Button>
       </DialogContent>
     </Dialog>
   );
