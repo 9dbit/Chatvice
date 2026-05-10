@@ -103,8 +103,23 @@ export class PaymentWebhookHandler {
     }
 
     if (boosterMerchantId && boosterTypeResolved) {
-      const merchantId = boosterMerchantId;
       const boosterType = boosterTypeResolved;
+      // Canonicalize merchantId from the persisted payment_transactions row
+      // so a forged metadata.merchantId can never redirect entitlement to a
+      // different merchant. The row was created by /initiate-payment under
+      // an authenticated merchant session and is the trusted source of truth.
+      const txForMerchant = await storage.getPaymentTransactionByExternalId(external_id);
+      if (!txForMerchant) {
+        console.warn(`Booster webhook for ${external_id} has no payment row, refusing`);
+        return { success: false, message: 'Unknown transaction' };
+      }
+      if (metadata?.merchantId && metadata.merchantId !== txForMerchant.merchantId) {
+        console.error(
+          `Booster webhook merchantId mismatch: metadata=${metadata.merchantId} tx=${txForMerchant.merchantId} ext=${external_id}`,
+        );
+        return { success: false, message: 'Merchant mismatch' };
+      }
+      const merchantId = txForMerchant.merchantId;
       const merchant = await storage.getMerchant(merchantId);
       if (!merchant) return { success: false, message: 'Merchant not found' };
       const booster = await storage.getBoosterConfig(boosterType);
