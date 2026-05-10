@@ -96,7 +96,24 @@ export function MarketplacePreviewSection() {
   const featuredOnly = all.filter((b) => b.isFeatured);
   const featured = (featuredOnly.length > 0 ? featuredOnly : all).slice(0, 4);
 
-  if (isLoading || featured.length === 0) return null;
+  if (isLoading) {
+    return (
+      <Card data-testid="card-marketplace-preview-loading">
+        <CardHeader className="flex flex-row items-center gap-2 space-y-0">
+          <ShoppingBag className="w-5 h-5 text-primary" />
+          <CardTitle className="text-base">Marketplace — Tambah kapasitas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-32 rounded-md bg-muted/50 animate-pulse" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  if (featured.length === 0) return null;
 
   return (
     <Card data-testid="card-marketplace-preview">
