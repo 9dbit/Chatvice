@@ -3,6 +3,11 @@ import type { Config } from "tailwindcss";
 export default {
   darkMode: ["class"],
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
+  safelist: [
+    // Dynamic gradient classes used by marketplace addon/booster icon tiles (come from DB)
+    { pattern: /^from-(emerald|teal|blue|indigo|violet|purple|amber|orange|cyan|pink|rose|green|sky|fuchsia|lime|yellow|red|slate|gray)-(400|500|600|700)$/ },
+    { pattern: /^to-(emerald|teal|blue|indigo|violet|purple|amber|orange|cyan|pink|rose|green|sky|fuchsia|lime|yellow|red|slate|gray)-(400|500|600|700)$/ },
+  ],
   theme: {
     extend: {
       borderRadius: {
