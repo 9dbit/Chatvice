@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { AiSavingsCard } from "@/components/dashboard/ai-savings-card";
-import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp, QrCode, Timer, RefreshCw, Download, XCircle, Tag, Smartphone, Copy, ShieldCheck, FileText, ArrowRight, CreditCard, X, Bot, Database, Hotel, CheckCircle } from "lucide-react";
+import { Check, Zap, Users, MessageSquare, Crown, AlertTriangle, ArrowUpRight, Calendar, Clock, Lock, Loader2, CheckCircle2, Sparkles, Gift, Building2, ChevronDown, ChevronUp, QrCode, Timer, RefreshCw, Download, XCircle, Tag, Smartphone, Copy, ShieldCheck, FileText, ArrowRight, CreditCard, X, Bot, Database, Hotel, CheckCircle, Calculator } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
@@ -2267,7 +2267,6 @@ export default function BillingPage() {
             const isCurrent = billingStatus?.planId === plan.id;
             const isPopular = plan.id === 'pro';
             const isFree = plan.id === 'free';
-            const isCustom = plan.id === 'custom';
             
             const getPlanIcon = () => {
               switch (plan.id) {
@@ -2405,20 +2404,7 @@ export default function BillingPage() {
                   )}
                 </CardContent>
                 <CardFooter className="pt-2">
-                  {isCustom ? (
-                    <CustomPlanRequestDialog
-                      trigger={
-                        <Button 
-                          className="w-full bg-purple-600 hover:bg-purple-700 text-white" 
-                          size="sm"
-                          data-testid="button-custom-calculator"
-                        >
-                          Try Pricing Calculator
-                          <ArrowUpRight className="w-3 h-3 ml-1" />
-                        </Button>
-                      }
-                    />
-                  ) : isCurrent ? (
+                  {isCurrent ? (
                     <Button variant="outline" disabled className="w-full" size="sm" data-testid={`button-current-plan-${plan.id}`}>{t("dashboard.billing.currentPlan")}</Button>
                   ) : isFree ? (
                     <Button 
@@ -2454,6 +2440,60 @@ export default function BillingPage() {
             );
           })}
         </div>
+
+        {/* Custom Plan Card — always shown below the plan grid */}
+        <Card className="border-purple-300 dark:border-purple-700 bg-gradient-to-r from-purple-50/60 to-pink-50/60 dark:from-purple-950/30 dark:to-pink-950/30" data-testid="card-plan-custom-calculator">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-6">
+              {/* Left: icon + text */}
+              <div className="flex items-start gap-4 flex-1">
+                <div className="p-3 rounded-xl bg-purple-100 dark:bg-purple-900/50 shrink-0">
+                  <Sparkles className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-lg font-semibold text-foreground">Custom Plan</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Volume terlalu besar untuk paket standar? Rancang paketmu sendiri — bayar hanya untuk yang kamu butuhkan.
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {[
+                      "Volume percakapan custom",
+                      "Jumlah AI Agent bebas",
+                      "Supervisor sesuai kebutuhan",
+                      "Harga transparan",
+                      "Semua fitur Enterprise",
+                    ].map((f) => (
+                      <span key={f} className="inline-flex items-center gap-1 text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full">
+                        <Check className="w-3 h-3" />
+                        {f}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {/* Right: pricing hint + CTA */}
+              <div className="flex flex-col items-start md:items-end gap-3 shrink-0">
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Mulai dari</p>
+                  <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">Custom</p>
+                  <p className="text-xs text-muted-foreground">sesuai konfigurasi</p>
+                </div>
+                <CustomPlanRequestDialog
+                  skipAuthCheck={true}
+                  trigger={
+                    <Button
+                      className="bg-purple-600 text-white"
+                      data-testid="button-custom-plan-calculator"
+                    >
+                      <Calculator className="w-4 h-4 mr-2" />
+                      Try Pricing Calculator
+                    </Button>
+                  }
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Additional Services Section */}
