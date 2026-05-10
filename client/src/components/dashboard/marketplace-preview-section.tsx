@@ -109,6 +109,69 @@ const addonGradientMap: Record<string, { from: string; to: string }> = {
 
 const DEFAULT_GRADIENT = { from: "from-violet-500", to: "to-purple-700" };
 
+const boosterBenefits: Record<string, { headline: string; bullets: string[] }> = {
+  conversations_2k: {
+    headline: "Tambah kuota percakapan instan",
+    bullets: [
+      "2.000 percakapan langsung dikreditkan ke saldo akun",
+      "Berlaku untuk semua AI agent di akun Anda",
+      "Tidak ada batas waktu penggunaan saldo",
+      "Ideal saat volume chat meningkat di peak season",
+      "Proses aktivasi otomatis setelah pembayaran terkonfirmasi",
+    ],
+  },
+  supervisor_seat: {
+    headline: "Perluas kapasitas tim supervisor",
+    bullets: [
+      "1 slot supervisor baru siap diaktifkan",
+      "Akses penuh ke Supervisor Panel & eskalasi chat",
+      "Supervisor dapat menangani semua sesi eskalasi",
+      "Integrasi notifikasi Telegram tersedia",
+      "Berlaku permanen selama berlangganan aktif",
+    ],
+  },
+  domains_2: {
+    headline: "Pasang widget di lebih banyak domain",
+    bullets: [
+      "Tambah 2 domain tervalidasi ke whitelist widget",
+      "Lindungi widget dari penyalahgunaan domain tak dikenal",
+      "Mendukung subdomain dan domain khusus",
+      "Konfigurasi per-domain langsung dari dashboard",
+      "Berlaku permanen, tidak perlu perpanjangan",
+    ],
+  },
+  agent_seat: {
+    headline: "Buat lebih banyak AI agent",
+    bullets: [
+      "1 slot AI agent baru siap dikonfigurasi",
+      "Setiap agent punya knowledge base & system prompt sendiri",
+      "Cocok untuk multi-brand atau multi-produk",
+      "Agent dapat dipasang di widget yang berbeda",
+      "Berlaku permanen selama berlangganan aktif",
+    ],
+  },
+  sources_10: {
+    headline: "Perbesar knowledge base agent Anda",
+    bullets: [
+      "10 sumber pengetahuan tambahan siap diisi",
+      "Dukung URL crawl, upload dokumen, atau input manual",
+      "Semakin banyak sumber = jawaban AI semakin akurat",
+      "Auto-sync untuk URL yang di-crawl",
+      "Berlaku permanen, tidak ada batas waktu",
+    ],
+  },
+  vision_50: {
+    headline: "Analisis gambar & dokumen pelanggan",
+    bullets: [
+      "50 kuota analisis media AI (gambar & dokumen)",
+      "AI Vision membaca gambar, tangkap layar, dan PDF",
+      "Membantu agent menjawab pertanyaan berbasis foto produk",
+      "Powered by OpenAI GPT-4 Vision",
+      "Kuota dikreditkan instan setelah pembayaran terkonfirmasi",
+    ],
+  },
+};
+
 /* ------------------------------------------------------------------ */
 /* Helpers                                                              */
 /* ------------------------------------------------------------------ */
@@ -352,85 +415,113 @@ function ProductPopup({
 
   const renderInfo = () => {
     if (!product) return null;
+    const benefits = booster ? boosterBenefits[booster.boosterType] : null;
     return (
-      <>
-        {/* Price */}
-        <div className="bg-muted/40 rounded-xl px-4 py-3">
-          {addon ? (
-            <>
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-foreground">${addon.monthlyPriceUsd}</span>
-                <span className="text-sm text-muted-foreground">/ bulan</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">≈ {addon.monthlyPriceIdrFormatted} / bulan</p>
-            </>
-          ) : booster ? (
-            <>
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-foreground">${booster.priceUsd}</span>
-                <span className="text-sm text-muted-foreground">
-                  {booster.billingMode === "monthly" ? "/ bulan" : "/ sekali bayar"}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">≈ {booster.priceIdrFormatted}</p>
-            </>
-          ) : null}
-        </div>
-
-        {/* Description / What you get */}
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Yang Anda dapatkan</p>
-          {addon?.description ? (
-            <p className="text-sm text-foreground leading-relaxed">{addon.description}</p>
-          ) : booster ? (
-            <p className="text-sm text-foreground leading-relaxed">
-              Tambah{" "}
-              <strong>{booster.quotaAmount.toLocaleString()}</strong> kuota{" "}
-              {booster.name.replace(/^\+[\d,]+\s+/, "")} ke akun Anda secara instan.
-            </p>
-          ) : null}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+        {/* ── Left column: price + terms ── */}
+        <div className="space-y-4">
+          {/* Price */}
+          <div className="bg-muted/40 rounded-xl px-4 py-3">
+            {addon ? (
+              <>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-bold text-foreground">${addon.monthlyPriceUsd}</span>
+                  <span className="text-sm text-muted-foreground">/ bulan</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">≈ {addon.monthlyPriceIdrFormatted} / bulan</p>
+              </>
+            ) : booster ? (
+              <>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-bold text-foreground">${booster.priceUsd}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {booster.billingMode === "monthly" ? "/ bulan" : "/ sekali bayar"}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">≈ {booster.priceIdrFormatted}</p>
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 mt-2">
+                  {booster.billingMode === "monthly" ? "Langganan bulanan" : "Pembelian sekali"}
+                </Badge>
+              </>
+            ) : null}
+          </div>
 
           {addonActive && (
-            <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2 mt-1">
+            <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2">
               <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
               Add-on ini sudah aktif di akun Anda.
             </div>
           )}
+
+          <Separator />
+
+          {/* Terms & Conditions */}
+          <div>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left"
+              onClick={() => setTcOpen((v) => !v)}
+            >
+              <Info className="w-3.5 h-3.5 shrink-0" />
+              <span className="underline underline-offset-2">Syarat & Ketentuan</span>
+              <ChevronRight
+                className={`w-3 h-3 ml-auto transition-transform ${tcOpen ? "rotate-90" : ""}`}
+              />
+            </button>
+            {tcOpen && (
+              <ul className="mt-2 space-y-1 text-xs text-muted-foreground list-disc list-inside pl-1">
+                <li>Pembayaran diproses oleh 12Pay melalui QRIS dan bersifat non-refundable.</li>
+                {addon && <li>Biaya berlangganan ditagih setiap bulan. Anda dapat membatalkan kapan saja melalui menu Billing.</li>}
+                {booster && <li>Kuota dikreditkan ke akun secara instan setelah pembayaran terverifikasi. Non-transferable.</li>}
+                <li>Aktivasi otomatis setelah pembayaran berhasil dikonfirmasi oleh gateway.</li>
+                <li>Chatvice berhak mengubah harga dengan pemberitahuan minimal 30 hari sebelumnya.</li>
+              </ul>
+            )}
+          </div>
         </div>
 
-        <Separator />
+        {/* ── Right column: description / benefits ── */}
+        <div className="bg-muted/30 rounded-xl p-4 space-y-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Yang Anda dapatkan
+          </p>
 
-        {/* Terms & Conditions */}
-        <div>
-          <button
-            type="button"
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left"
-            onClick={() => setTcOpen((v) => !v)}
-          >
-            <Info className="w-3.5 h-3.5 shrink-0" />
-            <span className="underline underline-offset-2">Syarat & Ketentuan</span>
-            <ChevronRight
-              className={`w-3 h-3 ml-auto transition-transform ${tcOpen ? "rotate-90" : ""}`}
-            />
-          </button>
-          {tcOpen && (
-            <ul className="mt-2 space-y-1 text-xs text-muted-foreground list-disc list-inside pl-1">
-              <li>Pembayaran diproses oleh 12Pay melalui QRIS dan bersifat non-refundable.</li>
-              {addon && <li>Biaya berlangganan ditagih setiap bulan. Anda dapat membatalkan kapan saja melalui menu Billing.</li>}
-              {booster && <li>Kuota dikreditkan ke akun secara instan setelah pembayaran terverifikasi. Non-transferable.</li>}
-              <li>Aktivasi otomatis setelah pembayaran berhasil dikonfirmasi oleh gateway.</li>
-              <li>Chatvice berhak mengubah harga dengan pemberitahuan minimal 30 hari sebelumnya.</li>
-            </ul>
+          {/* Addon description from DB */}
+          {addon?.description && (
+            <p className="text-sm text-foreground leading-relaxed">{addon.description}</p>
+          )}
+
+          {/* Booster: headline + rich bullet list */}
+          {booster && benefits && (
+            <>
+              <p className="text-sm font-medium text-foreground">{benefits.headline}</p>
+              <ul className="space-y-2">
+                {benefits.bullets.map((b, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                    <span>{b}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {/* Fallback for boosters without a mapped description */}
+          {booster && !benefits && (
+            <p className="text-sm text-foreground leading-relaxed">
+              Tambah <strong>{booster.quotaAmount.toLocaleString()}</strong> kuota{" "}
+              {booster.name.replace(/^\+[\d,]+\s+/, "")} ke akun Anda secara instan.
+            </p>
           )}
         </div>
-      </>
+      </div>
     );
   };
 
   return (
     <Dialog open={!!productId} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent
-        className="max-w-sm sm:max-w-md p-0 gap-0 overflow-hidden border-border/50 shadow-2xl bg-background/85 backdrop-blur-xl max-h-[90vh] flex flex-col"
+        className="max-w-sm sm:max-w-2xl p-0 gap-0 overflow-hidden border-border/50 shadow-2xl bg-background/85 backdrop-blur-xl max-h-[90vh] flex flex-col"
         data-testid="dialog-product-detail"
       >
         {/* Header — always visible */}

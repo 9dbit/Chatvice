@@ -28649,6 +28649,11 @@ Please create a comprehensive help center article that would be useful for custo
         if (!isTwelvePayConfigured()) {
           return res.status(503).json({ error: "Payment gateway not configured" });
         }
+        const forwardedHost = req.get('x-forwarded-host') || req.get('host');
+        const isLocalhost = !forwardedHost || forwardedHost.includes('localhost');
+        const callbackUrl = isLocalhost
+          ? 'https://chatvice.app/api/payment/webhook'
+          : `https://${forwardedHost}/api/payment/webhook`;
         const qrisResult = await createQRISPayment({
           merchantId,
           orderId,
@@ -28656,6 +28661,7 @@ Please create a comprehensive help center article that would be useful for custo
           customerEmail: merchant.email,
           customerName: merchant.companyName || merchant.email.split("@")[0],
           expiryMinutes: 5,
+          callbackUrl,
           metadata: {
             type: "booster",
             boosterType,
