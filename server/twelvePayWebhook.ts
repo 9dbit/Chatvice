@@ -30,6 +30,7 @@ export interface PaymentWebhookPayload {
     billingInterval?: string;
     type?: string;
     addonType?: string;
+    boosterType?: string;
     isDowngrade?: string;
     scheduledActivationDate?: string;
     customConversationsLimit?: number | string;
@@ -82,9 +83,28 @@ export class PaymentWebhookHandler {
   private static async handlePaymentSuccess(payload: PaymentWebhookPayload): Promise<{ success: boolean; message: string }> {
     const { external_id, metadata, transaction_id, amount, payment_method, paid_at } = payload;
 
-    // Handle booster payments (Task #328) — top-up quotas / extra slots
-    if (metadata?.type === 'booster' && metadata?.merchantId && metadata?.boosterType) {
-      const { merchantId, boosterType } = metadata as { merchantId: string; boosterType: string };
+    // Handle booster payments (Task #328) — top-up quotas / extra slots.
+    // Resolve booster info metadata-independently: gateway may strip metadata,
+    // so we also recover from the pending payment_transactions row created by
+    // /api/merchant/boosters/initiate-payment, which stores
+    // gatewayResponse = { type: "booster", boosterType, ... }.
+    let boosterMerchantId: string | undefined =
+      metadata?.type === 'booster' ? metadata?.merchantId : undefined;
+    let boosterTypeResolved: string | undefined =
+      metadata?.type === 'booster' ? metadata?.boosterType : undefined;
+
+    if (!boosterMerchantId || !boosterTypeResolved) {
+      const candidateTx = await storage.getPaymentTransactionByExternalId(external_id);
+      const gw = (candidateTx?.gatewayResponse as any) || {};
+      if (gw?.type === 'booster' && typeof gw?.boosterType === 'string' && candidateTx?.merchantId) {
+        boosterMerchantId = candidateTx.merchantId;
+        boosterTypeResolved = gw.boosterType;
+      }
+    }
+
+    if (boosterMerchantId && boosterTypeResolved) {
+      const merchantId = boosterMerchantId;
+      const boosterType = boosterTypeResolved;
       const merchant = await storage.getMerchant(merchantId);
       if (!merchant) return { success: false, message: 'Merchant not found' };
       const booster = await storage.getBoosterConfig(boosterType);
