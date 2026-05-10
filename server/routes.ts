@@ -9162,13 +9162,28 @@ Rules:
         temperature: 0.2,
       });
       const raw = response.choices[0]?.message?.content?.trim() || "{}";
-      let result: { hasIssues: boolean; ambiguities: unknown[]; suggestions: unknown[] } = { hasIssues: false, ambiguities: [], suggestions: [] };
+      let result: { hasIssues: boolean; ambiguities: { excerpt: string; issue: string; options: string[] }[]; suggestions: { excerpt: string; simplified: string }[] } = { hasIssues: false, ambiguities: [], suggestions: [] };
       try {
         const parsed = JSON.parse(raw);
+        const rawAmbiguities: unknown[] = Array.isArray(parsed.ambiguities) ? parsed.ambiguities : [];
+        const rawSuggestions: unknown[] = Array.isArray(parsed.suggestions) ? parsed.suggestions : [];
+        const ambiguities = rawAmbiguities.flatMap((a) => {
+          if (typeof a !== "object" || a === null) return [];
+          const obj = a as Record<string, unknown>;
+          if (typeof obj.excerpt !== "string" || typeof obj.issue !== "string") return [];
+          const options = Array.isArray(obj.options) ? (obj.options as unknown[]).filter((o): o is string => typeof o === "string") : [];
+          return [{ excerpt: obj.excerpt, issue: obj.issue, options }];
+        });
+        const suggestions = rawSuggestions.flatMap((s) => {
+          if (typeof s !== "object" || s === null) return [];
+          const obj = s as Record<string, unknown>;
+          if (typeof obj.excerpt !== "string" || typeof obj.simplified !== "string") return [];
+          return [{ excerpt: obj.excerpt, simplified: obj.simplified }];
+        });
         result = {
-          hasIssues: !!parsed.hasIssues,
-          ambiguities: Array.isArray(parsed.ambiguities) ? parsed.ambiguities : [],
-          suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
+          hasIssues: !!parsed.hasIssues || ambiguities.length > 0 || suggestions.length > 0,
+          ambiguities,
+          suggestions,
         };
       } catch {
         // Return no-issues if JSON parse fails

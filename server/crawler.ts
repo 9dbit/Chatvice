@@ -609,7 +609,7 @@ Extract the following categories thoroughly:
 2. **Business Information**:
    - Company name, full description, history, mission — only as written
    - Operating hours / Jam operasional (every day listed, exactly as written)
-   - Physical address / Alamat — only if explicitly stated in visible page text
+   - Physical address / Alamat — ONLY if present in the structured data block above; do NOT extract from raw page text
    - Service areas / coverage / delivery zones
 
 3. **Policies**:
