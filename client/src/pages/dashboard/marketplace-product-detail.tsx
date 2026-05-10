@@ -260,13 +260,14 @@ export default function MarketplaceProductDetailPage() {
     return (
       <div className="max-w-2xl space-y-4">
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
+          className="rounded-full px-4"
           onClick={() => navigate("/dashboard/marketplace")}
           data-testid="button-back-marketplace"
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Kembali ke Marketplace
+          <ArrowLeft className="w-4 h-4 mr-1.5" />
+          Back
         </Button>
         <p className="text-muted-foreground">Produk tidak ditemukan.</p>
       </div>
@@ -288,13 +289,14 @@ export default function MarketplaceProductDetailPage() {
     return (
       <div className="max-w-2xl space-y-6">
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
+          className="rounded-full px-4"
           onClick={() => navigate("/dashboard/marketplace")}
           data-testid="button-back-marketplace"
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Kembali ke Marketplace
+          <ArrowLeft className="w-4 h-4 mr-1.5" />
+          Back
         </Button>
 
         {active && (
@@ -402,13 +404,14 @@ export default function MarketplaceProductDetailPage() {
     return (
       <div className="max-w-2xl space-y-6">
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
+          className="rounded-full px-4"
           onClick={() => navigate("/dashboard/marketplace?tab=boosters")}
           data-testid="button-back-marketplace"
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Kembali ke Marketplace
+          <ArrowLeft className="w-4 h-4 mr-1.5" />
+          Back
         </Button>
 
         <div className="flex items-center gap-4">

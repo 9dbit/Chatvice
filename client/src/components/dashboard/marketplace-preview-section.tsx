@@ -15,7 +15,7 @@ import {
   Zap,
   Calendar,
   Hotel,
-  ArrowRight,
+  ChevronRight,
   ShoppingBag,
   type LucideIcon,
 } from "lucide-react";
@@ -23,6 +23,8 @@ import {
 interface BoosterItem {
   boosterType: string;
   name: string;
+  quotaAmount: number;
+  quotaField: string;
   iconName: string;
   gradientFrom: string;
   gradientTo: string;
@@ -46,11 +48,12 @@ interface MarketplaceResponse {
 interface UnifiedProduct {
   productId: string;
   name: string;
-  shortName: string;
   kind: "addon" | "booster";
   iconName: string;
   gradientFrom: string;
   gradientTo: string;
+  valueText?: string;
+  labelText?: string;
 }
 
 const boosterIconMap: Record<string, LucideIcon> = {
@@ -75,11 +78,10 @@ const addonGradientMap: Record<string, { from: string; to: string }> = {
 
 const DEFAULT_GRADIENT = { from: "from-violet-500", to: "to-purple-700" };
 
-function shortName(name: string): string {
-  if (name.length <= 12) return name;
-  const words = name.split(" ");
-  if (words.length > 1) return words.slice(0, 2).join(" ");
-  return name.slice(0, 12);
+function splitBoosterName(name: string): { value: string; label: string } {
+  const match = name.match(/^(\+[\d,]+)\s+(.+)$/);
+  if (match) return { value: match[1], label: match[2] };
+  return { value: "", label: name };
 }
 
 export function MarketplacePreviewSection() {
@@ -103,7 +105,6 @@ export function MarketplacePreviewSection() {
       return {
         productId: `addon-${item.addonType}`,
         name: item.name,
-        shortName: shortName(item.name),
         kind: "addon",
         iconName: item.addonType,
         gradientFrom: g.from,
@@ -113,15 +114,19 @@ export function MarketplacePreviewSection() {
   );
 
   const boosterProducts: UnifiedProduct[] = (boostersData?.items ?? []).map(
-    (item) => ({
-      productId: `booster-${item.boosterType}`,
-      name: item.name,
-      shortName: shortName(item.name),
-      kind: "booster",
-      iconName: item.iconName,
-      gradientFrom: item.gradientFrom,
-      gradientTo: item.gradientTo,
-    })
+    (item) => {
+      const { value, label } = splitBoosterName(item.name);
+      return {
+        productId: `booster-${item.boosterType}`,
+        name: item.name,
+        kind: "booster",
+        iconName: item.iconName,
+        gradientFrom: item.gradientFrom,
+        gradientTo: item.gradientTo,
+        valueText: value || `+${item.quotaAmount.toLocaleString()}`,
+        labelText: label,
+      };
+    }
   );
 
   const allProducts: UnifiedProduct[] = [...addonProducts, ...boosterProducts];
@@ -129,16 +134,21 @@ export function MarketplacePreviewSection() {
   if (isLoading) {
     return (
       <Card data-testid="card-marketplace-preview-loading">
-        <CardHeader className="flex flex-row items-center gap-2 space-y-0">
-          <ShoppingBag className="w-5 h-5 text-primary" />
-          <CardTitle className="text-base">Marketplace</CardTitle>
+        <CardHeader className="flex flex-row items-center gap-2 space-y-0 flex-wrap justify-between">
+          <div className="flex items-center gap-2">
+            <ShoppingBag className="w-5 h-5 text-primary" />
+            <CardTitle className="text-base">Marketplace</CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="flex flex-col items-center gap-2">
-                <Skeleton className="w-14 h-14 rounded-2xl" />
-                <Skeleton className="h-3 w-12" />
+              <div key={i} className="flex items-center gap-3 p-2">
+                <Skeleton className="w-12 h-12 rounded-xl shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-5 w-14" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
               </div>
             ))}
           </div>
@@ -151,27 +161,28 @@ export function MarketplacePreviewSection() {
 
   return (
     <Card data-testid="card-marketplace-preview">
-      <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 flex-wrap">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 flex-wrap pb-3">
         <div className="flex items-center gap-2">
           <ShoppingBag className="w-5 h-5 text-primary" />
-          <CardTitle className="text-base">Marketplace</CardTitle>
+          <CardTitle className="text-base text-foreground">Marketplace</CardTitle>
           <Badge variant="secondary" className="text-xs">
             <Sparkles className="w-3 h-3 mr-1" />
-            {allProducts.length} produk
+            {allProducts.length} products
           </Badge>
         </div>
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
+          className="rounded-full px-4 h-8 text-sm font-medium"
           onClick={() => navigate("/dashboard/marketplace")}
           data-testid="button-view-all-marketplace"
         >
-          Lihat semua
-          <ArrowRight className="w-4 h-4 ml-1" />
+          View all
+          <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
         </Button>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-x-2 gap-y-4">
+      <CardContent className="pt-0">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
           {allProducts.map((product) => {
             const Icon =
               product.kind === "addon"
@@ -181,21 +192,39 @@ export function MarketplacePreviewSection() {
             return (
               <button
                 key={product.productId}
-                className="flex flex-col items-center gap-1.5 cursor-pointer group focus:outline-none"
+                type="button"
+                className="flex items-center gap-3 p-2.5 rounded-xl hover-elevate text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary w-full"
                 onClick={() =>
                   navigate(`/dashboard/marketplace/${product.productId}`)
                 }
                 data-testid={`tile-${product.productId}`}
-                type="button"
               >
                 <div
-                  className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${product.gradientFrom} ${product.gradientTo} flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow`}
+                  className={`w-12 h-12 rounded-xl bg-gradient-to-br ${product.gradientFrom} ${product.gradientTo} flex items-center justify-center shrink-0 shadow-sm`}
                 >
-                  <Icon className="w-7 h-7 text-white" />
+                  <Icon className="w-6 h-6 text-white" />
                 </div>
-                <span className="text-[10px] text-center leading-tight text-muted-foreground group-hover:text-foreground transition-colors max-w-[56px] break-words">
-                  {product.shortName}
-                </span>
+                <div className="flex-1 min-w-0">
+                  {product.kind === "booster" && product.valueText ? (
+                    <>
+                      <p className="text-2xl font-bold text-foreground leading-none">
+                        {product.valueText}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 line-clamp-2">
+                        {product.labelText}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-semibold text-foreground leading-tight line-clamp-2">
+                        {product.name}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Add-on
+                      </p>
+                    </>
+                  )}
+                </div>
               </button>
             );
           })}
