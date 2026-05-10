@@ -476,7 +476,7 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 
 const sidebarMenuButtonVariants = cva(
   [
-    "peer/menu-button relative flex w-full items-center gap-3 overflow-visible rounded-md px-3 py-3 text-left text-sm outline-hidden ring-sidebar-ring",
+    "peer/menu-button relative flex w-full items-center gap-3 overflow-visible rounded-md px-3 py-1.5 text-left text-sm outline-hidden ring-sidebar-ring",
     "transition-[width,height,padding,background-color] duration-150",
     "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
     "focus-visible:ring-2",
@@ -501,9 +501,9 @@ const sidebarMenuButtonVariants = cva(
           "bg-background shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]",
       },
       size: {
-        default: "min-h-[48px] text-sm",
-        sm: "min-h-[44px] text-xs",
-        lg: "min-h-[52px] text-sm group-data-[collapsible=icon]:p-0!",
+        default: "min-h-[36px] text-sm",
+        sm: "min-h-[32px] text-xs",
+        lg: "min-h-[44px] text-sm group-data-[collapsible=icon]:p-0!",
       },
     },
     defaultVariants: {
