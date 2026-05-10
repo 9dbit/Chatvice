@@ -33,6 +33,8 @@ interface CustomDataSource {
   lastHealthCheckAt?: string | null;
   lastHealthLatencyMs?: number | null;
   lastHealthError?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 interface HealthSummary {
@@ -277,6 +279,16 @@ export default function CustomDataSourcePage() {
               onRefresh={() => refreshHealth.mutate()}
               refreshing={refreshHealth.isPending}
             />
+          )}
+          {source && (source.updatedAt || source.createdAt) && (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground" data-testid="text-last-setup">
+              <Badge variant="outline" className="font-normal">
+                {t("dashboard.customDataSource.lastSetup") || "Last setup"}: {new Date((source.updatedAt || source.createdAt) as string).toLocaleString(dateLocale, { dateStyle: "medium", timeStyle: "short" })}
+              </Badge>
+              {source.baseUrl && (
+                <span className="font-mono truncate max-w-[24rem]" title={source.baseUrl}>{source.baseUrl}</span>
+              )}
+            </div>
           )}
         </div>
         <div className="flex items-center gap-2">

@@ -211,7 +211,9 @@ function MainRouter() {
       <Route path="/profile-wizard" component={ProfileWizardPage} />
       <Route path="/select-agent" component={SelectAgentPage} />
       <Route path="/dashboard" component={DashboardLayout} />
-      <Route path="/dashboard/:page*" component={DashboardLayout} />
+      <Route path="/dashboard/:rest*" component={DashboardLayout} />
+      <Route path="/dashboard/:a/:b" component={DashboardLayout} />
+      <Route path="/dashboard/:a/:b/:c" component={DashboardLayout} />
       <Route path="/supervisor" component={SupervisorPanel} />
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin" component={AdminDashboard} />
