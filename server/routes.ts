@@ -10683,6 +10683,21 @@ Rules:
         return res.json({ hasPendingPayment: false });
       }
       
+      // Auto-expire rows whose gateway already rejected the payment, regardless
+      // of whether the DB expiresAt timestamp has been reached yet.  This
+      // covers user cancellations on the gateway side and pre-#340 rows that
+      // stored an expiresAt 7 hours too far ahead.
+      const TERMINAL_STATUSES = ['failed', 'expired', 'cancelled'];
+      if (TERMINAL_STATUSES.includes(String(localTransaction.status || '').toLowerCase())) {
+        await storage.updateMerchantSubscription(merchant.id, {
+          pendingTransactionId: null,
+        });
+        console.log(
+          `[pending-payment] Cleared pending txn ${localTransaction.id} — gateway status is '${localTransaction.status}'`
+        );
+        return res.json({ hasPendingPayment: false });
+      }
+
       // Legacy-row correction: before Task #340 the 12Pay WIB expiry string was
       // parsed as UTC, storing expiresAt 7 hours too far ahead. QRIS payments
       // expire in ≤15 minutes, so any row whose stored lifetime (expiresAt -
