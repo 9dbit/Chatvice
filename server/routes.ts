@@ -5882,7 +5882,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         customerName: merchant.companyName,
         customerEmail: merchant.email,
         description,
-        expiryMinutes: 30,
+        expiryMinutes: 5, // QRIS: 5 minutes
         callbackUrl,
         metadata: {
           merchantId: merchant.id,
@@ -10768,7 +10768,7 @@ Rules:
         customerName: merchant.companyName,
         customerEmail: merchant.email,
         description: `Chatvice ${plan.name} - ${billingInterval === 'annual' ? 'Annual' : 'Monthly'} Subscription`,
-        expiryMinutes: 30,
+        expiryMinutes: 5, // QRIS: 5 minutes
         callbackUrl,
         metadata: {
           merchantId: merchant.id,
@@ -10926,7 +10926,7 @@ Rules:
             paymentResult = await createQRISPayment({
               merchantId: merchant.id, orderId: numericOrderId, amount: priceIDR,
               customerName: merchant.companyName, customerEmail: merchant.email,
-              description: addonDescription, expiryMinutes: 30, callbackUrl, metadata: addonMetadata,
+              description: addonDescription, expiryMinutes: 5, callbackUrl, metadata: addonMetadata,
             });
             if (!paymentResult.success || !paymentResult.data) {
               let qrisErr = paymentResult.error || "Failed to create QRIS payment";
@@ -10961,7 +10961,7 @@ Rules:
             paymentResult = await createVAPayment({
               merchantId: merchant.id, orderId: numericOrderId, amount: priceIDR,
               bankCode, customerName: merchant.companyName, customerEmail: merchant.email,
-              description: addonDescription, expiryMinutes: 30, callbackUrl, metadata: { ...addonMetadata, originalOrderId: orderId },
+              description: addonDescription, expiryMinutes: 30, callbackUrl, metadata: { ...addonMetadata, originalOrderId: orderId }, // VA: 30 minutes
             });
             if (!paymentResult.success || !paymentResult.data) {
               return res.status(400).json({ error: paymentResult.error || "Failed to create Virtual Account" });
@@ -11203,7 +11203,7 @@ Rules:
             customerName: merchant.companyName,
             customerEmail: merchant.email,
             description: `Chatvice ${plan.name} - ${billingInterval === 'annual' ? 'Annual' : 'Monthly'} Subscription`,
-            expiryMinutes: 30, // QRIS: 30 minutes expiry (12Pay may reject shorter windows)
+            expiryMinutes: 5, // QRIS: 5 minutes (instant scan via e-wallet/m-banking)
             callbackUrl,
             metadata: { 
               merchantId: merchant.id, 
@@ -11301,7 +11301,7 @@ Rules:
             customerName: merchant.companyName,
             customerEmail: merchant.email,
             description: `Chatvice ${plan.name} Subscription`,
-            expiryMinutes: 30, // VA: 30 minutes expiry
+            expiryMinutes: 30, // Virtual Account: 30 minutes
             callbackUrl,
             metadata: { 
               merchantId: merchant.id, 
@@ -11413,7 +11413,7 @@ Rules:
             customerName: merchant.companyName,
             customerEmail: merchant.email,
             description: `Chatvice ${plan.name} Subscription`,
-            expiryMinutes: 30, // Bank Transfer: 30 minutes expiry
+            expiryMinutes: 60, // Bank Transfer / PayPal / Crypto: 60 minutes
             callbackUrl,
             metadata: { 
               merchantId: merchant.id, 
@@ -25107,7 +25107,7 @@ Your Telegram integration is working correctly!`;
           orderId,
           amount,
           description: `Top-up coins`,
-          expiryMinutes: 30,
+          expiryMinutes: 5, // QRIS: 5 minutes
           callbackUrl: `${process.env.APP_URL || ""}/webhook/twelvepay`,
         });
 
@@ -28461,7 +28461,7 @@ Please create a comprehensive help center article that would be useful for custo
           amount: amountIDR,
           customerEmail: merchant.email,
           customerName: merchant.companyName || merchant.email.split("@")[0],
-          expiryMinutes: 60,
+          expiryMinutes: 5, // QRIS: 5 minutes
           metadata: {
             type: "addon",
             addonType,

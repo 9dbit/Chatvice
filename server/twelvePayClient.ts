@@ -250,7 +250,8 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
     const { clientKey, clientSecret, gatewayName, apiBaseUrl } = await getGatewayCredentials();
     const timestamp = generateTimestamp();
     
-    const expiryMinutes = request.expiryMinutes || 30;
+    // QRIS: short window (5 min) — payment is instant via mobile banking/e-wallet scan.
+    const expiryMinutes = request.expiryMinutes || 5;
     const expiryDate = new Date(Date.now() + expiryMinutes * 60 * 1000);
     const wibOffset = 7 * 60 * 60 * 1000;
     const expiredStr = new Date(expiryDate.getTime() + wibOffset).toISOString().replace('T', ' ').split('.')[0];
@@ -423,7 +424,8 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
     const { clientKey, clientSecret, gatewayName, apiBaseUrl } = await getGatewayCredentials();
     const timestamp = generateTimestamp();
     
-    const expiryMinutes = request.expiryMinutes || 1440;
+    // Virtual Account: 30 min default (customer needs time to log into m-banking).
+    const expiryMinutes = request.expiryMinutes || 30;
     const expiryDate = new Date(Date.now() + expiryMinutes * 60 * 1000);
     const wibOffset = 7 * 60 * 60 * 1000;
     const expiredStr = new Date(expiryDate.getTime() + wibOffset).toISOString().replace('T', ' ').split('.')[0];
@@ -603,7 +605,8 @@ export async function createBankTransferPayment(request: CreateBankTransferReque
   try {
     const { gatewayName } = await getGatewayCredentials();
     
-    const expiryMinutes = request.expiryMinutes || 1440;
+    // Bank Transfer / PayPal / Crypto: 60 min default (manual transfer needs more time).
+    const expiryMinutes = request.expiryMinutes || 60;
     const expiryDate = new Date(Date.now() + expiryMinutes * 60 * 1000);
     const expiredStr = expiryDate.toISOString().replace('T', ' ').split('.')[0];
     
