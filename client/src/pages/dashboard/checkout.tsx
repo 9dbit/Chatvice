@@ -2008,7 +2008,7 @@ export default function CheckoutPage() {
                   </div>
 
                   {/* 2-column sub-grid: left = order rows, right = total + timer */}
-                  <div className="grid grid-cols-2 gap-2 bg-gray-100 dark:bg-zinc-800 rounded-lg p-2">
+                  <div className="grid grid-cols-2 min-[320px]:grid-cols-2 gap-2 bg-gray-100 dark:bg-zinc-800 rounded-lg p-2">
                     {/* Left: order detail rows */}
                     <div className="flex flex-col justify-center space-y-1">
                       <div className="flex flex-col text-[11px]">
