@@ -2542,6 +2542,20 @@ export const boosterConfigs = pgTable("booster_configs", {
 export const insertBoosterConfigSchema = createInsertSchema(boosterConfigs).omit({ id: true, createdAt: true });
 export type InsertBoosterConfig = z.infer<typeof insertBoosterConfigSchema>;
 export type BoosterConfig = typeof boosterConfigs.$inferSelect;
+export type BoosterQuotaField =
+  | "extraSupervisorSlots"
+  | "extraAgentSlots"
+  | "extraDomainSlots"
+  | "extraSourceSlots"
+  | "extraVisionQuota"
+  | "extraConversationsBalance";
+export type BoosterEntitlementSnapshot = {
+  name: string;
+  quotaField: BoosterQuotaField;
+  quotaAmount: number;
+  priceUsd?: number;
+  billingMode?: "one_time" | "monthly";
+};
 
 // ─── Appointment Divisions ─────────────────────────────────────────────────────
 export const appointmentDivisions = pgTable("appointment_divisions", {

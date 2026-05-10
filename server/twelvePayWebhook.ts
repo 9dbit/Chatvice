@@ -1,7 +1,7 @@
 import { randomBytes } from 'crypto';
 import { verifyWebhookSignature, getActiveGatewayName } from './twelvePayClient';
 import { storage } from './storage';
-import { subscriptionPlans, type SubscriptionPlanId } from '@shared/schema';
+import { subscriptionPlans, type SubscriptionPlanId, type BoosterEntitlementSnapshot, type BoosterConfig } from '@shared/schema';
 import { getEffectiveSubscriptionPlan } from './subscriptionPlanUtils';
 import { sendPaymentReceiptEmail, sendAdminPaymentNotificationEmail } from './resendClient';
 
@@ -128,21 +128,34 @@ export class PaymentWebhookHandler {
       // booster_configs after payment cannot corrupt or lose entitlement.
       // Fall back to the live config only if no snapshot exists (legacy
       // pending payments created before snapshotting was added).
-      const gw = (txForMerchant.gatewayResponse as any) || {};
-      const snap = gw?.snapshot;
-      let booster: any;
-      if (snap && typeof snap.quotaField === 'string' && typeof snap.quotaAmount === 'number') {
+      const gw = (txForMerchant.gatewayResponse ?? {}) as { snapshot?: BoosterEntitlementSnapshot };
+      const snap = gw.snapshot;
+      const allowedQuotaFields: ReadonlySet<string> = new Set([
+        'extraSupervisorSlots','extraAgentSlots','extraDomainSlots',
+        'extraSourceSlots','extraVisionQuota','extraConversationsBalance',
+      ]);
+      let booster: BoosterConfig;
+      if (snap && allowedQuotaFields.has(snap.quotaField) && typeof snap.quotaAmount === 'number') {
         booster = {
+          id: `snapshot:${boosterType}`,
           boosterType,
           name: snap.name || boosterType,
           quotaField: snap.quotaField,
           quotaAmount: snap.quotaAmount,
-          priceUsd: snap.priceUsd,
-          billingMode: snap.billingMode,
+          priceUsd: snap.priceUsd ?? 0,
+          billingMode: snap.billingMode ?? 'one_time',
+          iconName: '',
+          gradientFrom: '',
+          gradientTo: '',
+          sortOrder: 0,
+          isFeatured: false,
+          isEnabled: true,
+          createdAt: new Date(),
         };
       } else {
-        booster = await storage.getBoosterConfig(boosterType);
-        if (!booster) return { success: false, message: 'Booster config not found' };
+        const live = await storage.getBoosterConfig(boosterType);
+        if (!live) return { success: false, message: 'Booster config not found' };
+        booster = live;
       }
 
       // True idempotency + atomicity: require a pending payment_transactions

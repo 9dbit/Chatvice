@@ -1,7 +1,7 @@
 import {
   type AddonConfig, type InsertAddonConfig,
   type MerchantAddon, type InsertMerchantAddon,
-  type BoosterConfig, type InsertBoosterConfig,
+  type BoosterConfig, type InsertBoosterConfig, type BoosterQuotaField,
   type HospitalityConfig, type InsertHospitalityConfig,
   type CustomDataSource, type InsertCustomDataSource,
   type CustomDataIntent, type InsertCustomDataIntent,
@@ -4444,9 +4444,10 @@ export class DatabaseStorage implements IStorage {
     if (!allowedFields.has(booster.quotaField)) {
       throw new Error(`Invalid booster quotaField: ${booster.quotaField}`);
     }
-    const current = (merchant as any)[booster.quotaField] || 0;
+    const field = booster.quotaField as BoosterQuotaField;
+    const current = merchant[field] ?? 0;
     const next = current + (booster.quotaAmount || 0);
-    await this.updateMerchant(merchantId, { [booster.quotaField]: next } as Partial<Merchant>);
+    await this.updateMerchant(merchantId, { [field]: next });
   }
 
   /**
@@ -4509,11 +4510,12 @@ export class DatabaseStorage implements IStorage {
         .from(merchants)
         .where(eq(merchants.id, params.merchantId));
       if (!merchantRow) throw new Error("Merchant not found");
-      const current = (merchantRow as any)[params.booster.quotaField] || 0;
+      const field = params.booster.quotaField as BoosterQuotaField;
+      const current = merchantRow[field] ?? 0;
       const next = current + (params.booster.quotaAmount || 0);
       await tx
         .update(merchants)
-        .set({ [params.booster.quotaField]: next, updatedAt: new Date() } as any)
+        .set({ [field]: next })
         .where(eq(merchants.id, params.merchantId));
       return "applied";
     });

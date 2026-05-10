@@ -202,10 +202,10 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
 // Top-up balance (merchants.extraConversationsBalance) is added on top of the
 // plan's conversationsLimit so quota checks honour purchased top-ups.
 async function getEffectivePlanLimitsAsync(merchant: Merchant) {
-  const topUpBalance = (merchant as any).extraConversationsBalance || 0;
-  const extraSupervisor = (merchant as any).extraSupervisorSlots || 0;
-  const extraAgent = (merchant as any).extraAgentSlots || 0;
-  const extraSource = (merchant as any).extraSourceSlots || 0;
+  const topUpBalance = merchant.extraConversationsBalance || 0;
+  const extraSupervisor = merchant.extraSupervisorSlots || 0;
+  const extraAgent = merchant.extraAgentSlots || 0;
+  const extraSource = merchant.extraSourceSlots || 0;
   const addTopUp = (limit: number) => (limit === -1 ? -1 : limit + topUpBalance);
   const addBoost = (limit: number, extra: number) => (limit === -1 ? -1 : limit + extra);
   // For custom plans, always use merchant-level custom configuration
@@ -5077,7 +5077,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
 
       const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
       const domains = await storage.getMerchantDomains(merchantId);
-      const extraDomainSlots = (merchant as any).extraDomainSlots || 0;
+      const extraDomainSlots = merchant.extraDomainSlots || 0;
       const domainsLimit = plan.domainsLimit === -1 ? -1 : plan.domainsLimit + extraDomainSlots;
 
       res.json({ 
@@ -5120,7 +5120,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       }
 
       const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
-      const extraDomainSlots = (merchant as any).extraDomainSlots || 0;
+      const extraDomainSlots = merchant.extraDomainSlots || 0;
       const domainsLimit = plan.domainsLimit === -1 ? -1 : plan.domainsLimit + extraDomainSlots;
       const currentCount = await storage.countMerchantDomains(merchantId);
       
@@ -5306,7 +5306,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         const merchant = await storage.getMerchant(merchantId);
         if (merchant) {
           const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
-          const extraDomainSlots = (merchant as any).extraDomainSlots || 0;
+          const extraDomainSlots = merchant.extraDomainSlots || 0;
           const effectiveLimit = plan.domainsLimit === -1 ? -1 : plan.domainsLimit + extraDomainSlots;
           const currentCount = await storage.countMerchantDomains(merchantId);
           if (effectiveLimit !== -1 && currentCount >= effectiveLimit) {
@@ -10515,18 +10515,18 @@ Rules:
         }
       }
       
-      const extraConversationsBalance = (merchant as any).extraConversationsBalance || 0;
+      const extraConversationsBalance = merchant.extraConversationsBalance || 0;
       const baseConversationsLimit = plan.conversationsLimit;
       const effectiveConversationsLimit = baseConversationsLimit === -1
         ? -1
         : baseConversationsLimit + extraConversationsBalance;
 
       // Booster slot extras (Task #328) — added on top of plan limits
-      const extraSupervisorSlots = (merchant as any).extraSupervisorSlots || 0;
-      const extraAgentSlots = (merchant as any).extraAgentSlots || 0;
-      const extraDomainSlots = (merchant as any).extraDomainSlots || 0;
-      const extraSourceSlots = (merchant as any).extraSourceSlots || 0;
-      const extraVisionQuota = (merchant as any).extraVisionQuota || 0;
+      const extraSupervisorSlots = merchant.extraSupervisorSlots || 0;
+      const extraAgentSlots = merchant.extraAgentSlots || 0;
+      const extraDomainSlots = merchant.extraDomainSlots || 0;
+      const extraSourceSlots = merchant.extraSourceSlots || 0;
+      const extraVisionQuota = merchant.extraVisionQuota || 0;
       const addExtra = (limit: number, extra: number) => limit === -1 ? -1 : limit + extra;
 
       res.json({
@@ -15051,7 +15051,7 @@ Rules:
       if (isTopUp && status === "closed" && request.status !== "closed" && request.merchantId) {
         try {
           const merchant = await storage.getMerchant(request.merchantId);
-          const currentBalance = (merchant as any)?.extraConversationsBalance || 0;
+          const currentBalance = merchant?.extraConversationsBalance || 0;
           const credit = request.desiredConversations || 0;
           await db.update(merchants)
             .set({ extraConversationsBalance: currentBalance + credit })
