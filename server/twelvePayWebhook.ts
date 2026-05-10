@@ -90,13 +90,28 @@ export class PaymentWebhookHandler {
       const booster = await storage.getBoosterConfig(boosterType);
       if (!booster) return { success: false, message: 'Booster config not found' };
 
-      // Idempotency guard: if a payment transaction with this external_id is
-      // already marked paid, skip re-applying the booster (prevents double-credit
-      // on webhook replays).
+      // True idempotency: require a pending payment_transactions row created
+      // by /initiate-payment, atomically flip pending → paid, and only then
+      // apply the booster. Replays / unknown external_ids are no-ops.
       const existingTx = await storage.getPaymentTransactionByExternalId(external_id);
-      if (existingTx && existingTx.status === 'paid') {
+      if (!existingTx) {
+        console.warn(`Booster webhook for ${external_id} has no pending transaction, refusing to apply`);
+        return { success: false, message: 'Unknown transaction' };
+      }
+      if (existingTx.status === 'paid') {
         console.log(`Booster webhook for ${external_id} already processed, skipping`);
         return { success: true, message: 'Already processed' };
+      }
+
+      // Flip status to paid first so a concurrent replay sees 'paid' and skips.
+      try {
+        await storage.updatePaymentTransaction(existingTx.id, {
+          status: 'paid',
+          paidAt: paid_at ? new Date(paid_at) : new Date(),
+        });
+      } catch (e) {
+        console.error('Update booster transaction status failed', e);
+        return { success: false, message: 'Failed to update transaction status' };
       }
 
       try {
@@ -104,18 +119,6 @@ export class PaymentWebhookHandler {
       } catch (e: any) {
         console.error('Apply booster failed', e);
         return { success: false, message: e?.message || 'Failed to apply booster' };
-      }
-
-      // Mark the transaction as paid so future webhook replays are no-ops.
-      if (existingTx) {
-        try {
-          await storage.updatePaymentTransaction(existingTx.id, {
-            status: 'paid',
-            paidAt: paid_at ? new Date(paid_at) : new Date(),
-          });
-        } catch (e) {
-          console.error('Update booster transaction status failed', e);
-        }
       }
 
       await storage.createMerchantNotification({

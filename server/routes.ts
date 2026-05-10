@@ -28428,18 +28428,49 @@ Please create a comprehensive help center article that would be useful for custo
             merchantId,
           },
         });
+        if (!qrisResult.success) {
+          return res.status(502).json({ error: qrisResult.error || "Failed to create payment" });
+        }
+        const transactionId = qrisResult.data?.transactionId || orderId;
+
+        // Persist a pending payment transaction so the webhook can correlate +
+        // dedupe replays via getPaymentTransactionByExternalId.
+        try {
+          const txId = "ptx_" + crypto.randomBytes(8).toString("hex");
+          await storage.createPaymentTransaction({
+            id: txId,
+            merchantId,
+            externalId: transactionId,
+            amount: amountIDR,
+            status: "pending",
+            paymentMethod: "qris",
+            merchantEmail: merchant.email,
+            merchantCompanyName: merchant.companyName,
+            qrisUrl: qrisResult.data?.qrisImageUrl || null,
+            gatewayResponse: {
+              boosterType,
+              type: "booster",
+              qrisString: qrisResult.data?.qrisString,
+              orderId,
+            },
+            expiresAt: qrisResult.data?.expiryTime ? new Date(qrisResult.data.expiryTime) : null,
+            invoiceNumber: orderId,
+          });
+        } catch (saveErr) {
+          console.warn("[booster] Could not save QRIS transaction to local DB:", saveErr);
+        }
 
         return res.json({
           orderId,
           boosterType,
-          paymentMethod,
+          paymentMethod: "12pay",
           amount: booster.priceUsd,
           amountIDR,
           currency: "IDR",
-          qrisUrl: qrisResult.qrisUrl || null,
-          qrisString: qrisResult.qrisString || null,
-          transactionId: qrisResult.transactionId,
-          expiresAt: qrisResult.expiresAt || null,
+          qrisUrl: qrisResult.data?.qrisImageUrl || null,
+          qrisString: qrisResult.data?.qrisString || null,
+          transactionId,
+          expiresAt: qrisResult.data?.expiryTime || null,
         });
       }
 

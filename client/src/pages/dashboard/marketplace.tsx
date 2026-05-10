@@ -113,9 +113,16 @@ function formatUsd(usd: number) {
   return `$${usd}`;
 }
 
+function getInitialTab(): "addons" | "boosters" {
+  if (typeof window === "undefined") return "addons";
+  const params = new URLSearchParams(window.location.search);
+  return params.get("tab") === "boosters" ? "boosters" : "addons";
+}
+
 export default function MarketplacePage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const [activeTab, setActiveTab] = useState<"addons" | "boosters">(getInitialTab);
   const [paymentDialog, setPaymentDialog] = useState<{
     open: boolean;
     title: string;
@@ -211,7 +218,20 @@ export default function MarketplacePage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="addons" className="space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => {
+          const next = (v === "boosters" ? "boosters" : "addons") as "addons" | "boosters";
+          setActiveTab(next);
+          if (typeof window !== "undefined") {
+            const url = new URL(window.location.href);
+            if (next === "boosters") url.searchParams.set("tab", "boosters");
+            else url.searchParams.delete("tab");
+            window.history.replaceState({}, "", url.toString());
+          }
+        }}
+        className="space-y-6"
+      >
         <TabsList>
           <TabsTrigger value="addons" data-testid="tab-addons">Add-on Services</TabsTrigger>
           <TabsTrigger value="boosters" data-testid="tab-boosters">Boosters</TabsTrigger>

@@ -57,7 +57,7 @@ export function MarketplacePreviewSection() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate("/dashboard/marketplace")}
+          onClick={() => navigate("/dashboard/marketplace?tab=boosters")}
           data-testid="button-view-all-marketplace"
         >
           Lihat semua
@@ -65,15 +65,16 @@ export function MarketplacePreviewSection() {
         </Button>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Mobile: horizontal scroll; Desktop: 4-col grid */}
+        <div className="flex sm:grid sm:grid-cols-4 gap-3 overflow-x-auto sm:overflow-visible -mx-2 px-2 sm:mx-0 sm:px-0 snap-x snap-mandatory sm:snap-none">
           {featured.map((b) => {
             const Icon = iconMap[b.iconName] || Zap;
             return (
               <button
                 key={b.boosterType}
                 type="button"
-                onClick={() => navigate("/dashboard/marketplace")}
-                className="group flex flex-col items-start gap-2 p-3 rounded-md text-left hover-elevate active-elevate-2"
+                onClick={() => navigate("/dashboard/marketplace?tab=boosters")}
+                className="group flex flex-col items-start gap-2 p-3 rounded-md text-left hover-elevate active-elevate-2 shrink-0 w-40 sm:w-auto snap-start"
                 data-testid={`preview-booster-${b.boosterType}`}
               >
                 <div
