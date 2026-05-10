@@ -28350,12 +28350,17 @@ Please create a comprehensive help center article that would be useful for custo
   // surface in the dashboard mini-marketplace; full set is shown on the marketplace
   // Boosters tab.
   const DEFAULT_BOOSTERS = [
+    // All defaults seeded as `one_time` because current fulfillment is a
+    // one-shot quota increment (no recurring lifecycle yet). When a true
+    // monthly entitlement system is added, admins can flip these to "monthly"
+    // via the booster_configs table without redeploys (insert-missing-only
+    // seeding never overwrites existing rows).
     { boosterType: "conversations_2k",  name: "+2,000 Conversations",      priceUsd: 23, billingMode: "one_time" as const, quotaField: "extraConversationsBalance",  quotaAmount: 2000, iconName: "MessageSquare", gradientFrom: "from-emerald-500", gradientTo: "to-teal-600",    sortOrder: 1, isFeatured: true,  isEnabled: true },
-    { boosterType: "supervisor_seat",   name: "+1 Supervisor Seat",        priceUsd: 10, billingMode: "monthly" as const, quotaField: "extraSupervisorSlots",       quotaAmount: 1,    iconName: "Users",         gradientFrom: "from-blue-500",    gradientTo: "to-indigo-600",  sortOrder: 2, isFeatured: true,  isEnabled: true },
+    { boosterType: "supervisor_seat",   name: "+1 Supervisor Seat",        priceUsd: 10, billingMode: "one_time" as const, quotaField: "extraSupervisorSlots",       quotaAmount: 1,    iconName: "Users",         gradientFrom: "from-blue-500",    gradientTo: "to-indigo-600",  sortOrder: 2, isFeatured: true,  isEnabled: true },
     { boosterType: "domains_2",         name: "+2 Domains",                priceUsd: 6,  billingMode: "one_time" as const, quotaField: "extraDomainSlots",           quotaAmount: 2,    iconName: "Globe",         gradientFrom: "from-violet-500",  gradientTo: "to-purple-600",  sortOrder: 3, isFeatured: true,  isEnabled: true },
-    { boosterType: "agent_seat",        name: "+1 AI Agent Seat",          priceUsd: 14, billingMode: "monthly" as const, quotaField: "extraAgentSlots",            quotaAmount: 1,    iconName: "Bot",           gradientFrom: "from-amber-500",   gradientTo: "to-orange-600",  sortOrder: 4, isFeatured: true,  isEnabled: true },
+    { boosterType: "agent_seat",        name: "+1 AI Agent Seat",          priceUsd: 14, billingMode: "one_time" as const, quotaField: "extraAgentSlots",            quotaAmount: 1,    iconName: "Bot",           gradientFrom: "from-amber-500",   gradientTo: "to-orange-600",  sortOrder: 4, isFeatured: true,  isEnabled: true },
     { boosterType: "sources_10",        name: "+10 Knowledge Sources",     priceUsd: 6,  billingMode: "one_time" as const, quotaField: "extraSourceSlots",           quotaAmount: 10,   iconName: "BookOpen",      gradientFrom: "from-teal-500",    gradientTo: "to-cyan-600",    sortOrder: 5, isFeatured: false, isEnabled: true },
-    { boosterType: "vision_50",         name: "+50 AI Vision Analyses",    priceUsd: 5,  billingMode: "monthly" as const, quotaField: "extraVisionQuota",           quotaAmount: 50,   iconName: "Eye",           gradientFrom: "from-pink-500",    gradientTo: "to-rose-600",    sortOrder: 6, isFeatured: false, isEnabled: true },
+    { boosterType: "vision_50",         name: "+50 AI Vision Analyses",    priceUsd: 5,  billingMode: "one_time" as const, quotaField: "extraVisionQuota",           quotaAmount: 50,   iconName: "Eye",           gradientFrom: "from-pink-500",    gradientTo: "to-rose-600",    sortOrder: 6, isFeatured: false, isEnabled: true },
   ];
 
   let boostersSeededOnce = false;
