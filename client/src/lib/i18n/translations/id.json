@@ -408,9 +408,14 @@
       "affiliate": "Afiliasi",
       "dataUsage": "Penggunaan Data",
       "additionalServices": "Layanan Tambahan",
+      "marketplace": "Marketplace",
       "appointments": "Janji Temu",
       "hospitalityAI": "Perhotelan AI",
       "notifications": "Notifikasi"
+    },
+    "marketplace": {
+      "title": "Marketplace",
+      "subtitle": "Tambah kemampuan AI agent Anda dengan add-on premium. Harga dalam Rupiah, langganan bulanan."
     },
     "common": {
       "save": "Simpan",

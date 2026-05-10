@@ -52,6 +52,7 @@ import {
   Calendar,
   Hotel,
   Rocket,
+  ShoppingBag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -156,6 +157,7 @@ const menuItemsMap: Record<string, MenuItem> = {
   "affiliate": { id: "affiliate", title: "Affiliate", url: "/dashboard/affiliate", icon: DollarSign, permission: "overview" },
   "data-usage": { id: "data-usage", title: "Data Usage", url: "/dashboard/data-usage", icon: HardDrive, permission: "billing" },
   "additional-services": { id: "additional-services", title: "Additional Services", url: "/dashboard/additional-services", icon: Sparkles, permission: "billing" },
+  "marketplace": { id: "marketplace", title: "Marketplace", url: "/dashboard/marketplace", icon: ShoppingBag, permission: "billing" },
   "appointments": { id: "appointments", title: "Appointments", url: "/dashboard/appointments", icon: Calendar, permission: "analytics" },
 };
 
@@ -187,6 +189,7 @@ const menuItemTranslationKeys: Record<string, string> = {
   "affiliate": "dashboard.items.affiliate",
   "data-usage": "dashboard.items.dataUsage",
   "additional-services": "dashboard.items.additionalServices",
+  "marketplace": "dashboard.items.marketplace",
   "appointments": "dashboard.items.appointments",
 };
 
@@ -226,6 +229,7 @@ const defaultManagementItems: MenuItem[] = [
   menuItemsMap["data-usage"],
   menuItemsMap["plans"],
   menuItemsMap["billing"],
+  menuItemsMap["marketplace"],
 ];
 
 const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSetting" | "management"> = {
@@ -256,6 +260,8 @@ const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSet
   "data-usage": "management",
   "plans": "management",
   "billing": "management",
+  "marketplace": "management",
+  "additional-services": "management",
 };
 
 interface BillingStatus {

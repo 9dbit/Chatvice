@@ -78,12 +78,17 @@ interface BillingStatus {
   currentPeriodEnd: string | null;
   conversationsUsed: number;
   conversationsLimit: number;
+  baseConversationsLimit?: number;
+  extraConversationsBalance?: number;
   supervisorsLimit: number;
   isTrialExpired: boolean;
   hasActiveSubscription: boolean;
   pendingTransaction?: PendingTransaction | null;
   paypalSubscriptionId?: string | null;
   paymentProvider?: string | null;
+  monthlyPriceIdr?: number;
+  annualPriceIdr?: number;
+  overageRateIdr?: number;
 }
 
 interface QRISPaymentResponse {
@@ -1050,6 +1055,180 @@ export default function BillingPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Usage threshold banner — 80% / 90% with upgrade calculator */}
+      {billingStatus && billingStatus.conversationsLimit > 0 && (() => {
+        const used = billingStatus.conversationsUsed || 0;
+        const limit = billingStatus.conversationsLimit;
+        const pct = (used / limit) * 100;
+        if (pct < 80) return null;
+        const isCritical = pct >= 90;
+        // Forecast end-of-cycle usage at +10% above current, then derive
+        // overage as excess over quota only.
+        const projectedUsage = used + Math.ceil(used * 0.1);
+        const projectedOverage = Math.max(projectedUsage - limit, 0);
+        const overageRateIdr = billingStatus.overageRateIdr || 0;
+        const projectedOverageCost = overageRateIdr * projectedOverage;
+        const currentMonthlyIdr = billingStatus.monthlyPriceIdr || 0;
+        const currentTotalIfOverage = currentMonthlyIdr + projectedOverageCost;
+
+        // Build comparison: keep current plan + top-up bundle, vs upgrade plan.
+        // Top-up bundles mirror server-side TOPUP_BUNDLES in routes.ts.
+        const TOPUP_BUNDLES = [
+          { qty: 500, discountPct: 0 },
+          { qty: 1500, discountPct: 10 },
+          { qty: 5000, discountPct: 20 },
+        ];
+        type Combo = {
+          kind: "stay" | "topup" | "upgrade";
+          label: string;
+          totalIdr: number;
+          detail: string;
+        };
+        const combos: Combo[] = [];
+        combos.push({
+          kind: "stay",
+          label: `Tetap di ${billingStatus.planName} + bayar overage`,
+          totalIdr: currentTotalIfOverage,
+          detail: overageRateIdr > 0
+            ? `${currentMonthlyIdr ? `Rp ${currentMonthlyIdr.toLocaleString('id-ID')} plan + ` : ''}~${projectedOverage.toLocaleString('id-ID')} overage @ Rp ${overageRateIdr.toLocaleString('id-ID')}`
+            : "Tarif overage belum diatur untuk plan ini",
+        });
+        if (overageRateIdr > 0) {
+          for (const b of TOPUP_BUNDLES) {
+            if (b.qty < projectedOverage) continue;
+            const baseIdr = b.qty * overageRateIdr;
+            const bundleIdr = Math.round(baseIdr * (1 - b.discountPct / 100));
+            combos.push({
+              kind: "topup",
+              label: `${billingStatus.planName} + top-up ${b.qty.toLocaleString('id-ID')} percakapan`,
+              totalIdr: currentMonthlyIdr + bundleIdr,
+              detail: `Rp ${bundleIdr.toLocaleString('id-ID')} bundle${b.discountPct ? ` (hemat ${b.discountPct}%)` : ''}`,
+            });
+          }
+        }
+        const upgradeCandidates = (plans || [])
+          .filter((p: any) => {
+            const lim = p.conversationsLimit;
+            return p.id !== billingStatus.planId && (lim === -1 || lim >= projectedUsage);
+          })
+          .map((p: any) => {
+            const priceIdr = p.monthlyPriceIdr ?? Math.round((p.monthlyPrice || 0) * 16500);
+            return { id: p.id, name: p.name, priceIdr, conversationsLimit: p.conversationsLimit };
+          })
+          .filter((p: any) => p.priceIdr > 0)
+          .sort((a: any, b: any) => a.priceIdr - b.priceIdr);
+        for (const u of upgradeCandidates.slice(0, 2)) {
+          combos.push({
+            kind: "upgrade",
+            label: `Upgrade ke ${u.name}`,
+            totalIdr: u.priceIdr,
+            detail: u.conversationsLimit === -1
+              ? "Percakapan tak terbatas"
+              : `${u.conversationsLimit.toLocaleString('id-ID')} percakapan/bln`,
+          });
+        }
+        combos.sort((a, b) => a.totalIdr - b.totalIdr);
+        const cheapestCombo = combos[0];
+        const stayCombo = combos.find((c) => c.kind === "stay")!;
+        const cheapestUpgrade = upgradeCandidates[0];
+        const comboSavings = Math.max(stayCombo.totalIdr - cheapestCombo.totalIdr, 0);
+
+        return (
+          <div
+            data-testid="banner-usage-threshold"
+            className={`flex items-start gap-3 rounded-md border p-4 ${
+              isCritical
+                ? 'border-amber-500/50 bg-amber-500/10'
+                : 'border-blue-500/40 bg-blue-500/10'
+            }`}
+          >
+            <AlertTriangle className={`w-5 h-5 mt-0.5 shrink-0 ${isCritical ? 'text-amber-600' : 'text-blue-600'}`} />
+            <div className="flex-1 min-w-0 space-y-3">
+              <div>
+                <p className={`font-semibold text-sm ${isCritical ? 'text-amber-700 dark:text-amber-300' : 'text-blue-700 dark:text-blue-300'}`}>
+                  {isCritical
+                    ? `Kuota percakapan hampir habis (${pct.toFixed(0)}%)`
+                    : `Kuota percakapan sudah ${pct.toFixed(0)}%`}
+                </p>
+                <p className={`text-sm mt-0.5 ${isCritical ? 'text-amber-700/80 dark:text-amber-300/80' : 'text-blue-700/80 dark:text-blue-300/80'}`}>
+                  Anda telah menggunakan {used.toLocaleString('id-ID')} dari {limit.toLocaleString('id-ID')} percakapan bulan ini.
+                  {overageRateIdr > 0 && ` Setiap kelebihan dikenakan Rp ${overageRateIdr.toLocaleString('id-ID')} per percakapan.`}
+                </p>
+              </div>
+
+              {isCritical && combos.length > 1 && (
+                <div className="rounded-md border border-amber-500/30 bg-background/60 p-3 text-sm space-y-2" data-testid="panel-upgrade-saved">
+                  <div className="font-medium flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-600" />
+                    Upgrade saved — pilih kombinasi termurah bulan ini
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    {combos.slice(0, 4).map((c, idx) => {
+                      const isWinner = c === cheapestCombo;
+                      return (
+                        <div
+                          key={`${c.kind}-${idx}`}
+                          className={`rounded border p-2 ${isWinner ? 'border-amber-500/50 bg-amber-500/10' : 'border-border/60'}`}
+                          data-testid={`combo-${c.kind}-${idx}`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="text-muted-foreground">{c.label}</div>
+                            {isWinner && (
+                              <Badge variant="secondary" className="text-[10px] shrink-0">
+                                Termurah
+                              </Badge>
+                            )}
+                          </div>
+                          <div className={`font-semibold text-base ${isWinner ? 'text-amber-700 dark:text-amber-300' : 'text-foreground'}`}>
+                            Rp {c.totalIdr.toLocaleString('id-ID')}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">{c.detail}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {comboSavings > 0 && cheapestCombo.kind !== 'stay' && (
+                    <div className="text-xs font-medium text-green-700 dark:text-green-400">
+                      Hemat hingga Rp {comboSavings.toLocaleString('id-ID')} bulan ini dengan{' '}
+                      {cheapestCombo.kind === 'upgrade' ? 'upgrade plan' : 'beli paket top-up'}.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant={isCritical ? 'default' : 'outline'}
+                  data-testid="button-buy-extra-quota"
+                  onClick={() => navigate('/topup')}
+                >
+                  Beli kuota tambahan
+                </Button>
+                {isCritical && cheapestUpgrade && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    data-testid="button-upgrade-plan"
+                    onClick={() => navigate('/dashboard/plans')}
+                  >
+                    Upgrade ke {cheapestUpgrade.name}
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  data-testid="button-open-marketplace"
+                  onClick={() => navigate('/dashboard/marketplace')}
+                >
+                  Lihat Marketplace add-on
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Subscription Expiry Warning Banner */}
       {!dismissedExpiryBanner && billingStatus?.status === 'active' && billingStatus.currentPeriodEnd && (() => {

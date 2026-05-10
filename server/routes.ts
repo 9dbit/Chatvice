@@ -28129,6 +28129,34 @@ Please create a comprehensive help center article that would be useful for custo
   });
 
   // ════════════════════════════════════════════════════════════════════════════
+  // MARKETPLACE — addons + IDR pricing for the merchant marketplace page
+  // ════════════════════════════════════════════════════════════════════════════
+  app.get("/api/marketplace/addons", async (req, res) => {
+    try {
+      const configs = await storage.getAddonConfigs();
+      const enabled = configs.filter(c => c.isEnabled);
+      const savedRate = await storage.getPlatformSetting("exchange_rate");
+      const exchangeRate = savedRate ? parseInt(savedRate) : 16500;
+      const items = enabled.map((c: any) => {
+        const priceIdr = Math.max(Math.round((c.monthlyPriceUsd || 0) * exchangeRate), 10000);
+        return {
+          id: c.id,
+          addonType: c.addonType,
+          name: c.name,
+          description: c.description,
+          monthlyPriceUsd: c.monthlyPriceUsd,
+          monthlyPriceIdr: priceIdr,
+          monthlyPriceIdrFormatted: `Rp ${priceIdr.toLocaleString("id-ID")}`,
+          isEnabled: c.isEnabled,
+        };
+      });
+      res.json({ items, exchangeRate, currency: "IDR" });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch marketplace items" });
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
   // MERCHANT ADDONS (subscriptions)
   // ════════════════════════════════════════════════════════════════════════════
 

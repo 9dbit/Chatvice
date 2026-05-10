@@ -408,9 +408,14 @@
       "affiliate": "Affiliate",
       "dataUsage": "Data Usage",
       "additionalServices": "Additional Services",
+      "marketplace": "Marketplace",
       "appointments": "Appointments",
       "hospitalityAI": "Hospitality AI",
       "notifications": "Notifications"
+    },
+    "marketplace": {
+      "title": "Marketplace",
+      "subtitle": "Add premium add-ons to your AI agent. Prices in IDR, monthly subscription."
     },
     "common": {
       "save": "Save",
