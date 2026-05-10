@@ -27,6 +27,7 @@ import {
   Loader2,
   ArrowRight,
   CheckCircle,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -279,6 +280,23 @@ export default function MarketplaceProductDetailPage() {
           Kembali ke Marketplace
         </Button>
 
+        {active && (
+          <div
+            className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 dark:border-green-800 dark:bg-green-950/40"
+            data-testid="banner-addon-active"
+          >
+            <ShieldCheck className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-green-800 dark:text-green-300">
+                Add-on ini sedang aktif
+              </p>
+              <p className="text-xs text-green-700/80 dark:text-green-400/80 mt-0.5">
+                {addon.name} sudah berjalan di akun Anda.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center gap-4">
           <div
             className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${gradient.from} ${gradient.to} flex items-center justify-center shadow-lg shrink-0`}
@@ -348,8 +366,8 @@ export default function MarketplaceProductDetailPage() {
           onClose={() => {
             setPaymentDialog({ open: false, payment: null });
             queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
+            queryClient.refetchQueries({ queryKey: ["/api/merchant/addons"] });
             queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
-            navigate("/dashboard/additional-services");
           }}
         />
       </div>
