@@ -1918,14 +1918,14 @@ export default function CheckoutPage() {
             {/* Top Header with Logos */}
             <div className="bg-white px-4 py-2 border-b border-dashed border-gray-300">
               <div className="flex items-center justify-between gap-3">
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col gap-1.5">
                   {/* Chatvice Real Logo */}
                   <img src={chatviceLogoImg} alt="Chatvice" className="h-6 w-auto object-contain object-left" />
                   <p className="text-[9px] text-gray-500 leading-none">Subscription Payment</p>
                 </div>
                 <div className="flex items-center flex-shrink-0">
-                  {/* QRIS Logo - masked & enlarged */}
-                  <div className="w-16 h-8 overflow-hidden rounded flex items-center justify-center bg-white">
+                  {/* QRIS Logo - enlarged 3x */}
+                  <div className="w-48 h-24 rounded flex items-center justify-center bg-white">
                     <img src={qrisLogoImg} alt="QRIS" className="w-full h-full object-contain" />
                   </div>
                 </div>
@@ -1942,7 +1942,7 @@ export default function CheckoutPage() {
                 {/* Left Column - QR Code */}
                 <div className="flex flex-col items-center justify-center space-y-2">
                   <div className="text-center">
-                    <h4 className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Scan to Pay</h4>
+                    <h4 className="text-[10px] font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wider">Scan to Pay</h4>
                     <p className="text-[9px] text-gray-500 dark:text-gray-400">{t("dashboard.checkout.useEwalletOrMobileBanking")}</p>
                   </div>
                   
@@ -2000,60 +2000,57 @@ export default function CheckoutPage() {
                 <div className="flex flex-col justify-center space-y-2">
                   {/* Dashed Divider - Mobile */}
                   <div className="md:hidden border-t border-dashed border-gray-300 dark:border-zinc-600 -mx-3 px-3"></div>
-                  
-                  {/* Order Details Section */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <div className="w-1 h-3 bg-primary rounded-full"></div>
-                      <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Order Details</span>
+
+                  {/* Order Details label */}
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1 h-3 bg-primary rounded-full"></div>
+                    <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Order Details</span>
+                  </div>
+
+                  {/* 2-column sub-grid: left = order rows, right = total + timer */}
+                  <div className="grid grid-cols-2 gap-2 bg-gray-100 dark:bg-zinc-800 rounded-lg p-2">
+                    {/* Left: order detail rows */}
+                    <div className="flex flex-col justify-center space-y-1">
+                      <div className="flex flex-col text-[11px]">
+                        <span className="text-gray-500 dark:text-gray-400 text-[9px] uppercase tracking-wider">Product</span>
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">{qrisData.planName} Plan</span>
+                      </div>
+                      <div className="flex flex-col text-[11px]">
+                        <span className="text-gray-500 dark:text-gray-400 text-[9px] uppercase tracking-wider">Period</span>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</span>
+                      </div>
+                      <div className="border-t border-dashed border-gray-300 dark:border-zinc-600 pt-1">
+                        <span className="text-gray-500 dark:text-gray-400 text-[9px] uppercase tracking-wider">Order ID</span>
+                        <button
+                          onClick={() => copyToClipboard(qrisData.orderId)}
+                          className="font-mono text-[9px] text-gray-600 dark:text-gray-400 hover:text-primary flex items-center gap-0.5 mt-0.5"
+                          title="Click to copy"
+                        >
+                          <span className="break-all leading-tight">{qrisData.orderId}</span>
+                          <Copy className="w-2.5 h-2.5 flex-shrink-0" />
+                        </button>
+                      </div>
                     </div>
-                    
-                    <div className="space-y-1 bg-gray-100 rounded-lg p-2">
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-gray-500">Product</span>
-                        <span className="font-semibold text-gray-900">{qrisData.planName} Plan</span>
-                      </div>
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-gray-500">Period</span>
-                        <span className="font-medium text-gray-700">{qrisData.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</span>
-                      </div>
-                      <div className="border-t border-dashed border-gray-300 pt-1">
-                        <div className="flex justify-between text-[11px] items-start">
-                          <span className="text-gray-500">Order ID</span>
-                          <button 
-                            onClick={() => copyToClipboard(qrisData.orderId)}
-                            className="font-mono text-[9px] text-gray-600 dark:text-gray-400 hover:text-primary flex items-center gap-1 text-right"
-                            title="Click to copy"
-                          >
-                            <span className="break-all text-right leading-tight">{qrisData.orderId}</span>
-                            <Copy className="w-3 h-3 flex-shrink-0 ml-1" />
-                          </button>
+
+                    {/* Right: total amount + countdown */}
+                    <div className="flex flex-col items-center justify-center gap-1.5">
+                      <div className="w-full text-center py-2 bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 rounded-xl border border-primary/20">
+                        <p className="text-[8px] text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-0.5">Total Payment</p>
+                        <div className="text-base font-bold text-primary leading-tight" data-testid="text-qris-amount">
+                          Rp {(qrisData.amount || 0).toLocaleString('id-ID')}
                         </div>
+                        {qrisData.amountUSD && (
+                          <p className="text-[8px] text-gray-400 dark:text-gray-500 mt-0.5">≈ ${qrisData.amountUSD?.toFixed(2)} USD</p>
+                        )}
+                      </div>
+                      <div className="w-full flex items-center justify-center gap-1 py-1 px-2 bg-amber-50 dark:bg-amber-950/40 rounded-lg border border-amber-200 dark:border-amber-800/50">
+                        <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                        <span className="font-mono text-sm font-bold text-amber-700 dark:text-amber-300 leading-none" data-testid="text-qris-countdown">
+                          {formatTime(timeRemaining)}
+                        </span>
+                        <span className="text-[9px] text-amber-600 dark:text-amber-400">left</span>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Dashed Divider */}
-                  <div className="border-t border-dashed border-gray-300 dark:border-zinc-600"></div>
-
-                  {/* Total Amount */}
-                  <div className="text-center py-2 bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/20 rounded-xl border border-primary/20">
-                    <p className="text-[9px] text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-0.5">Total Payment</p>
-                    <div className="text-xl font-bold text-primary" data-testid="text-qris-amount">
-                      Rp {(qrisData.amount || 0).toLocaleString('id-ID')}
-                    </div>
-                    {qrisData.amountUSD && (
-                      <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5">≈ ${qrisData.amountUSD?.toFixed(2)} USD</p>
-                    )}
-                  </div>
-
-                  {/* Timer */}
-                  <div className="flex items-center justify-center gap-2 py-1.5 px-3 bg-amber-50 dark:bg-amber-950/40 rounded-lg border border-amber-200 dark:border-amber-800/50">
-                    <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                    <span className="font-mono text-base font-bold text-amber-700 dark:text-amber-300" data-testid="text-qris-countdown">
-                      {formatTime(timeRemaining)}
-                    </span>
-                    <span className="text-[10px] text-amber-600 dark:text-amber-400">remaining</span>
                   </div>
 
                   {/* Action Buttons */}
@@ -2061,7 +2058,7 @@ export default function CheckoutPage() {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      className="flex-1" 
+                      className="flex-1 text-gray-800 dark:text-gray-100" 
                       onClick={handleSaveQRIS}
                       data-testid="button-save-qris"
                     >
