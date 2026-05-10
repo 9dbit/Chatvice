@@ -344,7 +344,9 @@ export async function createQRISPayment(request: CreateQRISRequest): Promise<Cre
 
     if (isErrorStatus) {
       console.error(`${gatewayName} QRIS creation error response:`, JSON.stringify(data));
-      const errorsField = Array.isArray(data.errors) ? data.errors.join('; ') : (typeof data.errors === 'string' ? data.errors : null);
+      const errorsField = Array.isArray(data.errors)
+        ? data.errors.map((e: any) => typeof e === 'string' ? e : (e.message || e.msg || e.detail || e.description || JSON.stringify(e))).join('; ')
+        : (typeof data.errors === 'string' ? data.errors : null);
       const errorMsg =
         toStr(data.message) ||
         toStr(data.error) ||
@@ -518,7 +520,9 @@ export async function createVAPayment(request: CreateVARequest): Promise<CreateV
 
     if (isVAErrorStatus) {
       console.error(`${gatewayName} VA creation error response:`, JSON.stringify(data));
-      const errorsField = Array.isArray(data.errors) ? data.errors.join('; ') : (typeof data.errors === 'string' ? data.errors : null);
+      const errorsField = Array.isArray(data.errors)
+        ? data.errors.map((e: any) => typeof e === 'string' ? e : (e.message || e.msg || e.detail || e.description || JSON.stringify(e))).join('; ')
+        : (typeof data.errors === 'string' ? data.errors : null);
       const errorMsg =
         toStr(data.message) ||
         toStr(data.error) ||
@@ -773,7 +777,9 @@ export async function createPaymentLinkPayment(request: CreatePaymentLinkRequest
 
     if (isPaymentLinkError) {
       console.error(`${gatewayName} Payment Link creation error:`, JSON.stringify(data));
-      const errorsField = Array.isArray(data.errors) ? data.errors.join('; ') : (typeof data.errors === 'string' ? data.errors : null);
+      const errorsField = Array.isArray(data.errors)
+        ? data.errors.map((e: any) => typeof e === 'string' ? e : (e.message || e.msg || e.detail || e.description || JSON.stringify(e))).join('; ')
+        : (typeof data.errors === 'string' ? data.errors : null);
       const errorMsg =
         toStr(data.message) ||
         toStr(data.error) ||

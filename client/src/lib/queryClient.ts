@@ -47,7 +47,8 @@ async function throwIfResNotOk(res: Response) {
       const body = JSON.parse(text);
       if (body && typeof body === "object") {
         if (body.error || body.message) {
-          err.message = (body.error || body.message) as string;
+          const raw = body.error || body.message;
+          err.message = typeof raw === "string" ? raw : JSON.stringify(raw);
         }
         if (body.requiresUpgrade) err.requiresUpgrade = true;
         if (body.limit !== undefined) err.limit = body.limit;

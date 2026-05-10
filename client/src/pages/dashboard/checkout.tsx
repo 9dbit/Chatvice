@@ -719,6 +719,7 @@ export default function CheckoutPage() {
             if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
             queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
             queryClient.invalidateQueries({ queryKey: ["/api/merchant/me"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
           } else if (statusData.status === 'FAILED' || statusData.status === 'CANCELLED') {
             setPaymentStep('failed');
             if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);

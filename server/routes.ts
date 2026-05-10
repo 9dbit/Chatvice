@@ -11134,6 +11134,10 @@ Rules:
                 expiresAt: new Date((paymentResult.data.expiryTime || '').replace(' ', 'T') + '+07:00'), invoiceNumber: orderId,
               });
             } catch (e) { console.warn("Could not save addon QRIS transaction:", e); }
+            // Set pendingTransactionId so billing/payment-status polling can locate this transaction
+            try {
+              await storage.updateMerchant(merchant.id, { pendingTransactionId: paymentResult.data.transactionId });
+            } catch (e) { console.warn("Could not set pendingTransactionId for addon:", e); }
             return res.json({
               paymentMethod: 'qris', transactionId: paymentResult.data.transactionId,
               orderId: paymentResult.data.orderId, qrisString: paymentResult.data.qrisString,
@@ -11164,6 +11168,7 @@ Rules:
                 expiresAt: new Date(Date.now() + 30 * 60 * 1000), invoiceNumber: orderId,
               });
             } catch (e) { console.warn("Could not save addon VA transaction:", e); }
+            try { await storage.updateMerchant(merchant.id, { pendingTransactionId: paymentResult.data.transactionId }); } catch (e) { console.warn("Could not set pendingTransactionId for addon VA:", e); }
             return res.json({
               paymentMethod: 'virtual_account', transactionId: paymentResult.data.transactionId,
               orderId: numericOrderId, vaNumber: paymentResult.data.vaNumber, bankCode,
@@ -11193,6 +11198,7 @@ Rules:
                 expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), invoiceNumber: orderId,
               });
             } catch (e) { console.warn("Could not save addon bank transfer transaction:", e); }
+            try { await storage.updateMerchant(merchant.id, { pendingTransactionId: fakeTransactionId }); } catch (e) { console.warn("Could not set pendingTransactionId for addon BT:", e); }
             return res.json({
               paymentMethod: 'bank_transfer', transactionId: fakeTransactionId, orderId,
               accountNumber: bankInfo.accountNumber, accountName: bankInfo.accountName,
@@ -13372,7 +13378,23 @@ Rules:
           const txIsDowngrade = gr.isDowngrade === 'true';
           const txScheduledDate = gr.scheduledActivationDate ? new Date(gr.scheduledActivationDate) : null;
 
-          if (txPlanId && txMerchantId) {
+          const txType = gr.type || 'plan';
+
+          if (txType === 'addon' && gr.addonType && txMerchantId) {
+            // Addon safety-net: activate addon if not yet active
+            const addonRecord = await storage.getMerchantAddon(txMerchantId, gr.addonType);
+            const isOnTrial = addonRecord?.trialEndsAt && new Date(addonRecord.trialEndsAt) > new Date();
+            if (!addonRecord?.isActive || isOnTrial) {
+              if (addonRecord) {
+                await storage.updateMerchantAddon(addonRecord.id, { isActive: true, trialEndsAt: null });
+              } else {
+                const addonId = "mat_" + crypto.randomBytes(8).toString("hex");
+                await storage.createMerchantAddon({ id: addonId, merchantId: txMerchantId, addonType: gr.addonType, isActive: true, calendarToken: null });
+              }
+              await storage.updatePaymentTransaction(localTransaction.id, { status: 'paid', paidAt: new Date() });
+              console.log(`[payment-status] Safety-net addon activation: merchant=${txMerchantId} addon=${gr.addonType}`);
+            }
+          } else if (txPlanId && txMerchantId) {
             const currentMerchant = await storage.getMerchant(txMerchantId);
             // Only activate if subscription isn't already active with a future period end
             const alreadyActive = currentMerchant?.subscriptionPlanId === txPlanId
