@@ -123,6 +123,7 @@ interface BillingTransaction {
 
 interface PendingPaymentDetails {
   hasPendingPayment: boolean;
+  reason?: 'failed' | 'expired' | 'cancelled';
   transactionId?: string;
   orderId?: string;
   status?: string;
@@ -177,6 +178,7 @@ export default function BillingPage() {
   
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const prevHasPendingPaymentRef = useRef<boolean | undefined>(undefined);
 
   const { data: billingStatus, isLoading, refetch } = useQuery<BillingStatus>({
     queryKey: ["/api/billing/status"],
@@ -191,7 +193,36 @@ export default function BillingPage() {
   const { data: pendingPaymentDetails, refetch: refetchPendingPayment } = useQuery<PendingPaymentDetails>({
     queryKey: ["/api/billing/pending-payment-details"],
   });
-  
+
+  // Detect when a pending payment transitions from active → terminal (failed/expired/cancelled)
+  // and show a clear notice so the merchant knows why the payment dialog disappeared.
+  useEffect(() => {
+    const prev = prevHasPendingPaymentRef.current;
+    const current = pendingPaymentDetails?.hasPendingPayment;
+    if (prev === true && current === false && pendingPaymentDetails?.reason) {
+      const reasonMessages: Record<string, { title: string; description: string }> = {
+        failed: {
+          title: "Payment Failed",
+          description: "Your payment was declined by the gateway. Please try again or use a different payment method.",
+        },
+        expired: {
+          title: "Payment Expired",
+          description: "The payment window has closed. Please start a new payment to continue.",
+        },
+        cancelled: {
+          title: "Payment Cancelled",
+          description: "Your payment was cancelled. You can start a new payment whenever you're ready.",
+        },
+      };
+      const msg = reasonMessages[pendingPaymentDetails.reason] ?? {
+        title: "Payment Unsuccessful",
+        description: "Your payment did not go through. Please try again.",
+      };
+      toast({ title: msg.title, description: msg.description, variant: "destructive" });
+    }
+    prevHasPendingPaymentRef.current = current;
+  }, [pendingPaymentDetails?.hasPendingPayment, pendingPaymentDetails?.reason, toast]);
+
   // Fetch payment confirmation status (for crypto/bank transfer awaiting review)
   interface PaymentConfirmationStatus {
     hasPendingConfirmation: boolean;

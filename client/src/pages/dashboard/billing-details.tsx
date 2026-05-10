@@ -26,6 +26,7 @@ import qrisLogo from "@assets/IMG_6802_1778414496751.jpeg";
 
 interface PendingPaymentDetails {
   hasPendingPayment: boolean;
+  reason?: 'failed' | 'expired' | 'cancelled';
   transactionId?: string;
   orderId?: string;
   status?: string;
@@ -130,6 +131,7 @@ export default function BillingDetailsPage() {
   const [, navigate] = useLocation();
   const [pendingPaymentTimeRemaining, setPendingPaymentTimeRemaining] = useState<number>(0);
   const pendingPaymentCountdownRef = useRef<NodeJS.Timeout | null>(null);
+  const prevHasPendingPaymentRef = useRef<boolean | undefined>(undefined);
   const [showOrderDetailsDialog, setShowOrderDetailsDialog] = useState(false);
   const [isSavingImage, setIsSavingImage] = useState(false);
   const orderDetailsRef = useRef<HTMLDivElement>(null);
@@ -156,6 +158,35 @@ export default function BillingDetailsPage() {
     refetchOnWindowFocus: true,
     staleTime: 0,
   });
+
+  // Detect when a pending payment transitions from active → terminal (failed/expired/cancelled)
+  // and show a clear notice so the merchant knows why the payment section disappeared.
+  useEffect(() => {
+    const prev = prevHasPendingPaymentRef.current;
+    const current = pendingPaymentDetails?.hasPendingPayment;
+    if (prev === true && current === false && pendingPaymentDetails?.reason) {
+      const reasonMessages: Record<string, { title: string; description: string }> = {
+        failed: {
+          title: "Payment Failed",
+          description: "Your payment was declined by the gateway. Please try again or use a different payment method.",
+        },
+        expired: {
+          title: "Payment Expired",
+          description: "The payment window has closed. Please start a new payment to continue.",
+        },
+        cancelled: {
+          title: "Payment Cancelled",
+          description: "Your payment was cancelled. You can start a new payment whenever you're ready.",
+        },
+      };
+      const msg = reasonMessages[pendingPaymentDetails.reason] ?? {
+        title: "Payment Unsuccessful",
+        description: "Your payment did not go through. Please try again.",
+      };
+      toast({ title: msg.title, description: msg.description, variant: "destructive" });
+    }
+    prevHasPendingPaymentRef.current = current;
+  }, [pendingPaymentDetails?.hasPendingPayment, pendingPaymentDetails?.reason, toast]);
 
   // Fetch custom plan invoices
   const { data: customInvoices = [], isLoading: isLoadingInvoices } = useQuery<CustomPlanInvoice[]>({

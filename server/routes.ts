@@ -10705,7 +10705,7 @@ Rules:
             console.log(
               `[pending-payment] Cleared pending txn ${localTransaction.id} — gateway reported '${gwStatus}'`
             );
-            return res.json({ hasPendingPayment: false });
+            return res.json({ hasPendingPayment: false, reason: dbStatus });
           }
         }
       } catch (gatewayErr: any) {
@@ -10719,14 +10719,15 @@ Rules:
       // covers user cancellations on the gateway side and pre-#340 rows that
       // stored an expiresAt 7 hours too far ahead.
       const TERMINAL_STATUSES = ['failed', 'expired', 'cancelled'];
-      if (TERMINAL_STATUSES.includes(String(localTransaction.status || '').toLowerCase())) {
+      const localStatus = String(localTransaction.status || '').toLowerCase();
+      if (TERMINAL_STATUSES.includes(localStatus)) {
         await storage.updateMerchantSubscription(merchant.id, {
           pendingTransactionId: null,
         });
         console.log(
           `[pending-payment] Cleared pending txn ${localTransaction.id} — local status is '${localTransaction.status}'`
         );
-        return res.json({ hasPendingPayment: false });
+        return res.json({ hasPendingPayment: false, reason: localStatus as 'failed' | 'expired' | 'cancelled' });
       }
 
       // Legacy-row correction: before Task #340 the 12Pay WIB expiry string was
@@ -10764,7 +10765,7 @@ Rules:
           pendingTransactionId: null,
         });
         await storage.updatePaymentTransaction(localTransaction.id, { status: 'expired' });
-        return res.json({ hasPendingPayment: false });
+        return res.json({ hasPendingPayment: false, reason: 'expired' });
       }
       
       // Extract payment details from gatewayResponse
