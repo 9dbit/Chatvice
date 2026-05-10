@@ -506,7 +506,7 @@ export function TicketsDialog({ merchantId, open, onOpenChange }: TicketsDialogP
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="p-0 overflow-hidden flex flex-col bg-zinc-900 border border-zinc-800/80 shadow-2xl rounded-2xl w-[94vw] max-w-[420px] h-[88dvh] max-h-[680px] sm:w-[96vw] sm:max-w-6xl sm:h-[88dvh] sm:max-h-none"
+        className="p-0 overflow-hidden flex flex-col bg-background border border-border shadow-2xl rounded-2xl w-[94vw] max-w-[420px] h-[88dvh] max-h-[680px] sm:w-[96vw] sm:max-w-6xl sm:h-[88dvh] sm:max-h-none"
         data-testid="dialog-tickets"
       >
         <DialogHeader className="px-3 sm:px-5 py-3 sm:py-4 border-b border-border/50 bg-background/40 pr-12">
