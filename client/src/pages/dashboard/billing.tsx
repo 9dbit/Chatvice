@@ -547,6 +547,8 @@ export default function BillingPage() {
   
   useEffect(() => {
     if (pendingPaymentDetails?.hasPendingPayment && pendingPaymentDetails.expiryTime) {
+      // expiryTime is a UTC ISO-8601 string from the server (expiresAt.toISOString()).
+      // new Date() parses ISO strings as UTC — no offset conversion needed.
       const calculateRemaining = () => {
         const expiryTime = new Date(pendingPaymentDetails.expiryTime!).getTime();
         const now = Date.now();

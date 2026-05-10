@@ -10683,8 +10683,36 @@ Rules:
         return res.json({ hasPendingPayment: false });
       }
       
+      // Legacy-row correction: before Task #340 the 12Pay WIB expiry string was
+      // parsed as UTC, storing expiresAt 7 hours too far ahead. QRIS payments
+      // expire in ≤15 minutes, so any row whose stored lifetime (expiresAt -
+      // createdAt) exceeds 30 minutes is a pre-fix legacy row. Subtract 7 hours
+      // to recover the real expiry and persist the correction so it heals once.
+      let effectiveExpiresAt = localTransaction.expiresAt;
+      if (
+        localTransaction.expiresAt &&
+        localTransaction.createdAt &&
+        localTransaction.paymentMethod === 'qris'
+      ) {
+        const storedLifetimeMs =
+          localTransaction.expiresAt.getTime() - localTransaction.createdAt.getTime();
+        const THIRTY_MIN_MS = 30 * 60 * 1000;
+        const SEVEN_HOURS_MS = 7 * 60 * 60 * 1000;
+        if (storedLifetimeMs > THIRTY_MIN_MS) {
+          effectiveExpiresAt = new Date(localTransaction.expiresAt.getTime() - SEVEN_HOURS_MS);
+          console.warn(
+            `[pending-payment] Legacy timezone correction applied for txn ${localTransaction.id}: ` +
+            `expiresAt shifted from ${localTransaction.expiresAt.toISOString()} → ${effectiveExpiresAt.toISOString()}`
+          );
+          // Persist the correction so subsequent loads use the right timestamp.
+          await storage.updatePaymentTransaction(localTransaction.id, {
+            expiresAt: effectiveExpiresAt,
+          });
+        }
+      }
+
       // Check if expired
-      if (localTransaction.expiresAt && new Date(localTransaction.expiresAt) < new Date()) {
+      if (effectiveExpiresAt && effectiveExpiresAt < new Date()) {
         // Clear expired pending transaction
         await storage.updateMerchantSubscription(merchant.id, {
           pendingTransactionId: null,
@@ -10696,6 +10724,8 @@ Rules:
       // Extract payment details from gatewayResponse
       const gatewayResponse = localTransaction.gatewayResponse as Record<string, any> || {};
       
+      // expiryTime is a UTC ISO-8601 string; the client parses it with new Date()
+      // (UTC by spec) so no offset conversion is needed on the client side.
       res.json({
         hasPendingPayment: true,
         transactionId: merchant.pendingTransactionId,
@@ -10707,7 +10737,7 @@ Rules:
         planId: localTransaction.planId,
         planName: localTransaction.planName,
         billingInterval: localTransaction.subscriptionMonths === 12 ? 'annual' : 'monthly',
-        expiryTime: localTransaction.expiresAt?.toISOString(),
+        expiryTime: effectiveExpiresAt?.toISOString(),
         createdAt: localTransaction.createdAt?.toISOString(),
         // QRIS specific
         qrisString: gatewayResponse.qrisString || gatewayResponse.qris_string,
