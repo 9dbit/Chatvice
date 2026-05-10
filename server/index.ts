@@ -14,6 +14,7 @@ import { extractFAQContent } from './crawler';
 import { processKnowledgeBase } from './embeddings';
 import { fetchGoogleSheet } from './fileParser';
 import { generateDailyBlogPosts, seedBlogPostsFromStaticData } from './blog-generator';
+import { seedMasterAdminFromEnv } from './seedMasterAdmin';
 
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught exception:', err.message, err.stack);
@@ -228,6 +229,8 @@ app.use((req, res, next) => {
   } catch (err) {
     console.error("[Bootstrap] Failed to seed addon configs:", err);
   }
+
+  await seedMasterAdminFromEnv();
 
   await registerRoutes(httpServer, app);
 
