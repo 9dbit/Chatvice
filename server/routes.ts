@@ -5302,12 +5302,14 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       // Check if already registered
       const existing = await storage.getMerchantDomainByDomain(merchantId, attempt.domain);
       if (!existing) {
-        // Check plan limit before adding
+        // Check plan limit (including booster extra slots) before adding
         const merchant = await storage.getMerchant(merchantId);
         if (merchant) {
           const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+          const extraDomainSlots = (merchant as any).extraDomainSlots || 0;
+          const effectiveLimit = plan.domainsLimit === -1 ? -1 : plan.domainsLimit + extraDomainSlots;
           const currentCount = await storage.countMerchantDomains(merchantId);
-          if (currentCount >= plan.domainsLimit) {
+          if (effectiveLimit !== -1 && currentCount >= effectiveLimit) {
             return res.status(403).json({ 
               error: "Domain limit reached. Please upgrade your plan to add more domains.",
               requiresUpgrade: true,
@@ -28332,6 +28334,132 @@ Please create a comprehensive help center article that would be useful for custo
       res.json(configs.filter(c => c.isEnabled));
     } catch (err) {
       res.status(500).json({ error: "Failed to fetch addon configs" });
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // BOOSTERS (Task #328) — quota top-ups, seeded lazily on first GET
+  // ════════════════════════════════════════════════════════════════════════════
+  const DEFAULT_BOOSTERS = [
+    { boosterType: "supervisor_seat",   name: "+1 Supervisor Seat",        priceUsd: 10, billingMode: "monthly" as const, quotaField: "extraSupervisorSlots",       quotaAmount: 1,    iconName: "Users",         gradientFrom: "from-blue-500",    gradientTo: "to-indigo-600",  sortOrder: 1, isFeatured: true,  isEnabled: true },
+    { boosterType: "agent_seat",        name: "+1 AI Agent Seat",          priceUsd: 14, billingMode: "monthly" as const, quotaField: "extraAgentSlots",            quotaAmount: 1,    iconName: "Bot",           gradientFrom: "from-amber-500",   gradientTo: "to-orange-600",  sortOrder: 2, isFeatured: true,  isEnabled: true },
+    { boosterType: "conversations_2k",  name: "+2,000 Conversations",      priceUsd: 23, billingMode: "one_time" as const, quotaField: "extraConversationsBalance",  quotaAmount: 2000, iconName: "MessageSquare", gradientFrom: "from-emerald-500", gradientTo: "to-teal-600",    sortOrder: 3, isFeatured: true,  isEnabled: true },
+    { boosterType: "domains_2",         name: "+2 Domains",                priceUsd: 6,  billingMode: "one_time" as const, quotaField: "extraDomainSlots",           quotaAmount: 2,    iconName: "Globe",         gradientFrom: "from-violet-500",  gradientTo: "to-purple-600",  sortOrder: 4, isFeatured: false, isEnabled: true },
+    { boosterType: "sources_10",        name: "+10 Knowledge Sources",     priceUsd: 6,  billingMode: "one_time" as const, quotaField: "extraSourceSlots",           quotaAmount: 10,   iconName: "BookOpen",      gradientFrom: "from-teal-500",    gradientTo: "to-cyan-600",    sortOrder: 5, isFeatured: false, isEnabled: true },
+    { boosterType: "vision_50",         name: "+50 AI Vision Analyses",    priceUsd: 5,  billingMode: "monthly" as const, quotaField: "extraVisionQuota",           quotaAmount: 50,   iconName: "Eye",           gradientFrom: "from-pink-500",    gradientTo: "to-rose-600",    sortOrder: 6, isFeatured: true,  isEnabled: true },
+  ];
+
+  async function ensureBoostersSeeded() {
+    const existing = await storage.getBoosterConfigs();
+    if (existing.length > 0) return existing;
+    for (const b of DEFAULT_BOOSTERS) {
+      try { await storage.upsertBoosterConfig(b); } catch (e) { console.error("Seed booster failed", b.boosterType, e); }
+    }
+    return storage.getBoosterConfigs();
+  }
+
+  app.get("/api/marketplace/boosters", async (req, res) => {
+    try {
+      const configs = await ensureBoostersSeeded();
+      const enabled = configs.filter(c => c.isEnabled);
+      const savedRate = await storage.getPlatformSetting("exchange_rate");
+      const exchangeRate = savedRate ? parseInt(savedRate) : 17500;
+      const items = enabled.map((c) => {
+        const priceIdr = Math.max(Math.round((c.priceUsd || 0) * exchangeRate), 1000);
+        return {
+          id: c.id,
+          boosterType: c.boosterType,
+          name: c.name,
+          priceUsd: c.priceUsd,
+          priceIdr,
+          priceIdrFormatted: `Rp ${priceIdr.toLocaleString("id-ID")}`,
+          billingMode: c.billingMode,
+          quotaField: c.quotaField,
+          quotaAmount: c.quotaAmount,
+          iconName: c.iconName,
+          gradientFrom: c.gradientFrom,
+          gradientTo: c.gradientTo,
+          isFeatured: c.isFeatured,
+        };
+      });
+      res.json({ items, exchangeRate, currency: "IDR" });
+    } catch (err: any) {
+      console.error("Get boosters error", err);
+      res.status(500).json({ error: "Failed to fetch boosters" });
+    }
+  });
+
+  app.post("/api/merchant/boosters/initiate-payment", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { boosterType, paymentMethod } = req.body;
+      if (!boosterType || !paymentMethod) {
+        return res.status(400).json({ error: "boosterType and paymentMethod required" });
+      }
+
+      const booster = await storage.getBoosterConfig(boosterType);
+      if (!booster || !booster.isEnabled) return res.status(404).json({ error: "Booster not available" });
+
+      const validMethods = ["12pay", "paypal", "crypto"];
+      if (!validMethods.includes(paymentMethod)) {
+        return res.status(400).json({ error: "Invalid payment method. Supported: " + validMethods.join(", ") });
+      }
+
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+      const orderId = `booster_${merchantId}_${boosterType}_${Date.now()}`;
+      const amountIDR = convertToIDR(booster.priceUsd);
+
+      if (paymentMethod === "12pay") {
+        if (!isTwelvePayConfigured()) {
+          return res.status(503).json({ error: "Payment gateway not configured" });
+        }
+        const qrisResult = await createQRISPayment({
+          merchantId,
+          orderId,
+          amount: amountIDR,
+          customerEmail: merchant.email,
+          customerName: merchant.companyName || merchant.email.split("@")[0],
+          expiryMinutes: 5,
+          metadata: {
+            type: "booster",
+            boosterType,
+            merchantId,
+          },
+        });
+
+        return res.json({
+          orderId,
+          boosterType,
+          paymentMethod,
+          amount: booster.priceUsd,
+          amountIDR,
+          currency: "IDR",
+          qrisUrl: qrisResult.qrisUrl || null,
+          qrisString: qrisResult.qrisString || null,
+          transactionId: qrisResult.transactionId,
+          expiresAt: qrisResult.expiresAt || null,
+        });
+      }
+
+      // PayPal / crypto: manual reference flow
+      return res.json({
+        orderId,
+        boosterType,
+        paymentMethod,
+        amount: booster.priceUsd,
+        amountIDR,
+        currency: "IDR",
+        qrisUrl: null,
+        qrisString: null,
+        transactionId: orderId,
+        expiresAt: null,
+        manualReference: true,
+      });
+    } catch (err: any) {
+      console.error("Initiate booster payment error", err);
+      res.status(500).json({ error: err?.message || "Failed to initiate payment" });
     }
   });
 

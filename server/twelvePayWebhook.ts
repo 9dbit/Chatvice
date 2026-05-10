@@ -82,6 +82,54 @@ export class PaymentWebhookHandler {
   private static async handlePaymentSuccess(payload: PaymentWebhookPayload): Promise<{ success: boolean; message: string }> {
     const { external_id, metadata, transaction_id, amount, payment_method, paid_at } = payload;
 
+    // Handle booster payments (Task #328) — top-up quotas / extra slots
+    if (metadata?.type === 'booster' && metadata?.merchantId && metadata?.boosterType) {
+      const { merchantId, boosterType } = metadata as { merchantId: string; boosterType: string };
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) return { success: false, message: 'Merchant not found' };
+      const booster = await storage.getBoosterConfig(boosterType);
+      if (!booster) return { success: false, message: 'Booster config not found' };
+
+      // Idempotency guard: if a payment transaction with this external_id is
+      // already marked paid, skip re-applying the booster (prevents double-credit
+      // on webhook replays).
+      const existingTx = await storage.getPaymentTransactionByExternalId(external_id);
+      if (existingTx && existingTx.status === 'paid') {
+        console.log(`Booster webhook for ${external_id} already processed, skipping`);
+        return { success: true, message: 'Already processed' };
+      }
+
+      try {
+        await storage.applyBoosterToMerchant(merchantId, booster);
+      } catch (e: any) {
+        console.error('Apply booster failed', e);
+        return { success: false, message: e?.message || 'Failed to apply booster' };
+      }
+
+      // Mark the transaction as paid so future webhook replays are no-ops.
+      if (existingTx) {
+        try {
+          await storage.updatePaymentTransaction(existingTx.id, {
+            status: 'paid',
+            paidAt: paid_at ? new Date(paid_at) : new Date(),
+          });
+        } catch (e) {
+          console.error('Update booster transaction status failed', e);
+        }
+      }
+
+      await storage.createMerchantNotification({
+        merchantId,
+        type: 'invoice',
+        title: 'Booster Activated',
+        message: `Your ${booster.name} has been added to your account.`,
+        metadata: { boosterType, transactionId: transaction_id, amount },
+        isRead: false,
+      });
+      console.log(`Booster ${boosterType} applied for merchant ${merchantId} via webhook`);
+      return { success: true, message: 'Booster applied' };
+    }
+
     // Handle addon payments (type === "addon")
     if (metadata?.type === 'addon' && metadata?.merchantId && metadata?.addonType) {
       const { merchantId, addonType } = metadata;
