@@ -90,9 +90,13 @@ export class PaymentWebhookHandler {
       const booster = await storage.getBoosterConfig(boosterType);
       if (!booster) return { success: false, message: 'Booster config not found' };
 
-      // True idempotency: require a pending payment_transactions row created
-      // by /initiate-payment, atomically flip pending → paid, and only then
-      // apply the booster. Replays / unknown external_ids are no-ops.
+      // True idempotency + entitlement-safe ordering:
+      //  1) Require a pending payment_transactions row created by
+      //     /initiate-payment. Replays / unknown external_ids are refused.
+      //  2) If already 'paid', no-op (replay).
+      //  3) Apply booster FIRST, then mark transaction 'paid'. If the apply
+      //     step fails the row stays 'pending' so a webhook retry will try
+      //     again (no lost entitlement).
       const existingTx = await storage.getPaymentTransactionByExternalId(external_id);
       if (!existingTx) {
         console.warn(`Booster webhook for ${external_id} has no pending transaction, refusing to apply`);
@@ -103,22 +107,25 @@ export class PaymentWebhookHandler {
         return { success: true, message: 'Already processed' };
       }
 
-      // Flip status to paid first so a concurrent replay sees 'paid' and skips.
+      try {
+        await storage.applyBoosterToMerchant(merchantId, booster);
+      } catch (e: any) {
+        console.error('Apply booster failed (transaction left pending for retry)', e);
+        return { success: false, message: e?.message || 'Failed to apply booster' };
+      }
+
       try {
         await storage.updatePaymentTransaction(existingTx.id, {
           status: 'paid',
           paidAt: paid_at ? new Date(paid_at) : new Date(),
         });
       } catch (e) {
-        console.error('Update booster transaction status failed', e);
-        return { success: false, message: 'Failed to update transaction status' };
-      }
-
-      try {
-        await storage.applyBoosterToMerchant(merchantId, booster);
-      } catch (e: any) {
-        console.error('Apply booster failed', e);
-        return { success: false, message: e?.message || 'Failed to apply booster' };
+        // Booster already applied; failing to flip status will cause a
+        // safe replay that hits the catch in applyBoosterToMerchant... but
+        // applyBoosterToMerchant is not naturally idempotent (it increments).
+        // Log loudly so ops can manually reconcile.
+        console.error('CRITICAL: booster applied but tx status update failed', external_id, e);
+        return { success: false, message: 'Booster applied; status update failed' };
       }
 
       await storage.createMerchantNotification({

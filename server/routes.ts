@@ -19101,11 +19101,17 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         return res.status(404).json({ error: "Merchant not found" });
       }
       
-      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
+      // Use effective limits so booster `extraAgentSlots` are honored.
+      const effective = await getEffectivePlanLimitsAsync(merchant);
+      const effectiveAgentsLimit = effective.agentsLimit;
       const existingAgents = await storage.getAgents(merchantId);
-      
-      if (plan.agentsLimit !== -1 && existingAgents.length >= plan.agentsLimit) {
-        return res.status(403).json({ error: `Agent limit reached (${plan.agentsLimit}). Please upgrade your plan.`, requiresUpgrade: true, limit: plan.agentsLimit });
+
+      if (effectiveAgentsLimit !== -1 && existingAgents.length >= effectiveAgentsLimit) {
+        return res.status(403).json({
+          error: `Agent limit reached (${effectiveAgentsLimit}). Please upgrade your plan or buy an Agent Seat booster.`,
+          requiresUpgrade: true,
+          limit: effectiveAgentsLimit,
+        });
       }
       
       const { name, description, agentType } = req.body;
