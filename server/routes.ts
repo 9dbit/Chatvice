@@ -28368,18 +28368,20 @@ Please create a comprehensive help center article that would be useful for custo
     // Insert-missing-only: never overwrite admin-edited rows. Only insert
     // defaults for boosterTypes that don't already exist in the DB so admins
     // can adjust price/labels/featured/enabled without redeploys clobbering them.
+    // Only flip the "seeded" flag after a successful pass so transient DB
+    // errors don't permanently suppress future reseed attempts.
     if (!boostersSeededOnce) {
       try {
         const existing = await storage.getBoosterConfigs();
         const existingTypes = new Set(existing.map((b) => b.boosterType));
         for (const b of DEFAULT_BOOSTERS) {
           if (existingTypes.has(b.boosterType)) continue;
-          try { await storage.upsertBoosterConfig(b); } catch (e) { console.error("Seed booster failed", b.boosterType, e); }
+          await storage.upsertBoosterConfig(b);
         }
+        boostersSeededOnce = true;
       } catch (e) {
-        console.error("Booster seeding skipped due to read error", e);
+        console.error("Booster seeding failed (will retry on next call)", e);
       }
-      boostersSeededOnce = true;
     }
     return storage.getBoosterConfigs();
   }

@@ -368,7 +368,7 @@ export default function MarketplacePage() {
                             {formatUsd(b.priceUsd)}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {b.billingMode === "monthly" ? "/ bulan" : "sekali bayar"}
+                            {b.billingMode === "monthly" ? "/bulan" : "/sekali bayar"}
                           </span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1" data-testid={`text-booster-idr-${b.boosterType}`}>

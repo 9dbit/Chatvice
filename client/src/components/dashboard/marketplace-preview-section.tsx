@@ -89,8 +89,12 @@ export function MarketplacePreviewSection() {
     },
   });
 
-  // Already sorted by server (sortOrder asc); just take featured top 4.
-  const featured = (data?.items ?? []).filter((b) => b.isFeatured).slice(0, 4);
+  // Already sorted by server (sortOrder asc); take featured top 4.
+  // If admins un-feature everything, fall back to top 4 by sortOrder so the
+  // preview never silently disappears from the overview.
+  const all = data?.items ?? [];
+  const featuredOnly = all.filter((b) => b.isFeatured);
+  const featured = (featuredOnly.length > 0 ? featuredOnly : all).slice(0, 4);
 
   if (isLoading || featured.length === 0) return null;
 
