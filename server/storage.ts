@@ -1,6 +1,7 @@
 import {
   type AddonConfig, type InsertAddonConfig,
   type MerchantAddon, type InsertMerchantAddon,
+  type BoosterConfig, type InsertBoosterConfig,
   type HospitalityConfig, type InsertHospitalityConfig,
   type CustomDataSource, type InsertCustomDataSource,
   type CustomDataIntent, type InsertCustomDataIntent,
@@ -15,7 +16,7 @@ import {
   type ProviderSchedule, type InsertProviderSchedule,
   type ProviderBlockedDate, type InsertProviderBlockedDate,
   type Appointment, type InsertAppointment,
-  addonConfigs, merchantAddons, hospitalityConfigs, passwordRecoveryConfigs, passwordRecoveryRequests, appointmentDivisions, appointmentProviders, appointmentServices, providerSchedules, providerBlockedDates, appointments,
+  addonConfigs, merchantAddons, boosterConfigs, hospitalityConfigs, passwordRecoveryConfigs, passwordRecoveryRequests, appointmentDivisions, appointmentProviders, appointmentServices, providerSchedules, providerBlockedDates, appointments,
   type Merchant, type InsertMerchant,
   type Supervisor, type InsertSupervisor,
   type Session, type InsertSession,
@@ -595,6 +596,11 @@ export interface IStorage {
   getAddonConfigs(): Promise<AddonConfig[]>;
   getAddonConfig(addonType: string): Promise<AddonConfig | undefined>;
   getAddonConfigById(id: number): Promise<AddonConfig | undefined>;
+  // Booster Configs (Task #328)
+  getBoosterConfigs(): Promise<BoosterConfig[]>;
+  getBoosterConfig(boosterType: string): Promise<BoosterConfig | undefined>;
+  upsertBoosterConfig(data: InsertBoosterConfig): Promise<BoosterConfig>;
+  applyBoosterToMerchant(merchantId: string, booster: BoosterConfig): Promise<void>;
   upsertAddonConfig(data: InsertAddonConfig): Promise<AddonConfig>;
   updateAddonConfigById(id: number, data: Partial<{ monthlyPriceUsd: number; isEnabled: boolean; name: string; description: string | null }>): Promise<AddonConfig | undefined>;
 
@@ -4396,6 +4402,45 @@ export class DatabaseStorage implements IStorage {
   async updateAddonConfigById(id: number, data: Partial<{ monthlyPriceUsd: number; isEnabled: boolean; name: string; description: string | null }>): Promise<AddonConfig | undefined> {
     const [row] = await db.update(addonConfigs).set(data).where(eq(addonConfigs.id, id)).returning();
     return row;
+  }
+
+  // ── Booster Configs (Task #328) ────────────────────────────────────────────
+  async getBoosterConfigs(): Promise<BoosterConfig[]> {
+    return db.select().from(boosterConfigs).orderBy(boosterConfigs.sortOrder, boosterConfigs.id);
+  }
+
+  async getBoosterConfig(boosterType: string): Promise<BoosterConfig | undefined> {
+    const [row] = await db.select().from(boosterConfigs).where(eq(boosterConfigs.boosterType, boosterType));
+    return row;
+  }
+
+  async upsertBoosterConfig(data: InsertBoosterConfig): Promise<BoosterConfig> {
+    const existing = await this.getBoosterConfig(data.boosterType);
+    if (existing) {
+      const [row] = await db.update(boosterConfigs).set(data).where(eq(boosterConfigs.boosterType, data.boosterType)).returning();
+      return row;
+    }
+    const [row] = await db.insert(boosterConfigs).values(data).returning();
+    return row;
+  }
+
+  async applyBoosterToMerchant(merchantId: string, booster: BoosterConfig): Promise<void> {
+    const merchant = await this.getMerchant(merchantId);
+    if (!merchant) throw new Error("Merchant not found");
+    const allowedFields = new Set([
+      "extraSupervisorSlots",
+      "extraAgentSlots",
+      "extraDomainSlots",
+      "extraSourceSlots",
+      "extraVisionQuota",
+      "extraConversationsBalance",
+    ]);
+    if (!allowedFields.has(booster.quotaField)) {
+      throw new Error(`Invalid booster quotaField: ${booster.quotaField}`);
+    }
+    const current = (merchant as any)[booster.quotaField] || 0;
+    const next = current + (booster.quotaAmount || 0);
+    await this.updateMerchant(merchantId, { [booster.quotaField]: next } as Partial<Merchant>);
   }
 
   // ── Merchant Addons ────────────────────────────────────────────────────────

@@ -203,15 +203,19 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
 // plan's conversationsLimit so quota checks honour purchased top-ups.
 async function getEffectivePlanLimitsAsync(merchant: Merchant) {
   const topUpBalance = (merchant as any).extraConversationsBalance || 0;
+  const extraSupervisor = (merchant as any).extraSupervisorSlots || 0;
+  const extraAgent = (merchant as any).extraAgentSlots || 0;
+  const extraSource = (merchant as any).extraSourceSlots || 0;
   const addTopUp = (limit: number) => (limit === -1 ? -1 : limit + topUpBalance);
+  const addBoost = (limit: number, extra: number) => (limit === -1 ? -1 : limit + extra);
   // For custom plans, always use merchant-level custom configuration
   if (merchant.subscriptionPlanId === 'custom') {
     const basePlan = subscriptionPlans.custom;
     return {
       conversationsLimit: addTopUp(merchant.customConversationsLimit ?? basePlan.conversationsLimit),
-      agentsLimit: merchant.customAgentsLimit ?? basePlan.agentsLimit,
-      supervisorsLimit: merchant.customSupervisorsLimit ?? basePlan.supervisorsLimit,
-      sourcesLimit: merchant.customSourcesLimit ?? basePlan.sourcesLimit,
+      agentsLimit: addBoost(merchant.customAgentsLimit ?? basePlan.agentsLimit, extraAgent),
+      supervisorsLimit: addBoost(merchant.customSupervisorsLimit ?? basePlan.supervisorsLimit, extraSupervisor),
+      sourcesLimit: addBoost(merchant.customSourcesLimit ?? basePlan.sourcesLimit, extraSource),
       suggestedQuestionsLimit: merchant.customSuggestedQuestionsLimit ?? basePlan.suggestedQuestionsLimit,
       monthlyPrice: merchant.customMonthlyPrice ?? basePlan.monthlyPrice,
       annualPrice: merchant.customAnnualPrice ?? basePlan.annualPrice,
@@ -237,9 +241,9 @@ async function getEffectivePlanLimitsAsync(merchant: Merchant) {
     }
     return {
       conversationsLimit: addTopUp(freePlan.conversationsLimit),
-      agentsLimit: freePlan.agentsLimit,
-      supervisorsLimit: freePlan.supervisorsLimit,
-      sourcesLimit: freePlan.sourcesLimit,
+      agentsLimit: addBoost(freePlan.agentsLimit, extraAgent),
+      supervisorsLimit: addBoost(freePlan.supervisorsLimit, extraSupervisor),
+      sourcesLimit: addBoost(freePlan.sourcesLimit, extraSource),
       suggestedQuestionsLimit: freePlan.suggestedQuestionsLimit,
       monthlyPrice: freePlan.monthlyPrice,
       annualPrice: freePlan.annualPrice,
@@ -248,9 +252,9 @@ async function getEffectivePlanLimitsAsync(merchant: Merchant) {
   
   return {
     conversationsLimit: addTopUp(effectivePlan.conversationsLimit),
-    agentsLimit: effectivePlan.agentsLimit,
-    supervisorsLimit: effectivePlan.supervisorsLimit,
-    sourcesLimit: effectivePlan.sourcesLimit,
+    agentsLimit: addBoost(effectivePlan.agentsLimit, extraAgent),
+    supervisorsLimit: addBoost(effectivePlan.supervisorsLimit, extraSupervisor),
+    sourcesLimit: addBoost(effectivePlan.sourcesLimit, extraSource),
     suggestedQuestionsLimit: effectivePlan.suggestedQuestionsLimit,
     monthlyPrice: effectivePlan.monthlyPrice,
     annualPrice: effectivePlan.annualPrice,
@@ -5073,8 +5077,9 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
 
       const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
       const domains = await storage.getMerchantDomains(merchantId);
-      const domainsLimit = plan.domainsLimit;
-      
+      const extraDomainSlots = (merchant as any).extraDomainSlots || 0;
+      const domainsLimit = plan.domainsLimit === -1 ? -1 : plan.domainsLimit + extraDomainSlots;
+
       res.json({ 
         domains, 
         limit: domainsLimit,
@@ -5115,10 +5120,11 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       }
 
       const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
-      const domainsLimit = plan.domainsLimit;
+      const extraDomainSlots = (merchant as any).extraDomainSlots || 0;
+      const domainsLimit = plan.domainsLimit === -1 ? -1 : plan.domainsLimit + extraDomainSlots;
       const currentCount = await storage.countMerchantDomains(merchantId);
       
-      if (currentCount >= domainsLimit) {
+      if (domainsLimit !== -1 && currentCount >= domainsLimit) {
         return res.status(403).json({ 
           error: "Domain limit reached",
           limit: domainsLimit,
@@ -10513,6 +10519,14 @@ Rules:
         ? -1
         : baseConversationsLimit + extraConversationsBalance;
 
+      // Booster slot extras (Task #328) — added on top of plan limits
+      const extraSupervisorSlots = (merchant as any).extraSupervisorSlots || 0;
+      const extraAgentSlots = (merchant as any).extraAgentSlots || 0;
+      const extraDomainSlots = (merchant as any).extraDomainSlots || 0;
+      const extraSourceSlots = (merchant as any).extraSourceSlots || 0;
+      const extraVisionQuota = (merchant as any).extraVisionQuota || 0;
+      const addExtra = (limit: number, extra: number) => limit === -1 ? -1 : limit + extra;
+
       res.json({
         status: merchant.subscriptionStatus,
         planId: merchant.subscriptionPlanId,
@@ -10525,13 +10539,19 @@ Rules:
         baseConversationsLimit,
         extraConversationsBalance,
         agentsUsed: agents.length,
-        agentsLimit: plan.agentsLimit,
+        agentsLimit: addExtra(plan.agentsLimit, extraAgentSlots),
         supervisorsUsed: supervisors.length,
-        supervisorsLimit: plan.supervisorsLimit,
+        supervisorsLimit: addExtra(plan.supervisorsLimit, extraSupervisorSlots),
         sourcesUsed: totalSources,
-        sourcesLimit: plan.sourcesLimit,
+        sourcesLimit: addExtra(plan.sourcesLimit, extraSourceSlots),
         domainsUsed: domainsData.length,
-        domainsLimit: plan.domainsLimit,
+        domainsLimit: addExtra(plan.domainsLimit, extraDomainSlots),
+        // Raw booster slot counts so dashboard / marketplace can show them
+        extraSupervisorSlots,
+        extraAgentSlots,
+        extraDomainSlots,
+        extraSourceSlots,
+        extraVisionQuota,
         isTrialExpired,
         hasActiveSubscription: merchant.subscriptionStatus === 'active',
         pendingTransaction,

@@ -148,6 +148,14 @@ export const merchants = pgTable("merchants", {
   onboardingKnowledgeConfigured: boolean("onboarding_knowledge_configured").default(false),
   onboardingDeployed: boolean("onboarding_deployed").default(false),
   onboardingTutorialsViewed: text("onboarding_tutorials_viewed").array().default([]),
+  // ── Marketplace booster slots (Task #328) ──────────────────────────────
+  // Incremented when merchant purchases a booster pack. Effective limit is
+  // `plan.<x>Limit + extra<X>Slots` (or unlimited if plan is -1).
+  extraSupervisorSlots: integer("extra_supervisor_slots").default(0),
+  extraAgentSlots: integer("extra_agent_slots").default(0),
+  extraDomainSlots: integer("extra_domain_slots").default(0),
+  extraSourceSlots: integer("extra_source_slots").default(0),
+  extraVisionQuota: integer("extra_vision_quota").default(0),
 });
 
 // Email verification tokens for merchant registration
@@ -2506,6 +2514,34 @@ export const merchantAddons = pgTable("merchant_addons", {
 export const insertMerchantAddonSchema = createInsertSchema(merchantAddons).omit({ subscribedAt: true });
 export type InsertMerchantAddon = z.infer<typeof insertMerchantAddonSchema>;
 export type MerchantAddon = typeof merchantAddons.$inferSelect;
+
+// ─── Booster Configs (Task #328) ──────────────────────────────────────────────
+// Booster packs: one-time or monthly add-ons that add extra quota slots
+// (supervisors, agents, conversations, domains, sources, vision) on top of
+// the merchant's plan without requiring a tier upgrade.
+export const boosterConfigs = pgTable("booster_configs", {
+  id: serial("id").primaryKey(),
+  boosterType: text("booster_type").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description"),
+  // Pricing
+  priceUsd: integer("price_usd").notNull(),
+  billingMode: text("billing_mode").notNull().default("one_time"), // 'one_time' | 'monthly'
+  // What gets added to the merchant
+  quotaField: text("quota_field").notNull(), // 'extraSupervisorSlots' | 'extraAgentSlots' | 'extraConversationsBalance' | 'extraDomainSlots' | 'extraSourceSlots' | 'extraVisionQuota'
+  quotaAmount: integer("quota_amount").notNull(),
+  // Visual styling
+  iconName: text("icon_name").notNull().default("Sparkles"), // Lucide icon name
+  gradientFrom: text("gradient_from").notNull().default("from-blue-500"),
+  gradientTo: text("gradient_to").notNull().default("to-indigo-600"),
+  sortOrder: integer("sort_order").notNull().default(100),
+  isFeatured: boolean("is_featured").notNull().default(false),
+  isEnabled: boolean("is_enabled").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+export const insertBoosterConfigSchema = createInsertSchema(boosterConfigs).omit({ id: true, createdAt: true });
+export type InsertBoosterConfig = z.infer<typeof insertBoosterConfigSchema>;
+export type BoosterConfig = typeof boosterConfigs.$inferSelect;
 
 // ─── Appointment Divisions ─────────────────────────────────────────────────────
 export const appointmentDivisions = pgTable("appointment_divisions", {
