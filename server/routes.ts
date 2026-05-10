@@ -5950,7 +5950,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
             customAnnualPrice: breakdown.annualPriceIdr,
             externalIdHint,
           },
-          expiresAt: new Date(qrisResult.data.expiryTime),
+          expiresAt: new Date((qrisResult.data.expiryTime || '').replace(' ', 'T') + '+07:00'),
         });
         persistedTxnId = persistedTxn.id;
         persistedInvoiceNumber = persistedTxn.invoiceNumber ?? null;
@@ -11054,7 +11054,7 @@ Rules:
                 subscriptionMonths: 1, merchantEmail: merchant.email, merchantCompanyName: merchant.companyName,
                 qrisUrl: paymentResult.data.qrisImageUrl,
                 gatewayResponse: { qrisString: paymentResult.data.qrisString, orderId: paymentResult.data.orderId, type: 'addon', addonType },
-                expiresAt: new Date(paymentResult.data.expiryTime), invoiceNumber: orderId,
+                expiresAt: new Date((paymentResult.data.expiryTime || '').replace(' ', 'T') + '+07:00'), invoiceNumber: orderId,
               });
             } catch (e) { console.warn("Could not save addon QRIS transaction:", e); }
             return res.json({
@@ -11359,7 +11359,7 @@ Rules:
                 isDowngrade: isDowngrade ? 'true' : 'false',
                 scheduledActivationDate: scheduledActivationDate?.toISOString() || '',
               },
-              expiresAt: new Date(paymentResult.data.expiryTime),
+              expiresAt: new Date((paymentResult.data.expiryTime || '').replace(' ', 'T') + '+07:00'),
               invoiceNumber: orderId,
             });
           } catch (saveErr) {
@@ -11562,7 +11562,7 @@ Rules:
                 uniqueCode: paymentResult.data.uniqueCode,
                 orderId: paymentResult.data.orderId,
               },
-              expiresAt: new Date(paymentResult.data.expiryTime),
+              expiresAt: new Date((paymentResult.data.expiryTime || '').replace(' ', 'T') + '+07:00'),
               invoiceNumber: orderId,
             });
           } catch (saveErr) {
@@ -11641,7 +11641,7 @@ Rules:
               gatewayResponse: {
                 paymentUrl: paymentResult.data.paymentUrl,
               },
-              expiresAt: new Date(paymentResult.data.expiryTime),
+              expiresAt: new Date((paymentResult.data.expiryTime || '').replace(' ', 'T') + '+07:00'),
               invoiceNumber: orderId,
             });
           } catch (saveErr) {
@@ -28603,7 +28603,7 @@ Please create a comprehensive help center article that would be useful for custo
                 billingMode: booster.billingMode,
               },
             },
-            expiresAt: qrisResult.data?.expiryTime ? new Date(qrisResult.data.expiryTime) : null,
+            expiresAt: qrisResult.data?.expiryTime ? new Date((qrisResult.data?.expiryTime || '').replace(' ', 'T') + '+07:00') : null,
             invoiceNumber: orderId,
           });
         } catch (saveErr) {
@@ -28817,7 +28817,7 @@ Please create a comprehensive help center article that would be useful for custo
               qrisString: qrisResult.data?.qrisString,
               orderId,
             },
-            expiresAt: qrisResult.data?.expiryTime ? new Date(qrisResult.data.expiryTime) : null,
+            expiresAt: qrisResult.data?.expiryTime ? new Date((qrisResult.data?.expiryTime || '').replace(' ', 'T') + '+07:00') : null,
             invoiceNumber: orderId,
           });
         } catch (saveErr) {

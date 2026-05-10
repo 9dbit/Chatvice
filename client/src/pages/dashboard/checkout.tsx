@@ -3275,25 +3275,25 @@ export default function CheckoutPage() {
           <div className="space-y-4">
             {/* Existing Payment Info */}
             {billingStatus?.pendingTransaction && (
-              <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
+              <div className="p-4 rounded-lg bg-zinc-800/80 dark:bg-zinc-800 border border-zinc-700">
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Order</span>
-                    <span className="font-mono text-xs">{billingStatus.pendingTransaction.orderId}</span>
+                    <span className="text-zinc-400">Order</span>
+                    <span className="font-mono text-xs text-zinc-200">{billingStatus.pendingTransaction.orderId}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Plan</span>
-                    <span className="font-medium">{billingStatus.pendingTransaction.planName || 'N/A'}</span>
+                    <span className="text-zinc-400">Plan</span>
+                    <span className="font-medium text-zinc-100">{billingStatus.pendingTransaction.planName || 'N/A'}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Amount</span>
-                    <span className="font-medium">{billingStatus.pendingTransaction.amountFormatted || `Rp ${billingStatus.pendingTransaction.amount?.toLocaleString('id-ID')}`}</span>
+                    <span className="text-zinc-400">Amount</span>
+                    <span className="font-medium text-zinc-100">{billingStatus.pendingTransaction.amountFormatted || `Rp ${billingStatus.pendingTransaction.amount?.toLocaleString('id-ID')}`}</span>
                   </div>
                 </div>
               </div>
             )}
             
-            <div className="p-3 rounded-lg bg-muted/50 border">
+            <div className="p-3 rounded-lg bg-zinc-800/80 dark:bg-zinc-800 border border-zinc-700">
               <p className="text-sm text-muted-foreground">
                 Please complete your first order payment or cancel it to proceed with the new order. You can only have one pending payment at a time.
               </p>

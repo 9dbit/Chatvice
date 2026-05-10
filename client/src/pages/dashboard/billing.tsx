@@ -753,8 +753,8 @@ export default function BillingPage() {
       setQrisData(data);
       setPaymentStep('qris');
       
-      // Parse 12Pay format "2025-12-24 18:50:03" - replace space with T for ISO format
-      const expiryTimeStr = data.expiryTime?.replace(' ', 'T') + 'Z';
+      // Parse 12Pay format "2025-12-24 18:50:03" (WIB/UTC+7) — append +07:00 so JS parses it correctly
+      const expiryTimeStr = data.expiryTime?.replace(' ', 'T') + '+07:00';
       const expiryTime = new Date(expiryTimeStr).getTime();
       const now = Date.now();
       
@@ -1424,32 +1424,32 @@ export default function BillingPage() {
           <CardContent className="space-y-4">
             {/* Crypto Payment Under Review */}
             {paymentConfirmationStatus?.cryptoConfirmation && (
-              <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700" data-testid="pending-crypto-confirmation">
+              <div className="p-4 rounded-lg bg-zinc-800/80 dark:bg-zinc-800 border border-zinc-700" data-testid="pending-crypto-confirmation">
                 <div className="flex items-center gap-2 mb-3">
-                  <Timer className="w-5 h-5 text-amber-600" />
+                  <Timer className="w-5 h-5 text-amber-500" />
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Payment Under Review</p>
-                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                    <p className="text-sm font-semibold text-zinc-100">Payment Under Review</p>
+                    <p className="text-xs text-zinc-400">
                       Your {paymentConfirmationStatus.cryptoConfirmation.cryptocurrency} payment is currently under review. We are processing your {paymentConfirmationStatus.cryptoConfirmation.planName} plan.
                     </p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <span className="text-muted-foreground">Plan:</span>
-                    <span className="ml-1 font-medium">{paymentConfirmationStatus.cryptoConfirmation.planName}</span>
+                    <span className="text-zinc-400">Plan:</span>
+                    <span className="ml-1 font-medium text-zinc-200">{paymentConfirmationStatus.cryptoConfirmation.planName}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Billing:</span>
-                    <span className="ml-1 font-medium">{paymentConfirmationStatus.cryptoConfirmation.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</span>
+                    <span className="text-zinc-400">Billing:</span>
+                    <span className="ml-1 font-medium text-zinc-200">{paymentConfirmationStatus.cryptoConfirmation.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Amount:</span>
-                    <span className="ml-1 font-medium">{paymentConfirmationStatus.cryptoConfirmation.amountCrypto} {paymentConfirmationStatus.cryptoConfirmation.cryptocurrency}</span>
+                    <span className="text-zinc-400">Amount:</span>
+                    <span className="ml-1 font-medium text-zinc-200">{paymentConfirmationStatus.cryptoConfirmation.amountCrypto} {paymentConfirmationStatus.cryptoConfirmation.cryptocurrency}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">USD Value:</span>
-                    <span className="ml-1 font-medium">${(paymentConfirmationStatus.cryptoConfirmation.amountUsd / 100).toFixed(2)}</span>
+                    <span className="text-zinc-400">USD Value:</span>
+                    <span className="ml-1 font-medium text-zinc-200">${(paymentConfirmationStatus.cryptoConfirmation.amountUsd / 100).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -1457,32 +1457,32 @@ export default function BillingPage() {
             
             {/* Bank Transfer Payment Under Review */}
             {paymentConfirmationStatus?.bankTransferConfirmation && (
-              <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700" data-testid="pending-bank-transfer-confirmation">
+              <div className="p-4 rounded-lg bg-zinc-800/80 dark:bg-zinc-800 border border-zinc-700" data-testid="pending-bank-transfer-confirmation">
                 <div className="flex items-center gap-2 mb-3">
-                  <Timer className="w-5 h-5 text-amber-600" />
+                  <Timer className="w-5 h-5 text-amber-500" />
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Payment Under Review</p>
-                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                    <p className="text-sm font-semibold text-zinc-100">Payment Under Review</p>
+                    <p className="text-xs text-zinc-400">
                       Your bank transfer payment is currently under review. We are processing your {paymentConfirmationStatus.bankTransferConfirmation.planName} plan.
                     </p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <span className="text-muted-foreground">Plan:</span>
-                    <span className="ml-1 font-medium">{paymentConfirmationStatus.bankTransferConfirmation.planName}</span>
+                    <span className="text-zinc-400">Plan:</span>
+                    <span className="ml-1 font-medium text-zinc-200">{paymentConfirmationStatus.bankTransferConfirmation.planName}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Billing:</span>
-                    <span className="ml-1 font-medium">{paymentConfirmationStatus.bankTransferConfirmation.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</span>
+                    <span className="text-zinc-400">Billing:</span>
+                    <span className="ml-1 font-medium text-zinc-200">{paymentConfirmationStatus.bankTransferConfirmation.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Bank:</span>
-                    <span className="ml-1 font-medium">{paymentConfirmationStatus.bankTransferConfirmation.bankName}</span>
+                    <span className="text-zinc-400">Bank:</span>
+                    <span className="ml-1 font-medium text-zinc-200">{paymentConfirmationStatus.bankTransferConfirmation.bankName}</span>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Amount:</span>
-                    <span className="ml-1 font-medium">Rp {paymentConfirmationStatus.bankTransferConfirmation.amountIdr.toLocaleString('id-ID')}</span>
+                    <span className="text-zinc-400">Amount:</span>
+                    <span className="ml-1 font-medium text-zinc-200">Rp {paymentConfirmationStatus.bankTransferConfirmation.amountIdr.toLocaleString('id-ID')}</span>
                   </div>
                 </div>
               </div>
@@ -1490,26 +1490,27 @@ export default function BillingPage() {
             
             {/* Standard Pending Transaction */}
             {pendingPaymentDetails?.hasPendingPayment && (
-              <div className="p-4 rounded-lg bg-white dark:bg-zinc-900 border border-amber-200 dark:border-amber-800" data-testid="pending-standard-payment">
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <div>
-                    <p className="text-sm font-semibold">
+              <div className="rounded-lg bg-zinc-800/80 dark:bg-zinc-800 border border-zinc-700 overflow-hidden" data-testid="pending-standard-payment">
+                {/* Header */}
+                <div className="flex items-center justify-between gap-3 p-4 pb-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-zinc-100 truncate">
                       {pendingPaymentDetails.planName} Plan - {pendingPaymentDetails.billingInterval === 'annual' ? 'Annual' : 'Monthly'}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-zinc-400 truncate">
                       Order: {pendingPaymentDetails.orderId}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {pendingPaymentDetails.paymentMethod && (
-                      <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400">
+                      <Badge variant="outline" className="border-zinc-600 text-zinc-300">
                         {pendingPaymentDetails.paymentMethod === 'virtual_account' ? 'VA' : 
                          pendingPaymentDetails.paymentMethod === 'bank_transfer' ? 'Transfer' : 
                          pendingPaymentDetails.paymentMethod?.toUpperCase()}
                       </Badge>
                     )}
                     {pendingPaymentTimeRemaining > 0 && (
-                      <Badge variant="secondary" className="font-mono text-amber-600 dark:text-amber-400">
+                      <Badge variant="secondary" className="font-mono bg-zinc-700 text-amber-400">
                         <Clock className="w-3 h-3 mr-1" />
                         {formatPendingCountdown()}
                       </Badge>
@@ -1517,134 +1518,94 @@ export default function BillingPage() {
                   </div>
                 </div>
 
-                {/* Payment Details Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Left: Payment Info */}
-                  <div className="space-y-3">
+                {/* Amount + Expiry */}
+                <div className="px-4 pb-3 space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-zinc-400">Amount</span>
+                    <span className="text-lg font-bold text-amber-400">
+                      {pendingPaymentDetails.amountFormatted}
+                    </span>
+                  </div>
+                  {pendingPaymentDetails.expiryTime && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Amount</span>
-                      <span className="text-lg font-bold text-amber-700 dark:text-amber-400">
-                        {pendingPaymentDetails.amountFormatted}
+                      <span className="text-sm text-zinc-400">Expires</span>
+                      <span className="text-sm text-zinc-300">
+                        {format(new Date(pendingPaymentDetails.expiryTime), 'dd MMM yyyy HH:mm')}
                       </span>
                     </div>
-                    {pendingPaymentDetails.expiryTime && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Expires</span>
-                        <span className="text-sm">
-                          {format(new Date(pendingPaymentDetails.expiryTime), 'dd MMM yyyy HH:mm')}
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                  )}
+                </div>
 
-                  {/* Right: Payment Method Specific Info */}
-                  <div className="flex flex-col items-center justify-center p-4 bg-muted/30 rounded-lg border">
-                {/* QRIS */}
+                {/* QR / VA / Bank info */}
                 {pendingPaymentDetails.paymentMethod === 'qris' && pendingPaymentDetails.qrisString && (
-                  <div className="text-center space-y-2">
+                  <div className="px-4 pb-3 flex flex-col items-center gap-2">
                     <div className="bg-white p-3 rounded-lg inline-block">
-                      <QRCodeSVG 
-                        value={pendingPaymentDetails.qrisString} 
-                        size={140}
-                        level="M"
-                      />
+                      <QRCodeSVG value={pendingPaymentDetails.qrisString} size={120} level="M" />
                     </div>
-                    <p className="text-xs text-muted-foreground">Scan with any QRIS-enabled app</p>
+                    <p className="text-xs text-zinc-400">Scan with any QRIS-enabled app</p>
                   </div>
                 )}
-                
-                {/* Virtual Account */}
                 {pendingPaymentDetails.paymentMethod === 'virtual_account' && pendingPaymentDetails.vaNumber && (
-                  <div className="text-center space-y-2 w-full">
+                  <div className="px-4 pb-3 text-center space-y-1">
                     <div className="flex items-center justify-center gap-2">
-                      <Building2 className="w-5 h-5 text-primary" />
-                      <span className="font-semibold">{getBankName(pendingPaymentDetails.bankCode || '')}</span>
+                      <Building2 className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-semibold text-zinc-200">{getBankName(pendingPaymentDetails.bankCode || '')}</span>
                     </div>
                     <div className="flex items-center justify-center gap-2">
-                      <code className="text-lg font-mono font-bold tracking-wider">
-                        {pendingPaymentDetails.vaNumber}
-                      </code>
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        className="h-8 w-8"
-                        onClick={() => {
-                          navigator.clipboard.writeText(pendingPaymentDetails.vaNumber || '');
-                          toast({ title: t("dashboard.billing.toast.copied"), description: t("dashboard.billing.toast.vaNumberCopiedToDesc") });
-                        }}
-                        data-testid="button-copy-va-number"
-                      >
+                      <code className="text-base font-mono font-bold tracking-wider text-zinc-100">{pendingPaymentDetails.vaNumber}</code>
+                      <Button size="icon" variant="ghost" onClick={() => { navigator.clipboard.writeText(pendingPaymentDetails.vaNumber || ''); toast({ title: t("dashboard.billing.toast.copied"), description: t("dashboard.billing.toast.vaNumberCopiedToDesc") }); }} data-testid="button-copy-va-number">
                         <Copy className="w-4 h-4" />
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">Transfer exact amount to this VA number</p>
+                    <p className="text-xs text-zinc-400">Transfer exact amount to this VA number</p>
                   </div>
                 )}
-                
-                {/* Bank Transfer */}
                 {pendingPaymentDetails.paymentMethod === 'bank_transfer' && pendingPaymentDetails.accountNumber && (
-                  <div className="text-center space-y-2 w-full">
+                  <div className="px-4 pb-3 text-center space-y-1">
                     <div className="flex items-center justify-center gap-2">
-                      <Building2 className="w-5 h-5 text-primary" />
-                      <span className="font-semibold">{getBankName(pendingPaymentDetails.bankCode || '')}</span>
+                      <Building2 className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-semibold text-zinc-200">{getBankName(pendingPaymentDetails.bankCode || '')}</span>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">{pendingPaymentDetails.accountName}</p>
-                      <div className="flex items-center justify-center gap-2">
-                        <code className="text-lg font-mono font-bold tracking-wider">
-                          {pendingPaymentDetails.accountNumber}
-                        </code>
-                        <Button 
-                          size="icon" 
-                          variant="ghost" 
-                          className="h-8 w-8"
-                          onClick={() => {
-                            navigator.clipboard.writeText(pendingPaymentDetails.accountNumber || '');
-                            toast({ title: t("dashboard.billing.toast.copied"), description: t("dashboard.billing.toast.accountNumberCopiedToDesc") });
-                          }}
-                          data-testid="button-copy-account-number"
-                        >
-                          <Copy className="w-4 h-4" />
-                        </Button>
-                      </div>
+                    <p className="text-xs text-zinc-400">{pendingPaymentDetails.accountName}</p>
+                    <div className="flex items-center justify-center gap-2">
+                      <code className="text-base font-mono font-bold tracking-wider text-zinc-100">{pendingPaymentDetails.accountNumber}</code>
+                      <Button size="icon" variant="ghost" onClick={() => { navigator.clipboard.writeText(pendingPaymentDetails.accountNumber || ''); toast({ title: t("dashboard.billing.toast.copied"), description: t("dashboard.billing.toast.accountNumberCopiedToDesc") }); }} data-testid="button-copy-account-number">
+                        <Copy className="w-4 h-4" />
+                      </Button>
                     </div>
                     {pendingPaymentDetails.uniqueCode && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                        Include unique code: {pendingPaymentDetails.uniqueCode}
-                      </p>
+                      <p className="text-xs text-amber-400 font-medium">Include unique code: {pendingPaymentDetails.uniqueCode}</p>
                     )}
                   </div>
-                    )}
-                  </div>
-                </div>
+                )}
 
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-2">
+                {/* Action Buttons — inside card, full width */}
+                <div className="flex gap-2 p-4 pt-2 border-t border-zinc-700">
                   <Button 
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 min-w-0 border-zinc-600 text-zinc-300"
                     onClick={() => cancelPendingPaymentMutation.mutate()}
                     disabled={cancelPendingPaymentMutation.isPending}
                     data-testid="button-cancel-pending-payment"
                   >
                     {cancelPendingPaymentMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
                     ) : (
-                      <XCircle className="w-4 h-4 mr-2" />
+                      <XCircle className="w-4 h-4 mr-1.5" />
                     )}
-                    Cancel Payment
+                    Cancel
                   </Button>
                   <Button 
                     size="sm" 
-                    className="flex-1"
+                    className="flex-1 min-w-0"
                     onClick={() => {
                       refetchPendingPayment();
                       toast({ title: t("dashboard.billing.toast.refreshing"), description: t("dashboard.billing.toast.checkingPaymentStatusDesc") });
                     }}
                     data-testid="button-refresh-payment-status"
                   >
-                    <RefreshCw className="w-4 h-4 mr-2" />
+                    <RefreshCw className="w-4 h-4 mr-1.5" />
                     Check Status
                   </Button>
                 </div>
