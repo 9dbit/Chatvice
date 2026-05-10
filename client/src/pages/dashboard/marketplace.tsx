@@ -126,8 +126,9 @@ export default function MarketplacePage() {
   const [paymentDialog, setPaymentDialog] = useState<{
     open: boolean;
     title: string;
+    kind: "addon" | "booster";
     payment: InitiatePaymentResponse | null;
-  }>({ open: false, title: "", payment: null });
+  }>({ open: false, title: "", kind: "addon", payment: null });
 
   const { data: addonsData, isLoading: loadingAddons } = useQuery<MarketplaceResponse>({
     queryKey: ["/api/marketplace/addons"],
@@ -155,7 +156,7 @@ export default function MarketplacePage() {
     },
     onSuccess: (payment, addonType) => {
       const item = addonsData?.items.find((i) => i.addonType === addonType);
-      setPaymentDialog({ open: true, title: item?.name || "Add-on", payment });
+      setPaymentDialog({ open: true, title: item?.name || "Add-on", kind: "addon", payment });
     },
     onError: (err: any) => {
       toast({
@@ -180,7 +181,7 @@ export default function MarketplacePage() {
     },
     onSuccess: (payment, boosterType) => {
       const item = boostersData?.items.find((i) => i.boosterType === boosterType);
-      setPaymentDialog({ open: true, title: item?.name || "Booster", payment });
+      setPaymentDialog({ open: true, title: item?.name || "Booster", kind: "booster", payment });
     },
     onError: (err: any) => {
       toast({
@@ -402,7 +403,7 @@ export default function MarketplacePage() {
         open={paymentDialog.open}
         onOpenChange={(o) => {
           if (!o) {
-            setPaymentDialog({ open: false, title: "", payment: null });
+            setPaymentDialog({ open: false, title: "", kind: "addon", payment: null });
             queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
             queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
           }
@@ -440,10 +441,15 @@ export default function MarketplacePage() {
           <Button
             variant="outline"
             onClick={() => {
-              setPaymentDialog({ open: false, title: "", payment: null });
+              const wasBooster = paymentDialog.kind === "booster";
+              setPaymentDialog({ open: false, title: "", kind: "addon", payment: null });
               queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
               queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
-              navigate("/dashboard/additional-services");
+              if (wasBooster) {
+                setActiveTab("boosters");
+              } else {
+                navigate("/dashboard/additional-services");
+              }
             }}
             data-testid="button-close-payment-dialog"
           >

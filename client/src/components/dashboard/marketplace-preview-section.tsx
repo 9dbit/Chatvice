@@ -99,7 +99,7 @@ export function MarketplacePreviewSection() {
       <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 flex-wrap">
         <div className="flex items-center gap-2">
           <ShoppingBag className="w-5 h-5 text-primary" />
-          <CardTitle className="text-base">Marketplace Boosters</CardTitle>
+          <CardTitle className="text-base">Marketplace — Tambah kapasitas</CardTitle>
           <Badge variant="secondary" className="text-xs">
             <Sparkles className="w-3 h-3 mr-1" />
             Populer
@@ -137,7 +137,7 @@ export function MarketplacePreviewSection() {
                   <div className="flex items-baseline gap-1 mt-1 flex-wrap">
                     <span className="text-lg font-bold tracking-tight">${b.priceUsd}</span>
                     <span className="text-[10px] text-muted-foreground">
-                      {b.billingMode === "monthly" ? "/mo" : "once"}
+                      {b.billingMode === "monthly" ? "/bulan" : "/sekali bayar"}
                     </span>
                   </div>
                   <p className="text-[10px] text-muted-foreground truncate">
