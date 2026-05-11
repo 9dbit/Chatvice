@@ -22202,7 +22202,7 @@ ${log.extractedKnowledge}` : ''}
         if (!s.createdAt) return null;
         return `${s.createdAt.getFullYear()}-${String(s.createdAt.getMonth() + 1).padStart(2, "0")}`;
       }).filter(Boolean))].sort((a, b) => (b! > a! ? 1 : -1)) as string[];
-      const osOptions = ["android", "ios", "desktop"];
+      const osOptions = ["android", "ios", "windows", "macos", "linux", "desktop"];
 
       res.json({ countries, cities, periods, osOptions });
     } catch (err) {
