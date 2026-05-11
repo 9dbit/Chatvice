@@ -68,7 +68,7 @@ export function CustomPlanRequestDialog({
 }: CustomPlanRequestDialogProps) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("calculator");
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
 
   const [conversations, setConversations] = useState<number>(CUSTOM_PLAN_BASELINE.conversations);
@@ -95,6 +95,11 @@ export function CustomPlanRequestDialog({
   useEffect(() => {
     if (open) setStep("calculator");
   }, [open]);
+
+  // Close immediately (no animation) when the user navigates to a different route
+  useEffect(() => {
+    setOpen(false);
+  }, [location]);
 
   interface SubscribeResponse {
     paymentMethod: "qris";
