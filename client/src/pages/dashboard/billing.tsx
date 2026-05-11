@@ -1477,75 +1477,142 @@ export default function BillingPage() {
         );
       })()}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <Crown className="w-4 h-4 text-primary" />
-              <CardTitle className="text-sm font-medium">{t("dashboard.billing.currentPlan")}</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold" data-testid="text-current-plan">
-                {billingStatus?.planName || 'Starter'}
-              </span>
-              <Badge variant={billingStatus?.status === 'trial' ? 'secondary' : 'default'} data-testid="badge-subscription-status">
-                {billingStatus?.status === 'trial' ? 'Trial' : 
-                 billingStatus?.status === 'active' ? 'Active' : 'Inactive'}
-              </Badge>
-            </div>
-            {billingStatus?.status === 'trial' && billingStatus?.trialEndsAt && (
-              <p className="text-sm text-muted-foreground mt-1">
-                Trial ends {format(new Date(billingStatus.trialEndsAt), 'MMM d, yyyy')}
-              </p>
-            )}
-          </CardContent>
-        </Card>
+      {(() => {
+        const now = Date.now();
+        const periodEndMs = billingStatus?.currentPeriodEnd ? new Date(billingStatus.currentPeriodEnd).getTime() : null;
+        const isExpired =
+          billingStatus?.status === 'inactive' ||
+          (billingStatus?.status === 'active' && periodEndMs !== null && periodEndMs < now);
+        const daysRemaining = periodEndMs !== null ? Math.ceil((periodEndMs - now) / (1000 * 60 * 60 * 24)) : null;
+        const hoursRemaining = periodEndMs !== null ? Math.ceil((periodEndMs - now) / (1000 * 60 * 60)) : null;
 
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-primary" />
-              <CardTitle className="text-sm font-medium">{t("dashboard.billing.conversationsUsed")}</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold" data-testid="text-conversations-used">
-                {billingStatus?.conversationsUsed || 0}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                / {billingStatus?.conversationsLimit === -1 ? '∞' : billingStatus?.conversationsLimit || 100}
-              </span>
-            </div>
-            {billingStatus?.conversationsLimit !== -1 && (
-              <Progress value={usagePercentage} className="mt-2 h-2" />
-            )}
-          </CardContent>
-        </Card>
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Current Plan card */}
+            <Card className={isExpired ? 'border-red-400/50 dark:border-red-600/40 bg-red-50/30 dark:bg-red-950/10' : ''}>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <Crown className={`w-4 h-4 ${isExpired ? 'text-red-500' : 'text-primary'}`} />
+                  <CardTitle className="text-sm font-medium">{t("dashboard.billing.currentPlan")}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-2xl font-bold" data-testid="text-current-plan">
+                    {billingStatus?.planName || 'Starter'}
+                  </span>
+                  {isExpired ? (
+                    <Badge variant="destructive" data-testid="badge-subscription-status">Expired</Badge>
+                  ) : billingStatus?.status === 'trial' ? (
+                    <Badge variant="secondary" data-testid="badge-subscription-status">Trial</Badge>
+                  ) : billingStatus?.status === 'active' ? (
+                    <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-0" data-testid="badge-subscription-status">Aktif</Badge>
+                  ) : (
+                    <Badge variant="secondary" data-testid="badge-subscription-status">Inactive</Badge>
+                  )}
+                </div>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-primary" />
-              <CardTitle className="text-sm font-medium">{t("dashboard.billing.billingCycle")}</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {billingStatus?.currentPeriodEnd ? (
-              <>
-                <p className="text-sm text-muted-foreground">{t("dashboard.billing.nextBillingDate")}</p>
-                <p className="text-lg font-semibold">
-                  {format(new Date(billingStatus.currentPeriodEnd), 'MMMM d, yyyy')}
-                </p>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">{t("dashboard.billing.noBillingCycle")}</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                {billingStatus?.status === 'trial' && billingStatus?.trialEndsAt && (
+                  <p className="text-sm text-muted-foreground">
+                    Trial ends {format(new Date(billingStatus.trialEndsAt), 'MMM d, yyyy')}
+                  </p>
+                )}
+
+                {billingStatus?.status === 'active' && !isExpired && daysRemaining !== null && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    {daysRemaining > 0
+                      ? `${daysRemaining} hari masa aktif tersisa`
+                      : hoursRemaining !== null && hoursRemaining > 0
+                        ? `${hoursRemaining} jam masa aktif tersisa`
+                        : 'Berakhir hari ini'}
+                  </p>
+                )}
+
+                {isExpired && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-red-600 dark:text-red-400">
+                      Masa aktif langganan telah berakhir. AI agent dinonaktifkan.
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => navigate('/dashboard/checkout?from=renewal')}
+                      data-testid="button-reactivate-subscription"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                      Aktifkan Kembali
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Conversations card */}
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                  <CardTitle className="text-sm font-medium">{t("dashboard.billing.conversationsUsed")}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold" data-testid="text-conversations-used">
+                    {billingStatus?.conversationsUsed || 0}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    / {billingStatus?.conversationsLimit === -1 ? '∞' : billingStatus?.conversationsLimit || 100}
+                  </span>
+                </div>
+                {billingStatus?.conversationsLimit !== -1 && (
+                  <Progress value={usagePercentage} className="mt-2 h-2" />
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Billing cycle card */}
+            <Card className={isExpired ? 'border-red-400/50 dark:border-red-600/40 bg-red-50/30 dark:bg-red-950/10' : ''}>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <Calendar className={`w-4 h-4 ${isExpired ? 'text-red-500' : 'text-primary'}`} />
+                  <CardTitle className="text-sm font-medium">{t("dashboard.billing.billingCycle")}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {billingStatus?.currentPeriodEnd ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      {isExpired ? 'Berakhir pada' : t("dashboard.billing.nextBillingDate")}
+                    </p>
+                    <p className={`text-lg font-semibold ${isExpired ? 'text-red-600 dark:text-red-400' : ''}`}>
+                      {format(new Date(billingStatus.currentPeriodEnd), 'MMMM d, yyyy')}
+                    </p>
+                    {!isExpired && daysRemaining !== null && daysRemaining <= 30 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {daysRemaining > 0 ? `${daysRemaining} hari lagi` : 'Berakhir hari ini'}
+                      </p>
+                    )}
+                    {isExpired && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-3 w-full"
+                        onClick={() => navigate('/dashboard/checkout?from=renewal')}
+                        data-testid="button-renew-billing-cycle"
+                      >
+                        Perpanjang Sekarang
+                      </Button>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t("dashboard.billing.noBillingCycle")}</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
 
       {/* Active Custom Plan capacity panel — only when merchant is on a calculator-driven custom plan */}
       {billingStatus?.planId === "custom" && (merchant?.customConversationsLimit || merchant?.customAgentsLimit || merchant?.customSupervisorsLimit) ? (
@@ -2442,58 +2509,60 @@ export default function BillingPage() {
         </div>
 
         {/* Custom Plan Card — always shown below the plan grid */}
-        <Card className="border-purple-300 dark:border-purple-700 bg-gradient-to-r from-purple-50/60 to-pink-50/60 dark:from-purple-950/30 dark:to-pink-950/30" data-testid="card-plan-custom-calculator">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row md:items-center gap-6">
-              {/* Left: icon + text */}
-              <div className="flex items-start gap-4 flex-1">
-                <div className="p-3 rounded-xl bg-purple-100 dark:bg-purple-900/50 shrink-0">
-                  <Sparkles className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-lg font-semibold text-foreground">Custom Plan</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Volume terlalu besar untuk paket standar? Rancang paketmu sendiri — bayar hanya untuk yang kamu butuhkan.
-                  </p>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {[
-                      "Volume percakapan custom",
-                      "Jumlah AI Agent bebas",
-                      "Supervisor sesuai kebutuhan",
-                      "Harga transparan",
-                      "Semua fitur Enterprise",
-                    ].map((f) => (
-                      <span key={f} className="inline-flex items-center gap-1 text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full">
-                        <Check className="w-3 h-3" />
-                        {f}
-                      </span>
-                    ))}
+        <div className="mt-6">
+          <Card className="border-border bg-muted/30" data-testid="card-plan-custom-calculator">
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row md:items-center gap-6">
+                {/* Left: icon + text */}
+                <div className="flex items-start gap-4 flex-1">
+                  <div className="p-3 rounded-xl bg-muted shrink-0">
+                    <Sparkles className="w-6 h-6 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-semibold text-foreground">Custom Plan</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Volume terlalu besar untuk paket standar? Rancang paketmu sendiri — bayar hanya untuk yang kamu butuhkan.
+                    </p>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {[
+                        "Volume percakapan custom",
+                        "Jumlah AI Agent bebas",
+                        "Supervisor sesuai kebutuhan",
+                        "Harga transparan",
+                        "Semua fitur Enterprise",
+                      ].map((f) => (
+                        <span key={f} className="inline-flex items-center gap-1 text-xs bg-muted text-foreground px-2 py-0.5 rounded-full">
+                          <Check className="w-3 h-3" />
+                          {f}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-              {/* Right: pricing hint + CTA */}
-              <div className="flex flex-col items-start md:items-end gap-3 shrink-0">
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Mulai dari</p>
-                  <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">Custom</p>
-                  <p className="text-xs text-muted-foreground">sesuai konfigurasi</p>
+                {/* Right: pricing hint + CTA */}
+                <div className="flex flex-col items-start md:items-end gap-3 shrink-0">
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">Mulai dari</p>
+                    <p className="text-2xl font-bold text-foreground">Custom</p>
+                    <p className="text-xs text-muted-foreground">sesuai konfigurasi</p>
+                  </div>
+                  <CustomPlanRequestDialog
+                    skipAuthCheck={true}
+                    trigger={
+                      <Button
+                        variant="default"
+                        data-testid="button-custom-plan-calculator"
+                      >
+                        <Calculator className="w-4 h-4 mr-2" />
+                        Try Pricing Calculator
+                      </Button>
+                    }
+                  />
                 </div>
-                <CustomPlanRequestDialog
-                  skipAuthCheck={true}
-                  trigger={
-                    <Button
-                      className="bg-purple-600 text-white"
-                      data-testid="button-custom-plan-calculator"
-                    >
-                      <Calculator className="w-4 h-4 mr-2" />
-                      Try Pricing Calculator
-                    </Button>
-                  }
-                />
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Additional Services Section */}

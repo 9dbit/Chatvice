@@ -83,7 +83,7 @@ export default function MarketplacePage() {
           </p>
         </div>
         <Button
-          variant="outline"
+          variant="default"
           size="sm"
           onClick={() => navigate("/dashboard/additional-services")}
           data-testid="button-manage-active-services"

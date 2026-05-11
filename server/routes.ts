@@ -316,7 +316,12 @@ async function checkSubscriptionLimits(merchantId: string, type: 'conversation' 
     if (trialExpired) {
       return { allowed: false, message: "Trial expired. Please upgrade to continue." };
     }
-  } else if (merchant.subscriptionStatus !== 'active') {
+  } else if (merchant.subscriptionStatus === 'active') {
+    // Even if status is 'active', block if the billing period has already ended
+    if (merchant.currentPeriodEnd && new Date(merchant.currentPeriodEnd) < new Date()) {
+      return { allowed: false, message: "Subscription expired. Please renew to continue." };
+    }
+  } else {
     return { allowed: false, message: "Subscription inactive. Please renew to continue." };
   }
   
