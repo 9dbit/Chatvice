@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { useLanguage } from "@/hooks/use-language";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +53,7 @@ function isAddonActive(merchantAddons: MarketplaceMerchantAddon[], addonType: st
 
 export default function MarketplacePage() {
   const [, navigate] = useLocation();
+  const { t } = useLanguage();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { data: addonsData, isLoading: loadingAddons } = useQuery<AddonResponse>({
@@ -79,7 +81,7 @@ export default function MarketplacePage() {
             Marketplace
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Tingkatkan kemampuan agent dengan add-on premium &amp; booster paket. Harga utama USD, ekuivalen Rupiah.
+            {t("dashboard.marketplace.subtitle")}
           </p>
         </div>
         <Button
@@ -88,7 +90,7 @@ export default function MarketplacePage() {
           onClick={() => navigate("/dashboard/additional-services")}
           data-testid="button-manage-active-services"
         >
-          Kelola layanan aktif
+          {t("dashboard.marketplace.manageActive")}
         </Button>
       </div>
 
@@ -101,7 +103,7 @@ export default function MarketplacePage() {
             <Sparkles className="w-3 h-3" />
             Add-on Services
           </Badge>
-          <p className="text-xs text-muted-foreground">Layanan tambahan berlangganan bulanan</p>
+          <p className="text-xs text-muted-foreground">{t("dashboard.marketplace.addonSectionDesc")}</p>
         </div>
 
         {loadingAddons ? (
@@ -124,7 +126,7 @@ export default function MarketplacePage() {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16 gap-3">
               <Sparkles className="w-10 h-10 text-muted-foreground" />
-              <p className="text-muted-foreground text-sm">Belum ada add-on yang tersedia.</p>
+              <p className="text-muted-foreground text-sm">{t("dashboard.marketplace.noAddons")}</p>
             </CardContent>
           </Card>
         ) : (
@@ -155,7 +157,7 @@ export default function MarketplacePage() {
                             {active && (
                               <Badge variant="secondary" className="text-xs">
                                 <CheckCircle className="w-3 h-3 mr-1" />
-                                Aktif
+                                {t("dashboard.marketplace.activeBadge")}
                               </Badge>
                             )}
                           </CardTitle>
@@ -163,10 +165,10 @@ export default function MarketplacePage() {
                             <span className="text-2xl font-bold tracking-tight">
                               ${item.monthlyPriceUsd}
                             </span>
-                            <span className="text-xs text-muted-foreground">/ bulan</span>
+                            <span className="text-xs text-muted-foreground">{t("dashboard.marketplace.perMonth")}</span>
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            ≈ {item.monthlyPriceIdrFormatted} / bulan
+                            ≈ {item.monthlyPriceIdrFormatted} {t("dashboard.marketplace.perMonth")}
                           </p>
                         </div>
                       </div>
@@ -178,7 +180,7 @@ export default function MarketplacePage() {
                         </p>
                       )}
                       <p className="text-xs text-primary font-medium">
-                        Lihat detail &amp; berlangganan →
+                        {t("dashboard.marketplace.viewDetailsSubscribe")}
                       </p>
                     </CardContent>
                   </Card>
@@ -201,7 +203,7 @@ export default function MarketplacePage() {
             <Zap className="w-3 h-3" />
             Boosters
           </Badge>
-          <p className="text-xs text-muted-foreground">Tambah kuota instan — pembelian sekali</p>
+          <p className="text-xs text-muted-foreground">{t("dashboard.marketplace.boosterSectionDesc")}</p>
         </div>
 
         {loadingBoosters ? (
@@ -220,7 +222,7 @@ export default function MarketplacePage() {
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16 gap-3">
               <Zap className="w-10 h-10 text-muted-foreground" />
-              <p className="text-muted-foreground text-sm">Belum ada booster yang tersedia.</p>
+              <p className="text-muted-foreground text-sm">{t("dashboard.marketplace.noBoosters")}</p>
             </CardContent>
           </Card>
         ) : (
@@ -246,7 +248,7 @@ export default function MarketplacePage() {
                         {b.isFeatured && (
                           <Badge variant="secondary" className="text-xs shrink-0">
                             <Sparkles className="w-3 h-3 mr-1" />
-                            Populer
+                            {t("dashboard.marketplace.popularBadge")}
                           </Badge>
                         )}
                       </div>
@@ -257,7 +259,7 @@ export default function MarketplacePage() {
                             ${b.priceUsd}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {b.billingMode === "monthly" ? "/ bulan" : "/ sekali bayar"}
+                            {b.billingMode === "monthly" ? t("dashboard.marketplace.perMonth") : t("dashboard.marketplace.oneTime")}
                           </span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
@@ -267,7 +269,7 @@ export default function MarketplacePage() {
                     </CardHeader>
                     <CardContent className="pt-0">
                       <p className="text-xs text-primary font-medium">
-                        Lihat detail &amp; beli →
+                        {t("dashboard.marketplace.viewDetailsBuy")}
                       </p>
                     </CardContent>
                   </Card>

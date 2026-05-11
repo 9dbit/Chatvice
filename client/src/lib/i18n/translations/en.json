@@ -415,7 +415,20 @@
     },
     "marketplace": {
       "title": "Marketplace",
-      "subtitle": "Add premium add-ons to your AI agent. Prices in IDR, monthly subscription."
+      "subtitle": "Enhance your agent with premium add-ons & boosters. Prices in USD with IDR equivalent.",
+      "manageActive": "Manage active services",
+      "addonSectionLabel": "Add-on Services",
+      "addonSectionDesc": "Monthly subscription services",
+      "boosterSectionLabel": "Boosters",
+      "boosterSectionDesc": "Add instant quota — one-time purchase",
+      "noAddons": "No add-ons available yet.",
+      "noBoosters": "No boosters available yet.",
+      "activeBadge": "Active",
+      "popularBadge": "Popular",
+      "perMonth": "/ month",
+      "oneTime": "/ one-time",
+      "viewDetailsSubscribe": "View details & subscribe →",
+      "viewDetailsBuy": "View details & buy →"
     },
     "common": {
       "save": "Save",

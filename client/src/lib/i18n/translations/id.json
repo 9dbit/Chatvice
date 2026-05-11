@@ -415,7 +415,20 @@
     },
     "marketplace": {
       "title": "Marketplace",
-      "subtitle": "Tambah kemampuan AI agent Anda dengan add-on premium. Harga dalam Rupiah, langganan bulanan."
+      "subtitle": "Tingkatkan kemampuan agent dengan add-on premium & booster paket. Harga utama USD, ekuivalen Rupiah.",
+      "manageActive": "Kelola layanan aktif",
+      "addonSectionLabel": "Add-on Services",
+      "addonSectionDesc": "Layanan tambahan berlangganan bulanan",
+      "boosterSectionLabel": "Boosters",
+      "boosterSectionDesc": "Tambah kuota instan — pembelian sekali",
+      "noAddons": "Belum ada add-on yang tersedia.",
+      "noBoosters": "Belum ada booster yang tersedia.",
+      "activeBadge": "Aktif",
+      "popularBadge": "Populer",
+      "perMonth": "/ bulan",
+      "oneTime": "/ sekali bayar",
+      "viewDetailsSubscribe": "Lihat detail & berlangganan →",
+      "viewDetailsBuy": "Lihat detail & beli →"
     },
     "common": {
       "save": "Simpan",
