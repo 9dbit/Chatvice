@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Sparkles, Calendar, CheckCircle, Loader2, AlertCircle, Hotel, TestTube2, Clock, ListTodo, CalendarDays } from "lucide-react";
+import { Sparkles, Calendar, CheckCircle, Loader2, Hotel, TestTube2, Clock, ListTodo, CalendarDays, ShoppingBag } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -337,8 +337,6 @@ export default function AdditionalServicesPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [hospitalitySettingsOpen, setHospitalitySettingsOpen] = useState(false);
-  const [pendingTrials, setPendingTrials] = useState<Set<string>>(new Set());
-
   const { data: addonConfigs = [], isLoading: configsLoading } = useQuery<AddonConfig[]>({
     queryKey: ["/api/addon-configs"],
   });
@@ -347,35 +345,6 @@ export default function AdditionalServicesPage() {
     queryKey: ["/api/merchant/addons"],
     staleTime: 0,
   });
-
-  const handleStartTrial = async (addonType: string) => {
-    setPendingTrials(prev => new Set(prev).add(addonType));
-    try {
-      const res = await fetch("/api/merchant/addons/start-trial", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ addonType }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        if (res.status === 409) {
-          queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
-          const msg = body.error === "Trial already used for this addon"
-            ? "Free trial has already been used for this service."
-            : "This service is already active on your account.";
-          throw new Error(msg);
-        }
-        throw new Error(body.error || "Unable to start trial");
-      }
-      queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
-      toast({ title: t("dashboard.additionalServices.trialStarted"), description: t("dashboard.additionalServices.trialActive") });
-    } catch (err: any) {
-      toast({ title: t("common.failed"), description: err.message || "Unable to start trial", variant: "destructive" });
-    } finally {
-      setPendingTrials(prev => { const next = new Set(prev); next.delete(addonType); return next; });
-    }
-  };
 
   const cancelMutation = useMutation({
     mutationFn: (addonType: string) =>
@@ -505,32 +474,14 @@ export default function AdditionalServicesPage() {
 
                   <div className="flex gap-2 pt-1 flex-wrap">
                     {!canManage && (
-                      <>
-                        <Button
-                          size="sm"
-                          onClick={() => navigate(`/dashboard/checkout?addon=${config.addonType}`)}
-                          data-testid={`button-subscribe-${config.addonType}`}
-                        >
-                          <Sparkles className="w-4 h-4 mr-2" />
-                          Activate — ${config.monthlyPriceUsd}/month
-                        </Button>
-                        {!usedTrial && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleStartTrial(config.addonType)}
-                            disabled={pendingTrials.has(config.addonType)}
-                            data-testid={`button-trial-${config.addonType}`}
-                          >
-                            {pendingTrials.has(config.addonType) ? (
-                              <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                            ) : (
-                              <Clock className="w-3.5 h-3.5 mr-1" />
-                            )}
-                            Start Free Trial
-                          </Button>
-                        )}
-                      </>
+                      <Button
+                        size="sm"
+                        onClick={() => navigate(`/dashboard/marketplace`)}
+                        data-testid={`button-subscribe-${config.addonType}`}
+                      >
+                        <ShoppingBag className="w-4 h-4 mr-2" />
+                        Beli di Marketplace
+                      </Button>
                     )}
 
                     {canManage && (
@@ -551,13 +502,6 @@ export default function AdditionalServicesPage() {
                     <div className="flex items-center gap-1.5 mt-1 text-sm text-amber-600 dark:text-amber-400 font-medium" data-testid={`text-trial-countdown-${config.addonType}`}>
                       <Clock className="w-3.5 h-3.5 shrink-0" />
                       <span>{t("dashboard.additionalServices.trial")}: {trialDaysLeft} {t("dashboard.additionalServices.daysRemaining")}</span>
-                    </div>
-                  )}
-
-                  {!canManage && (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>{t("dashboard.additionalServices.paymentNote")}{usedTrial ? ` ${t("dashboard.additionalServices.trialUsed")}` : ""}</span>
                     </div>
                   )}
                 </CardContent>
