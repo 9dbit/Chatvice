@@ -22074,10 +22074,13 @@ ${log.extractedKnowledge}` : ''}
   function detectBlastOs(userAgent: string | null | undefined): string {
     if (!userAgent) return "desktop";
     const ua = userAgent;
-    // iPadOS 13+ reports as Macintosh with a "Mobile/" token — must check before the generic macOS check
+    // iPadOS 13+ reports as Macintosh with a "Mobile/" token — must detect before generic macOS check
     const isIpadOs = /Macintosh/i.test(ua) && /Mobile\//i.test(ua) && /Safari/i.test(ua);
     if (/android/i.test(ua)) return "android";
     if (/iphone|ipad|ipod/i.test(ua) || isIpadOs) return "ios";
+    if (/Windows/i.test(ua)) return "windows";
+    if (/Macintosh|Mac OS X/i.test(ua)) return "macos";
+    if (/Linux/i.test(ua)) return "linux";
     return "desktop";
   }
 

@@ -3265,7 +3265,7 @@ export default function SessionsPage() {
                 <div>
                   <p className="text-xs text-muted-foreground mb-1.5">Device OS</p>
                   <div className="flex gap-2 flex-wrap">
-                    {[{ value: "all", label: "All" }, { value: "android", label: "Android" }, { value: "ios", label: "iOS" }, { value: "desktop", label: "Desktop" }].map(({ value, label }) => {
+                    {[{ value: "all", label: "All" }, { value: "android", label: "Android" }, { value: "ios", label: "iOS" }, { value: "windows", label: "Windows" }, { value: "macos", label: "macOS" }, { value: "linux", label: "Linux" }, { value: "desktop", label: "Other Desktop" }].map(({ value, label }) => {
                       const active = blastFilters.deviceOs.includes(value);
                       return (
                         <button key={value}
