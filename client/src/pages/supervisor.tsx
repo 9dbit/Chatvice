@@ -63,6 +63,7 @@ import {
 } from "lucide-react";
 import type { Session, Message, Notification, ChatLog } from "@shared/schema";
 import { playIncomingChatSound, playChatReplySound, playAngrySound } from "@/lib/sounds";
+import { DeviceIcon, OsIcon, BrowserIcon } from "@/lib/device-utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -1113,6 +1114,13 @@ export default function SupervisorPanel() {
                                 <p className="text-xs text-muted-foreground truncate" data-testid={`text-visitor-page-${visitor.id}`}>
                                   {visitor.pageUrl || "Unknown page"}
                                 </p>
+                                {visitor.userAgent && (
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <DeviceIcon userAgent={visitor.userAgent} />
+                                    <OsIcon userAgent={visitor.userAgent} />
+                                    <BrowserIcon userAgent={visitor.userAgent} />
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
