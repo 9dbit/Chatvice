@@ -436,7 +436,9 @@ export function ProductPopup({
   const renderInfo = () => {
     if (!product) return null;
     const benefits = effectiveBooster
-      ? (boosterBenefits[effectiveBooster.boosterType] ?? boosterBenefits["conversations"] ?? null)
+      ? (boosterBenefits[effectiveBooster.boosterType] ??
+          (isConvBooster ? boosterBenefits["conversations"] : null) ??
+          null)
       : null;
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
@@ -453,7 +455,7 @@ export function ProductPopup({
                 <SelectContent>
                   {convBoosterOptions.map((opt) => (
                     <SelectItem key={opt.boosterType} value={opt.boosterType}>
-                      +{opt.quotaAmount.toLocaleString("id-ID")} Conversations — ${opt.priceUsd}
+                      +{opt.quotaAmount.toLocaleString("id-ID")} Conversations — ${opt.priceUsd} / {opt.priceIdrFormatted}
                     </SelectItem>
                   ))}
                 </SelectContent>
