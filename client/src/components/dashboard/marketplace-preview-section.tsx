@@ -8,6 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogTitle,
@@ -110,10 +117,10 @@ const addonGradientMap: Record<string, { from: string; to: string }> = {
 const DEFAULT_GRADIENT = { from: "from-violet-500", to: "to-purple-700" };
 
 const boosterBenefits: Record<string, { headline: string; bullets: string[] }> = {
-  conversations_2k: {
+  conversations: {
     headline: "Tambah kuota percakapan instan",
     bullets: [
-      "2.000 percakapan langsung dikreditkan ke saldo akun",
+      "Percakapan langsung dikreditkan ke saldo akun Anda",
       "Berlaku untuk semua AI agent di akun Anda",
       "Tidak ada batas waktu penggunaan saldo",
       "Ideal saat volume chat meningkat di peak season",
@@ -234,6 +241,7 @@ export function ProductPopup({
   const [phase, setPhase] = useState<Phase>("info");
   const [payment, setPayment] = useState<PaymentResponse | null>(null);
   const [tcOpen, setTcOpen] = useState(false);
+  const [selectedConvPackage, setSelectedConvPackage] = useState("conversations_2k");
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const phaseRef = useRef<Phase>("info");
   phaseRef.current = phase;
@@ -252,6 +260,16 @@ export function ProductPopup({
     : null;
 
   const addonActive = addon ? isAddonActive(merchantAddons, addon.addonType) : false;
+
+  const isConvBooster = isBooster && typeKey.startsWith("conversations_");
+  const convBoosterOptions = isConvBooster
+    ? (boostersData?.items ?? [])
+        .filter((b) => b.boosterType.startsWith("conversations_"))
+        .sort((a, b) => a.quotaAmount - b.quotaAmount)
+    : [];
+  const effectiveBooster = isConvBooster
+    ? (convBoosterOptions.find((b) => b.boosterType === selectedConvPackage) ?? booster)
+    : booster;
 
   /* Mutations */
   const addonMutation = useMutation({
@@ -325,28 +343,30 @@ export function ProductPopup({
       setPhase("info");
       setPayment(null);
       setTcOpen(false);
+    } else {
+      setSelectedConvPackage("conversations_2k");
     }
   }, [productId]);
 
   const icon = addon
     ? addonIconMap[addon.addonType] || Sparkles
-    : booster
-    ? boosterIconMap[booster.iconName] || Zap
+    : effectiveBooster
+    ? boosterIconMap[effectiveBooster.iconName] || Zap
     : Sparkles;
 
   const gradient = addon
     ? addonGradientMap[addon.addonType] || DEFAULT_GRADIENT
-    : booster
-    ? { from: booster.gradientFrom, to: booster.gradientTo }
+    : effectiveBooster
+    ? { from: effectiveBooster.gradientFrom, to: effectiveBooster.gradientTo }
     : DEFAULT_GRADIENT;
 
   const Icon = icon;
-  const product = addon || booster;
+  const product = addon || effectiveBooster;
   const isPending = addonMutation.isPending || boosterMutation.isPending;
 
   const handleBuy = () => {
     if (addon) addonMutation.mutate(addon.addonType);
-    else if (booster) boosterMutation.mutate(booster.boosterType);
+    else if (effectiveBooster) boosterMutation.mutate(effectiveBooster.boosterType);
   };
 
   /* ---------- render phases ---------- */
@@ -389,7 +409,7 @@ export function ProductPopup({
       <PartyPopper className="w-12 h-12 text-green-500" />
       <p className="font-semibold text-lg text-foreground">Pembayaran berhasil!</p>
       <p className="text-sm text-muted-foreground">
-        {addon ? `${addon.name} telah diaktifkan di akun Anda.` : `Kuota ${booster?.name} berhasil ditambahkan.`}
+        {addon ? `${addon.name} telah diaktifkan di akun Anda.` : `Kuota ${effectiveBooster?.name} berhasil ditambahkan.`}
       </p>
       <Button size="sm" className="rounded-full px-6 mt-2" onClick={onClose}>
         <CheckCircle2 className="w-4 h-4 mr-1.5" /> Selesai
@@ -415,11 +435,32 @@ export function ProductPopup({
 
   const renderInfo = () => {
     if (!product) return null;
-    const benefits = booster ? boosterBenefits[booster.boosterType] : null;
+    const benefits = effectiveBooster
+      ? (boosterBenefits[effectiveBooster.boosterType] ?? boosterBenefits["conversations"] ?? null)
+      : null;
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         {/* ── Left column: price + terms ── */}
         <div className="space-y-4">
+          {/* Package selector — conversation boosters only */}
+          {isConvBooster && convBoosterOptions.length > 1 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">Pilih Paket</p>
+              <Select value={selectedConvPackage} onValueChange={setSelectedConvPackage}>
+                <SelectTrigger className="w-full" data-testid="select-conv-package">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {convBoosterOptions.map((opt) => (
+                    <SelectItem key={opt.boosterType} value={opt.boosterType}>
+                      +{opt.quotaAmount.toLocaleString("id-ID")} Conversations — ${opt.priceUsd}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Price */}
           <div className="bg-muted/40 rounded-xl px-4 py-3">
             {addon ? (
@@ -430,17 +471,17 @@ export function ProductPopup({
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">≈ {addon.monthlyPriceIdrFormatted} / bulan</p>
               </>
-            ) : booster ? (
+            ) : effectiveBooster ? (
               <>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold text-foreground">${booster.priceUsd}</span>
+                  <span className="text-3xl font-bold text-foreground">${effectiveBooster.priceUsd}</span>
                   <span className="text-sm text-muted-foreground">
-                    {booster.billingMode === "monthly" ? "/ bulan" : "/ sekali bayar"}
+                    {effectiveBooster.billingMode === "monthly" ? "/ bulan" : "/ sekali bayar"}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">≈ {booster.priceIdrFormatted}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">≈ {effectiveBooster.priceIdrFormatted}</p>
                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0 mt-2">
-                  {booster.billingMode === "monthly" ? "Langganan bulanan" : "Pembelian sekali"}
+                  {effectiveBooster.billingMode === "monthly" ? "Langganan bulanan" : "Pembelian sekali"}
                 </Badge>
               </>
             ) : null}
@@ -492,7 +533,7 @@ export function ProductPopup({
           )}
 
           {/* Booster: headline + rich bullet list */}
-          {booster && benefits && (
+          {effectiveBooster && benefits && (
             <>
               <p className="text-sm font-medium text-foreground">{benefits.headline}</p>
               <ul className="space-y-2">
@@ -507,10 +548,10 @@ export function ProductPopup({
           )}
 
           {/* Fallback for boosters without a mapped description */}
-          {booster && !benefits && (
+          {effectiveBooster && !benefits && (
             <p className="text-sm text-foreground leading-relaxed">
-              Tambah <strong>{booster.quotaAmount.toLocaleString()}</strong> kuota{" "}
-              {booster.name.replace(/^\+[\d,]+\s+/, "")} ke akun Anda secara instan.
+              Tambah <strong>{effectiveBooster.quotaAmount.toLocaleString()}</strong> kuota{" "}
+              {effectiveBooster.name.replace(/^\+[\d,]+\s+/, "")} ke akun Anda secara instan.
             </p>
           )}
         </div>
@@ -533,13 +574,13 @@ export function ProductPopup({
           </div>
           <div className="flex-1 min-w-0">
             <DialogTitle className="text-base font-semibold text-foreground leading-tight line-clamp-2">
-              {product?.name ?? "—"}
+              {isConvBooster ? "Tambah Percakapan" : (product?.name ?? "—")}
             </DialogTitle>
             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                 {isAddon ? "Add-on" : "Booster"}
               </Badge>
-              {booster?.isFeatured && (
+              {effectiveBooster?.isFeatured && (
                 <Badge className="text-[10px] px-1.5 py-0 bg-amber-500 text-white">
                   <Sparkles className="w-2.5 h-2.5 mr-0.5" /> Populer
                 </Badge>
@@ -633,19 +674,21 @@ export function MarketplacePreviewSection() {
     };
   });
 
-  const boosterProducts: UnifiedProduct[] = (boostersData?.items ?? []).map((item) => {
-    const { value, label } = splitBoosterName(item.name);
-    return {
-      productId: `booster-${item.boosterType}`,
-      name: item.name,
-      kind: "booster",
-      iconName: item.iconName,
-      gradientFrom: item.gradientFrom,
-      gradientTo: item.gradientTo,
-      valueText: value || `+${item.quotaAmount.toLocaleString()}`,
-      labelText: label,
-    };
-  });
+  const boosterProducts: UnifiedProduct[] = (boostersData?.items ?? [])
+    .filter((item) => !item.boosterType.startsWith("conversations_") || item.boosterType === "conversations_2k")
+    .map((item) => {
+      const { value, label } = splitBoosterName(item.name);
+      return {
+        productId: `booster-${item.boosterType}`,
+        name: item.name,
+        kind: "booster",
+        iconName: item.iconName,
+        gradientFrom: item.gradientFrom,
+        gradientTo: item.gradientTo,
+        valueText: value || `+${item.quotaAmount.toLocaleString()}`,
+        labelText: label,
+      };
+    });
 
   const allProducts: UnifiedProduct[] = [...addonProducts, ...boosterProducts];
 
