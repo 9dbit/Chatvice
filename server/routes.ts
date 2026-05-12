@@ -22579,6 +22579,93 @@ ${log.extractedKnowledge}` : ''}
     }
   });
 
+  // Device breakdown analytics — aggregates sessions by device type, OS, and browser
+  app.get("/api/analytics/devices", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const period = (req.query.period as string) || "all";
+
+      // Build date filter based on period
+      const now = new Date();
+      let since: Date | null = null;
+      if (period === "daily") since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      else if (period === "weekly") since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      else if (period === "monthly") since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      else if (period === "yearly") since = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+
+      const conditions = [eq(sessions.merchantId, merchantId)];
+      if (since) conditions.push(gte(sessions.createdAt, since));
+
+      const rows = await db
+        .select({ userAgent: sessions.userAgent })
+        .from(sessions)
+        .where(and(...conditions));
+
+      const totalSessions = rows.length;
+
+      // Replicate parseUserAgent logic server-side
+      function parseUA(ua: string | null): { browser: string; os: string; device: string } {
+        if (!ua || !ua.trim()) return { browser: "Unknown", os: "Unknown", device: "Unknown" };
+        let browser = "Unknown";
+        if (/Edg\//i.test(ua)) browser = "Edge";
+        else if (/OPR\/|Opera/i.test(ua)) browser = "Opera";
+        else if (/SamsungBrowser/i.test(ua)) browser = "Samsung";
+        else if (/FBAN|FBAV|FB_IAB/i.test(ua)) browser = "Facebook";
+        else if (/Instagram/i.test(ua)) browser = "Instagram";
+        else if (/Telegram/i.test(ua)) browser = "Telegram";
+        else if (/Line\//i.test(ua)) browser = "Line";
+        else if (/Chrome/i.test(ua) && !/Chromium/i.test(ua)) browser = "Chrome";
+        else if (/Firefox/i.test(ua)) browser = "Firefox";
+        else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = "Safari";
+
+        const isIpadOs = /Macintosh/i.test(ua) && /Mobile\//i.test(ua) && /Safari/i.test(ua);
+        let os = "Unknown";
+        if (/Android/i.test(ua)) os = "Android";
+        else if (/iPhone|iPad|iPod/i.test(ua) || isIpadOs) os = "iOS";
+        else if (/Windows/i.test(ua)) os = "Windows";
+        else if (/Macintosh|Mac OS X/i.test(ua)) os = "macOS";
+        else if (/Linux/i.test(ua)) os = "Linux";
+
+        let device = "Desktop";
+        if (/iPad/i.test(ua) || isIpadOs || /Tablet/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua))) device = "Tablet";
+        else if (/Android|iPhone|iPod|Mobile|FBAN|FBAV|FB_IAB|Instagram|Telegram|Line\//i.test(ua)) device = "Mobile";
+
+        return { browser, os, device };
+      }
+
+      const deviceCount = new Map<string, number>();
+      const osCount = new Map<string, number>();
+      const browserCount = new Map<string, number>();
+
+      for (const row of rows) {
+        const { browser, os, device } = parseUA(row.userAgent);
+        deviceCount.set(device, (deviceCount.get(device) || 0) + 1);
+        osCount.set(os, (osCount.get(os) || 0) + 1);
+        browserCount.set(browser, (browserCount.get(browser) || 0) + 1);
+      }
+
+      const toSorted = (map: Map<string, number>) =>
+        Array.from(map.entries())
+          .sort((a, b) => b[1] - a[1])
+          .map(([name, count]) => ({
+            name,
+            count,
+            percentage: totalSessions > 0 ? Math.round((count / totalSessions) * 1000) / 10 : 0,
+          }));
+
+      res.json({
+        totalSessions,
+        period,
+        byDevice: toSorted(deviceCount),
+        byOs: toSorted(osCount).slice(0, 8),
+        byBrowser: toSorted(browserCount).slice(0, 8),
+      });
+    } catch (error) {
+      console.error("Error fetching device analytics:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // Agent-Supervisor mapping endpoints
   app.get("/api/agents/:agentId/supervisors", requireMerchant, async (req, res) => {
     try {

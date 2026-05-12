@@ -31,6 +31,9 @@ import {
   AlertTriangle,
   Star,
   X,
+  Monitor,
+  Smartphone,
+  Tablet,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 import type { Merchant } from "@shared/schema";
@@ -135,6 +138,20 @@ interface PerformanceAnalytics {
   needsUpgrade: boolean;
 }
 
+interface DeviceBreakdownEntry {
+  name: string;
+  count: number;
+  percentage: number;
+}
+
+interface DeviceAnalytics {
+  totalSessions: number;
+  period: string;
+  byDevice: DeviceBreakdownEntry[];
+  byOs: DeviceBreakdownEntry[];
+  byBrowser: DeviceBreakdownEntry[];
+}
+
 // Color palette for team members
 const TEAM_COLORS = [
   "#3b82f6", // blue
@@ -150,6 +167,16 @@ const TEAM_COLORS = [
 const CHART_COLORS = ["#6b5dfc", "#8b7dfc", "#ab9dfc", "#cbbdfc", "#ebddfc"];
 const AGENT_COLOR = "#6b5dfc";
 const SUPERVISOR_COLOR = "#22c55e";
+
+const DEVICE_COLORS: Record<string, string> = {
+  Mobile: "#6b5dfc",
+  Desktop: "#22c55e",
+  Tablet: "#f97316",
+  Unknown: "#94a3b8",
+};
+
+const OS_COLORS = ["#3b82f6", "#22c55e", "#f97316", "#a855f7", "#ec4899", "#14b8a6", "#eab308", "#94a3b8"];
+const BROWSER_COLORS = ["#6b5dfc", "#f97316", "#3b82f6", "#22c55e", "#ec4899", "#eab308", "#14b8a6", "#94a3b8"];
 
 // Map metric query param → tab value
 const METRIC_TAB_MAP: Record<string, string> = {
@@ -171,6 +198,7 @@ export default function AnalyticsPage() {
   const { t } = useLanguage();
   const merchantId = localStorage.getItem("merchantId") || "";
   const [performancePeriod, setPerformancePeriod] = useState<"daily" | "weekly" | "monthly" | "yearly">("daily");
+  const [devicePeriod, setDevicePeriod] = useState<"all" | "daily" | "weekly" | "monthly" | "yearly">("all");
 
   // Read ?metric= query param reactively using a state-backed parser
   const getMetricFromSearch = () => new URLSearchParams(window.location.search).get("metric") || "";
@@ -231,6 +259,16 @@ export default function AnalyticsPage() {
       return res.json();
     },
     refetchInterval: 30000,
+  });
+
+  const { data: deviceAnalytics, isLoading: deviceLoading } = useQuery<DeviceAnalytics>({
+    queryKey: ["/api/analytics/devices", devicePeriod],
+    queryFn: async () => {
+      const res = await fetch(`/api/analytics/devices?period=${devicePeriod}`);
+      if (!res.ok) throw new Error("Failed to fetch device analytics");
+      return res.json();
+    },
+    refetchInterval: 60000,
   });
 
   const plan = merchant ? subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free : subscriptionPlans.free;
@@ -431,6 +469,10 @@ export default function AnalyticsPage() {
           <TabsTrigger value="locations" className="flex items-center gap-2" data-testid="tab-locations">
             <MapPin className="w-3 h-3" />
             Locations
+          </TabsTrigger>
+          <TabsTrigger value="devices" className="flex items-center gap-2" data-testid="tab-devices">
+            <Monitor className="w-3 h-3" />
+            Devices
           </TabsTrigger>
           <TabsTrigger value="team-performance" className="flex items-center gap-2" data-testid="tab-team-performance">
             <Users className="w-3 h-3" />
@@ -692,6 +734,233 @@ export default function AnalyticsPage() {
                 </CardContent>
               </Card>
             </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="devices" className="mt-4">
+          <div className="space-y-6">
+            {/* Header + period filter */}
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="text-lg font-semibold">Device Breakdown</h3>
+                <p className="text-sm text-muted-foreground">
+                  {deviceAnalytics
+                    ? `${deviceAnalytics.totalSessions} sessions analysed`
+                    : "Loading session data…"}
+                </p>
+              </div>
+              <Select
+                value={devicePeriod}
+                onValueChange={(v) => setDevicePeriod(v as typeof devicePeriod)}
+                data-testid="select-device-period"
+              >
+                <SelectTrigger className="w-[150px]" data-testid="trigger-device-period">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All time</SelectItem>
+                  <SelectItem value="daily">Last 24 h</SelectItem>
+                  <SelectItem value="weekly">Last 7 days</SelectItem>
+                  <SelectItem value="monthly">Last 30 days</SelectItem>
+                  <SelectItem value="yearly">Last 365 days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {deviceLoading ? (
+              <div className="grid gap-6 lg:grid-cols-2">
+                <Skeleton className="h-[360px]" />
+                <Skeleton className="h-[360px]" />
+              </div>
+            ) : !deviceAnalytics || deviceAnalytics.totalSessions === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-14">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                    <Monitor className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="font-semibold mb-2">No device data yet</h3>
+                  <p className="text-sm text-muted-foreground text-center max-w-sm">
+                    Device information will appear here once visitors start chatting via the widget.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {/* Row 1: donut chart + summary list */}
+                <div className="grid gap-6 lg:grid-cols-2">
+                  {/* Donut */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Monitor className="w-4 h-4" />
+                        Device Type Distribution
+                      </CardTitle>
+                      <CardDescription>Mobile vs. Tablet vs. Desktop</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[260px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={deviceAnalytics.byDevice.filter(d => d.name !== "Unknown")}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={100}
+                              paddingAngle={4}
+                              dataKey="count"
+                              label={({ name, percent }) =>
+                                `${name} ${(percent * 100).toFixed(0)}%`
+                              }
+                            >
+                              {deviceAnalytics.byDevice
+                                .filter(d => d.name !== "Unknown")
+                                .map((entry) => (
+                                  <Cell
+                                    key={entry.name}
+                                    fill={DEVICE_COLORS[entry.name] ?? "#94a3b8"}
+                                  />
+                                ))}
+                            </Pie>
+                            <Tooltip
+                              formatter={(value: number, name: string) => [`${value} sessions`, name]}
+                              contentStyle={{
+                                backgroundColor: "hsl(var(--card))",
+                                border: "1px solid hsl(var(--border))",
+                                borderRadius: "8px",
+                              }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Device breakdown list */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Sessions by Device</CardTitle>
+                      <CardDescription>Count and share for each device category</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4 pt-2">
+                        {deviceAnalytics.byDevice.filter(d => d.name !== "Unknown").map((entry) => {
+                          const Icon =
+                            entry.name === "Mobile"
+                              ? Smartphone
+                              : entry.name === "Tablet"
+                              ? Tablet
+                              : Monitor;
+                          const color = DEVICE_COLORS[entry.name] ?? "#94a3b8";
+                          return (
+                            <div key={entry.name} className="space-y-1" data-testid={`device-row-${entry.name.toLowerCase()}`}>
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <Icon className="w-4 h-4 flex-shrink-0" style={{ color }} />
+                                  <span className="text-sm font-medium">{entry.name}</span>
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <span className="text-sm text-muted-foreground">{entry.count}</span>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {entry.percentage}%
+                                  </Badge>
+                                </div>
+                              </div>
+                              <Progress value={entry.percentage} className="h-1.5" />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Row 2: top OS + top browser */}
+                <div className="grid gap-6 lg:grid-cols-2">
+                  {/* Top OS */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Top Operating Systems</CardTitle>
+                      <CardDescription>
+                        {deviceAnalytics.byOs.filter(o => o.name !== "Unknown").length} OS types detected
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[220px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={deviceAnalytics.byOs.filter(o => o.name !== "Unknown").slice(0, 6)}
+                            layout="vertical"
+                            margin={{ left: 4, right: 16 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
+                            <XAxis type="number" className="text-xs" />
+                            <YAxis type="category" dataKey="name" width={68} className="text-xs" />
+                            <Tooltip
+                              formatter={(value: number) => [`${value} sessions`]}
+                              contentStyle={{
+                                backgroundColor: "hsl(var(--card))",
+                                border: "1px solid hsl(var(--border))",
+                                borderRadius: "8px",
+                              }}
+                            />
+                            <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                              {deviceAnalytics.byOs
+                                .filter(o => o.name !== "Unknown")
+                                .slice(0, 6)
+                                .map((entry, idx) => (
+                                  <Cell key={entry.name} fill={OS_COLORS[idx % OS_COLORS.length]} />
+                                ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Top Browser */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Top Browsers</CardTitle>
+                      <CardDescription>
+                        {deviceAnalytics.byBrowser.filter(b => b.name !== "Unknown").length} browser types detected
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[220px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={deviceAnalytics.byBrowser.filter(b => b.name !== "Unknown").slice(0, 6)}
+                            layout="vertical"
+                            margin={{ left: 4, right: 16 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border" />
+                            <XAxis type="number" className="text-xs" />
+                            <YAxis type="category" dataKey="name" width={68} className="text-xs" />
+                            <Tooltip
+                              formatter={(value: number) => [`${value} sessions`]}
+                              contentStyle={{
+                                backgroundColor: "hsl(var(--card))",
+                                border: "1px solid hsl(var(--border))",
+                                borderRadius: "8px",
+                              }}
+                            />
+                            <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                              {deviceAnalytics.byBrowser
+                                .filter(b => b.name !== "Unknown")
+                                .slice(0, 6)
+                                .map((entry, idx) => (
+                                  <Cell key={entry.name} fill={BROWSER_COLORS[idx % BROWSER_COLORS.length]} />
+                                ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            )}
           </div>
         </TabsContent>
 
