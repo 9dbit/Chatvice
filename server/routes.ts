@@ -22579,11 +22579,31 @@ ${log.extractedKnowledge}` : ''}
     }
   });
 
+  // In-memory cache for device analytics results (5-minute TTL, keyed by merchantId+period)
+  const deviceAnalyticsCache = new Map<string, { data: object; expiresAt: number }>();
+  const DEVICE_ANALYTICS_TTL_MS = 5 * 60 * 1000; // 5 minutes
+  const DEVICE_ANALYTICS_MAX_ENTRIES = 500; // cap to prevent unbounded growth
+  const DEVICE_ANALYTICS_VALID_PERIODS = new Set(["daily", "weekly", "monthly", "yearly", "all"]);
+
   // Device breakdown analytics — aggregates sessions by device type, OS, and browser
   app.get("/api/analytics/devices", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
-      const period = (req.query.period as string) || "all";
+      const rawPeriod = (req.query.period as string) || "all";
+      // Normalize to allowlist to prevent arbitrary cache-key proliferation
+      const period = DEVICE_ANALYTICS_VALID_PERIODS.has(rawPeriod) ? rawPeriod : "all";
+
+      // Serve from cache if available and not expired
+      const cacheKey = `${merchantId}:${period}`;
+      const cached = deviceAnalyticsCache.get(cacheKey);
+      const nowMs = Date.now();
+      if (cached) {
+        if (cached.expiresAt > nowMs) {
+          return res.json(cached.data);
+        }
+        // Evict stale entry immediately
+        deviceAnalyticsCache.delete(cacheKey);
+      }
 
       // Build date filter based on period
       const now = new Date();
@@ -22653,13 +22673,22 @@ ${log.extractedKnowledge}` : ''}
             percentage: totalSessions > 0 ? Math.round((count / totalSessions) * 1000) / 10 : 0,
           }));
 
-      res.json({
+      const result = {
         totalSessions,
         period,
         byDevice: toSorted(deviceCount),
         byOs: toSorted(osCount).slice(0, 8),
         byBrowser: toSorted(browserCount).slice(0, 8),
-      });
+      };
+
+      // Store in cache with expiry; evict oldest entry if at capacity
+      if (deviceAnalyticsCache.size >= DEVICE_ANALYTICS_MAX_ENTRIES) {
+        const oldestKey = deviceAnalyticsCache.keys().next().value;
+        if (oldestKey !== undefined) deviceAnalyticsCache.delete(oldestKey);
+      }
+      deviceAnalyticsCache.set(cacheKey, { data: result, expiresAt: nowMs + DEVICE_ANALYTICS_TTL_MS });
+
+      res.json(result);
     } catch (error) {
       console.error("Error fetching device analytics:", error);
       res.status(500).json({ error: "Server error" });
