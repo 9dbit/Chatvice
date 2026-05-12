@@ -815,9 +815,16 @@ export default function SupervisorPanel() {
                                       </Badge>
                                     )}
                                   </div>
-                                  <p className="text-xs text-muted-foreground font-mono">
-                                    {session.id.slice(0, 12)}...
-                                  </p>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <p className="text-xs text-muted-foreground font-mono">
+                                      {session.id.slice(0, 12)}...
+                                    </p>
+                                    <div className="flex items-center gap-0.5">
+                                      <DeviceIcon userAgent={session.userAgent} />
+                                      <OsIcon userAgent={session.userAgent} />
+                                      <BrowserIcon userAgent={session.userAgent} />
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             </div>
