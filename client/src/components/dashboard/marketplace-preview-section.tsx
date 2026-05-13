@@ -298,16 +298,19 @@ export function ProductPopup({
     return () => observer.disconnect();
   }, []);
 
-  /* Countdown timer for QR phase */
+  /* Countdown timer for QR and VA phases */
   useEffect(() => {
-    if (phase !== "qr" || !payment?.expiresAt) return;
+    if ((phase !== "qr" && phase !== "va") || !payment?.expiresAt) return;
     const computeRemaining = () =>
       Math.max(0, Math.floor((new Date(payment.expiresAt!).getTime() - Date.now()) / 1000));
     setTimeRemaining(computeRemaining());
     const interval = setInterval(() => {
       const r = computeRemaining();
       setTimeRemaining(r);
-      if (r <= 0) clearInterval(interval);
+      if (r <= 0) {
+        clearInterval(interval);
+        if (phase === "va") setTimeout(() => setPhase("failed"), 1500);
+      }
     }, 1000);
     return () => clearInterval(interval);
   }, [phase, payment?.expiresAt]);
@@ -695,6 +698,25 @@ export function ProductPopup({
             <div>
               <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Order ID</p>
               <p className="text-xs text-gray-600 font-mono truncate">{payment?.orderId || "—"}</p>
+            </div>
+            {/* Countdown */}
+            <div>
+              {timeRemaining <= 0 && !!payment?.expiresAt ? (
+                <span className="inline-flex items-center gap-1 text-[10px] bg-red-50 text-red-600 border border-red-200 rounded-full px-2 py-0.5 font-medium">
+                  <Clock className="w-3 h-3" /> Kedaluwarsa
+                </span>
+              ) : payment?.expiresAt ? (
+                <span
+                  className={`inline-flex items-center gap-1 text-[10px] rounded-full px-2 py-0.5 font-medium border ${
+                    timeRemaining <= 60
+                      ? "bg-red-50 text-red-600 border-red-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200"
+                  }`}
+                  data-testid="text-va-countdown"
+                >
+                  <Clock className="w-3 h-3" /> {String(Math.floor(timeRemaining / 60)).padStart(2, "0")}:{String(timeRemaining % 60).padStart(2, "0")}
+                </span>
+              ) : null}
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
               <Loader2 className="w-3 h-3 animate-spin" />
