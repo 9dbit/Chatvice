@@ -90,6 +90,16 @@ declare module "express-session" {
       billingInterval: string;
       merchantId: string;
       createdAt: string;
+      paymentContext?: "marketplace" | "subscription";
+      intentNonce?: string; // mirrors pendingMarketplacePayPal.intentNonce for binding
+    };
+    pendingMarketplacePayPal?: {
+      productType: "addon" | "booster";
+      productId: string;
+      amountUsd: number;
+      merchantId: string;
+      setAt: number; // unix ms — intent expires after 15 minutes
+      intentNonce: string; // random token bound to the specific PayPal order
     };
   }
 }
@@ -11785,7 +11795,18 @@ Rules:
         return res.status(404).json({ error: "Merchant not found" });
       }
       
-      // Store pending PayPal order info in session for later verification
+      // Tag the order with an explicit paymentContext to avoid inferring it from
+      // planId truthiness at capture time. Marketplace PayPal orders are created
+      // by PayPalButton without a planId prop — JSON.stringify omits undefined,
+      // so req.body.planId === undefined. Subscription checkout always sends a
+      // non-undefined planId (even if it falls back to the empty string "").
+      // This distinction is reliable and does not require modifying PayPalButton.
+      const isMarketplaceOrder = req.body.planId === undefined && !!req.session.pendingMarketplacePayPal;
+      if (!isMarketplaceOrder) {
+        // Non-marketplace — clear any stale marketplace intent to prevent it from
+        // influencing the upcoming capture.
+        delete req.session.pendingMarketplacePayPal;
+      }
       req.session.pendingPaypalOrder = {
         amount,
         currency,
@@ -11793,6 +11814,8 @@ Rules:
         billingInterval,
         merchantId: merchant.id,
         createdAt: new Date().toISOString(),
+        paymentContext: isMarketplaceOrder ? "marketplace" : "subscription",
+        intentNonce: isMarketplaceOrder ? req.session.pendingMarketplacePayPal?.intentNonce : undefined,
       };
       
       await createPaypalOrder(req, res);
@@ -12173,6 +12196,137 @@ Rules:
       
       // If capture was successful (status COMPLETED)
       if (captureResponse && captureResponse.status === 'COMPLETED') {
+        // Marketplace addon/booster purchase via PayPal.
+        // paymentContext is set explicitly at order-creation time; checking it here is
+        // robust against callers that pass planId="" (subscription fallback) because the
+        // tag is set before the order reaches PayPal, not inferred from planId at capture.
+        const marketplaceIntent = req.session.pendingMarketplacePayPal;
+        const intentAge = marketplaceIntent ? Date.now() - (marketplaceIntent.setAt ?? 0) : Infinity;
+        const INTENT_TTL_MS = 15 * 60 * 1000; // 15 minutes
+        const nonceMatch = !pendingOrder.intentNonce || !marketplaceIntent?.intentNonce
+          || pendingOrder.intentNonce === marketplaceIntent.intentNonce;
+        const intentValid = !!marketplaceIntent && intentAge <= INTENT_TTL_MS && nonceMatch;
+        if (!intentValid && marketplaceIntent) {
+          delete req.session.pendingMarketplacePayPal;
+        }
+        // If this was tagged as marketplace at order-creation time but intent is now
+        // expired or missing, return a clear activationError so the client can prompt
+        // the user to contact support rather than falling through to plan-activation.
+        if (pendingOrder.paymentContext === "marketplace" && !intentValid) {
+          console.error(`[paypal-marketplace] Capture succeeded but marketplace intent is ${marketplaceIntent ? "expired" : "missing"} for order ${req.params.orderID}`);
+          delete req.session.pendingPaypalOrder;
+          return res.json({
+            ...captureResponse,
+            activated: false,
+            activationError: true,
+            reason: marketplaceIntent ? "intent_expired" : "intent_missing",
+          });
+        }
+        if (intentValid && pendingOrder.paymentContext === "marketplace") {
+          // Defense-in-depth: ensure intent belongs to the authenticated merchant
+          if (marketplaceIntent!.merchantId !== req.session.merchantId) {
+            console.error(`[paypal-marketplace] merchantId mismatch: intent=${marketplaceIntent!.merchantId} session=${req.session.merchantId}`);
+            delete req.session.pendingMarketplacePayPal;
+            delete req.session.pendingPaypalOrder;
+            return res.status(403).json({ error: "Intent merchant mismatch" });
+          }
+          delete req.session.pendingMarketplacePayPal;
+          delete req.session.pendingPaypalOrder;
+
+          const capture = captureResponse.purchase_units?.[0]?.payments?.captures?.[0];
+          const paidAmount = parseFloat(capture?.amount?.value ?? "0");
+          const paidCurrency = (capture?.amount?.currency_code ?? "USD").toUpperCase();
+
+          // Reject if currency wrong or amount is below expected (underpayment guard).
+          if (paidCurrency !== "USD" || paidAmount < marketplaceIntent.amountUsd - 0.01) {
+            console.error(`[paypal-marketplace] Amount mismatch: expected $${marketplaceIntent.amountUsd} USD, got ${paidAmount} ${paidCurrency}`);
+            return res.json({
+              ...captureResponse,
+              activated: false,
+              activationError: true,
+              reason: "amount_mismatch",
+              productType: marketplaceIntent.productType,
+              productId: marketplaceIntent.productId,
+            });
+          }
+
+          const rawRate = await storage.getPlatformSetting("exchange_rate");
+          const amountIDR = Math.round(paidAmount * (rawRate ? parseInt(rawRate) : 17500));
+          const { productType, productId, merchantId } = marketplaceIntent;
+
+          try {
+            if (productType === "addon") {
+              const existing = await storage.getMerchantAddon(merchantId, productId);
+              if (!existing || !existing.isActive) {
+                const calendarToken = productId === "appointment_scheduling"
+                  ? crypto.randomBytes(16).toString("hex") : null;
+                if (existing) {
+                  await storage.updateMerchantAddon(existing.id, {
+                    isActive: true,
+                    subscribedAt: new Date(),
+                    ...(calendarToken && !existing.calendarToken ? { calendarToken } : {}),
+                  });
+                } else {
+                  await storage.createMerchantAddon({
+                    id: "ma_" + crypto.randomBytes(8).toString("hex"),
+                    merchantId,
+                    addonType: productId,
+                    isActive: true,
+                    calendarToken,
+                  });
+                }
+              }
+              await storage.createPaymentTransaction({
+                id: "ptx_" + crypto.randomBytes(8).toString("hex"),
+                merchantId,
+                externalId: req.params.orderID,
+                amount: amountIDR,
+                status: "paid",
+                paymentMethod: "paypal",
+                merchantEmail: merchant.email,
+                merchantCompanyName: merchant.companyName,
+                gatewayResponse: { type: "addon", addonType: productId, paypalOrderId: req.params.orderID },
+                invoiceNumber: "addon_paypal_" + Date.now(),
+              });
+              console.log(`[paypal-marketplace] Addon ${productId} activated for merchant ${merchantId}`);
+              return res.json({ ...captureResponse, activated: true, productType, productId });
+            }
+
+            if (productType === "booster") {
+              const boosterConfig = await storage.getBoosterConfig(productId);
+              if (!boosterConfig) {
+                console.error(`[paypal-marketplace] Booster config not found: ${productId}`);
+                return res.json({
+                  ...captureResponse,
+                  activated: false,
+                  activationError: true,
+                  reason: "booster_config_not_found",
+                  productType,
+                  productId,
+                });
+              }
+              await storage.incrementMerchantQuota(merchantId, boosterConfig.quotaField, boosterConfig.quotaAmount);
+              await storage.createPaymentTransaction({
+                id: "ptx_" + crypto.randomBytes(8).toString("hex"),
+                merchantId,
+                externalId: req.params.orderID,
+                amount: amountIDR,
+                status: "paid",
+                paymentMethod: "paypal",
+                merchantEmail: merchant.email,
+                merchantCompanyName: merchant.companyName,
+                gatewayResponse: { type: "booster", boosterType: productId, paypalOrderId: req.params.orderID, quota: { field: boosterConfig.quotaField, amount: boosterConfig.quotaAmount } },
+                invoiceNumber: "booster_paypal_" + Date.now(),
+              });
+              console.log(`[paypal-marketplace] Booster ${productId} +${boosterConfig.quotaAmount} ${boosterConfig.quotaField} for merchant ${merchantId}`);
+              return res.json({ ...captureResponse, activated: true, productType, productId });
+            }
+          } catch (err) {
+            console.error("[paypal-marketplace] Activation error:", err);
+            return res.json({ ...captureResponse, activated: false, activationError: true, productType, productId });
+          }
+        }
+
         const plan = await getEffectiveSubscriptionPlan(pendingOrder.planId);
         if (!plan) {
           return res.status(400).json({ error: "Invalid plan" });
@@ -28756,7 +28910,7 @@ Please create a comprehensive help center article that would be useful for custo
       const booster = await storage.getBoosterConfig(boosterType);
       if (!booster || !booster.isEnabled) return res.status(404).json({ error: "Booster not available" });
 
-      const supportedBoosterMethods = ["12pay", "va", "bank_transfer"];
+      const supportedBoosterMethods = ["12pay", "va", "bank_transfer", "paypal", "crypto"];
       if (!supportedBoosterMethods.includes(paymentMethod)) {
         return res.status(400).json({
           error: "Unsupported payment method. Supported: " + supportedBoosterMethods.join(", "),
@@ -29003,7 +29157,35 @@ Please create a comprehensive help center article that would be useful for custo
         });
       }
 
-      return res.status(400).json({ error: "Unsupported payment method for boosters" });
+      // PayPal — store session intent so capture endpoint can credit booster quota
+      if (paymentMethod === "paypal") {
+        const intentNonce = crypto.randomBytes(16).toString("hex");
+        req.session.pendingMarketplacePayPal = {
+          productType: "booster",
+          productId: boosterType,
+          amountUsd: booster.priceUsd,
+          merchantId,
+          setAt: Date.now(),
+          intentNonce,
+        };
+        return res.json({
+          orderId,
+          boosterType,
+          paymentMethod,
+          amount: booster.priceUsd,
+          currency: "USD",
+        });
+      }
+
+      // Crypto — manual flow (activation requires admin review of tx hash)
+      return res.json({
+        orderId,
+        boosterType,
+        paymentMethod,
+        amount: booster.priceUsd,
+        currency: "USD",
+        instructions: "Kirim pembayaran ke alamat wallet yang tertera dan email bukti tx hash ke support@chatvice.app untuk aktivasi.",
+      });
     } catch (err: any) {
       console.error("Initiate booster payment error", err);
       res.status(500).json({ error: err?.message || "Failed to initiate payment" });
@@ -29118,6 +29300,15 @@ Please create a comprehensive help center article that would be useful for custo
     } catch (err) {
       res.status(500).json({ error: "Failed to cancel addon" });
     }
+  });
+
+  // Clear marketplace PayPal session state (called on cancel or "back" from PayPal phase)
+  app.delete("/api/merchant/marketplace/paypal-intent", requireMerchant, (req, res) => {
+    delete req.session.pendingMarketplacePayPal;
+    if (req.session.pendingPaypalOrder?.paymentContext === "marketplace") {
+      delete req.session.pendingPaypalOrder;
+    }
+    res.json({ ok: true });
   });
 
   // Payment initiation — creates real QRIS payment via 12Pay
@@ -29332,14 +29523,34 @@ Please create a comprehensive help center article that would be useful for custo
         });
       }
 
-      // PayPal / Crypto — manual flow
+      // PayPal — store session intent so capture endpoint can activate addon
+      if (paymentMethod === "paypal") {
+        const intentNonce = crypto.randomBytes(16).toString("hex");
+        req.session.pendingMarketplacePayPal = {
+          productType: "addon",
+          productId: addonType,
+          amountUsd: addonConfig.monthlyPriceUsd,
+          merchantId,
+          setAt: Date.now(),
+          intentNonce,
+        };
+        return res.json({
+          orderId,
+          addonType,
+          paymentMethod,
+          amount: addonConfig.monthlyPriceUsd,
+          currency: "USD",
+        });
+      }
+
+      // Crypto — manual flow (activation requires admin review of tx hash)
       res.json({
         orderId,
         addonType,
         paymentMethod,
         amount: addonConfig.monthlyPriceUsd,
         currency: "USD",
-        instructions: "Selesaikan pembayaran melalui penyedia pembayaran yang dipilih dan berikan referensi transaksi untuk konfirmasi.",
+        instructions: "Kirim pembayaran ke alamat wallet yang tertera dan email bukti tx hash ke support@chatvice.app untuk aktivasi.",
       });
     } catch (err) {
       console.error("Addon initiate-payment error:", err);

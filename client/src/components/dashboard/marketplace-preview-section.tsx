@@ -50,6 +50,8 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeSVG } from "qrcode.react";
+import { SiPaypal, SiBitcoin, SiEthereum, SiSolana, SiBinance, SiTether, SiRipple } from "react-icons/si";
+import PayPalButton from "@/components/PayPalButton";
 import chatviceDarkLogo from "@assets/Chatvice-02_1778420788538.png";
 import chatviceLightLogo from "@assets/Chatvice-04_1767550221276.png";
 import qrisLogoImg from "@assets/IMG_6802_1778414496751.jpeg";
@@ -239,7 +241,27 @@ interface UnifiedProduct {
 /* Product detail popup                                                 */
 /* ------------------------------------------------------------------ */
 
-type Phase = "info" | "qr" | "va" | "bank_transfer" | "success" | "failed";
+type Phase = "info" | "qr" | "va" | "bank_transfer" | "paypal" | "crypto" | "success" | "pending_activation" | "failed";
+
+interface CryptoCoin {
+  id: string;
+  symbol: string;
+  name: string;
+  network: string;
+  address: string;
+  memo?: string;
+  Icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  color: string;
+}
+
+const CRYPTO_COINS: CryptoCoin[] = [
+  { id: "btc", symbol: "BTC", name: "Bitcoin", network: "BTC Network", address: "bc1q9mk7032hjfu0fu9cnk0c3tgk7z5vxswaz3avy6", Icon: SiBitcoin, color: "#F7931A" },
+  { id: "eth", symbol: "ETH", name: "Ethereum", network: "ERC-20", address: "0xD395A9CFC24848828b731d42eb1c9242D5BD9cA7", Icon: SiEthereum, color: "#627EEA" },
+  { id: "sol", symbol: "SOL", name: "Solana", network: "SOL Network", address: "FvfgL8MdwZ7Po6795XHCgF6rWsCEdmUxwDgMD2Fn6zQg", memo: "No memo required", Icon: SiSolana, color: "#9945FF" },
+  { id: "bnb", symbol: "BNB", name: "BNB", network: "BEP-20", address: "0xD395A9CFC24848828b731d42eb1c9242D5BD9cA7", Icon: SiBinance, color: "#F3BA2F" },
+  { id: "usdt", symbol: "USDT", name: "Tether", network: "ERC-20", address: "0xD395A9CFC24848828b731d42eb1c9242D5BD9cA7", Icon: SiTether, color: "#26A17B" },
+  { id: "xrp", symbol: "XRP", name: "Ripple", network: "XRP Ledger", address: "raAGkuxS7b92wYWRKERQCDknKz9fMpyJpH", memo: "No destination tag required", Icon: SiRipple, color: "#23292F" },
+];
 
 export function ProductPopup({
   productId,
@@ -319,6 +341,8 @@ export function ProductPopup({
     const pm = data.paymentMethod;
     if (pm === "va" || data.vaNumber) return "va";
     if (pm === "bank_transfer" || data.accountNumber) return "bank_transfer";
+    if (pm === "paypal") return "paypal";
+    if (pm === "crypto") return "crypto";
     return "qr";
   };
 
@@ -430,6 +454,19 @@ export function ProductPopup({
   const Icon = icon;
   const product = addon || effectiveBooster;
   const isPending = addonMutation.isPending || boosterMutation.isPending;
+
+  const paypalUsdAmount = addon
+    ? Number(addon.monthlyPriceUsd).toFixed(2)
+    : effectiveBooster
+    ? Number(effectiveBooster.priceUsd).toFixed(2)
+    : "0.00";
+
+  const handleClose = () => {
+    if (phase === "paypal") {
+      fetch("/api/merchant/marketplace/paypal-intent", { method: "DELETE" }).catch(() => {});
+    }
+    onClose();
+  };
 
   const handleBuy = () => {
     if (selectedPaymentMethod === "va" || selectedPaymentMethod === "bank") {
@@ -771,6 +808,128 @@ export function ProductPopup({
     );
   };
 
+  const renderPaypal = () => (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-border/50 p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <SiPaypal className="w-5 h-5 text-[#003087]" />
+          <p className="font-semibold text-sm text-foreground">Bayar via PayPal</p>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Klik tombol di bawah untuk membayar menggunakan akun PayPal atau kartu kredit/debit Anda.
+        </p>
+        <div className="bg-muted/40 rounded-lg px-3 py-2 flex items-baseline gap-1">
+          <span className="text-lg font-bold text-foreground">${paypalUsdAmount} USD</span>
+          <span className="text-xs text-muted-foreground">/ {addon ? "bulan" : "sekali bayar"}</span>
+        </div>
+        <div className="pt-1">
+          <PayPalButton
+            amount={paypalUsdAmount}
+            currency="USD"
+            intent="CAPTURE"
+            onSuccess={(data) => {
+              console.log("PayPal payment result:", data);
+              if (data?.activated === true) {
+                queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/merchant/me"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/marketplace/boosters"] });
+                setPhase("success");
+              } else if (data?.activationError) {
+                setPhase("pending_activation");
+              } else {
+                toast({
+                  title: "Pembayaran tidak terselesaikan",
+                  description: "Silakan coba lagi atau pilih metode pembayaran lain.",
+                  variant: "destructive",
+                });
+              }
+            }}
+            onError={(err) => {
+              console.error("PayPal payment error:", err);
+              toast({ title: "Pembayaran PayPal gagal", description: "Silakan coba lagi.", variant: "destructive" });
+            }}
+            onCancel={() => {
+              fetch("/api/merchant/marketplace/paypal-intent", { method: "DELETE" }).catch(() => {});
+              toast({ title: "Pembayaran dibatalkan" });
+            }}
+          />
+        </div>
+        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <Info className="w-3 h-3 shrink-0" />
+          Pembayaran diproses aman oleh PayPal.
+        </div>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full rounded-full text-xs"
+        onClick={() => {
+          fetch("/api/merchant/marketplace/paypal-intent", { method: "DELETE" }).catch(() => {});
+          setPhase("info");
+        }}
+        data-testid="button-back-from-paypal"
+      >
+        Ganti Metode Pembayaran
+      </Button>
+    </div>
+  );
+
+  const renderCrypto = () => (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-border/50 p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Bitcoin className="w-5 h-5 text-[#F7931A]" />
+          <p className="font-semibold text-sm text-foreground">Bayar via Kripto</p>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Kirim pembayaran senilai <span className="font-semibold text-foreground">${paypalUsdAmount} USD</span> ke salah satu alamat wallet berikut. Aktivasi dilakukan manual dalam 1×24 jam setelah konfirmasi.
+        </p>
+        <div className="space-y-2">
+          {CRYPTO_COINS.map((coin) => (
+            <div key={coin.id} className="flex items-start gap-3 rounded-lg bg-muted/30 border border-border/40 px-3 py-2.5">
+              <coin.Icon className="w-5 h-5 mt-0.5 shrink-0" style={{ color: coin.color }} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className="text-xs font-semibold text-foreground">{coin.symbol}</span>
+                  <span className="text-[10px] text-muted-foreground">{coin.network}</span>
+                </div>
+                <p className="text-[10px] font-mono text-muted-foreground break-all leading-tight">{coin.address}</p>
+                {coin.memo && (
+                  <p className="text-[9px] text-amber-600 dark:text-amber-400 mt-0.5">{coin.memo}</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(coin.address);
+                  toast({ title: `Alamat ${coin.symbol} disalin` });
+                }}
+                className="shrink-0 p-1 rounded hover-elevate"
+                data-testid={`button-copy-crypto-${coin.id}`}
+              >
+                <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
+          <Info className="w-3 h-3 shrink-0" />
+          Setelah transfer, kirim bukti pembayaran (tx hash) ke support@chatvice.app untuk aktivasi.
+        </div>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full rounded-full text-xs"
+        onClick={() => setPhase("info")}
+        data-testid="button-back-from-crypto"
+      >
+        Ganti Metode Pembayaran
+      </Button>
+    </div>
+  );
+
   const renderSuccess = () => (
     <div className="flex flex-col items-center gap-3 py-4 text-center">
       <PartyPopper className="w-12 h-12 text-green-500" />
@@ -778,8 +937,28 @@ export function ProductPopup({
       <p className="text-sm text-muted-foreground">
         {addon ? `${addon.name} telah diaktifkan di akun Anda.` : `Kuota ${effectiveBooster?.name} berhasil ditambahkan.`}
       </p>
-      <Button size="sm" className="rounded-full px-6 mt-2" onClick={onClose}>
+      <Button size="sm" className="rounded-full px-6 mt-2" onClick={handleClose}>
         <CheckCircle2 className="w-4 h-4 mr-1.5" /> Selesai
+      </Button>
+    </div>
+  );
+
+  const renderPendingActivation = () => (
+    <div className="flex flex-col items-center gap-3 py-4 text-center">
+      <Clock className="w-12 h-12 text-amber-500" />
+      <p className="font-semibold text-lg text-foreground">Pembayaran diterima</p>
+      <p className="text-sm text-muted-foreground max-w-xs">
+        Pembayaran Anda telah dikonfirmasi oleh PayPal, namun aktivasi otomatis belum berhasil.
+        Tim kami akan mengaktifkan layanan Anda dalam 1&times;24 jam.
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Butuh bantuan? Hubungi{" "}
+        <a href="mailto:support@chatvice.app" className="underline text-foreground">
+          support@chatvice.app
+        </a>
+      </p>
+      <Button size="sm" className="rounded-full px-6 mt-1" onClick={handleClose}>
+        Tutup
       </Button>
     </div>
   );
@@ -870,37 +1049,34 @@ export function ProductPopup({
               <div className="grid grid-cols-2 gap-1.5">
                 {(
                   [
-                    { id: "qris", label: "QRIS", Icon: QrCode, available: true },
-                    { id: "va", label: "Virtual Account", Icon: CreditCard, available: true },
-                    { id: "bank", label: "Bank Transfer", Icon: Building2, available: true },
-                    { id: "paypal", label: "PayPal", Icon: Zap, available: false },
-                    { id: "crypto", label: "Kripto", Icon: Bitcoin, available: false },
-                  ] as const
+                    { id: "qris" as const, label: "QRIS", available: true },
+                    { id: "va" as const, label: "Virtual Account", available: true },
+                    { id: "bank" as const, label: "Bank Transfer", available: true },
+                    { id: "paypal" as const, label: "PayPal", available: true },
+                    { id: "crypto" as const, label: "Kripto", available: true },
+                  ]
                 ).map((m) => (
                   <button
                     key={m.id}
                     type="button"
-                    disabled={!m.available}
                     onClick={() => {
-                      if (m.available) {
-                        setSelectedPaymentMethod(m.id as typeof selectedPaymentMethod);
-                        setSelectedBank("");
-                      }
+                      setSelectedPaymentMethod(m.id);
+                      setSelectedBank("");
                     }}
                     className={[
-                      "flex items-center gap-2 px-2.5 py-2 rounded-lg border text-xs font-medium transition-colors text-left",
-                      !m.available ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
-                      selectedPaymentMethod === m.id && m.available
+                      "flex items-center gap-2 px-2.5 py-2 rounded-lg border text-xs font-medium transition-colors text-left cursor-pointer",
+                      selectedPaymentMethod === m.id
                         ? "border-primary bg-primary/5 text-foreground"
                         : "border-border text-muted-foreground",
                     ].join(" ")}
                     data-testid={`button-payment-method-${m.id}`}
                   >
-                    <m.Icon className="w-3.5 h-3.5 shrink-0" />
+                    {m.id === "qris" && <QrCode className="w-3.5 h-3.5 shrink-0" />}
+                    {m.id === "va" && <CreditCard className="w-3.5 h-3.5 shrink-0" />}
+                    {m.id === "bank" && <Building2 className="w-3.5 h-3.5 shrink-0" />}
+                    {m.id === "paypal" && <SiPaypal className="w-3.5 h-3.5 shrink-0" />}
+                    {m.id === "crypto" && <Bitcoin className="w-3.5 h-3.5 shrink-0" />}
                     <span className="flex-1 truncate">{m.label}</span>
-                    {!m.available && (
-                      <span className="shrink-0 text-[9px] leading-tight text-muted-foreground">Segera hadir</span>
-                    )}
                   </button>
                 ))}
               </div>
@@ -972,10 +1148,21 @@ export function ProductPopup({
             </button>
             {tcOpen && (
               <ul className="mt-2 space-y-1 text-xs text-muted-foreground list-disc list-inside pl-1">
-                <li>Pembayaran diproses oleh 12Pay melalui QRIS dan bersifat non-refundable.</li>
+                {selectedPaymentMethod === "paypal" && (
+                  <li>Pembayaran diproses aman oleh PayPal dan bersifat non-refundable.</li>
+                )}
+                {selectedPaymentMethod === "crypto" && (
+                  <li>Pembayaran kripto bersifat manual — aktivasi dilakukan dalam 1×24 jam setelah konfirmasi jaringan diterima.</li>
+                )}
+                {selectedPaymentMethod !== "paypal" && selectedPaymentMethod !== "crypto" && (
+                  <li>Pembayaran diproses oleh 12Pay melalui QRIS dan bersifat non-refundable.</li>
+                )}
                 {addon && <li>Biaya berlangganan ditagih setiap bulan. Anda dapat membatalkan kapan saja melalui menu Billing.</li>}
                 {booster && <li>Kuota dikreditkan ke akun secara instan setelah pembayaran terverifikasi. Non-transferable.</li>}
-                <li>Aktivasi otomatis setelah pembayaran berhasil dikonfirmasi oleh gateway.</li>
+                {selectedPaymentMethod === "crypto"
+                  ? <li>Aktivasi manual oleh tim Chatvice setelah hash transaksi dikonfirmasi.</li>
+                  : <li>Aktivasi otomatis setelah pembayaran berhasil dikonfirmasi oleh gateway.</li>
+                }
                 <li>Chatvice berhak mengubah harga dengan pemberitahuan minimal 30 hari sebelumnya.</li>
               </ul>
             )}
@@ -1021,7 +1208,7 @@ export function ProductPopup({
   };
 
   return (
-    <Dialog open={!!productId} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog open={!!productId} onOpenChange={(open) => { if (!open) handleClose(); }}>
       <DialogContent
         className="max-w-sm sm:max-w-2xl p-0 gap-0 overflow-hidden border-border/50 shadow-2xl bg-background/85 backdrop-blur-xl max-h-[90vh] flex flex-col"
         data-testid="dialog-product-detail"
@@ -1050,7 +1237,7 @@ export function ProductPopup({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="shrink-0 rounded-full p-1 hover-elevate text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             data-testid="button-close-product-popup"
           >
@@ -1066,7 +1253,10 @@ export function ProductPopup({
           {phase === "qr" && renderQR()}
           {phase === "va" && renderVA()}
           {phase === "bank_transfer" && renderBankTransfer()}
+          {phase === "paypal" && renderPaypal()}
+          {phase === "crypto" && renderCrypto()}
           {phase === "success" && renderSuccess()}
+          {phase === "pending_activation" && renderPendingActivation()}
           {phase === "failed" && renderFailed()}
         </div>
 
@@ -1085,18 +1275,26 @@ export function ProductPopup({
                 <CreditCard className="w-4 h-4 mr-2" />
               ) : selectedPaymentMethod === "bank" ? (
                 <Building2 className="w-4 h-4 mr-2" />
+              ) : selectedPaymentMethod === "paypal" ? (
+                <SiPaypal className="w-4 h-4 mr-2" />
+              ) : selectedPaymentMethod === "crypto" ? (
+                <Bitcoin className="w-4 h-4 mr-2" />
               ) : (
                 <QrCode className="w-4 h-4 mr-2" />
               )}
               {addonActive
                 ? "Sudah berlangganan"
-                : addon
-                  ? selectedPaymentMethod === "va" ? "Subscribe via Virtual Account"
-                    : selectedPaymentMethod === "bank" ? "Subscribe via Bank Transfer"
-                    : "Subscribe via QRIS"
-                  : selectedPaymentMethod === "va" ? "Beli via Virtual Account"
-                    : selectedPaymentMethod === "bank" ? "Beli via Bank Transfer"
-                    : "Beli via QRIS"
+                : selectedPaymentMethod === "paypal"
+                  ? (addon ? "Subscribe via PayPal" : "Beli via PayPal")
+                  : selectedPaymentMethod === "crypto"
+                    ? (addon ? "Subscribe via Kripto" : "Beli via Kripto")
+                    : addon
+                      ? selectedPaymentMethod === "va" ? "Subscribe via Virtual Account"
+                        : selectedPaymentMethod === "bank" ? "Subscribe via Bank Transfer"
+                        : "Subscribe via QRIS"
+                      : selectedPaymentMethod === "va" ? "Beli via Virtual Account"
+                        : selectedPaymentMethod === "bank" ? "Beli via Bank Transfer"
+                        : "Beli via QRIS"
               }
             </Button>
             {addon && !addonActive && (
