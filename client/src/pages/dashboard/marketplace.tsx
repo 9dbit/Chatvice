@@ -198,9 +198,15 @@ export default function MarketplacePage() {
       {/* SECTION 2 — Conversation Booster                                  */}
       {/* ══════════════════════════════════════════════════════════════════ */}
       {(() => {
-        const convBooster = boosters.find((b) => b.boosterType === "conversations_2k");
+        const convTiers = boosters
+          .filter((b) => b.boosterType.startsWith("conversations_"))
+          .sort((a, b) => a.quotaAmount - b.quotaAmount);
+        const convBooster = convTiers[0] ?? boosters.find((b) => b.boosterType === "conversations_2k");
         if (!convBooster && !loadingBoosters) return null;
         const ConvIcon = boosterIconMap[convBooster?.iconName ?? ""] || MessageSquare;
+        const tierCount = convTiers.length;
+        const cheapest = convTiers[0];
+        const priciest = convTiers[convTiers.length - 1];
         return (
           <div className="space-y-4">
             <div className="flex items-center gap-3 flex-wrap">
@@ -208,9 +214,11 @@ export default function MarketplacePage() {
                 <MessageSquare className="w-3 h-3" />
                 Conversation Booster
               </Badge>
-              <p className="text-xs text-muted-foreground">
-                Tambah kuota percakapan instan — tersedia 6 paket, mulai dari $23
-              </p>
+              {cheapest && (
+                <p className="text-xs text-muted-foreground">
+                  Tambah kuota percakapan instan{tierCount > 1 ? ` — tersedia ${tierCount} paket, mulai dari $${cheapest.priceUsd}` : ""}
+                </p>
+              )}
             </div>
 
             {loadingBoosters ? (
@@ -239,20 +247,26 @@ export default function MarketplacePage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <CardTitle className="text-base">Tambah Percakapan</CardTitle>
-                          <Badge variant="secondary" className="text-xs">
-                            <Sparkles className="w-3 h-3 mr-1" />
-                            6 paket tersedia
-                          </Badge>
+                          {tierCount > 1 && (
+                            <Badge variant="secondary" className="text-xs">
+                              <Sparkles className="w-3 h-3 mr-1" />
+                              {tierCount} paket tersedia
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                          Pilih dari 5.000 hingga 100.000 percakapan tambahan. Dikreditkan instan setelah pembayaran terkonfirmasi.
+                          {cheapest && priciest && cheapest !== priciest
+                            ? `Pilih dari ${cheapest.quotaAmount.toLocaleString("id-ID")} hingga ${priciest.quotaAmount.toLocaleString("id-ID")} percakapan tambahan. Dikreditkan instan setelah pembayaran terkonfirmasi.`
+                            : "Tambah kuota percakapan instan ke akun Anda. Dikreditkan setelah pembayaran terkonfirmasi."}
                         </p>
-                        <div className="mt-2 flex items-baseline gap-1.5 flex-wrap">
-                          <span className="text-sm font-semibold text-foreground">Mulai dari</span>
-                          <span className="text-xl font-bold text-foreground">${convBooster.priceUsd}</span>
-                          <span className="text-xs text-muted-foreground">/ sekali bayar</span>
-                          <span className="text-xs text-muted-foreground">≈ {convBooster.priceIdrFormatted}</span>
-                        </div>
+                        {cheapest && (
+                          <div className="mt-2 flex items-baseline gap-1.5 flex-wrap">
+                            <span className="text-sm font-semibold text-foreground">Mulai dari</span>
+                            <span className="text-xl font-bold text-foreground">${cheapest.priceUsd}</span>
+                            <span className="text-xs text-muted-foreground">/ sekali bayar</span>
+                            <span className="text-xs text-muted-foreground">≈ {cheapest.priceIdrFormatted}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardHeader>
