@@ -28911,6 +28911,91 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  // Admin: reject a pending booster payment (mark as failed)
+  app.post("/api/admin/booster-payments/:id/reject", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { notes } = req.body;
+      const tx = await storage.getPaymentTransaction(id);
+      if (!tx) return res.status(404).json({ error: "Transaction not found" });
+
+      const gr = tx.gatewayResponse as Record<string, unknown> | null;
+      if (!gr || gr.type !== "booster") {
+        return res.status(400).json({ error: "Not a booster payment transaction" });
+      }
+      if (tx.status === "paid" || tx.status === "completed") {
+        return res.status(409).json({ error: "Already activated — cannot reject" });
+      }
+      await storage.updatePaymentTransaction(id, {
+        status: "failed",
+        gatewayResponse: {
+          ...(tx.gatewayResponse as Record<string, unknown> || {}),
+          rejectedAt: new Date().toISOString(),
+          rejectionNotes: notes || "",
+        },
+      });
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Admin booster-payments reject error:", err);
+      res.status(500).json({ error: "Failed to reject booster payment" });
+    }
+  });
+
+  // Admin: list pending addon payments (merchant_addons where isActive=false and paymentReference set)
+  app.get("/api/admin/addon-payments", requireAdmin, async (req, res) => {
+    try {
+      const allAddons = await storage.getAllMerchantAddons();
+      const merchants = await storage.getAllMerchants();
+      const merchantMap = new Map(merchants.map(m => [m.id, m]));
+
+      const pending = allAddons.filter(a => !a.isActive && a.paymentReference);
+      const result = pending.map(a => {
+        const merchant = merchantMap.get(a.merchantId);
+        return {
+          id: a.id,
+          merchantId: a.merchantId,
+          businessName: merchant?.companyName || "Unknown",
+          email: merchant?.email || "",
+          addonType: a.addonType,
+          paymentReference: a.paymentReference,
+          subscribedAt: a.subscribedAt,
+          trialEndsAt: a.trialEndsAt,
+        };
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error("Admin addon-payments list error:", err);
+      res.status(500).json({ error: "Failed to fetch addon payments" });
+    }
+  });
+
+  // Admin: activate a pending addon payment
+  app.post("/api/admin/addon-payments/:id/activate", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const addon = await storage.updateMerchantAddon(id, { isActive: true, trialEndsAt: null });
+      if (!addon) return res.status(404).json({ error: "Addon record not found" });
+      res.json({ success: true, addonType: addon.addonType, merchantId: addon.merchantId });
+    } catch (err) {
+      console.error("Admin addon-payments activate error:", err);
+      res.status(500).json({ error: "Failed to activate addon" });
+    }
+  });
+
+  // Admin: reject/dismiss a pending addon payment (clear payment reference)
+  app.post("/api/admin/addon-payments/:id/reject", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const addon = await storage.updateMerchantAddon(id, { paymentReference: null });
+      if (!addon) return res.status(404).json({ error: "Addon record not found" });
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Admin addon-payments reject error:", err);
+      res.status(500).json({ error: "Failed to reject addon payment" });
+    }
+  });
+
   app.get("/api/addon-configs", async (req, res) => {
     try {
       const configs = await storage.getAddonConfigs();

@@ -284,7 +284,18 @@ export default function AdminDashboard() {
     queryKey: ["/api/admin/crypto-payments"],
     enabled: !!adminId,
   });
-  const pendingCryptoPaymentsCount = cryptoPayments.filter(p => p.status === "pending").length;
+  const { data: boosterPayments = [] } = useQuery<{ status: string; paymentMethod?: string }[]>({
+    queryKey: ["/api/admin/booster-payments"],
+    enabled: !!adminId,
+  });
+  const { data: addonPayments = [] } = useQuery<{ id: string }[]>({
+    queryKey: ["/api/admin/addon-payments"],
+    enabled: !!adminId,
+  });
+  const pendingCryptoPaymentsCount =
+    cryptoPayments.filter(p => p.status === "pending").length +
+    boosterPayments.filter(p => p.status === "pending").length +
+    addonPayments.length;
   
   // Fetch pending bank transfer payments count for sidebar badge
   const { data: bankTransferPayments = [] } = useQuery<{ status: string }[]>({
@@ -10781,7 +10792,36 @@ interface CryptoPaymentConfirmation {
   updatedAt: Date;
 }
 
+interface BoosterPaymentRow {
+  id: string;
+  merchantId: string;
+  businessName: string;
+  email: string;
+  boosterType: string;
+  boosterName: string;
+  quotaField: string;
+  quotaAmount: number;
+  paymentReference: string;
+  amount: number;
+  status: string;
+  createdAt: Date;
+}
+
+interface AddonPaymentRow {
+  id: string;
+  merchantId: string;
+  businessName: string;
+  email: string;
+  addonType: string;
+  paymentReference: string | null;
+  subscribedAt: Date;
+  trialEndsAt: Date | null;
+}
+
 function CryptoPaymentsTab({ toast }: { toast: any }) {
+  const [section, setSection] = useState<'subscription' | 'boosters' | 'addons'>('subscription');
+
+  // ── Subscription section state ─────────────────────────────────────────────
   const [selectedPayment, setSelectedPayment] = useState<CryptoPaymentConfirmation | null>(null);
   const [reviewNotes, setReviewNotes] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
@@ -10791,6 +10831,26 @@ function CryptoPaymentsTab({ toast }: { toast: any }) {
     queryKey: ['/api/admin/crypto-payments'],
   });
 
+  // ── Booster section state ──────────────────────────────────────────────────
+  const [selectedBooster, setSelectedBooster] = useState<BoosterPaymentRow | null>(null);
+  const [boosterNotes, setBoosterNotes] = useState("");
+  const [boosterActionLoading, setBoosterActionLoading] = useState(false);
+  const [boosterFilter, setBoosterFilter] = useState<'all' | 'pending' | 'paid' | 'failed'>('pending');
+
+  const { data: boosterPayments, isLoading: boosterLoading, refetch: refetchBoosters } = useQuery<BoosterPaymentRow[]>({
+    queryKey: ['/api/admin/booster-payments'],
+  });
+
+  // ── Addon section state ────────────────────────────────────────────────────
+  const [selectedAddon, setSelectedAddon] = useState<AddonPaymentRow | null>(null);
+  const [addonNotes, setAddonNotes] = useState("");
+  const [addonActionLoading, setAddonActionLoading] = useState(false);
+
+  const { data: addonPayments, isLoading: addonLoading, refetch: refetchAddons } = useQuery<AddonPaymentRow[]>({
+    queryKey: ['/api/admin/addon-payments'],
+  });
+
+  // ── Subscription handlers ──────────────────────────────────────────────────
   const handleApprove = async (id: string) => {
     setActionLoading(true);
     try {
@@ -10827,15 +10887,85 @@ function CryptoPaymentsTab({ toast }: { toast: any }) {
     }
   };
 
+  // ── Booster handlers ───────────────────────────────────────────────────────
+  const handleBoosterActivate = async (id: string) => {
+    setBoosterActionLoading(true);
+    try {
+      await apiRequest('POST', `/api/admin/booster-payments/${id}/activate`, {});
+      toast({ title: "Booster Activated", description: "Quota has been applied to the merchant." });
+      setSelectedBooster(null);
+      setBoosterNotes("");
+      refetchBoosters();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to activate booster", variant: "destructive" });
+    } finally {
+      setBoosterActionLoading(false);
+    }
+  };
+
+  const handleBoosterReject = async (id: string) => {
+    setBoosterActionLoading(true);
+    try {
+      await apiRequest('POST', `/api/admin/booster-payments/${id}/reject`, { notes: boosterNotes });
+      toast({ title: "Booster Rejected", description: "Payment has been marked as rejected." });
+      setSelectedBooster(null);
+      setBoosterNotes("");
+      refetchBoosters();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to reject booster payment", variant: "destructive" });
+    } finally {
+      setBoosterActionLoading(false);
+    }
+  };
+
+  // ── Addon handlers ─────────────────────────────────────────────────────────
+  const handleAddonActivate = async (id: string) => {
+    setAddonActionLoading(true);
+    try {
+      await apiRequest('POST', `/api/admin/addon-payments/${id}/activate`, {});
+      toast({ title: "Addon Activated", description: "The addon has been enabled for the merchant." });
+      setSelectedAddon(null);
+      setAddonNotes("");
+      refetchAddons();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to activate addon", variant: "destructive" });
+    } finally {
+      setAddonActionLoading(false);
+    }
+  };
+
+  const handleAddonReject = async (id: string) => {
+    setAddonActionLoading(true);
+    try {
+      await apiRequest('POST', `/api/admin/addon-payments/${id}/reject`, { notes: addonNotes });
+      toast({ title: "Addon Payment Dismissed", description: "Payment reference has been cleared." });
+      setSelectedAddon(null);
+      setAddonNotes("");
+      refetchAddons();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to dismiss addon payment", variant: "destructive" });
+    } finally {
+      setAddonActionLoading(false);
+    }
+  };
+
   const filteredPayments = payments?.filter(p => filter === 'all' || p.status === filter) || [];
+  const filteredBoosters = boosterPayments?.filter(b => {
+    if (boosterFilter === 'all') return true;
+    if (boosterFilter === 'paid') return b.status === 'paid' || b.status === 'completed';
+    return b.status === boosterFilter;
+  }) || [];
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
         return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">Pending</Badge>;
       case 'approved':
-        return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">Approved</Badge>;
+      case 'paid':
+      case 'completed':
+        return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">Activated</Badge>;
       case 'rejected':
+      case 'failed':
         return <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/30">Rejected</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
@@ -10843,290 +10973,540 @@ function CryptoPaymentsTab({ toast }: { toast: any }) {
   };
 
   const pendingCount = payments?.filter(p => p.status === 'pending').length || 0;
+  const pendingBoosterCount = boosterPayments?.filter(b => b.status === 'pending').length || 0;
+  const pendingAddonCount = addonPayments?.length || 0;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Bitcoin className="w-6 h-6 text-amber-500" />
-            Crypto Payment Confirmations
+            Crypto Payments
           </h2>
-          <p className="text-muted-foreground">Review and approve cryptocurrency payment submissions</p>
+          <p className="text-muted-foreground">Review and activate cryptocurrency payment submissions</p>
         </div>
-        {pendingCount > 0 && (
-          <Badge className="bg-amber-500 text-white">{pendingCount} Pending</Badge>
+        {(pendingCount + pendingBoosterCount + pendingAddonCount) > 0 && (
+          <Badge className="bg-amber-500 text-white">
+            {pendingCount + pendingBoosterCount + pendingAddonCount} Pending
+          </Badge>
         )}
       </div>
 
-      <div className="flex gap-2">
-        <Button 
-          variant={filter === 'all' ? 'default' : 'outline'} 
+      {/* Section selector */}
+      <div className="flex gap-2 border-b pb-2">
+        <Button
+          variant={section === 'subscription' ? 'default' : 'ghost'}
           size="sm"
-          onClick={() => setFilter('all')}
+          onClick={() => setSection('subscription')}
+          data-testid="button-crypto-section-subscription"
         >
-          All ({payments?.length || 0})
+          Subscriptions
+          {pendingCount > 0 && (
+            <Badge className="ml-2 bg-amber-500/20 text-amber-600">{pendingCount}</Badge>
+          )}
         </Button>
-        <Button 
-          variant={filter === 'pending' ? 'default' : 'outline'} 
+        <Button
+          variant={section === 'boosters' ? 'default' : 'ghost'}
           size="sm"
-          onClick={() => setFilter('pending')}
+          onClick={() => setSection('boosters')}
+          data-testid="button-crypto-section-boosters"
         >
-          Pending ({pendingCount})
+          Boosters
+          {pendingBoosterCount > 0 && (
+            <Badge className="ml-2 bg-amber-500/20 text-amber-600">{pendingBoosterCount}</Badge>
+          )}
         </Button>
-        <Button 
-          variant={filter === 'approved' ? 'default' : 'outline'} 
+        <Button
+          variant={section === 'addons' ? 'default' : 'ghost'}
           size="sm"
-          onClick={() => setFilter('approved')}
+          onClick={() => setSection('addons')}
+          data-testid="button-crypto-section-addons"
         >
-          Approved ({payments?.filter(p => p.status === 'approved').length || 0})
-        </Button>
-        <Button 
-          variant={filter === 'rejected' ? 'default' : 'outline'} 
-          size="sm"
-          onClick={() => setFilter('rejected')}
-        >
-          Rejected ({payments?.filter(p => p.status === 'rejected').length || 0})
+          Add-ons
+          {pendingAddonCount > 0 && (
+            <Badge className="ml-2 bg-amber-500/20 text-amber-600">{pendingAddonCount}</Badge>
+          )}
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="p-8 text-center">
-              <Loader2 className="w-8 h-8 mx-auto animate-spin text-muted-foreground" />
-            </div>
-          ) : filteredPayments.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              <Bitcoin className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>No crypto payment confirmations found</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order #</TableHead>
-                  <TableHead>Merchant</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Crypto</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPayments.map((payment) => (
-                  <TableRow key={payment.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-mono text-xs font-medium">{payment.customInvoiceId || payment.id.slice(0, 15)}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{payment.merchantCompanyName}</p>
-                        <p className="text-xs text-muted-foreground">{payment.merchantEmail}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span>{payment.planName}</span>
-                        {payment.customInvoiceId && <Badge className="text-xs bg-purple-500/20 text-purple-600">Custom Invoice</Badge>}
-                        {payment.isUpgrade && <Badge className="text-xs bg-green-500/20 text-green-600">Upgrade</Badge>}
-                        {payment.isDowngrade && <Badge className="text-xs bg-amber-500/20 text-amber-600">Downgrade</Badge>}
-                      </div>
-                      <p className="text-xs text-muted-foreground">{payment.billingInterval}</p>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{payment.cryptocurrency}</Badge>
-                      <p className="text-xs text-muted-foreground mt-1">{payment.network}</p>
-                    </TableCell>
-                    <TableCell>
-                      <p className="font-medium">${(payment.amountUsd / 100).toFixed(2)}</p>
-                      <p className="text-xs text-muted-foreground">{payment.amountCrypto} {payment.cryptocurrency}</p>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {new Date(payment.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="outline" onClick={() => {
-                        setSelectedPayment(payment);
-                        setReviewNotes(payment.reviewNotes || "");
-                      }}>
-                        <Eye className="w-4 h-4 mr-1" />
-                        Review
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      {/* ── SUBSCRIPTION SECTION ── */}
+      {section === 'subscription' && (
+        <>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant={filter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setFilter('all')}>
+              All ({payments?.length || 0})
+            </Button>
+            <Button variant={filter === 'pending' ? 'default' : 'outline'} size="sm" onClick={() => setFilter('pending')}>
+              Pending ({pendingCount})
+            </Button>
+            <Button variant={filter === 'approved' ? 'default' : 'outline'} size="sm" onClick={() => setFilter('approved')}>
+              Approved ({payments?.filter(p => p.status === 'approved').length || 0})
+            </Button>
+            <Button variant={filter === 'rejected' ? 'default' : 'outline'} size="sm" onClick={() => setFilter('rejected')}>
+              Rejected ({payments?.filter(p => p.status === 'rejected').length || 0})
+            </Button>
+          </div>
 
-      <Dialog open={!!selectedPayment} onOpenChange={(open) => !open && setSelectedPayment(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Bitcoin className="w-5 h-5 text-amber-500" />
-              Review Crypto Payment
-            </DialogTitle>
-            <DialogDescription>
-              Verify the transaction details and proof of payment
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedPayment && (
-            <div className="space-y-4">
-              {/* Order/Invoice Number Banner */}
-              <div className="p-3 rounded-lg bg-muted/50 border">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Order / Invoice Number</p>
-                    <p className="font-mono font-semibold">{selectedPayment.customInvoiceId || selectedPayment.id}</p>
-                  </div>
-                  <Badge variant={selectedPayment.status === 'pending' ? 'secondary' : selectedPayment.status === 'approved' ? 'default' : 'destructive'}>
-                    {selectedPayment.status.charAt(0).toUpperCase() + selectedPayment.status.slice(1)}
-                  </Badge>
+          <Card>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="p-8 text-center">
+                  <Loader2 className="w-8 h-8 mx-auto animate-spin text-muted-foreground" />
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Merchant</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="font-medium">{selectedPayment.merchantCompanyName}</p>
-                    <p className="text-sm text-muted-foreground">{selectedPayment.merchantEmail}</p>
-                    <p className="text-xs text-muted-foreground mt-1">ID: {selectedPayment.merchantId}</p>
-                  </CardContent>
-                </Card>
+              ) : filteredPayments.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <Bitcoin className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No crypto payment confirmations found</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order #</TableHead>
+                      <TableHead>Merchant</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead>Crypto</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPayments.map((payment) => (
+                      <TableRow key={payment.id}>
+                        <TableCell>
+                          <p className="font-mono text-xs font-medium">{payment.customInvoiceId || payment.id.slice(0, 15)}</p>
+                        </TableCell>
+                        <TableCell>
+                          <p className="font-medium">{payment.merchantCompanyName}</p>
+                          <p className="text-xs text-muted-foreground">{payment.merchantEmail}</p>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span>{payment.planName}</span>
+                            {payment.customInvoiceId && <Badge className="text-xs bg-purple-500/20 text-purple-600">Custom Invoice</Badge>}
+                            {payment.isUpgrade && <Badge className="text-xs bg-green-500/20 text-green-600">Upgrade</Badge>}
+                            {payment.isDowngrade && <Badge className="text-xs bg-amber-500/20 text-amber-600">Downgrade</Badge>}
+                          </div>
+                          <p className="text-xs text-muted-foreground">{payment.billingInterval}</p>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{payment.cryptocurrency}</Badge>
+                          <p className="text-xs text-muted-foreground mt-1">{payment.network}</p>
+                        </TableCell>
+                        <TableCell>
+                          <p className="font-medium">${(payment.amountUsd / 100).toFixed(2)}</p>
+                          <p className="text-xs text-muted-foreground">{payment.amountCrypto} {payment.cryptocurrency}</p>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(payment.status)}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {new Date(payment.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setSelectedPayment(payment);
+                            setReviewNotes(payment.reviewNotes || "");
+                          }}>
+                            <Eye className="w-4 h-4 mr-1" />
+                            Review
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
 
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Subscription</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium">{selectedPayment.planName}</p>
-                      {selectedPayment.customInvoiceId && <Badge className="text-xs bg-purple-500/20 text-purple-600">Custom Invoice</Badge>}
-                      {selectedPayment.isUpgrade && <Badge className="text-xs bg-green-500/20 text-green-600">Upgrade</Badge>}
-                      {selectedPayment.isDowngrade && <Badge className="text-xs bg-amber-500/20 text-amber-600">Downgrade</Badge>}
-                    </div>
-                    <p className="text-sm text-muted-foreground">{selectedPayment.billingInterval}</p>
-                    {selectedPayment.customInvoiceId && (
-                      <p className="text-xs text-purple-600 mt-1">Invoice ID: {selectedPayment.customInvoiceId}</p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
+          <Dialog open={!!selectedPayment} onOpenChange={(open) => !open && setSelectedPayment(null)}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Bitcoin className="w-5 h-5 text-amber-500" />
+                  Review Subscription Crypto Payment
+                </DialogTitle>
+                <DialogDescription>Verify the transaction details and proof of payment</DialogDescription>
+              </DialogHeader>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Payment Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Cryptocurrency:</span>
-                      <p className="font-medium">{selectedPayment.cryptocurrency} ({selectedPayment.network})</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Amount (USD):</span>
-                      <p className="font-medium">${(selectedPayment.amountUsd / 100).toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Crypto Amount:</span>
-                      <p className="font-medium">{selectedPayment.amountCrypto} {selectedPayment.cryptocurrency}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Status:</span>
-                      <div className="mt-1">{getStatusBadge(selectedPayment.status)}</div>
+              {selectedPayment && (
+                <div className="space-y-4">
+                  <div className="p-3 rounded-lg bg-muted/50 border">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Order / Invoice Number</p>
+                        <p className="font-mono font-semibold">{selectedPayment.customInvoiceId || selectedPayment.id}</p>
+                      </div>
+                      <Badge variant={selectedPayment.status === 'pending' ? 'secondary' : selectedPayment.status === 'approved' ? 'default' : 'destructive'}>
+                        {selectedPayment.status.charAt(0).toUpperCase() + selectedPayment.status.slice(1)}
+                      </Badge>
                     </div>
                   </div>
 
-                  <div>
-                    <span className="text-sm text-muted-foreground">Wallet Address:</span>
-                    <p className="font-mono text-xs bg-muted p-2 rounded mt-1 break-all">{selectedPayment.walletAddress}</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Card>
+                      <CardHeader className="pb-2"><CardTitle className="text-sm">Merchant</CardTitle></CardHeader>
+                      <CardContent>
+                        <p className="font-medium">{selectedPayment.merchantCompanyName}</p>
+                        <p className="text-sm text-muted-foreground">{selectedPayment.merchantEmail}</p>
+                        <p className="text-xs text-muted-foreground mt-1">ID: {selectedPayment.merchantId}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2"><CardTitle className="text-sm">Subscription</CardTitle></CardHeader>
+                      <CardContent>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium">{selectedPayment.planName}</p>
+                          {selectedPayment.isUpgrade && <Badge className="text-xs bg-green-500/20 text-green-600">Upgrade</Badge>}
+                          {selectedPayment.isDowngrade && <Badge className="text-xs bg-amber-500/20 text-amber-600">Downgrade</Badge>}
+                        </div>
+                        <p className="text-sm text-muted-foreground">{selectedPayment.billingInterval}</p>
+                      </CardContent>
+                    </Card>
                   </div>
 
-                  <div>
-                    <span className="text-sm text-muted-foreground">Transaction Hash:</span>
-                    <p className="font-mono text-xs bg-muted p-2 rounded mt-1 break-all">{selectedPayment.transactionHash}</p>
-                  </div>
-                </CardContent>
-              </Card>
+                  <Card>
+                    <CardHeader className="pb-2"><CardTitle className="text-sm">Payment Details</CardTitle></CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Cryptocurrency:</span>
+                          <p className="font-medium">{selectedPayment.cryptocurrency} ({selectedPayment.network})</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Amount (USD):</span>
+                          <p className="font-medium">${(selectedPayment.amountUsd / 100).toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Crypto Amount:</span>
+                          <p className="font-medium">{selectedPayment.amountCrypto} {selectedPayment.cryptocurrency}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Status:</span>
+                          <div className="mt-1">{getStatusBadge(selectedPayment.status)}</div>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-sm text-muted-foreground">Wallet Address:</span>
+                        <p className="font-mono text-xs bg-muted p-2 rounded mt-1 break-all">{selectedPayment.walletAddress}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-muted-foreground">Transaction Hash:</span>
+                        <p className="font-mono text-xs bg-muted p-2 rounded mt-1 break-all">{selectedPayment.transactionHash}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Proof of Payment</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <img 
-                    src={selectedPayment.proofImageUrl} 
-                    alt="Payment Proof" 
-                    className="max-w-full rounded-lg border"
-                  />
-                </CardContent>
-              </Card>
+                  <Card>
+                    <CardHeader className="pb-2"><CardTitle className="text-sm">Proof of Payment</CardTitle></CardHeader>
+                    <CardContent>
+                      <img src={selectedPayment.proofImageUrl} alt="Payment Proof" className="max-w-full rounded-lg border" />
+                    </CardContent>
+                  </Card>
 
-              {selectedPayment.status === 'pending' && (
-                <div className="space-y-3">
-                  <div>
-                    <Label>Review Notes (Optional)</Label>
-                    <Textarea
-                      value={reviewNotes}
-                      onChange={(e) => setReviewNotes(e.target.value)}
-                      placeholder="Add any notes about this payment..."
-                      className="mt-1"
-                    />
+                  {selectedPayment.status === 'pending' && (
+                    <div className="space-y-3">
+                      <div>
+                        <Label>Review Notes (Optional)</Label>
+                        <Textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} placeholder="Add any notes..." className="mt-1" />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => handleApprove(selectedPayment.id)} disabled={actionLoading}>
+                          {actionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                          Approve & Activate
+                        </Button>
+                        <Button variant="destructive" className="flex-1" onClick={() => handleReject(selectedPayment.id)} disabled={actionLoading}>
+                          {actionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedPayment.status !== 'pending' && selectedPayment.reviewNotes && (
+                    <Card>
+                      <CardHeader className="pb-2"><CardTitle className="text-sm">Review Notes</CardTitle></CardHeader>
+                      <CardContent>
+                        <p className="text-sm">{selectedPayment.reviewNotes}</p>
+                        {selectedPayment.reviewedAt && (
+                          <p className="text-xs text-muted-foreground mt-2">Reviewed on {new Date(selectedPayment.reviewedAt).toLocaleString()}</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
+
+      {/* ── BOOSTER SECTION ── */}
+      {section === 'boosters' && (
+        <>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant={boosterFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setBoosterFilter('all')}>
+              All ({boosterPayments?.length || 0})
+            </Button>
+            <Button variant={boosterFilter === 'pending' ? 'default' : 'outline'} size="sm" onClick={() => setBoosterFilter('pending')}>
+              Pending ({pendingBoosterCount})
+            </Button>
+            <Button variant={boosterFilter === 'paid' ? 'default' : 'outline'} size="sm" onClick={() => setBoosterFilter('paid')}>
+              Activated ({boosterPayments?.filter(b => b.status === 'paid' || b.status === 'completed').length || 0})
+            </Button>
+            <Button variant={boosterFilter === 'failed' ? 'default' : 'outline'} size="sm" onClick={() => setBoosterFilter('failed')}>
+              Rejected ({boosterPayments?.filter(b => b.status === 'failed').length || 0})
+            </Button>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              {boosterLoading ? (
+                <div className="p-8 text-center">
+                  <Loader2 className="w-8 h-8 mx-auto animate-spin text-muted-foreground" />
+                </div>
+              ) : filteredBoosters.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <Bitcoin className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No booster payment submissions found</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Merchant</TableHead>
+                      <TableHead>Booster</TableHead>
+                      <TableHead>Tx / Reference</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredBoosters.map((b) => (
+                      <TableRow key={b.id} data-testid={`row-booster-${b.id}`}>
+                        <TableCell>
+                          <p className="font-medium">{b.businessName}</p>
+                          <p className="text-xs text-muted-foreground">{b.email}</p>
+                        </TableCell>
+                        <TableCell>
+                          <p className="font-medium">{b.boosterName}</p>
+                          <p className="text-xs text-muted-foreground">+{b.quotaAmount} {b.quotaField}</p>
+                        </TableCell>
+                        <TableCell>
+                          <p className="font-mono text-xs bg-muted px-2 py-1 rounded break-all max-w-[200px] truncate" title={b.paymentReference}>
+                            {b.paymentReference}
+                          </p>
+                        </TableCell>
+                        <TableCell>
+                          <p className="font-medium">IDR {b.amount.toLocaleString()}</p>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(b.status)}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {new Date(b.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setSelectedBooster(b);
+                            setBoosterNotes("");
+                          }} data-testid={`button-review-booster-${b.id}`}>
+                            <Eye className="w-4 h-4 mr-1" />
+                            Review
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          <Dialog open={!!selectedBooster} onOpenChange={(open) => !open && setSelectedBooster(null)}>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Bitcoin className="w-5 h-5 text-amber-500" />
+                  Review Booster Payment
+                </DialogTitle>
+                <DialogDescription>Verify the tx hash on-chain then activate or reject</DialogDescription>
+              </DialogHeader>
+
+              {selectedBooster && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <Card>
+                      <CardHeader className="pb-2"><CardTitle className="text-sm">Merchant</CardTitle></CardHeader>
+                      <CardContent>
+                        <p className="font-medium">{selectedBooster.businessName}</p>
+                        <p className="text-sm text-muted-foreground">{selectedBooster.email}</p>
+                        <p className="text-xs text-muted-foreground mt-1">ID: {selectedBooster.merchantId}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2"><CardTitle className="text-sm">Booster</CardTitle></CardHeader>
+                      <CardContent>
+                        <p className="font-medium">{selectedBooster.boosterName}</p>
+                        <p className="text-sm text-muted-foreground">+{selectedBooster.quotaAmount} {selectedBooster.quotaField}</p>
+                        <p className="text-xs text-muted-foreground mt-1">IDR {selectedBooster.amount.toLocaleString()}</p>
+                      </CardContent>
+                    </Card>
                   </div>
+
+                  <Card>
+                    <CardHeader className="pb-2"><CardTitle className="text-sm">Tx Hash / Payment Reference</CardTitle></CardHeader>
+                    <CardContent>
+                      <p className="font-mono text-xs bg-muted p-2 rounded break-all">{selectedBooster.paymentReference}</p>
+                      <p className="text-xs text-muted-foreground mt-2">Submitted {new Date(selectedBooster.createdAt).toLocaleString()}</p>
+                    </CardContent>
+                  </Card>
+
+                  <div className="p-3 rounded-lg bg-muted/50 border flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-sm font-medium">Current status</span>
+                    {getStatusBadge(selectedBooster.status)}
+                  </div>
+
+                  {(selectedBooster.status === 'pending') && (
+                    <div className="space-y-3">
+                      <div>
+                        <Label>Notes (Optional)</Label>
+                        <Textarea value={boosterNotes} onChange={(e) => setBoosterNotes(e.target.value)} placeholder="Internal notes..." className="mt-1" />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => handleBoosterActivate(selectedBooster.id)} disabled={boosterActionLoading} data-testid="button-booster-activate">
+                          {boosterActionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                          Activate Booster
+                        </Button>
+                        <Button variant="destructive" className="flex-1" onClick={() => handleBoosterReject(selectedBooster.id)} disabled={boosterActionLoading} data-testid="button-booster-reject">
+                          {boosterActionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
+
+      {/* ── ADDON SECTION ── */}
+      {section === 'addons' && (
+        <>
+          <Card>
+            <CardContent className="p-0">
+              {addonLoading ? (
+                <div className="p-8 text-center">
+                  <Loader2 className="w-8 h-8 mx-auto animate-spin text-muted-foreground" />
+                </div>
+              ) : (addonPayments?.length || 0) === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <Bitcoin className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No pending addon payment submissions</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Merchant</TableHead>
+                      <TableHead>Add-on Type</TableHead>
+                      <TableHead>Tx / Reference</TableHead>
+                      <TableHead>Submitted</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {addonPayments?.map((a) => (
+                      <TableRow key={a.id} data-testid={`row-addon-${a.id}`}>
+                        <TableCell>
+                          <p className="font-medium">{a.businessName}</p>
+                          <p className="text-xs text-muted-foreground">{a.email}</p>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize">{a.addonType.replace(/_/g, ' ')}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <p className="font-mono text-xs bg-muted px-2 py-1 rounded break-all max-w-[200px] truncate" title={a.paymentReference || ""}>
+                            {a.paymentReference}
+                          </p>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {new Date(a.subscribedAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setSelectedAddon(a);
+                            setAddonNotes("");
+                          }} data-testid={`button-review-addon-${a.id}`}>
+                            <Eye className="w-4 h-4 mr-1" />
+                            Review
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          <Dialog open={!!selectedAddon} onOpenChange={(open) => !open && setSelectedAddon(null)}>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Bitcoin className="w-5 h-5 text-amber-500" />
+                  Review Add-on Payment
+                </DialogTitle>
+                <DialogDescription>Verify the payment reference then activate or dismiss</DialogDescription>
+              </DialogHeader>
+
+              {selectedAddon && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <Card>
+                      <CardHeader className="pb-2"><CardTitle className="text-sm">Merchant</CardTitle></CardHeader>
+                      <CardContent>
+                        <p className="font-medium">{selectedAddon.businessName}</p>
+                        <p className="text-sm text-muted-foreground">{selectedAddon.email}</p>
+                        <p className="text-xs text-muted-foreground mt-1">ID: {selectedAddon.merchantId}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-2"><CardTitle className="text-sm">Add-on</CardTitle></CardHeader>
+                      <CardContent>
+                        <Badge variant="outline" className="capitalize">{selectedAddon.addonType.replace(/_/g, ' ')}</Badge>
+                        <p className="text-xs text-muted-foreground mt-2">Submitted {new Date(selectedAddon.subscribedAt).toLocaleString()}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Card>
+                    <CardHeader className="pb-2"><CardTitle className="text-sm">Tx Hash / Payment Reference</CardTitle></CardHeader>
+                    <CardContent>
+                      <p className="font-mono text-xs bg-muted p-2 rounded break-all">{selectedAddon.paymentReference}</p>
+                    </CardContent>
+                  </Card>
 
                   <div className="flex gap-2">
-                    <Button
-                      className="flex-1 bg-green-600 hover:bg-green-700"
-                      onClick={() => handleApprove(selectedPayment.id)}
-                      disabled={actionLoading}
-                    >
-                      {actionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                      Approve & Activate
+                    <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => handleAddonActivate(selectedAddon.id)} disabled={addonActionLoading} data-testid="button-addon-activate">
+                      {addonActionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                      Activate Add-on
                     </Button>
-                    <Button
-                      variant="destructive"
-                      className="flex-1"
-                      onClick={() => handleReject(selectedPayment.id)}
-                      disabled={actionLoading}
-                    >
-                      {actionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
-                      Reject
+                    <Button variant="destructive" className="flex-1" onClick={() => handleAddonReject(selectedAddon.id)} disabled={addonActionLoading} data-testid="button-addon-reject">
+                      {addonActionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
+                      Dismiss
                     </Button>
                   </div>
                 </div>
               )}
-
-              {selectedPayment.status !== 'pending' && selectedPayment.reviewNotes && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Review Notes</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm">{selectedPayment.reviewNotes}</p>
-                    {selectedPayment.reviewedAt && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Reviewed on {new Date(selectedPayment.reviewedAt).toLocaleString()}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
     </div>
   );
 }
