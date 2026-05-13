@@ -103,6 +103,14 @@ interface PaymentResponse {
   amountIDR: number;
   qrisString: string | null;
   expiresAt: string | null;
+  paymentMethod?: string;
+  vaNumber?: string;
+  bankCode?: string;
+  accountNumber?: string;
+  accountName?: string;
+  bankName?: string;
+  uniqueCode?: number;
+  totalAmount?: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -231,7 +239,7 @@ interface UnifiedProduct {
 /* Product detail popup                                                 */
 /* ------------------------------------------------------------------ */
 
-type Phase = "info" | "qr" | "success" | "failed";
+type Phase = "info" | "qr" | "va" | "bank_transfer" | "success" | "failed";
 
 export function ProductPopup({
   productId,
@@ -252,6 +260,7 @@ export function ProductPopup({
   const [tcOpen, setTcOpen] = useState(false);
   const [selectedConvPackage, setSelectedConvPackage] = useState("conversations_2k");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"qris" | "va" | "bank" | "paypal" | "crypto">("qris");
+  const [selectedBank, setSelectedBank] = useState<string>("");
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -306,6 +315,17 @@ export function ProductPopup({
     ? (convBoosterOptions.find((b) => b.boosterType === selectedConvPackage) ?? booster)
     : booster;
 
+  const resolvePhase = (data: PaymentResponse): Phase => {
+    const pm = data.paymentMethod;
+    if (pm === "va" || data.vaNumber) return "va";
+    if (pm === "bank_transfer" || data.accountNumber) return "bank_transfer";
+    return "qr";
+  };
+
+  const serverMethod = selectedPaymentMethod === "qris" ? "12pay"
+    : selectedPaymentMethod === "bank" ? "bank_transfer"
+    : selectedPaymentMethod;
+
   /* Mutations */
   const addonMutation = useMutation({
     mutationFn: async (addonType: string) => {
@@ -313,13 +333,17 @@ export function ProductPopup({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ addonType, paymentMethod: "12pay" }),
+        body: JSON.stringify({
+          addonType,
+          paymentMethod: serverMethod,
+          bankCode: selectedBank || undefined,
+        }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(safeMsg(body, "Terjadi kesalahan, coba lagi."));
       return body as PaymentResponse;
     },
-    onSuccess: (data) => { setPayment(data); setPhase("qr"); },
+    onSuccess: (data) => { setPayment(data); setPhase(resolvePhase(data)); },
     onError: (err: any) =>
       toast({ title: "Tidak bisa memulai pembayaran", description: err?.message, variant: "destructive" }),
   });
@@ -330,23 +354,28 @@ export function ProductPopup({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ boosterType, paymentMethod: "12pay" }),
+        body: JSON.stringify({
+          boosterType,
+          paymentMethod: serverMethod,
+          bankCode: selectedBank || undefined,
+        }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(safeMsg(body, "Terjadi kesalahan, coba lagi."));
       return body as PaymentResponse;
     },
-    onSuccess: (data) => { setPayment(data); setPhase("qr"); },
+    onSuccess: (data) => { setPayment(data); setPhase(resolvePhase(data)); },
     onError: (err: any) =>
       toast({ title: "Tidak bisa memulai pembayaran", description: err?.message, variant: "destructive" }),
   });
 
-  /* Polling for payment success */
+  /* Polling for payment success (QRIS and VA; bank transfer is manual) */
   useEffect(() => {
-    if (phase !== "qr" || !payment?.transactionId) return;
+    const isPollingPhase = phase === "qr" || phase === "va";
+    if (!isPollingPhase || !payment?.transactionId) return;
 
     const poll = async () => {
-      if (phaseRef.current !== "qr") return;
+      if (phaseRef.current !== "qr" && phaseRef.current !== "va") return;
       try {
         const res = await fetch(
           `/api/merchant/addons/payment-status/${payment.transactionId}`,
@@ -359,6 +388,7 @@ export function ProductPopup({
           clearInterval(pollingRef.current!);
           queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
           queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/merchant/me"] });
           setPhase("success");
         } else if (s === "failed" || s === "expired" || s === "cancelled") {
           clearInterval(pollingRef.current!);
@@ -378,8 +408,10 @@ export function ProductPopup({
       setPhase("info");
       setPayment(null);
       setTcOpen(false);
+      setSelectedBank("");
     } else {
       setSelectedConvPackage("conversations_2k");
+      setSelectedBank("");
     }
   }, [productId]);
 
@@ -400,6 +432,12 @@ export function ProductPopup({
   const isPending = addonMutation.isPending || boosterMutation.isPending;
 
   const handleBuy = () => {
+    if (selectedPaymentMethod === "va" || selectedPaymentMethod === "bank") {
+      if (!selectedBank) {
+        toast({ title: "Pilih bank terlebih dahulu", variant: "destructive" });
+        return;
+      }
+    }
     if (addon) addonMutation.mutate(addon.addonType);
     else if (effectiveBooster) boosterMutation.mutate(effectiveBooster.boosterType);
   };
@@ -563,6 +601,176 @@ export function ProductPopup({
     );
   };
 
+  const VA_BANK_NAMES: Record<string, string> = {
+    '002': 'Bank Rakyat Indonesia (BRI)',
+    '008': 'Bank Mandiri',
+    '022': 'CIMB Niaga',
+    '013': 'Bank Permata',
+    '011': 'Bank Danamon',
+    '016': 'Maybank Indonesia',
+    '490': 'Bank Neo Commerce (BNC)',
+    '451': 'Bank Syariah Indonesia (BSI)',
+  };
+
+  const renderVA = () => {
+    const formattedAmount = `Rp ${payment?.amountIDR?.toLocaleString("id-ID") ?? "—"}`;
+    const bankName = VA_BANK_NAMES[payment?.bankCode ?? ""] || payment?.bankCode || "—";
+    return (
+      <div className="space-y-3">
+        <div className="rounded-2xl overflow-hidden shadow-md border border-gray-200">
+          <div className="bg-white px-4 py-3 flex items-center justify-between gap-3">
+            <img
+              src={isDark ? chatviceLightLogo : chatviceDarkLogo}
+              alt="Chatvice"
+              className="h-7 object-contain"
+            />
+            <div className="flex items-center gap-1.5 text-primary">
+              <CreditCard className="w-5 h-5" />
+              <span className="text-xs font-semibold">Virtual Account</span>
+            </div>
+          </div>
+          <div className="border-t border-dashed border-gray-200" />
+          <div className="bg-white p-4 space-y-3">
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Bank</p>
+              <p className="text-sm font-semibold text-gray-800">{bankName}</p>
+            </div>
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Nomor Virtual Account</p>
+              <div className="flex items-center gap-2">
+                <p className="text-lg font-bold font-mono text-gray-900">{payment?.vaNumber || "—"}</p>
+                {payment?.vaNumber && (
+                  <button
+                    type="button"
+                    onClick={() => { navigator.clipboard.writeText(payment.vaNumber!); toast({ title: "Nomor VA disalin" }); }}
+                    className="p-0.5 rounded hover-elevate"
+                    data-testid="button-copy-va-number"
+                  >
+                    <Copy className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Total Pembayaran</p>
+              <p className="text-base font-bold text-gray-900">{formattedAmount}</p>
+            </div>
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Order ID</p>
+              <p className="text-xs text-gray-600 font-mono truncate">{payment?.orderId || "—"}</p>
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Menunggu pembayaran...
+            </div>
+          </div>
+          <div className="bg-gray-50 px-4 py-2.5 flex items-center justify-end gap-2 border-t border-gray-100">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full px-4 text-xs"
+              onClick={() => { setPhase("info"); setPayment(null); }}
+              data-testid="button-change-payment-method-va"
+            >
+              Batal / Ganti Metode
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderBankTransfer = () => {
+    const baseAmount = payment?.amountIDR ?? 0;
+    const uniqueCode = payment?.uniqueCode ?? 0;
+    const totalAmount = payment?.totalAmount ?? (baseAmount + uniqueCode);
+    const formattedTotal = `Rp ${totalAmount.toLocaleString("id-ID")}`;
+    return (
+      <div className="space-y-3">
+        <div className="rounded-2xl overflow-hidden shadow-md border border-gray-200">
+          <div className="bg-white px-4 py-3 flex items-center justify-between gap-3">
+            <img
+              src={isDark ? chatviceLightLogo : chatviceDarkLogo}
+              alt="Chatvice"
+              className="h-7 object-contain"
+            />
+            <div className="flex items-center gap-1.5 text-primary">
+              <Building2 className="w-5 h-5" />
+              <span className="text-xs font-semibold">Bank Transfer</span>
+            </div>
+          </div>
+          <div className="border-t border-dashed border-gray-200" />
+          <div className="bg-white p-4 space-y-3">
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Bank Tujuan</p>
+              <p className="text-sm font-semibold text-gray-800">{payment?.bankName || payment?.bankCode || "—"}</p>
+            </div>
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Atas Nama</p>
+              <p className="text-sm text-gray-800">{payment?.accountName || "—"}</p>
+            </div>
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Nomor Rekening</p>
+              <div className="flex items-center gap-2">
+                <p className="text-base font-bold font-mono text-gray-900">{payment?.accountNumber || "—"}</p>
+                {payment?.accountNumber && (
+                  <button
+                    type="button"
+                    onClick={() => { navigator.clipboard.writeText(payment.accountNumber!); toast({ title: "Nomor rekening disalin" }); }}
+                    className="p-0.5 rounded hover-elevate"
+                    data-testid="button-copy-account-number"
+                  >
+                    <Copy className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                )}
+              </div>
+            </div>
+            {uniqueCode > 0 && (
+              <div>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Kode Unik</p>
+                <p className="text-sm text-gray-800">+Rp {uniqueCode.toLocaleString("id-ID")}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Total Transfer</p>
+              <div className="flex items-center gap-2">
+                <p className="text-base font-bold text-gray-900">{formattedTotal}</p>
+                <button
+                  type="button"
+                  onClick={() => { navigator.clipboard.writeText(String(totalAmount)); toast({ title: "Total disalin" }); }}
+                  className="p-0.5 rounded hover-elevate"
+                  data-testid="button-copy-total-amount"
+                >
+                  <Copy className="w-3.5 h-3.5 text-gray-400" />
+                </button>
+              </div>
+            </div>
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+              <p className="text-[10px] text-amber-700">
+                Transfer jumlah tepat termasuk kode unik untuk verifikasi otomatis.
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+              <Info className="w-3 h-3" />
+              Pembayaran diverifikasi manual oleh tim kami dalam 1x24 jam.
+            </div>
+          </div>
+          <div className="bg-gray-50 px-4 py-2.5 flex items-center justify-end gap-2 border-t border-gray-100">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full px-4 text-xs"
+              onClick={() => { setPhase("info"); setPayment(null); }}
+              data-testid="button-change-payment-method-bank"
+            >
+              Batal / Ganti Metode
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderSuccess = () => (
     <div className="flex flex-col items-center gap-3 py-4 text-center">
       <PartyPopper className="w-12 h-12 text-green-500" />
@@ -663,8 +871,8 @@ export function ProductPopup({
                 {(
                   [
                     { id: "qris", label: "QRIS", Icon: QrCode, available: true },
-                    { id: "va", label: "Virtual Account", Icon: CreditCard, available: false },
-                    { id: "bank", label: "Bank Transfer", Icon: Building2, available: false },
+                    { id: "va", label: "Virtual Account", Icon: CreditCard, available: true },
+                    { id: "bank", label: "Bank Transfer", Icon: Building2, available: true },
                     { id: "paypal", label: "PayPal", Icon: Zap, available: false },
                     { id: "crypto", label: "Kripto", Icon: Bitcoin, available: false },
                   ] as const
@@ -673,7 +881,12 @@ export function ProductPopup({
                     key={m.id}
                     type="button"
                     disabled={!m.available}
-                    onClick={() => m.available && setSelectedPaymentMethod(m.id as typeof selectedPaymentMethod)}
+                    onClick={() => {
+                      if (m.available) {
+                        setSelectedPaymentMethod(m.id as typeof selectedPaymentMethod);
+                        setSelectedBank("");
+                      }
+                    }}
                     className={[
                       "flex items-center gap-2 px-2.5 py-2 rounded-lg border text-xs font-medium transition-colors text-left",
                       !m.available ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
@@ -691,6 +904,54 @@ export function ProductPopup({
                   </button>
                 ))}
               </div>
+
+              {/* Bank selector for VA */}
+              {selectedPaymentMethod === "va" && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Pilih Bank VA</p>
+                  <Select value={selectedBank} onValueChange={setSelectedBank}>
+                    <SelectTrigger className="w-full" data-testid="select-va-bank">
+                      <SelectValue placeholder="Pilih bank..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[
+                        { code: "002", name: "Bank Rakyat Indonesia (BRI)" },
+                        { code: "008", name: "Bank Mandiri" },
+                        { code: "022", name: "CIMB Niaga" },
+                        { code: "013", name: "Bank Permata" },
+                        { code: "011", name: "Bank Danamon" },
+                        { code: "016", name: "Maybank Indonesia" },
+                        { code: "490", name: "Bank Neo Commerce (BNC)" },
+                        { code: "451", name: "Bank Syariah Indonesia (BSI)" },
+                      ].map((b) => (
+                        <SelectItem key={b.code} value={b.code}>{b.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Bank selector for bank transfer */}
+              {selectedPaymentMethod === "bank" && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Pilih Bank Tujuan</p>
+                  <Select value={selectedBank} onValueChange={setSelectedBank}>
+                    <SelectTrigger className="w-full" data-testid="select-transfer-bank">
+                      <SelectValue placeholder="Pilih bank..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[
+                        { code: "BNI", name: "Bank Negara Indonesia (BNI)" },
+                        { code: "BRI", name: "Bank Rakyat Indonesia (BRI)" },
+                        { code: "MANDIRI", name: "Bank Mandiri" },
+                        { code: "BCA", name: "Bank Central Asia (BCA)" },
+                      ].map((b) => (
+                        <SelectItem key={b.code} value={b.code}>{b.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           )}
 
@@ -803,6 +1064,8 @@ export function ProductPopup({
         <div className="overflow-y-auto flex-1 p-4 space-y-4">
           {phase === "info" && renderInfo()}
           {phase === "qr" && renderQR()}
+          {phase === "va" && renderVA()}
+          {phase === "bank_transfer" && renderBankTransfer()}
           {phase === "success" && renderSuccess()}
           {phase === "failed" && renderFailed()}
         </div>
@@ -818,10 +1081,23 @@ export function ProductPopup({
             >
               {isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : selectedPaymentMethod === "va" ? (
+                <CreditCard className="w-4 h-4 mr-2" />
+              ) : selectedPaymentMethod === "bank" ? (
+                <Building2 className="w-4 h-4 mr-2" />
               ) : (
                 <QrCode className="w-4 h-4 mr-2" />
               )}
-              {addonActive ? "Sudah berlangganan" : addon ? "Subscribe via QRIS" : "Beli via QRIS"}
+              {addonActive
+                ? "Sudah berlangganan"
+                : addon
+                  ? selectedPaymentMethod === "va" ? "Subscribe via Virtual Account"
+                    : selectedPaymentMethod === "bank" ? "Subscribe via Bank Transfer"
+                    : "Subscribe via QRIS"
+                  : selectedPaymentMethod === "va" ? "Beli via Virtual Account"
+                    : selectedPaymentMethod === "bank" ? "Beli via Bank Transfer"
+                    : "Beli via QRIS"
+              }
             </Button>
             {addon && !addonActive && (
               <p className="text-center text-xs text-muted-foreground">

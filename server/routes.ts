@@ -28744,7 +28744,7 @@ Please create a comprehensive help center article that would be useful for custo
   app.post("/api/merchant/boosters/initiate-payment", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
-      const { boosterType, paymentMethod } = req.body;
+      const { boosterType, paymentMethod, bankCode } = req.body;
       if (!boosterType || !paymentMethod) {
         return res.status(400).json({ error: "boosterType and paymentMethod required" });
       }
@@ -28756,12 +28756,10 @@ Please create a comprehensive help center article that would be useful for custo
       const booster = await storage.getBoosterConfig(boosterType);
       if (!booster || !booster.isEnabled) return res.status(404).json({ error: "Booster not available" });
 
-      // Only 12pay/QRIS is operationally fulfilled today (webhook-based).
-      // PayPal/crypto manual flows have no booster fulfillment pipeline yet,
-      // so we explicitly reject them to prevent paid-but-unfulfilled boosters.
-      if (paymentMethod !== "12pay") {
+      const supportedBoosterMethods = ["12pay", "va", "bank_transfer"];
+      if (!supportedBoosterMethods.includes(paymentMethod)) {
         return res.status(400).json({
-          error: "Booster payments currently only support QRIS (12pay).",
+          error: "Unsupported payment method. Supported: " + supportedBoosterMethods.join(", "),
         });
       }
 
@@ -28863,10 +28861,149 @@ Please create a comprehensive help center article that would be useful for custo
         });
       }
 
-      // Unreachable: paymentMethod !== "12pay" is rejected above. Kept here
-      // intentionally as a defensive 500 in case the guard above is ever
-      // refactored without updating this branch.
-      return res.status(500).json({ error: "Unsupported payment method for boosters" });
+      if (paymentMethod === "va") {
+        const BOOSTER_VA_BANKS = ['002', '008', '022', '013', '011', '016', '490', '451'];
+        if (!bankCode || !BOOSTER_VA_BANKS.includes(bankCode)) {
+          return res.status(400).json({ error: "bankCode required for VA. Supported: " + BOOSTER_VA_BANKS.join(", ") });
+        }
+        if (!isTwelvePayConfigured()) {
+          return res.status(503).json({ error: "Payment gateway not configured" });
+        }
+        const forwardedHost = req.get('x-forwarded-host') || req.get('host');
+        const isLocalhost = !forwardedHost || forwardedHost.includes('localhost');
+        const vaCallbackUrl = isLocalhost
+          ? 'https://chatvice.app/api/payment/webhook'
+          : `https://${forwardedHost}/api/payment/webhook`;
+        const numericOrderId = Date.now().toString();
+        const vaResult = await createVAPayment({
+          merchantId,
+          orderId: numericOrderId,
+          amount: amountIDR,
+          bankCode,
+          customerName: merchant.companyName || merchant.email.split("@")[0],
+          customerEmail: merchant.email,
+          description: `Chatvice ${booster.name} Booster`,
+          expiryMinutes: 30,
+          callbackUrl: vaCallbackUrl,
+          metadata: { type: "booster", boosterType, merchantId, originalOrderId: orderId },
+        });
+        if (!vaResult.success || !vaResult.data) {
+          return res.status(502).json({ error: vaResult.error || "Failed to create Virtual Account" });
+        }
+        try {
+          const txId = "ptx_" + crypto.randomBytes(8).toString("hex");
+          await storage.createPaymentTransaction({
+            id: txId,
+            merchantId,
+            externalId: vaResult.data.transactionId,
+            amount: amountIDR,
+            status: "pending",
+            paymentMethod: "virtual_account",
+            merchantEmail: merchant.email,
+            merchantCompanyName: merchant.companyName,
+            gatewayResponse: {
+              boosterType,
+              type: "booster",
+              vaNumber: vaResult.data.vaNumber,
+              bankCode,
+              orderId,
+              snapshot: {
+                name: booster.name,
+                quotaField: booster.quotaField,
+                quotaAmount: booster.quotaAmount,
+                priceUsd: booster.priceUsd,
+                billingMode: booster.billingMode,
+              },
+            },
+            expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+            invoiceNumber: orderId,
+          });
+        } catch (saveErr) {
+          console.error("[booster] CRITICAL: Could not save VA transaction; aborting:", saveErr);
+          return res.status(500).json({ error: "Could not persist payment record. Please try again." });
+        }
+        return res.json({
+          orderId,
+          boosterType,
+          paymentMethod: "va",
+          amount: booster.priceUsd,
+          amountIDR,
+          currency: "IDR",
+          vaNumber: vaResult.data.vaNumber,
+          bankCode,
+          transactionId: vaResult.data.transactionId,
+          expiresAt: vaResult.data.expiryTime || new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        });
+      }
+
+      if (paymentMethod === "bank_transfer") {
+        const BOOSTER_TRANSFER_BANKS = [
+          { code: 'BNI', name: 'Bank Negara Indonesia (BNI)', accountNumber: '0123456789', accountName: 'PT Chatvice Indonesia' },
+          { code: 'BRI', name: 'Bank Rakyat Indonesia (BRI)', accountNumber: '012345678901234', accountName: 'PT Chatvice Indonesia' },
+          { code: 'MANDIRI', name: 'Bank Mandiri', accountNumber: '1234567890123', accountName: 'PT Chatvice Indonesia' },
+          { code: 'BCA', name: 'Bank Central Asia (BCA)', accountNumber: '1234567890', accountName: 'PT Chatvice Indonesia' },
+        ];
+        const bankInfo = BOOSTER_TRANSFER_BANKS.find(b => b.code === bankCode);
+        if (!bankInfo) {
+          return res.status(400).json({ error: "bankCode required for Bank Transfer. Supported: BNI, BRI, MANDIRI, BCA" });
+        }
+        const uniqueCode = Math.floor(Math.random() * 900) + 100;
+        const totalAmount = amountIDR + uniqueCode;
+        const btTransactionId = `BT_BOOSTER_${Date.now()}`;
+        try {
+          const txId = "ptx_" + crypto.randomBytes(8).toString("hex");
+          await storage.createPaymentTransaction({
+            id: txId,
+            merchantId,
+            externalId: btTransactionId,
+            amount: totalAmount,
+            status: "pending",
+            paymentMethod: "bank_transfer",
+            merchantEmail: merchant.email,
+            merchantCompanyName: merchant.companyName,
+            gatewayResponse: {
+              boosterType,
+              type: "booster",
+              accountNumber: bankInfo.accountNumber,
+              accountName: bankInfo.accountName,
+              bankCode,
+              bankName: bankInfo.name,
+              uniqueCode,
+              orderId,
+              snapshot: {
+                name: booster.name,
+                quotaField: booster.quotaField,
+                quotaAmount: booster.quotaAmount,
+                priceUsd: booster.priceUsd,
+                billingMode: booster.billingMode,
+              },
+            },
+            expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+            invoiceNumber: orderId,
+          });
+        } catch (saveErr) {
+          console.error("[booster] CRITICAL: Could not save bank transfer transaction; aborting:", saveErr);
+          return res.status(500).json({ error: "Could not persist payment record. Please try again." });
+        }
+        return res.json({
+          orderId,
+          boosterType,
+          paymentMethod: "bank_transfer",
+          amount: booster.priceUsd,
+          amountIDR,
+          currency: "IDR",
+          accountNumber: bankInfo.accountNumber,
+          accountName: bankInfo.accountName,
+          bankCode,
+          bankName: bankInfo.name,
+          uniqueCode,
+          totalAmount,
+          transactionId: btTransactionId,
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        });
+      }
+
+      return res.status(400).json({ error: "Unsupported payment method for boosters" });
     } catch (err: any) {
       console.error("Initiate booster payment error", err);
       res.status(500).json({ error: err?.message || "Failed to initiate payment" });
@@ -28987,7 +29124,7 @@ Please create a comprehensive help center article that would be useful for custo
   app.post("/api/merchant/addons/initiate-payment", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
-      const { addonType, paymentMethod } = req.body;
+      const { addonType, paymentMethod, bankCode } = req.body;
       if (!addonType || !paymentMethod) {
         return res.status(400).json({ error: "addonType and paymentMethod required" });
       }
@@ -28998,7 +29135,7 @@ Please create a comprehensive help center article that would be useful for custo
       const existing = await storage.getMerchantAddon(merchantId, addonType);
       if (existing && existing.isActive) return res.status(409).json({ error: "Already subscribed" });
 
-      const validMethods = ["12pay", "paypal", "crypto"];
+      const validMethods = ["12pay", "va", "bank_transfer", "paypal", "crypto"];
       if (!validMethods.includes(paymentMethod)) {
         return res.status(400).json({ error: "Invalid payment method. Supported: " + validMethods.join(", ") });
       }
@@ -29070,6 +29207,128 @@ Please create a comprehensive help center article that would be useful for custo
           qrisString: qrisResult.data?.qrisString || null,
           transactionId,
           expiresAt: qrisResult.data?.expiryTime || null,
+        });
+      }
+
+      if (paymentMethod === "va") {
+        const ADDON_VA_BANKS = ['002', '008', '022', '013', '011', '016', '490', '451'];
+        if (!bankCode || !ADDON_VA_BANKS.includes(bankCode)) {
+          return res.status(400).json({ error: "bankCode required for VA. Supported: " + ADDON_VA_BANKS.join(", ") });
+        }
+        if (!isTwelvePayConfigured()) {
+          return res.status(503).json({ error: "Payment gateway not configured" });
+        }
+        const forwardedHost = req.get('x-forwarded-host') || req.get('host');
+        const isLocalhost = !forwardedHost || forwardedHost.includes('localhost');
+        const vaCallbackUrl = isLocalhost
+          ? 'https://chatvice.app/api/payment/webhook'
+          : `https://${forwardedHost}/api/payment/webhook`;
+        const numericOrderId = Date.now().toString();
+        const vaResult = await createVAPayment({
+          merchantId,
+          orderId: numericOrderId,
+          amount: amountIDR,
+          bankCode,
+          customerName: merchant.companyName || merchant.email.split("@")[0],
+          customerEmail: merchant.email,
+          description: `Chatvice ${addonConfig.name} Addon`,
+          expiryMinutes: 30,
+          callbackUrl: vaCallbackUrl,
+          metadata: { type: "addon", addonType, merchantId, originalOrderId: orderId },
+        });
+        if (!vaResult.success || !vaResult.data) {
+          return res.status(502).json({ error: vaResult.error || "Failed to create Virtual Account" });
+        }
+        try {
+          const txId = "ptx_" + crypto.randomBytes(8).toString("hex");
+          await storage.createPaymentTransaction({
+            id: txId,
+            merchantId,
+            externalId: vaResult.data.transactionId,
+            amount: amountIDR,
+            status: "pending",
+            paymentMethod: "virtual_account",
+            merchantEmail: merchant.email,
+            merchantCompanyName: merchant.companyName,
+            gatewayResponse: { addonType, type: "addon", vaNumber: vaResult.data.vaNumber, bankCode, orderId },
+            expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+            invoiceNumber: orderId,
+          });
+        } catch (saveErr) {
+          console.error("[addon] CRITICAL: Could not save VA transaction; aborting to avoid lost payment:", saveErr);
+          return res.status(500).json({ error: "Could not persist payment record. Please try again." });
+        }
+        return res.json({
+          orderId,
+          addonType,
+          paymentMethod: "va",
+          amount: addonConfig.monthlyPriceUsd,
+          amountIDR,
+          currency: "IDR",
+          vaNumber: vaResult.data.vaNumber,
+          bankCode,
+          transactionId: vaResult.data.transactionId,
+          expiresAt: vaResult.data.expiryTime || new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        });
+      }
+
+      if (paymentMethod === "bank_transfer") {
+        const ADDON_TRANSFER_BANKS = [
+          { code: 'BNI', name: 'Bank Negara Indonesia (BNI)', accountNumber: '0123456789', accountName: 'PT Chatvice Indonesia' },
+          { code: 'BRI', name: 'Bank Rakyat Indonesia (BRI)', accountNumber: '012345678901234', accountName: 'PT Chatvice Indonesia' },
+          { code: 'MANDIRI', name: 'Bank Mandiri', accountNumber: '1234567890123', accountName: 'PT Chatvice Indonesia' },
+          { code: 'BCA', name: 'Bank Central Asia (BCA)', accountNumber: '1234567890', accountName: 'PT Chatvice Indonesia' },
+        ];
+        const bankInfo = ADDON_TRANSFER_BANKS.find(b => b.code === bankCode);
+        if (!bankInfo) {
+          return res.status(400).json({ error: "bankCode required for Bank Transfer. Supported: BNI, BRI, MANDIRI, BCA" });
+        }
+        const uniqueCode = Math.floor(Math.random() * 900) + 100;
+        const totalAmount = amountIDR + uniqueCode;
+        const btTransactionId = `BT_ADDON_${Date.now()}`;
+        try {
+          const txId = "ptx_" + crypto.randomBytes(8).toString("hex");
+          await storage.createPaymentTransaction({
+            id: txId,
+            merchantId,
+            externalId: btTransactionId,
+            amount: totalAmount,
+            status: "pending",
+            paymentMethod: "bank_transfer",
+            merchantEmail: merchant.email,
+            merchantCompanyName: merchant.companyName,
+            gatewayResponse: {
+              addonType,
+              type: "addon",
+              accountNumber: bankInfo.accountNumber,
+              accountName: bankInfo.accountName,
+              bankCode,
+              bankName: bankInfo.name,
+              uniqueCode,
+              orderId,
+            },
+            expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+            invoiceNumber: orderId,
+          });
+        } catch (saveErr) {
+          console.error("[addon] CRITICAL: Could not save bank transfer transaction; aborting to avoid lost payment:", saveErr);
+          return res.status(500).json({ error: "Could not persist payment record. Please try again." });
+        }
+        return res.json({
+          orderId,
+          addonType,
+          paymentMethod: "bank_transfer",
+          amount: addonConfig.monthlyPriceUsd,
+          amountIDR,
+          currency: "IDR",
+          accountNumber: bankInfo.accountNumber,
+          accountName: bankInfo.accountName,
+          bankCode,
+          bankName: bankInfo.name,
+          uniqueCode,
+          totalAmount,
+          transactionId: btTransactionId,
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
         });
       }
 
