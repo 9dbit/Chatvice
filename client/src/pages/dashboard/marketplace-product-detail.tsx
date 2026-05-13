@@ -5,6 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -29,11 +36,20 @@ import {
   CheckCircle,
   ShieldCheck,
   PartyPopper,
+  Copy,
+  Clock,
+  CreditCard,
+  Building2,
+  AlertCircle,
+  Info,
   type LucideIcon,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { QRCodeSVG } from "qrcode.react";
+import chatviceDarkLogo from "@assets/Chatvice-02_1778420788538.png";
+import chatviceLightLogo from "@assets/Chatvice-04_1767550221276.png";
+import qrisLogoImg from "@assets/IMG_6802_1778414496751.jpeg";
 
 interface MarketplaceItem {
   id: number;
@@ -93,6 +109,13 @@ interface InitiatePaymentResponse {
   qrisString: string | null;
   transactionId: string;
   expiresAt: string | null;
+  vaNumber?: string;
+  bankCode?: string;
+  accountNumber?: string;
+  accountName?: string;
+  bankName?: string;
+  uniqueCode?: number;
+  totalAmount?: number;
 }
 
 const addonIconMap: Record<string, LucideIcon> = {
@@ -123,6 +146,30 @@ function safeErrorMessage(body: any, fallback: string): string {
   return fallback;
 }
 
+type PaymentMethod = "qris" | "va" | "bank";
+
+const VA_BANKS = [
+  { code: "002", name: "Bank Rakyat Indonesia (BRI)" },
+  { code: "008", name: "Bank Mandiri" },
+  { code: "022", name: "CIMB Niaga" },
+  { code: "013", name: "Bank Permata" },
+  { code: "011", name: "Bank Danamon" },
+  { code: "016", name: "Maybank Indonesia" },
+  { code: "490", name: "Bank Neo Commerce (BNC)" },
+  { code: "451", name: "Bank Syariah Indonesia (BSI)" },
+];
+
+const TRANSFER_BANKS = [
+  { code: "BNI", name: "Bank Negara Indonesia (BNI)" },
+  { code: "BRI", name: "Bank Rakyat Indonesia (BRI)" },
+  { code: "MANDIRI", name: "Bank Mandiri" },
+  { code: "BCA", name: "Bank Central Asia (BCA)" },
+];
+
+const VA_BANK_NAMES: Record<string, string> = Object.fromEntries(
+  VA_BANKS.map((b) => [b.code, b.name])
+);
+
 export default function MarketplaceProductDetailPage() {
   const params = useParams<{ productId: string }>();
   const productId = params.productId ?? "";
@@ -134,6 +181,9 @@ export default function MarketplaceProductDetailPage() {
   const typeKey = isAddon
     ? productId.slice("addon-".length)
     : productId.slice("booster-".length);
+
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("qris");
+  const [selectedBank, setSelectedBank] = useState<string>("");
 
   const [paymentDialog, setPaymentDialog] = useState<{
     open: boolean;
@@ -187,13 +237,24 @@ export default function MarketplaceProductDetailPage() {
     });
   };
 
+  const serverMethod =
+    selectedPaymentMethod === "qris"
+      ? "12pay"
+      : selectedPaymentMethod === "bank"
+      ? "bank_transfer"
+      : "va";
+
   const subscribeAddonMutation = useMutation({
     mutationFn: async (addonType: string) => {
       const res = await fetch("/api/merchant/addons/initiate-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ addonType, paymentMethod: "12pay" }),
+        body: JSON.stringify({
+          addonType,
+          paymentMethod: serverMethod,
+          bankCode: selectedBank || undefined,
+        }),
       });
       const body = await res.json();
       if (!res.ok)
@@ -218,7 +279,11 @@ export default function MarketplaceProductDetailPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ boosterType, paymentMethod: "12pay" }),
+        body: JSON.stringify({
+          boosterType,
+          paymentMethod: serverMethod,
+          bankCode: selectedBank || undefined,
+        }),
       });
       const body = await res.json();
       if (!res.ok)
@@ -236,6 +301,17 @@ export default function MarketplaceProductDetailPage() {
       });
     },
   });
+
+  const handleBuy = (addonType?: string, boosterType?: string) => {
+    if (selectedPaymentMethod === "va" || selectedPaymentMethod === "bank") {
+      if (!selectedBank) {
+        toast({ title: "Pilih bank terlebih dahulu", variant: "destructive" });
+        return;
+      }
+    }
+    if (addonType) subscribeAddonMutation.mutate(addonType);
+    else if (boosterType) buyBoosterMutation.mutate(boosterType);
+  };
 
   const isLoading = (isAddon && loadingAddons) || (isBooster && loadingBoosters);
 
@@ -273,6 +349,76 @@ export default function MarketplaceProductDetailPage() {
       </div>
     );
   }
+
+  const PaymentMethodSelector = ({ disabled }: { disabled?: boolean }) => (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-muted-foreground">Metode Pembayaran</p>
+      <div className="grid grid-cols-3 gap-1.5">
+        {(
+          [
+            { id: "qris" as const, label: "QRIS", Icon: QrCode },
+            { id: "va" as const, label: "Virtual Account", Icon: CreditCard },
+            { id: "bank" as const, label: "Bank Transfer", Icon: Building2 },
+          ] as { id: PaymentMethod; label: string; Icon: LucideIcon }[]
+        ).map((m) => {
+          const IconComp = m.Icon;
+          return (
+            <button
+              key={m.id}
+              type="button"
+              disabled={disabled}
+              onClick={() => {
+                setSelectedPaymentMethod(m.id);
+                setSelectedBank("");
+              }}
+              className={[
+                "flex items-center gap-2 px-2.5 py-2 rounded-lg border text-xs font-medium transition-colors text-left cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
+                selectedPaymentMethod === m.id
+                  ? "border-primary bg-primary/5 text-foreground"
+                  : "border-border text-muted-foreground",
+              ].join(" ")}
+              data-testid={`button-payment-method-${m.id}`}
+            >
+              <IconComp className="w-3.5 h-3.5 shrink-0" />
+              <span className="flex-1 truncate">{m.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {selectedPaymentMethod === "va" && (
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">Pilih Bank VA</p>
+          <Select value={selectedBank} onValueChange={setSelectedBank} disabled={disabled}>
+            <SelectTrigger className="w-full" data-testid="select-va-bank">
+              <SelectValue placeholder="Pilih bank..." />
+            </SelectTrigger>
+            <SelectContent>
+              {VA_BANKS.map((b) => (
+                <SelectItem key={b.code} value={b.code}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {selectedPaymentMethod === "bank" && (
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">Pilih Bank Tujuan</p>
+          <Select value={selectedBank} onValueChange={setSelectedBank} disabled={disabled}>
+            <SelectTrigger className="w-full" data-testid="select-transfer-bank">
+              <SelectValue placeholder="Pilih bank..." />
+            </SelectTrigger>
+            <SelectContent>
+              {TRANSFER_BANKS.map((b) => (
+                <SelectItem key={b.code} value={b.code}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+    </div>
+  );
 
   if (addon) {
     const Icon = addonIconMap[addon.addonType] || Sparkles;
@@ -356,18 +502,30 @@ export default function MarketplaceProductDetailPage() {
           </p>
         )}
 
+        {!active && <PaymentMethodSelector disabled={isPending} />}
+
         <div className="flex gap-3 flex-wrap">
           <Button
-            onClick={() => subscribeAddonMutation.mutate(addon.addonType)}
+            onClick={() => handleBuy(addon.addonType)}
             disabled={active || isPending}
             data-testid={`button-subscribe-detail-${addon.addonType}`}
           >
             {isPending ? (
               <Loader2 className="w-4 h-4 animate-spin mr-2" />
-            ) : (
+            ) : selectedPaymentMethod === "qris" ? (
               <QrCode className="w-4 h-4 mr-2" />
+            ) : selectedPaymentMethod === "va" ? (
+              <CreditCard className="w-4 h-4 mr-2" />
+            ) : (
+              <Building2 className="w-4 h-4 mr-2" />
             )}
-            {active ? "Sudah berlangganan" : "Subscribe via QRIS"}
+            {active
+              ? "Sudah berlangganan"
+              : selectedPaymentMethod === "qris"
+              ? "Subscribe via QRIS"
+              : selectedPaymentMethod === "va"
+              ? "Subscribe via VA"
+              : "Subscribe via Transfer"}
           </Button>
           {!active && (
             <Button
@@ -454,17 +612,27 @@ export default function MarketplaceProductDetailPage() {
           {booster.quotaField.replace(/_/g, " ")} ke akun Anda.
         </p>
 
+        <PaymentMethodSelector disabled={isPending} />
+
         <Button
-          onClick={() => buyBoosterMutation.mutate(booster.boosterType)}
+          onClick={() => handleBuy(undefined, booster.boosterType)}
           disabled={isPending}
           data-testid={`button-buy-detail-${booster.boosterType}`}
         >
           {isPending ? (
             <Loader2 className="w-4 h-4 animate-spin mr-2" />
-          ) : (
+          ) : selectedPaymentMethod === "qris" ? (
             <QrCode className="w-4 h-4 mr-2" />
+          ) : selectedPaymentMethod === "va" ? (
+            <CreditCard className="w-4 h-4 mr-2" />
+          ) : (
+            <Building2 className="w-4 h-4 mr-2" />
           )}
-          Beli sekarang via QRIS
+          {selectedPaymentMethod === "qris"
+            ? "Beli sekarang via QRIS"
+            : selectedPaymentMethod === "va"
+            ? "Beli sekarang via VA"
+            : "Beli sekarang via Transfer"}
         </Button>
 
         <PaymentDialog
@@ -484,7 +652,14 @@ export default function MarketplaceProductDetailPage() {
   return null;
 }
 
-type PaymentPhase = "qr" | "confirmed" | "expired";
+type PaymentPhase = "qr" | "va" | "bank_transfer" | "confirmed" | "expired";
+
+function resolvePhase(payment: InitiatePaymentResponse): PaymentPhase {
+  const pm = payment.paymentMethod;
+  if (pm === "va" || payment.vaNumber) return "va";
+  if (pm === "bank_transfer" || payment.accountNumber) return "bank_transfer";
+  return "qr";
+}
 
 function PaymentDialog({
   open,
@@ -498,8 +673,27 @@ function PaymentDialog({
   onClose: () => void;
 }) {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
   const [phase, setPhase] = useState<PaymentPhase>("qr");
+  const [timeRemaining, setTimeRemaining] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const phaseRef = useRef<PaymentPhase>("qr");
+  phaseRef.current = phase;
+
+  const [isDark, setIsDark] = useState(() =>
+    document.documentElement.classList.contains("dark")
+  );
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
+  }, []);
 
   const stopPolling = () => {
     if (intervalRef.current) {
@@ -509,12 +703,32 @@ function PaymentDialog({
   };
 
   useEffect(() => {
-    if (!open || !payment?.transactionId || phase !== "qr") {
+    if ((phase !== "qr" && phase !== "va") || !payment?.expiresAt) return;
+    const computeRemaining = () =>
+      Math.max(
+        0,
+        Math.floor((new Date(payment.expiresAt!).getTime() - Date.now()) / 1000)
+      );
+    setTimeRemaining(computeRemaining());
+    const interval = setInterval(() => {
+      const r = computeRemaining();
+      setTimeRemaining(r);
+      if (r <= 0) {
+        clearInterval(interval);
+        if (phase === "va") setTimeout(() => setPhase("expired"), 1500);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [phase, payment?.expiresAt]);
+
+  useEffect(() => {
+    if (!open || !payment?.transactionId || (phase !== "qr" && phase !== "va")) {
       stopPolling();
       return;
     }
 
     const poll = async () => {
+      if (phaseRef.current !== "qr" && phaseRef.current !== "va") return;
       try {
         const res = await fetch(
           `/api/merchant/addons/payment-status/${encodeURIComponent(payment.transactionId)}`,
@@ -522,14 +736,18 @@ function PaymentDialog({
         );
         if (!res.ok) return;
         const data = await res.json();
-        const status: string = data.status || "";
-        if (status === "PAID" || status === "SETTLED") {
+        const status: string = (data.status || "").toLowerCase();
+        if (status === "paid" || status === "settled") {
           stopPolling();
           queryClient.invalidateQueries({ queryKey: ["/api/merchant/addons"] });
           queryClient.refetchQueries({ queryKey: ["/api/merchant/addons"] });
           queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
           setPhase("confirmed");
-        } else if (status === "EXPIRED" || status === "CANCELLED" || status === "FAILED") {
+        } else if (
+          status === "expired" ||
+          status === "cancelled" ||
+          status === "failed"
+        ) {
           stopPolling();
           setPhase("expired");
         }
@@ -538,20 +756,308 @@ function PaymentDialog({
       }
     };
 
-    poll(); // immediate first check, don't wait 3s
+    poll();
     intervalRef.current = setInterval(poll, 3000);
     return stopPolling;
   }, [open, payment?.transactionId, phase]);
 
-  // Reset phase whenever a new payment dialog is opened
   useEffect(() => {
-    if (open) setPhase("qr");
-    else stopPolling();
-  }, [open]);
+    if (open && payment) setPhase(resolvePhase(payment));
+    else if (!open) {
+      stopPolling();
+      setPhase("qr");
+    }
+  }, [open, payment]);
 
   const handleClose = () => {
     stopPolling();
     onClose();
+  };
+
+  const resetToSelector = () => {
+    stopPolling();
+    setPhase("qr");
+    onClose();
+  };
+
+  const mm = String(Math.floor(timeRemaining / 60)).padStart(2, "0");
+  const ss = String(timeRemaining % 60).padStart(2, "0");
+  const isExpired = timeRemaining <= 0 && !!payment?.expiresAt;
+
+  const renderQR = () => (
+    <div className="space-y-3">
+      <div className="rounded-2xl overflow-hidden shadow-md border border-gray-200">
+        <div className="bg-white px-4 py-3 flex items-center justify-between gap-3">
+          <img
+            src={isDark ? chatviceLightLogo : chatviceDarkLogo}
+            alt="Chatvice"
+            className="h-7 object-contain"
+          />
+          <img src={qrisLogoImg} alt="QRIS" className="h-8 object-contain" />
+        </div>
+        <div className="border-t border-dashed border-gray-200" />
+        <div className="bg-white p-4 space-y-3">
+          <div className="flex gap-4 items-start">
+            <div className="flex flex-col items-center gap-2 shrink-0">
+              <div className="p-2 bg-white rounded-xl border border-gray-100 shadow-sm">
+                {payment?.qrisString ? (
+                  <QRCodeSVG value={payment.qrisString} size={148} />
+                ) : (
+                  <div className="w-[148px] h-[148px] flex items-center justify-center bg-gray-50 rounded-lg">
+                    <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex-1 min-w-0 space-y-3">
+              <div>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Produk</p>
+                <p className="text-sm font-semibold text-gray-800 leading-tight">{title}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Total Pembayaran</p>
+                <p className="text-base font-bold text-gray-900">Rp {payment?.amountIDR?.toLocaleString("id-ID") ?? "—"}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Order ID</p>
+                <div className="flex items-center gap-1">
+                  <p className="text-xs text-gray-600 font-mono truncate">{payment?.orderId ?? "—"}</p>
+                  {payment?.orderId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(payment.orderId);
+                        toast({ title: "Order ID disalin" });
+                      }}
+                      className="shrink-0 p-0.5 rounded hover-elevate"
+                      data-testid="button-copy-order-id"
+                    >
+                      <Copy className="w-3 h-3 text-gray-400" />
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                {isExpired ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] bg-red-50 text-red-600 border border-red-200 rounded-full px-2 py-0.5 font-medium">
+                    <Clock className="w-3 h-3" /> Kedaluwarsa
+                  </span>
+                ) : payment?.expiresAt ? (
+                  <span
+                    className={`inline-flex items-center gap-1 text-[10px] rounded-full px-2 py-0.5 font-medium border ${
+                      timeRemaining <= 60
+                        ? "bg-red-50 text-red-600 border-red-200"
+                        : "bg-amber-50 text-amber-700 border-amber-200"
+                    }`}
+                  >
+                    <Clock className="w-3 h-3" /> {mm}:{ss}
+                  </span>
+                ) : null}
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Menunggu konfirmasi...
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-gray-50 px-4 py-2.5 flex items-center justify-end gap-2 border-t border-gray-100">
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full px-4 text-xs"
+            onClick={resetToSelector}
+            data-testid="button-change-payment-method"
+          >
+            Batal / Ganti Metode
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderVA = () => {
+    const bankName = VA_BANK_NAMES[payment?.bankCode ?? ""] || payment?.bankCode || "—";
+    return (
+      <div className="space-y-3">
+        <div className="rounded-2xl overflow-hidden shadow-md border border-gray-200">
+          <div className="bg-white px-4 py-3 flex items-center justify-between gap-3">
+            <img
+              src={isDark ? chatviceLightLogo : chatviceDarkLogo}
+              alt="Chatvice"
+              className="h-7 object-contain"
+            />
+            <div className="flex items-center gap-1.5 text-primary">
+              <CreditCard className="w-5 h-5" />
+              <span className="text-xs font-semibold">Virtual Account</span>
+            </div>
+          </div>
+          <div className="border-t border-dashed border-gray-200" />
+          <div className="bg-white p-4 space-y-3">
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Bank</p>
+              <p className="text-sm font-semibold text-gray-800">{bankName}</p>
+            </div>
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Nomor Virtual Account</p>
+              <div className="flex items-center gap-2">
+                <p className="text-lg font-bold font-mono text-gray-900">{payment?.vaNumber || "—"}</p>
+                {payment?.vaNumber && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(payment.vaNumber!);
+                      toast({ title: "Nomor VA disalin" });
+                    }}
+                    className="p-0.5 rounded hover-elevate"
+                    data-testid="button-copy-va-number"
+                  >
+                    <Copy className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Total Pembayaran</p>
+              <p className="text-base font-bold text-gray-900">Rp {payment?.amountIDR?.toLocaleString("id-ID") ?? "—"}</p>
+            </div>
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Order ID</p>
+              <p className="text-xs text-gray-600 font-mono truncate">{payment?.orderId || "—"}</p>
+            </div>
+            <div>
+              {timeRemaining <= 0 && !!payment?.expiresAt ? (
+                <span className="inline-flex items-center gap-1 text-[10px] bg-red-50 text-red-600 border border-red-200 rounded-full px-2 py-0.5 font-medium">
+                  <Clock className="w-3 h-3" /> Kedaluwarsa
+                </span>
+              ) : payment?.expiresAt ? (
+                <span
+                  className={`inline-flex items-center gap-1 text-[10px] rounded-full px-2 py-0.5 font-medium border ${
+                    timeRemaining <= 60
+                      ? "bg-red-50 text-red-600 border-red-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200"
+                  }`}
+                  data-testid="text-va-countdown"
+                >
+                  <Clock className="w-3 h-3" /> {mm}:{ss}
+                </span>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Menunggu pembayaran...
+            </div>
+          </div>
+          <div className="bg-gray-50 px-4 py-2.5 flex items-center justify-end gap-2 border-t border-gray-100">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full px-4 text-xs"
+              onClick={resetToSelector}
+              data-testid="button-change-payment-method-va"
+            >
+              Batal / Ganti Metode
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderBankTransfer = () => {
+    const baseAmount = payment?.amountIDR ?? 0;
+    const uniqueCode = payment?.uniqueCode ?? 0;
+    const totalAmount = payment?.totalAmount ?? baseAmount + uniqueCode;
+    return (
+      <div className="space-y-3">
+        <div className="rounded-2xl overflow-hidden shadow-md border border-gray-200">
+          <div className="bg-white px-4 py-3 flex items-center justify-between gap-3">
+            <img
+              src={isDark ? chatviceLightLogo : chatviceDarkLogo}
+              alt="Chatvice"
+              className="h-7 object-contain"
+            />
+            <div className="flex items-center gap-1.5 text-primary">
+              <Building2 className="w-5 h-5" />
+              <span className="text-xs font-semibold">Bank Transfer</span>
+            </div>
+          </div>
+          <div className="border-t border-dashed border-gray-200" />
+          <div className="bg-white p-4 space-y-3">
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Bank Tujuan</p>
+              <p className="text-sm font-semibold text-gray-800">{payment?.bankName || payment?.bankCode || "—"}</p>
+            </div>
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Atas Nama</p>
+              <p className="text-sm text-gray-800">{payment?.accountName || "—"}</p>
+            </div>
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Nomor Rekening</p>
+              <div className="flex items-center gap-2">
+                <p className="text-base font-bold font-mono text-gray-900">{payment?.accountNumber || "—"}</p>
+                {payment?.accountNumber && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(payment.accountNumber!);
+                      toast({ title: "Nomor rekening disalin" });
+                    }}
+                    className="p-0.5 rounded hover-elevate"
+                    data-testid="button-copy-account-number"
+                  >
+                    <Copy className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                )}
+              </div>
+            </div>
+            {uniqueCode > 0 && (
+              <div>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Kode Unik</p>
+                <p className="text-sm text-gray-800">+Rp {uniqueCode.toLocaleString("id-ID")}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Total Transfer</p>
+              <div className="flex items-center gap-2">
+                <p className="text-base font-bold text-gray-900">Rp {totalAmount.toLocaleString("id-ID")}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(String(totalAmount));
+                    toast({ title: "Total disalin" });
+                  }}
+                  className="p-0.5 rounded hover-elevate"
+                  data-testid="button-copy-total-amount"
+                >
+                  <Copy className="w-3.5 h-3.5 text-gray-400" />
+                </button>
+              </div>
+            </div>
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+              <p className="text-[10px] text-amber-700">
+                Transfer jumlah tepat termasuk kode unik untuk verifikasi otomatis.
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+              <Info className="w-3 h-3" />
+              Pembayaran diverifikasi manual oleh tim kami dalam 1x24 jam.
+            </div>
+          </div>
+          <div className="bg-gray-50 px-4 py-2.5 flex items-center justify-end gap-2 border-t border-gray-100">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full px-4 text-xs"
+              onClick={resetToSelector}
+              data-testid="button-change-payment-method-bank"
+            >
+              Batal / Ganti Metode
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -604,15 +1110,22 @@ function PaymentDialog({
         ) : phase === "expired" ? (
           <>
             <DialogHeader>
-              <DialogTitle>Pembayaran kedaluwarsa</DialogTitle>
+              <DialogTitle>Pembayaran gagal atau kedaluwarsa</DialogTitle>
               <DialogDescription>
-                QR code sudah tidak berlaku. Silakan coba lagi.
+                Silakan tutup dan pilih metode pembayaran lagi.
               </DialogDescription>
             </DialogHeader>
+            <div className="flex flex-col items-center gap-3 py-2">
+              <AlertCircle className="w-10 h-10 text-destructive" />
+            </div>
             <Button variant="outline" onClick={handleClose} data-testid="button-close-detail-payment">
               Tutup
             </Button>
           </>
+        ) : phase === "va" ? (
+          renderVA()
+        ) : phase === "bank_transfer" ? (
+          renderBankTransfer()
         ) : (
           <>
             <DialogHeader>
@@ -629,26 +1142,7 @@ function PaymentDialog({
                 )}
               </DialogDescription>
             </DialogHeader>
-            {payment?.qrisString ? (
-              <div className="flex flex-col items-center gap-3">
-                <div className="p-3 bg-white rounded-lg">
-                  <QRCodeSVG value={payment.qrisString} size={200} />
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Loader2 className="w-3 h-3 animate-spin shrink-0" />
-                  <span>Menunggu konfirmasi pembayaran...</span>
-                </div>
-                <p className="text-xs text-muted-foreground text-center">
-                  Pindai QR code di atas dengan aplikasi pembayaran QRIS Anda.
-                  Akan otomatis aktif setelah pembayaran terverifikasi.
-                </p>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
-                <Loader2 className="w-5 h-5 animate-spin mr-2" /> Menunggu data
-                pembayaran...
-              </div>
-            )}
+            {renderQR()}
             <Button
               variant="outline"
               onClick={handleClose}
