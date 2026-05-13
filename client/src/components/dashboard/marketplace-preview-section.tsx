@@ -251,7 +251,7 @@ export function ProductPopup({
   const [payment, setPayment] = useState<PaymentResponse | null>(null);
   const [tcOpen, setTcOpen] = useState(false);
   const [selectedConvPackage, setSelectedConvPackage] = useState("conversations_2k");
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"qris" | "va" | "bank" | "crypto">("qris");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"qris" | "va" | "bank" | "paypal" | "crypto">("qris");
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -665,6 +665,7 @@ export function ProductPopup({
                     { id: "qris", label: "QRIS", Icon: QrCode, available: true },
                     { id: "va", label: "Virtual Account", Icon: CreditCard, available: false },
                     { id: "bank", label: "Bank Transfer", Icon: Building2, available: false },
+                    { id: "paypal", label: "PayPal", Icon: Zap, available: false },
                     { id: "crypto", label: "Kripto", Icon: Bitcoin, available: false },
                   ] as const
                 ).map((m) => (
@@ -685,7 +686,7 @@ export function ProductPopup({
                     <m.Icon className="w-3.5 h-3.5 shrink-0" />
                     <span className="flex-1 truncate">{m.label}</span>
                     {!m.available && (
-                      <span className="shrink-0 text-[9px] leading-tight text-muted-foreground">Segera</span>
+                      <span className="shrink-0 text-[9px] leading-tight text-muted-foreground">Segera hadir</span>
                     )}
                   </button>
                 ))}
