@@ -28803,6 +28803,114 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  // Admin: list all booster payment_transactions (crypto/manual submissions)
+  app.get("/api/admin/booster-payments", requireAdmin, async (req, res) => {
+    try {
+      const allTx = await storage.getAllPaymentTransactions(2000);
+      const merchants = await storage.getAllMerchants();
+      const merchantMap = new Map(merchants.map(m => [m.id, m]));
+
+      const boosterTx = allTx.filter(tx => {
+        const gr = tx.gatewayResponse as Record<string, unknown> | null;
+        return gr && gr.type === "booster";
+      });
+
+      const result = boosterTx.map(tx => {
+        const gr = tx.gatewayResponse as Record<string, unknown>;
+        const snapshot = gr.snapshot as Record<string, unknown> | undefined;
+        const merchant = merchantMap.get(tx.merchantId);
+        return {
+          id: tx.id,
+          merchantId: tx.merchantId,
+          businessName: merchant?.companyName || tx.merchantCompanyName || "Unknown",
+          email: merchant?.email || tx.merchantEmail || "",
+          boosterType: (gr.boosterType as string) || "",
+          boosterName: (snapshot?.name as string) || (gr.boosterType as string) || "",
+          quotaField: (snapshot?.quotaField as string) || "",
+          quotaAmount: (snapshot?.quotaAmount as number) || 0,
+          paymentReference: (gr.paymentReference as string) || "",
+          amount: tx.amount,
+          status: tx.status,
+          createdAt: tx.createdAt,
+        };
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error("Admin booster-payments list error:", err);
+      res.status(500).json({ error: "Failed to fetch booster payments" });
+    }
+  });
+
+  // Admin: activate a pending booster payment (apply quota + mark paid)
+  app.post("/api/admin/booster-payments/:id/activate", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const tx = await storage.getPaymentTransaction(id);
+      if (!tx) return res.status(404).json({ error: "Transaction not found" });
+
+      const gr = tx.gatewayResponse as Record<string, unknown> | null;
+      if (!gr || gr.type !== "booster") {
+        return res.status(400).json({ error: "Not a booster payment transaction" });
+      }
+      if (tx.status === "paid" || tx.status === "completed") {
+        return res.status(409).json({ error: "Already activated" });
+      }
+
+      const boosterType = gr.boosterType as string;
+      const snapshot = gr.snapshot as Record<string, unknown> | undefined;
+      const quotaField = (snapshot?.quotaField as string) || "";
+      const quotaAmount = (snapshot?.quotaAmount as number) || 0;
+
+      if (!quotaField || !quotaAmount) {
+        return res.status(400).json({ error: "Booster snapshot data incomplete — cannot apply quota" });
+      }
+
+      const merchant = await storage.getMerchant(tx.merchantId);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+      // Build a typed update object using an explicit whitelist of allowed quota fields.
+      // This avoids dynamic key access and keeps the type system honest.
+      type AllowedQuotaField =
+        | "extraConversationsBalance"
+        | "extraSupervisorSlots"
+        | "extraAgentSlots"
+        | "extraDomainSlots"
+        | "extraSourceSlots"
+        | "extraVisionQuota";
+
+      const ALLOWED_QUOTA_FIELDS = new Set<string>([
+        "extraConversationsBalance",
+        "extraSupervisorSlots",
+        "extraAgentSlots",
+        "extraDomainSlots",
+        "extraSourceSlots",
+        "extraVisionQuota",
+      ]);
+
+      if (!ALLOWED_QUOTA_FIELDS.has(quotaField)) {
+        return res.status(400).json({ error: `Unknown quota field: ${quotaField}` });
+      }
+
+      const field = quotaField as AllowedQuotaField;
+      const currentValue: number = merchant[field] ?? 0;
+      const quotaUpdate: Partial<Record<AllowedQuotaField, number>> = {
+        [field]: currentValue + quotaAmount,
+      };
+      await storage.updateMerchant(tx.merchantId, quotaUpdate);
+
+      await storage.updatePaymentTransaction(id, {
+        status: "paid",
+        paidAt: new Date(),
+      });
+
+      res.json({ success: true, boosterType, quotaField, quotaAmount, merchantId: tx.merchantId });
+    } catch (err) {
+      console.error("Admin booster-payments activate error:", err);
+      res.status(500).json({ error: "Failed to activate booster payment" });
+    }
+  });
+
   app.get("/api/addon-configs", async (req, res) => {
     try {
       const configs = await storage.getAddonConfigs();
@@ -29256,6 +29364,21 @@ Please create a comprehensive help center article that would be useful for custo
         expiresAt: null,
         invoiceNumber: deterministicExternalId,
       });
+
+      // Notify admin that a new booster crypto payment reference has been submitted
+      try {
+        const notifId = "notif_" + crypto.randomBytes(6).toString("hex");
+        await storage.createAdminNotification({
+          id: notifId,
+          type: "booster_payment_submitted",
+          title: "New Booster Payment Reference",
+          message: `${merchant.companyName} submitted a crypto payment reference for booster "${boosterConfig.name}" (${boosterType}). Ref: ${paymentReference.substring(0, 20)}…`,
+          data: { txId, merchantId, boosterType, paymentReference, amountIDR },
+          isRead: false,
+        });
+      } catch (notifErr) {
+        console.warn("[booster confirm-payment] Failed to create admin notification:", notifErr);
+      }
 
       res.status(200).json({
         status: "pending",

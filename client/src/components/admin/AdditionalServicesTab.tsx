@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Loader2, Pencil, CheckCircle, Users, DollarSign, Clock } from "lucide-react";
+import { Loader2, Pencil, CheckCircle, Users, DollarSign, Clock, Zap } from "lucide-react";
 
 interface AddonConfig {
   id: number;
@@ -32,6 +32,21 @@ interface AddonSubscriber {
   paymentReference: string | null;
 }
 
+interface BoosterPayment {
+  id: string;
+  merchantId: string;
+  businessName: string;
+  email: string;
+  boosterType: string;
+  boosterName: string;
+  quotaField: string;
+  quotaAmount: number;
+  paymentReference: string;
+  amount: number;
+  status: string | null;
+  createdAt: string | null;
+}
+
 interface Props {
   toast: (args: any) => void;
 }
@@ -47,6 +62,10 @@ export function AdditionalServicesTab({ toast }: Props) {
 
   const { data: subscribers = [], isLoading: subscribersLoading } = useQuery<AddonSubscriber[]>({
     queryKey: ["/api/admin/addon-configs/subscribers"],
+  });
+
+  const { data: boosterPayments = [], isLoading: boosterPaymentsLoading } = useQuery<BoosterPayment[]>({
+    queryKey: ["/api/admin/booster-payments"],
   });
 
   const updateConfigMutation = useMutation({
@@ -70,6 +89,19 @@ export function AdditionalServicesTab({ toast }: Props) {
     onError: () => toast({ title: "Failed to activate", variant: "destructive" }),
   });
 
+  const activateBoosterMutation = useMutation({
+    mutationFn: (txId: string) =>
+      apiRequest("POST", `/api/admin/booster-payments/${txId}/activate`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/booster-payments"] });
+      toast({ title: "Booster activated", description: "Quota has been applied to the merchant account." });
+    },
+    onError: (err: any) => {
+      const msg = err?.message || "Failed to activate booster";
+      toast({ title: "Activation failed", description: msg, variant: "destructive" });
+    },
+  });
+
   const startEdit = (config: AddonConfig) => {
     setEditingId(config.id);
     setEditPrice(String(config.monthlyPriceUsd));
@@ -89,6 +121,11 @@ export function AdditionalServicesTab({ toast }: Props) {
     const count = subscribers.filter(s => s.addonType === c.addonType && s.isActive).length;
     return sum + count * c.monthlyPriceUsd;
   }, 0);
+
+  const pendingBoosterPayments = boosterPayments.filter(p => p.status === "pending");
+
+  const formatAmount = (amountIdr: number) =>
+    `Rp ${amountIdr.toLocaleString("id-ID")}`;
 
   return (
     <div className="space-y-6">
@@ -327,6 +364,115 @@ export function AdditionalServicesTab({ toast }: Props) {
                     </TableRow>
                   );
                 })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Booster Payment Submissions table */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-500" />
+                Booster Payment Submissions
+              </CardTitle>
+              <CardDescription>Crypto/manual booster payment references submitted by merchants. Activate pending entries after verifying payment.</CardDescription>
+            </div>
+            {pendingBoosterPayments.length > 0 && (
+              <Badge className="bg-amber-500 text-white">{pendingBoosterPayments.length} pending</Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {boosterPaymentsLoading ? (
+            <div className="flex items-center gap-2 py-6"><Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm text-muted-foreground">Loading...</span></div>
+          ) : boosterPayments.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">No booster payment submissions yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Merchant</TableHead>
+                  <TableHead>Booster</TableHead>
+                  <TableHead>Quota</TableHead>
+                  <TableHead>Ref</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {boosterPayments.map(bp => (
+                  <TableRow key={bp.id} data-testid={`row-booster-payment-${bp.id}`}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium text-sm">{bp.businessName}</p>
+                        <p className="text-xs text-muted-foreground">{bp.email}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="text-sm font-medium">{bp.boosterName}</p>
+                        <Badge variant="outline" className="text-xs font-mono mt-0.5">{bp.boosterType}</Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm">+{bp.quotaAmount.toLocaleString()}</span>
+                      <p className="text-xs text-muted-foreground">{bp.quotaField}</p>
+                    </TableCell>
+                    <TableCell>
+                      {bp.paymentReference ? (
+                        <span
+                          className="text-xs font-mono text-muted-foreground truncate max-w-24 block"
+                          title={bp.paymentReference}
+                        >
+                          {bp.paymentReference.substring(0, 14)}…
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm font-medium">{formatAmount(bp.amount)}</span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          bp.status === "paid" || bp.status === "completed"
+                            ? "bg-green-500/10 text-green-600 border-green-500/30"
+                            : bp.status === "pending"
+                            ? "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                            : "bg-muted/50 text-muted-foreground"
+                        }
+                      >
+                        {bp.status === "paid" || bp.status === "completed" ? "Paid" : bp.status === "pending" ? "Pending" : bp.status || "—"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs text-muted-foreground">
+                        {bp.createdAt ? new Date(bp.createdAt).toLocaleDateString("en-GB") : "—"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {bp.status === "pending" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => activateBoosterMutation.mutate(bp.id)}
+                          disabled={activateBoosterMutation.isPending}
+                          data-testid={`button-activate-booster-${bp.id}`}
+                        >
+                          {activateBoosterMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Activate"}
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}
