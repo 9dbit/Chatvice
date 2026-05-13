@@ -29184,11 +29184,89 @@ Please create a comprehensive help center article that would be useful for custo
         paymentMethod,
         amount: booster.priceUsd,
         currency: "USD",
-        instructions: "Kirim pembayaran ke alamat wallet yang tertera dan email bukti tx hash ke support@chatvice.app untuk aktivasi.",
+        instructions: "Kirim pembayaran ke alamat wallet yang tertera dan paste tx hash di popup untuk konfirmasi.",
       });
     } catch (err: any) {
       console.error("Initiate booster payment error", err);
       res.status(500).json({ error: err?.message || "Failed to initiate payment" });
+    }
+  });
+
+  // Confirm booster crypto payment — records tx hash as pending; activation via admin review
+  app.post("/api/merchant/boosters/confirm-payment", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const { boosterType, paymentReference } = req.body;
+      if (!boosterType || !paymentReference) {
+        return res.status(400).json({ error: "boosterType and paymentReference required" });
+      }
+
+      await ensureBoostersSeeded();
+      const boosterConfig = await storage.getBoosterConfig(boosterType);
+      if (!boosterConfig || !boosterConfig.isEnabled) {
+        return res.status(404).json({ error: "Booster not available" });
+      }
+
+      const merchant = await storage.getMerchant(merchantId);
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+
+      // Idempotency: if the same paymentReference was already submitted for this
+      // merchant+booster, return the existing record rather than creating a duplicate.
+      const deterministicExternalId = `crypto_booster_${merchantId}_${boosterType}_${paymentReference.replace(/[^a-zA-Z0-9]/g, "").slice(0, 40)}`;
+      const existing = await storage.getPaymentTransactionByExternalId(deterministicExternalId);
+      if (existing) {
+        return res.status(200).json({
+          status: "pending",
+          message: "Payment reference already recorded.",
+          paymentReference,
+          boosterType,
+          merchantId,
+        });
+      }
+
+      // Resolve expected amount in IDR (mirrors initiate-payment logic)
+      const savedRate = await storage.getPlatformSetting("exchange_rate");
+      const exchangeRate = savedRate ? parseInt(savedRate) : 17500;
+      const amountIDR = Math.round(boosterConfig.priceUsd * exchangeRate);
+
+      // Record a pending payment transaction so admin can review and apply the booster
+      const txId = "ptx_" + crypto.randomBytes(8).toString("hex");
+      await storage.createPaymentTransaction({
+        id: txId,
+        merchantId,
+        externalId: deterministicExternalId,
+        amount: amountIDR,
+        status: "pending",
+        paymentMethod: "crypto",
+        merchantEmail: merchant.email,
+        merchantCompanyName: merchant.companyName,
+        gatewayResponse: {
+          type: "booster",
+          boosterType,
+          paymentReference,
+          submittedAt: new Date().toISOString(),
+          snapshot: {
+            name: boosterConfig.name,
+            quotaField: boosterConfig.quotaField,
+            quotaAmount: boosterConfig.quotaAmount,
+            priceUsd: boosterConfig.priceUsd,
+            billingMode: boosterConfig.billingMode,
+          },
+        },
+        expiresAt: null,
+        invoiceNumber: deterministicExternalId,
+      });
+
+      res.status(200).json({
+        status: "pending",
+        message: "Payment reference recorded. Your booster will be activated after payment is verified.",
+        paymentReference,
+        boosterType,
+        merchantId,
+      });
+    } catch (err) {
+      console.error("Booster confirm-payment error:", err);
+      res.status(500).json({ error: "Failed to process payment confirmation" });
     }
   });
 
