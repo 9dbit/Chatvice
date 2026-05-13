@@ -555,7 +555,7 @@ export function ProductPopup({
               onClick={() => { setPhase("info"); setPayment(null); }}
               data-testid="button-change-payment-method"
             >
-              Ganti Metode
+              Batal / Ganti Metode
             </Button>
           </div>
         </div>

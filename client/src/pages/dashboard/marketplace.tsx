@@ -201,7 +201,7 @@ export default function MarketplacePage() {
         const convTiers = boosters
           .filter((b) => b.boosterType.startsWith("conversations_"))
           .sort((a, b) => a.quotaAmount - b.quotaAmount);
-        const convBooster = convTiers[0] ?? boosters.find((b) => b.boosterType === "conversations_2k");
+        const convBooster = boosters.find((b) => b.boosterType === "conversations_2k") ?? convTiers[0];
         if (!convBooster && !loadingBoosters) return null;
         const ConvIcon = boosterIconMap[convBooster?.iconName ?? ""] || MessageSquare;
         const tierCount = convTiers.length;
