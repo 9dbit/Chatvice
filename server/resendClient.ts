@@ -1141,3 +1141,122 @@ export async function sendPanelHealthAlertEmail(opts: {
     return false;
   }
 }
+
+interface CryptoProofSubmittedData {
+  merchantName: string;
+  merchantEmail: string;
+  itemType: 'booster' | 'addon';
+  itemName: string;
+  itemKey: string;
+  txHash: string;
+  submittedAt: Date;
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export async function sendAdminCryptoProofEmail(data: CryptoProofSubmittedData): Promise<boolean> {
+  const ADMIN_EMAIL = process.env.CRYPTO_PROOF_NOTIFY_EMAIL || 'master@chatvice.app';
+  try {
+    const { client, fromEmail } = await getUncachableResendClient();
+
+    const formatDate = (date: Date) => {
+      return new Intl.DateTimeFormat('en-GB', {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        timeZone: 'UTC', timeZoneName: 'short',
+      }).format(new Date(date));
+    };
+
+    const label = data.itemType === 'booster' ? 'Booster' : 'Add-on';
+    const eName = escapeHtml(data.merchantName);
+    const eEmail = escapeHtml(data.merchantEmail);
+    const eItemName = escapeHtml(data.itemName);
+    const eItemKey = escapeHtml(data.itemKey);
+    const eTxHash = escapeHtml(data.txHash);
+    const subject = `[Action Required] Crypto Payment Proof — ${data.merchantName} / ${data.itemName}`;
+
+    const { error } = await client.emails.send({
+      from: fromEmail,
+      to: ADMIN_EMAIL,
+      subject,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+            <div style="background-color: #18181b; border-radius: 12px; padding: 40px;">
+              <div style="text-align: center; margin-bottom: 32px;">
+                <h1 style="color: #f59e0b; margin: 0 0 8px 0; font-size: 24px;">Crypto Payment Proof Submitted</h1>
+                <p style="color: #a1a1aa; margin: 0; font-size: 16px;">A merchant has submitted a transaction hash and is awaiting review</p>
+              </div>
+
+              <div style="background-color: #27272a; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px; width: 40%;">Merchant</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right; font-weight: 600;">${eName}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Merchant Email</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${eEmail}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Type</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${label}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">${label} Name</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${eItemName}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">${label} Key</td>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 13px; text-align: right; font-family: monospace;">${eItemKey}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #a1a1aa; padding: 8px 0; font-size: 14px;">Submitted At</td>
+                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right;">${formatDate(data.submittedAt)}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <div style="background-color: #1c1917; border: 1px solid #44403c; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                <p style="color: #a1a1aa; margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;">Transaction Hash / Reference</p>
+                <p style="color: #f59e0b; margin: 0; font-size: 14px; font-family: monospace; word-break: break-all;">${eTxHash}</p>
+              </div>
+
+              <p style="color: #71717a; margin: 0; font-size: 14px; text-align: center; line-height: 1.6;">
+                Please verify this transaction on the blockchain and activate the ${label.toLowerCase()} in the<br>
+                <strong style="color: #a1a1aa;">Master Control Panel &rarr; Payments</strong> once confirmed.
+              </p>
+            </div>
+            <p style="text-align: center; color: #71717a; margin: 24px 0 0 0; font-size: 12px;">
+              &copy; ${new Date().getFullYear()} Chatvice Admin Notification
+            </p>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (error) {
+      console.error('[crypto-proof-email] Resend error:', error);
+      return false;
+    }
+    console.log('[crypto-proof-email] Admin notified at', ADMIN_EMAIL, 'for', data.itemKey);
+    return true;
+  } catch (err) {
+    console.error('[crypto-proof-email] Failed to send:', err);
+    return false;
+  }
+}

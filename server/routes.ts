@@ -28,7 +28,7 @@ import { extractFAQContent, syncKnowledgeFromUrl, fetchWebContent } from "./craw
 import { parseFile, fetchGoogleDoc, fetchGoogleSheet } from "./fileParser";
 import { createQRISPayment, createVAPayment, createBankTransferPayment, createPaymentLinkPayment, checkPaymentStatus, isTwelvePayConfigured, convertToIDR, formatIDR } from "./twelvePayClient";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
-import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification, sendEmailChangeOtp, sendQuota80Email, sendQuota100Email, sendSubscriptionExpiringEmail } from "./resendClient";
+import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClient, sendMerchantAuthNotification, sendEmailChangeOtp, sendQuota80Email, sendQuota100Email, sendSubscriptionExpiringEmail, sendAdminCryptoProofEmail } from "./resendClient";
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests, type InsertCustomPlanRequest } from "@shared/schema";
 import { staticBlogMetaMap } from "@shared/static-blog-meta";
 import { buildOnboardingKnowledgeForGuide, buildOnboardingKnowledgePublic, buildOnboardingWorkflowGuidance } from "@shared/onboarding-content";
@@ -29465,6 +29465,19 @@ Please create a comprehensive help center article that would be useful for custo
         console.warn("[booster confirm-payment] Failed to create admin notification:", notifErr);
       }
 
+      // Send admin email notification (fire-and-forget)
+      sendAdminCryptoProofEmail({
+        merchantName: merchant.companyName,
+        merchantEmail: merchant.email,
+        itemType: 'booster',
+        itemName: boosterConfig.name,
+        itemKey: boosterType,
+        txHash: paymentReference,
+        submittedAt: new Date(),
+      }).catch((emailErr) => {
+        console.warn("[booster confirm-payment] Failed to send admin email:", emailErr);
+      });
+
       res.status(200).json({
         status: "pending",
         message: "Payment reference recorded. Your booster will be activated after payment is verified.",
@@ -29859,6 +29872,8 @@ Please create a comprehensive help center article that would be useful for custo
       const existing = await storage.getMerchantAddon(merchantId, addonType);
       if (existing && existing.isActive) return res.status(409).json({ error: "Already subscribed" });
 
+      const merchant = await storage.getMerchant(merchantId);
+
       // Save payment reference as pending (do NOT activate — webhook/admin activates)
       if (existing) {
         await storage.updateMerchantAddon(existing.id, {
@@ -29874,6 +29889,23 @@ Please create a comprehensive help center article that would be useful for custo
           calendarToken: null,
           paymentReference,
         });
+      }
+
+      // Send admin email notification (fire-and-forget)
+      if (merchant) {
+        sendAdminCryptoProofEmail({
+          merchantName: merchant.companyName,
+          merchantEmail: merchant.email,
+          itemType: 'addon',
+          itemName: addonConfig.name,
+          itemKey: addonType,
+          txHash: paymentReference,
+          submittedAt: new Date(),
+        }).catch((emailErr) => {
+          console.warn("[addon confirm-payment] Failed to send admin email:", emailErr);
+        });
+      } else {
+        console.warn("[addon confirm-payment] Merchant not found for id:", merchantId, "— admin email skipped");
       }
 
       res.status(200).json({
