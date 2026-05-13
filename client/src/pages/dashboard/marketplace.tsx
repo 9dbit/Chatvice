@@ -195,7 +195,84 @@ export default function MarketplacePage() {
       <div className="border-t border-border" />
 
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 2 — Boosters                                              */}
+      {/* SECTION 2 — Conversation Booster                                  */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {(() => {
+        const convBooster = boosters.find((b) => b.boosterType === "conversations_2k");
+        if (!convBooster && !loadingBoosters) return null;
+        const ConvIcon = boosterIconMap[convBooster?.iconName ?? ""] || MessageSquare;
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <Badge variant="outline" className="gap-1.5 px-2.5 py-1 text-xs font-medium">
+                <MessageSquare className="w-3 h-3" />
+                Conversation Booster
+              </Badge>
+              <p className="text-xs text-muted-foreground">
+                Tambah kuota percakapan instan — tersedia 6 paket, mulai dari $23
+              </p>
+            </div>
+
+            {loadingBoosters ? (
+              <Card>
+                <CardHeader className="space-y-3">
+                  <Skeleton className="h-14 w-14 rounded-2xl" />
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-4 w-56" />
+                </CardHeader>
+              </Card>
+            ) : convBooster ? (
+              <button
+                type="button"
+                className="text-left w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg"
+                onClick={() => setSelectedId(`booster-${convBooster.boosterType}`)}
+                data-testid="tile-marketplace-conv-booster"
+              >
+                <Card className="hover-elevate transition-all duration-200 overflow-hidden">
+                  <CardHeader>
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${convBooster.gradientFrom} ${convBooster.gradientTo} flex items-center justify-center shadow-md shrink-0`}
+                      >
+                        <ConvIcon className="w-8 h-8 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <CardTitle className="text-base">Tambah Percakapan</CardTitle>
+                          <Badge variant="secondary" className="text-xs">
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            6 paket tersedia
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                          Pilih dari 5.000 hingga 100.000 percakapan tambahan. Dikreditkan instan setelah pembayaran terkonfirmasi.
+                        </p>
+                        <div className="mt-2 flex items-baseline gap-1.5 flex-wrap">
+                          <span className="text-sm font-semibold text-foreground">Mulai dari</span>
+                          <span className="text-xl font-bold text-foreground">${convBooster.priceUsd}</span>
+                          <span className="text-xs text-muted-foreground">/ sekali bayar</span>
+                          <span className="text-xs text-muted-foreground">≈ {convBooster.priceIdrFormatted}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <p className="text-xs text-primary font-medium">
+                      {t("dashboard.marketplace.viewDetailsBuy")}
+                    </p>
+                  </CardContent>
+                </Card>
+              </button>
+            ) : null}
+          </div>
+        );
+      })()}
+
+      {/* ── Divider ── */}
+      <div className="border-t border-border" />
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* SECTION 3 — Boosters                                              */}
       {/* ══════════════════════════════════════════════════════════════════ */}
       <div className="space-y-4">
         <div className="flex items-center gap-3">
@@ -218,7 +295,7 @@ export default function MarketplacePage() {
               </Card>
             ))}
           </div>
-        ) : boosters.length === 0 ? (
+        ) : boosters.filter((b) => !b.boosterType.startsWith("conversations_")).length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16 gap-3">
               <Zap className="w-10 h-10 text-muted-foreground" />
@@ -228,7 +305,7 @@ export default function MarketplacePage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {boosters
-              .filter((b) => !b.boosterType.startsWith("conversations_") || b.boosterType === "conversations_2k")
+              .filter((b) => !b.boosterType.startsWith("conversations_"))
               .map((b) => {
               const Icon = boosterIconMap[b.iconName] || Zap;
               return (

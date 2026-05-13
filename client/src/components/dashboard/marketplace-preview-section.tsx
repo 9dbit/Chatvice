@@ -40,10 +40,19 @@ import {
   ShieldCheck,
   PartyPopper,
   Info,
+  Clock,
+  Copy,
+  Download,
+  CreditCard,
+  Building2,
+  Bitcoin,
   type LucideIcon,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeSVG } from "qrcode.react";
+import chatviceDarkLogo from "@assets/Chatvice-02_1778420788538.png";
+import chatviceLightLogo from "@assets/Chatvice-04_1767550221276.png";
+import qrisLogoImg from "@assets/IMG_6802_1778414496751.jpeg";
 
 /* ------------------------------------------------------------------ */
 /* Interfaces                                                           */
@@ -242,9 +251,35 @@ export function ProductPopup({
   const [payment, setPayment] = useState<PaymentResponse | null>(null);
   const [tcOpen, setTcOpen] = useState(false);
   const [selectedConvPackage, setSelectedConvPackage] = useState("conversations_2k");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"qris" | "va" | "bank" | "crypto">("qris");
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const phaseRef = useRef<Phase>("info");
   phaseRef.current = phase;
+
+  /* Dark mode observer */
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
+  /* Countdown timer for QR phase */
+  useEffect(() => {
+    if (phase !== "qr" || !payment?.expiresAt) return;
+    const computeRemaining = () =>
+      Math.max(0, Math.floor((new Date(payment.expiresAt!).getTime() - Date.now()) / 1000));
+    setTimeRemaining(computeRemaining());
+    const interval = setInterval(() => {
+      const r = computeRemaining();
+      setTimeRemaining(r);
+      if (r <= 0) clearInterval(interval);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [phase, payment?.expiresAt]);
 
   const isAddon = productId?.startsWith("addon-") ?? false;
   const isBooster = productId?.startsWith("booster-") ?? false;
@@ -371,38 +406,162 @@ export function ProductPopup({
 
   /* ---------- render phases ---------- */
 
-  const renderQR = () => (
-    <div className="flex flex-col items-center gap-3 py-2">
-      <p className="text-sm text-muted-foreground text-center">
-        Bayar{" "}
-        <strong className="text-foreground">
-          Rp {payment?.amountIDR?.toLocaleString("id-ID") ?? "—"}
-        </strong>{" "}
-        via QRIS untuk mengaktifkan <strong className="text-foreground">{product?.name}</strong>.
-      </p>
-      {payment?.qrisString ? (
-        <div className="p-3 bg-white rounded-xl shadow-inner">
-          <QRCodeSVG value={payment.qrisString} size={180} />
+  const renderQR = () => {
+    const formattedAmount = `Rp ${payment?.amountIDR?.toLocaleString("id-ID") ?? "—"}`;
+    const mm = String(Math.floor(timeRemaining / 60)).padStart(2, "0");
+    const ss = String(timeRemaining % 60).padStart(2, "0");
+    const isExpired = timeRemaining <= 0 && !!payment?.expiresAt;
+    const bankBadges = ["GoPay", "OVO", "DANA", "ShopeePay", "LinkAja", "BCA", "Mandiri", "BRI", "BNI", "CIMB"];
+
+    const downloadQR = () => {
+      const svgEl = document.querySelector<SVGElement>("[data-marketplace-qr] svg");
+      if (!svgEl) return;
+      const canvas = document.createElement("canvas");
+      canvas.width = 200; canvas.height = 200;
+      const ctx = canvas.getContext("2d");
+      const blob = new Blob([svgEl.outerHTML], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        ctx?.drawImage(img, 0, 0, 200, 200);
+        canvas.toBlob((b) => {
+          if (!b) return;
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(b);
+          a.download = "chatvice-qris.png";
+          a.click();
+        });
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
+    };
+
+    return (
+      <div className="space-y-3">
+        {/* Boarding-pass card — always white bg */}
+        <div className="rounded-2xl overflow-hidden shadow-md border border-gray-200">
+          {/* Header: logos */}
+          <div className="bg-white px-4 py-3 flex items-center justify-between gap-3">
+            <img
+              src={isDark ? chatviceLightLogo : chatviceDarkLogo}
+              alt="Chatvice"
+              className="h-7 object-contain"
+            />
+            <img src={qrisLogoImg} alt="QRIS" className="h-8 object-contain" />
+          </div>
+
+          {/* Dashed divider */}
+          <div className="border-t border-dashed border-gray-200" />
+
+          {/* Body: QR + order details */}
+          <div className="bg-white p-4">
+            <div className="flex gap-4 items-start">
+              {/* Left: QR + bank badges */}
+              <div className="flex flex-col items-center gap-2 shrink-0">
+                <div data-marketplace-qr className="p-2 bg-white rounded-xl border border-gray-100 shadow-sm">
+                  {payment?.qrisString ? (
+                    <QRCodeSVG value={payment.qrisString} size={148} />
+                  ) : (
+                    <div className="w-[148px] h-[148px] flex items-center justify-center bg-gray-50 rounded-lg">
+                      <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                    </div>
+                  )}
+                </div>
+                {/* Bank/e-wallet pill badges */}
+                <div className="flex flex-wrap justify-center gap-1 max-w-[172px]">
+                  {bankBadges.map((bank) => (
+                    <span
+                      key={bank}
+                      className="text-[9px] font-medium bg-gray-100 text-gray-600 rounded-full px-1.5 py-0.5 leading-tight"
+                    >
+                      {bank}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right: order details */}
+              <div className="flex-1 min-w-0 space-y-3">
+                <div>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Produk</p>
+                  <p className="text-sm font-semibold text-gray-800 leading-tight">{product?.name ?? "—"}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Total Pembayaran</p>
+                  <p className="text-base font-bold text-gray-900">{formattedAmount}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Order ID</p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-xs text-gray-600 font-mono truncate">{payment?.orderId ?? "—"}</p>
+                    {payment?.orderId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(payment.orderId);
+                          toast({ title: "Order ID disalin" });
+                        }}
+                        className="shrink-0 p-0.5 rounded hover-elevate"
+                        data-testid="button-copy-order-id"
+                      >
+                        <Copy className="w-3 h-3 text-gray-400" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Countdown */}
+                <div>
+                  {isExpired ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] bg-red-50 text-red-600 border border-red-200 rounded-full px-2 py-0.5 font-medium">
+                      <Clock className="w-3 h-3" /> Kedaluwarsa
+                    </span>
+                  ) : payment?.expiresAt ? (
+                    <span
+                      className={`inline-flex items-center gap-1 text-[10px] rounded-full px-2 py-0.5 font-medium border ${
+                        timeRemaining <= 60
+                          ? "bg-red-50 text-red-600 border-red-200"
+                          : "bg-amber-50 text-amber-700 border-amber-200"
+                      }`}
+                    >
+                      <Clock className="w-3 h-3" /> {mm}:{ss}
+                    </span>
+                  ) : null}
+                </div>
+
+                {/* Waiting indicator */}
+                <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Menunggu konfirmasi...
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer: download + cancel */}
+          <div className="bg-gray-50 px-4 py-2.5 flex items-center justify-between gap-2 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={downloadQR}
+              className="flex items-center gap-1.5 text-xs text-gray-500 rounded-lg px-2 py-1 hover-elevate"
+              data-testid="button-download-qr"
+            >
+              <Download className="w-3.5 h-3.5" /> Simpan QR
+            </button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full px-4 text-xs"
+              onClick={() => { setPhase("info"); setPayment(null); }}
+              data-testid="button-change-payment-method"
+            >
+              Ganti Metode
+            </Button>
+          </div>
         </div>
-      ) : (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
-          <Loader2 className="w-4 h-4 animate-spin" /> Memuat QR code...
-        </div>
-      )}
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Loader2 className="w-3 h-3 animate-spin" />
-        Menunggu konfirmasi pembayaran...
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        className="rounded-full px-4 mt-1"
-        onClick={() => { setPhase("info"); setPayment(null); }}
-      >
-        Batal
-      </Button>
-    </div>
-  );
+    );
+  };
 
   const renderSuccess = () => (
     <div className="flex flex-col items-center gap-3 py-4 text-center">
@@ -493,6 +652,44 @@ export function ProductPopup({
             <div className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2">
               <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
               Add-on ini sudah aktif di akun Anda.
+            </div>
+          )}
+
+          {/* Payment method selector */}
+          {!addonActive && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Metode Pembayaran</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {(
+                  [
+                    { id: "qris", label: "QRIS", Icon: QrCode, available: true },
+                    { id: "va", label: "Virtual Account", Icon: CreditCard, available: false },
+                    { id: "bank", label: "Bank Transfer", Icon: Building2, available: false },
+                    { id: "crypto", label: "Kripto", Icon: Bitcoin, available: false },
+                  ] as const
+                ).map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    disabled={!m.available}
+                    onClick={() => m.available && setSelectedPaymentMethod(m.id as typeof selectedPaymentMethod)}
+                    className={[
+                      "flex items-center gap-2 px-2.5 py-2 rounded-lg border text-xs font-medium transition-colors text-left",
+                      !m.available ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
+                      selectedPaymentMethod === m.id && m.available
+                        ? "border-primary bg-primary/5 text-foreground"
+                        : "border-border text-muted-foreground",
+                    ].join(" ")}
+                    data-testid={`button-payment-method-${m.id}`}
+                  >
+                    <m.Icon className="w-3.5 h-3.5 shrink-0" />
+                    <span className="flex-1 truncate">{m.label}</span>
+                    {!m.available && (
+                      <span className="shrink-0 text-[9px] leading-tight text-muted-foreground">Segera</span>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -680,6 +877,7 @@ export function MarketplacePreviewSection() {
     .filter((item) => !item.boosterType.startsWith("conversations_") || item.boosterType === "conversations_2k")
     .map((item) => {
       const { value, label } = splitBoosterName(item.name);
+      const isConvTile = item.boosterType === "conversations_2k";
       return {
         productId: `booster-${item.boosterType}`,
         name: item.name,
@@ -687,8 +885,8 @@ export function MarketplacePreviewSection() {
         iconName: item.iconName,
         gradientFrom: item.gradientFrom,
         gradientTo: item.gradientTo,
-        valueText: value || `+${item.quotaAmount.toLocaleString()}`,
-        labelText: label,
+        valueText: isConvTile ? "Conversation" : (value || `+${item.quotaAmount.toLocaleString()}`),
+        labelText: isConvTile ? "Booster" : label,
       };
     });
 
