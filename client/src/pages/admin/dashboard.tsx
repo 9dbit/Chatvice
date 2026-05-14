@@ -1,4 +1,19 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import {
+  GamingOverviewTab,
+  GamingAuditTab,
+  GamingPlayersTab,
+  GamingDepositsTab,
+  GamingWithdrawalsTab,
+  GamingTurnoversTab,
+  GamingBalancesTab,
+  GamingWebhooksTab,
+  GamingHealthTab,
+  GamingFailedEventsTab,
+  GamingAiRulesTab,
+  GamingSecurityTab,
+  GamingRoadmapTab,
+} from "@/components/admin/GamingIntegrationTab";
 import { AdditionalServicesTab } from "@/components/admin/AdditionalServicesTab";
 import { PricingSimulator } from "@/components/admin/pricing-simulator";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -133,6 +148,11 @@ import {
   Mail,
   PiggyBank,
   ArrowUpDown,
+  Gamepad2,
+  ArrowDownLeft,
+  ArrowUpLeft,
+  RotateCcw,
+  Server,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -435,6 +455,20 @@ export default function AdminDashboard() {
     { id: "chat-sessions", label: "Chat Sessions", icon: MessageSquare },
     { id: "widget-style", label: "Widget Style", icon: Palette },
     { id: "settings", label: "Settings", icon: Settings },
+    // ── Gaming Integration ──────────────────────────────────────────────────
+    { id: "gaming-overview", label: "Gaming Overview", icon: Gamepad2, section: "Gaming Integration" },
+    { id: "gaming-audit", label: "Audit Checklist", icon: CheckCircle2, section: "Gaming Integration" },
+    { id: "gaming-players", label: "Player Mappings", icon: Users, section: "Gaming Integration" },
+    { id: "gaming-deposits", label: "Deposit Monitor", icon: ArrowDownLeft, section: "Gaming Integration" },
+    { id: "gaming-withdrawals", label: "Withdrawal Monitor", icon: ArrowUpLeft, section: "Gaming Integration" },
+    { id: "gaming-turnovers", label: "Turnover Tracker", icon: TrendingUp, section: "Gaming Integration" },
+    { id: "gaming-balances", label: "Balance Snapshots", icon: Database, section: "Gaming Integration" },
+    { id: "gaming-webhooks", label: "Webhook Logs", icon: Wifi, section: "Gaming Integration" },
+    { id: "gaming-health", label: "API Health", icon: Activity, section: "Gaming Integration" },
+    { id: "gaming-failed", label: "Failed Events", icon: AlertTriangle, section: "Gaming Integration" },
+    { id: "gaming-ai-rules", label: "AI Response Rules", icon: Bot, section: "Gaming Integration" },
+    { id: "gaming-security", label: "Security Settings", icon: Shield, section: "Gaming Integration" },
+    { id: "gaming-roadmap", label: "Roadmap", icon: Layers, section: "Gaming Integration" },
   ];
 
   const SidebarContent = () => (
@@ -447,7 +481,7 @@ export default function AdminDashboard() {
       </div>
       
       <nav ref={sidebarNavRef} className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {sidebarItems.map((item) => {
+        {sidebarItems.map((item, idx) => {
           // Get badge count for specific items
           let badgeCount = 0;
           if (item.id === "custom-requests") {
@@ -461,34 +495,45 @@ export default function AdminDashboard() {
           } else if (item.id === "withdrawals") {
             badgeCount = pendingWithdrawalsCount;
           }
-          
+
+          // Inject section header when section changes
+          const prevSection = idx > 0 ? (sidebarItems[idx - 1] as any).section : undefined;
+          const currSection = (item as any).section;
+          const showSectionHeader = currSection && currSection !== prevSection;
+
           return (
-            <button
-              key={item.id}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleTabChange(item.id);
-              }}
-              className={`w-full flex items-center gap-3 px-3 py-3 min-h-[48px] rounded-md text-sm transition-colors relative ${
-                activeTab === item.id
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-              data-testid={`nav-${item.id}`}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              <span className="truncate flex-1 text-left">{item.label}</span>
-              {badgeCount > 0 && (
-                <span className={`min-w-6 h-6 flex items-center justify-center text-xs font-medium rounded-full ${
-                  activeTab === item.id 
-                    ? "bg-primary-foreground/20 text-primary-foreground" 
-                    : "bg-amber-500 text-white"
-                }`}>
-                  {badgeCount > 99 ? "99+" : badgeCount}
-                </span>
+            <div key={item.id}>
+              {showSectionHeader && (
+                <div className="pt-3 pb-1 px-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{currSection}</p>
+                </div>
               )}
-            </button>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleTabChange(item.id);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-3 min-h-[48px] rounded-md text-sm transition-colors relative ${
+                  activeTab === item.id
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+                data-testid={`nav-${item.id}`}
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                <span className="truncate flex-1 text-left">{item.label}</span>
+                {badgeCount > 0 && (
+                  <span className={`min-w-6 h-6 flex items-center justify-center text-xs font-medium rounded-full ${
+                    activeTab === item.id 
+                      ? "bg-primary-foreground/20 text-primary-foreground" 
+                      : "bg-amber-500 text-white"
+                  }`}>
+                    {badgeCount > 99 ? "99+" : badgeCount}
+                  </span>
+                )}
+              </button>
+            </div>
           );
         })}
       </nav>
@@ -638,6 +683,20 @@ export default function AdminDashboard() {
             {activeTab === "user-data" && <AdminUserDataTab toast={toast} />}
             
             {activeTab === "chat-sessions" && <ChatSessionsTab toast={toast} />}
+
+            {activeTab === "gaming-overview" && <GamingOverviewTab toast={toast} />}
+            {activeTab === "gaming-audit" && <GamingAuditTab toast={toast} />}
+            {activeTab === "gaming-players" && <GamingPlayersTab toast={toast} />}
+            {activeTab === "gaming-deposits" && <GamingDepositsTab toast={toast} />}
+            {activeTab === "gaming-withdrawals" && <GamingWithdrawalsTab toast={toast} />}
+            {activeTab === "gaming-turnovers" && <GamingTurnoversTab toast={toast} />}
+            {activeTab === "gaming-balances" && <GamingBalancesTab toast={toast} />}
+            {activeTab === "gaming-webhooks" && <GamingWebhooksTab toast={toast} />}
+            {activeTab === "gaming-health" && <GamingHealthTab toast={toast} />}
+            {activeTab === "gaming-failed" && <GamingFailedEventsTab toast={toast} />}
+            {activeTab === "gaming-ai-rules" && <GamingAiRulesTab toast={toast} />}
+            {activeTab === "gaming-security" && <GamingSecurityTab toast={toast} />}
+            {activeTab === "gaming-roadmap" && <GamingRoadmapTab toast={toast} />}
           </div>
         </div>
       </main>

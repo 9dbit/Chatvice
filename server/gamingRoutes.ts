@@ -700,6 +700,70 @@ export function registerGamingRoutes(app: Express) {
     }
   });
 
+  // Global overview — aggregate across ALL gaming merchants (no merchantId required)
+  app.get("/api/admin/gaming/overview", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { db } = await import("./db");
+      const {
+        gamingMerchants,
+        gamingDepositTransactions,
+        gamingWithdrawTransactions,
+        gamingFailedEvents,
+        gamingPlayerMappings,
+        gamingWebhookLogs,
+        gamingApiHealthLogs,
+        gamingTurnoverStatus,
+      } = await import("@shared/schema");
+      const { count, eq, and, gte, sql } = await import("drizzle-orm");
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const [
+        allMerchants,
+        activeMerchants,
+        totalPlayers,
+        depositsToday,
+        withdrawalsToday,
+        pendingWithdrawals,
+        failedEvents,
+        totalWebhooks,
+        recentHealth,
+        turnoverIssues,
+      ] = await Promise.all([
+        db.select({ count: count() }).from(gamingMerchants),
+        db.select({ count: count() }).from(gamingMerchants).where(eq(gamingMerchants.status, "active")),
+        db.select({ count: count() }).from(gamingPlayerMappings),
+        db.select({ count: count() }).from(gamingDepositTransactions).where(gte(gamingDepositTransactions.createdAt, today)),
+        db.select({ count: count() }).from(gamingWithdrawTransactions).where(gte(gamingWithdrawTransactions.requestedAt, today)),
+        db.select({ count: count() }).from(gamingWithdrawTransactions).where(eq(gamingWithdrawTransactions.status, "pending")),
+        db.select({ count: count() }).from(gamingFailedEvents).where(eq(gamingFailedEvents.status, "pending")),
+        db.select({ count: count() }).from(gamingWebhookLogs),
+        db.select({ success: gamingApiHealthLogs.success }).from(gamingApiHealthLogs).orderBy(sql`checked_at DESC`).limit(100),
+        db.select({ count: count() }).from(gamingTurnoverStatus).where(eq(gamingTurnoverStatus.eligibleWithdraw, false)),
+      ]);
+
+      const healthChecks = recentHealth.length;
+      const successChecks = recentHealth.filter((r: any) => r.success).length;
+      const uptimePct = healthChecks > 0 ? Math.round((successChecks / healthChecks) * 100) : 100;
+
+      res.json({
+        totalMerchants: Number(allMerchants[0].count),
+        activeMerchants: Number(activeMerchants[0].count),
+        totalPlayers: Number(totalPlayers[0].count),
+        depositsToday: Number(depositsToday[0].count),
+        withdrawalsToday: Number(withdrawalsToday[0].count),
+        pendingWithdrawals: Number(pendingWithdrawals[0].count),
+        failedEvents: Number(failedEvents[0].count),
+        totalWebhookEvents: Number(totalWebhooks[0].count),
+        apiUptimePct: uptimePct,
+        turnoverIssues: Number(turnoverIssues[0].count),
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Stats overview
   app.get("/api/admin/gaming/stats", requireAdmin, async (req: Request, res: Response) => {
     try {
