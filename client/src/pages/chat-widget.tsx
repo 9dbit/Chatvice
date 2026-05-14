@@ -233,6 +233,7 @@ interface MerchantConfig {
   welcomeDescription?: string;
   prechatBannerUrl?: string;
   quickMessageOptions?: string[];
+  requiredFields?: Array<{ name?: string; label?: string; type?: string; required?: boolean }>;
   activeAgentId?: string;
   chatWorkflow?: "click_to_open" | "auto_open";
   proactiveChatEnabled?: boolean;
@@ -1050,6 +1051,11 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
 
   const resolvedMerchantId = merchantConfig?.merchantId || merchantId;
 
+  const phoneNumberRequired = useMemo(() => {
+    const fields = Array.isArray(merchantConfig?.requiredFields) ? merchantConfig.requiredFields : [];
+    return fields.some((field) => field?.name === "customerPhone" && field?.required === true);
+  }, [merchantConfig?.requiredFields]);
+
   // Sync activeAgentIdRef when merchantConfig loads
   useEffect(() => {
     if (merchantConfig?.activeAgentId) {
@@ -1629,9 +1635,13 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       setNameError("");
     }
     
-    // Validate phone (required)
-    const phoneValidation = validatePhoneNumber(phoneDialCode, phoneLocalNumber);
-    if (!phoneValidation.isValid) {
+    // Validate phone only when required, or when visitor filled it.
+    const phoneHasValue = phoneLocalNumber.trim().length > 0;
+    const phoneValidation = phoneHasValue || phoneNumberRequired
+      ? validatePhoneNumber(phoneDialCode, phoneLocalNumber)
+      : { isValid: true, formattedNumber: "", error: "" };
+
+    if ((phoneNumberRequired || phoneHasValue) && !phoneValidation.isValid) {
       setPhoneError(phoneValidation.error || "Invalid phone number");
       hasError = true;
     } else {
@@ -3103,7 +3113,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   {/* Phone */}
                   <div className="space-y-1.5">
                     <Label className="text-xs flex items-center gap-1" style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#374151' } : undefined}>
-                      <Phone className="w-3 h-3" /> Phone Number <span className="text-red-500">*</span>
+                      <Phone className="w-3 h-3" /> Phone Number {phoneNumberRequired ? <span className="text-red-500">*</span> : <span className="text-muted-foreground">(optional)</span>}
                     </Label>
                     <div className="flex gap-1.5">
                       <Select value={phoneDialCode} onValueChange={setPhoneDialCode}>
@@ -3160,9 +3170,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   {/* Start Chat button */}
                   <button
                     onClick={handleNameSubmit}
-                    disabled={startChatMutation.isPending || !nameInputValue.trim() || !phoneLocalNumber.trim()}
+                    disabled={startChatMutation.isPending || !nameInputValue.trim() || (phoneNumberRequired && !phoneLocalNumber.trim())}
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-semibold text-sm"
-                    style={{ backgroundColor: (startChatMutation.isPending || !nameInputValue.trim() || !phoneLocalNumber.trim()) ? `${primaryColor}77` : primaryColor, color: getContrastColor(primaryColor), cursor: (startChatMutation.isPending || !nameInputValue.trim() || !phoneLocalNumber.trim()) ? 'not-allowed' : 'pointer', marginTop: '4px', border: 'none' }}
+                    style={{ backgroundColor: (startChatMutation.isPending || !nameInputValue.trim() || (phoneNumberRequired && !phoneLocalNumber.trim())) ? `${primaryColor}77` : primaryColor, color: getContrastColor(primaryColor), cursor: (startChatMutation.isPending || !nameInputValue.trim() || (phoneNumberRequired && !phoneLocalNumber.trim())) ? 'not-allowed' : 'pointer', marginTop: '4px', border: 'none' }}
                     data-testid="button-start-chat-left"
                   >
                     {startChatMutation.isPending ? (
@@ -3546,7 +3556,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   className="text-xs flex items-center gap-1"
                   style={applyEmbedStyles ? { color: widgetIsDark ? '#ffffff' : '#374151' } : undefined}
                 >
-                  <Phone className="w-3 h-3" /> Phone Number <span className="text-red-500">*</span>
+                  <Phone className="w-3 h-3" /> Phone Number {phoneNumberRequired ? <span className="text-red-500">*</span> : <span className="text-muted-foreground">(optional)</span>}
                 </Label>
                 <div className="flex gap-1.5">
                   <Select value={phoneDialCode} onValueChange={setPhoneDialCode}>
@@ -3730,7 +3740,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               
               <Button
                 onClick={handleNameSubmit}
-                disabled={startChatMutation.isPending || !nameInputValue.trim() || !phoneLocalNumber.trim()}
+                disabled={startChatMutation.isPending || !nameInputValue.trim() || (phoneNumberRequired && !phoneLocalNumber.trim())}
                 className="w-full"
                 style={applyEmbedStyles ? { 
                   backgroundColor: primaryColor,
