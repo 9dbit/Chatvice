@@ -56,16 +56,20 @@ export function generateWebhookSecret(): string {
 }
 
 export function verifyHmacSignature(
-  payload: string,
+  rawBody: Buffer | string,
   signature: string,
   secret: string,
 ): boolean {
   try {
-    const expected = crypto
-      .createHmac("sha256", secret)
-      .update(payload)
-      .digest("hex");
-    const sigBuffer = Buffer.from(signature.replace(/^sha256=/, ""), "hex");
+    const hmac = crypto.createHmac("sha256", secret);
+    if (Buffer.isBuffer(rawBody)) {
+      hmac.update(rawBody);
+    } else {
+      hmac.update(rawBody, "utf8");
+    }
+    const expected = hmac.digest("hex");
+    const sigHex = signature.replace(/^sha256=/, "");
+    const sigBuffer = Buffer.from(sigHex, "hex");
     const expBuffer = Buffer.from(expected, "hex");
     if (sigBuffer.length !== expBuffer.length) return false;
     return crypto.timingSafeEqual(sigBuffer, expBuffer);

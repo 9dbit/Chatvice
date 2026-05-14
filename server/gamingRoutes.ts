@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import { storage } from "./storage";
-import { verifyHmacSignature, encryptCredential, decryptCredential, generateWebhookSecret } from "./services/gaming/cryptoHelpers";
+import { verifyHmacSignature, encryptCredential, decryptCredential, generateWebhookSecret, maskEmail, maskPhone, maskBankAccount } from "./services/gaming/cryptoHelpers";
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 
@@ -12,7 +12,25 @@ function requireAdmin(req: Request, res: Response, next: Function) {
   next();
 }
 
-// ── Webhook Processor ─────────────────────────────────────────────────────────
+// ── Sensitive field masking for API responses ────────────────────────────────
+
+function maskPlayerMapping(row: any) {
+  return {
+    ...row,
+    email: row.email ? maskEmail(row.email) : null,
+    phoneNumber: row.phoneNumber ? maskPhone(row.phoneNumber) : null,
+  };
+}
+
+function maskWithdrawal(row: any) {
+  return {
+    ...row,
+    accountNumberMasked: row.accountNumberMasked ?? (row.accountNumber ? maskBankAccount(row.accountNumber) : null),
+  };
+}
+
+// ── Webhook Event Processor ───────────────────────────────────────────────────
+// Handles all 12 canonical event types.
 
 async function processGamingWebhookEvent(
   merchantId: string,
@@ -23,10 +41,12 @@ async function processGamingWebhookEvent(
 ): Promise<void> {
   try {
     switch (eventType) {
+      // ── Deposit events (5 types) ──────────────────────────────────────────
       case "deposit.created":
       case "deposit.updated":
       case "deposit.paid":
-      case "deposit.expired": {
+      case "deposit.expired":
+      case "deposit.cancelled": {
         await storage.upsertGamingDeposit({
           merchantId,
           transactionId: payload.transaction_id ?? payload.transactionId ?? eventId,
@@ -45,10 +65,12 @@ async function processGamingWebhookEvent(
         break;
       }
 
+      // ── Withdraw events (5 types) ─────────────────────────────────────────
       case "withdraw.requested":
       case "withdraw.approved":
       case "withdraw.rejected":
-      case "withdraw.processing": {
+      case "withdraw.processing":
+      case "withdraw.completed": {
         await storage.upsertGamingWithdrawal({
           merchantId,
           withdrawId: payload.withdraw_id ?? payload.withdrawId ?? eventId,
@@ -58,7 +80,9 @@ async function processGamingWebhookEvent(
           currency: payload.currency ?? "IDR",
           bankName: payload.bank_name ?? payload.bankName,
           accountName: payload.account_name ?? payload.accountName,
-          accountNumberMasked: payload.account_number_masked ?? payload.accountNumberMasked,
+          accountNumberMasked: payload.account_number
+            ? maskBankAccount(payload.account_number)
+            : (payload.account_number_masked ?? payload.accountNumberMasked),
           status: payload.status ?? eventType.split(".")[1],
           rejectedReason: payload.rejected_reason ?? payload.rejectedReason,
           approvedAt: payload.approved_at ? new Date(payload.approved_at) : undefined,
@@ -68,6 +92,7 @@ async function processGamingWebhookEvent(
         break;
       }
 
+      // ── Turnover event (1 type) ───────────────────────────────────────────
       case "turnover.updated": {
         const required = Number(payload.required_turnover ?? payload.requiredTurnover ?? 0);
         const current = Number(payload.current_turnover ?? payload.currentTurnover ?? 0);
@@ -91,14 +116,15 @@ async function processGamingWebhookEvent(
         break;
       }
 
+      // ── Balance event (1 type) ────────────────────────────────────────────
       case "balance.updated": {
         await storage.createGamingBalanceSnapshot({
           merchantId,
           playerId: payload.player_id ?? payload.playerId,
           username: payload.username,
-          currentBalance: payload.current_balance ? Number(payload.current_balance) : undefined,
-          lockedBalance: payload.locked_balance ? Number(payload.locked_balance) : undefined,
-          bonusBalance: payload.bonus_balance ? Number(payload.bonus_balance) : undefined,
+          currentBalance: payload.current_balance != null ? Number(payload.current_balance) : undefined,
+          lockedBalance: payload.locked_balance != null ? Number(payload.locked_balance) : undefined,
+          bonusBalance: payload.bonus_balance != null ? Number(payload.bonus_balance) : undefined,
           currency: payload.currency ?? "IDR",
           source: "webhook",
           rawPayload: payload,
@@ -140,10 +166,13 @@ export function registerGamingRoutes(app: Express) {
       return res.status(400).json({ error: "Missing required headers" });
     }
 
-    // ±5 minute timestamp tolerance
+    // ±5 minute timestamp tolerance (supports both ms and s timestamps)
     const tsNum = Number(timestamp);
-    if (!isNaN(tsNum) && Math.abs(Date.now() - tsNum) > 5 * 60 * 1000) {
-      return res.status(400).json({ error: "Timestamp out of tolerance" });
+    if (!isNaN(tsNum)) {
+      const tsMs = tsNum > 1e12 ? tsNum : tsNum * 1000; // normalise to ms
+      if (Math.abs(Date.now() - tsMs) > 5 * 60 * 1000) {
+        return res.status(400).json({ error: "Timestamp out of tolerance" });
+      }
     }
 
     // Verify merchant config exists
@@ -152,9 +181,13 @@ export function registerGamingRoutes(app: Express) {
       return res.status(403).json({ error: "Unknown merchant or missing webhook secret" });
     }
 
-    // HMAC verification
-    const rawBody = JSON.stringify(req.body);
-    const sigValid = verifyHmacSignature(rawBody, signature, config.webhookSecret);
+    // Decrypt stored webhook secret before HMAC verification
+    const webhookSecret = decryptCredential(config.webhookSecret);
+
+    // HMAC verification against raw request bytes (avoids JSON canonicalization issues)
+    const rawBodyBuf = (req as any).rawBody as Buffer | undefined;
+    const rawBodyForVerify: Buffer | string = Buffer.isBuffer(rawBodyBuf) ? rawBodyBuf : JSON.stringify(req.body);
+    const sigValid = verifyHmacSignature(rawBodyForVerify, signature, webhookSecret);
 
     // Event deduplication
     if (eventId) {
@@ -193,7 +226,6 @@ export function registerGamingRoutes(app: Express) {
 
   // ── Admin Endpoints ─────────────────────────────────────────────────────────
 
-  // GET /api/admin/gaming/merchants - list all gaming merchant configs
   app.get("/api/admin/gaming/merchants", requireAdmin, async (req: Request, res: Response) => {
     try {
       const { merchantId } = req.query;
@@ -201,13 +233,11 @@ export function registerGamingRoutes(app: Express) {
       if (merchantId) {
         rows = await storage.getGamingMerchants(merchantId as string);
       } else {
-        // Get all - not in interface, so get per merchant by fetching all
         const { db } = await import("./db");
         const { gamingMerchants } = await import("@shared/schema");
         const { desc } = await import("drizzle-orm");
         rows = await db.select().from(gamingMerchants).orderBy(desc(gamingMerchants.createdAt));
       }
-      // Strip encrypted fields before returning
       const sanitized = rows.map((r) => ({
         ...r,
         apiKeyEncrypted: r.apiKeyEncrypted ? "***" : null,
@@ -250,7 +280,7 @@ export function registerGamingRoutes(app: Express) {
   app.post("/api/admin/gaming/merchants", requireAdmin, async (req: Request, res: Response) => {
     try {
       const body = upsertGamingMerchantSchema.parse(req.body);
-      const secret = generateWebhookSecret();
+      const plaintextSecret = generateWebhookSecret();
       const row = await storage.createGamingMerchant({
         merchantId: body.merchantId,
         merchantName: body.merchantName,
@@ -258,11 +288,18 @@ export function registerGamingRoutes(app: Express) {
         apiBaseUrl: body.apiBaseUrl,
         apiKeyEncrypted: body.apiKey ? encryptCredential(body.apiKey) : undefined,
         apiSecretEncrypted: body.apiSecret ? encryptCredential(body.apiSecret) : undefined,
-        webhookSecret: secret,
+        webhookSecret: encryptCredential(plaintextSecret),
         ipWhitelist: body.ipWhitelist ?? [],
         status: body.status ?? "active",
       });
-      res.status(201).json({ ...row, webhookSecret: secret, apiKeyEncrypted: "***", apiSecretEncrypted: "***" });
+      // Return plaintext secret exactly once so merchant can configure their webhook
+      res.status(201).json({
+        ...row,
+        webhookSecretPlaintext: plaintextSecret,
+        webhookSecret: "***",
+        apiKeyEncrypted: "***",
+        apiSecretEncrypted: "***",
+      });
     } catch (err: any) {
       if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors });
       res.status(500).json({ error: err.message });
@@ -290,13 +327,14 @@ export function registerGamingRoutes(app: Express) {
     }
   });
 
+  // Rotate webhook secret — stores encrypted, returns plaintext once
   app.post("/api/admin/gaming/merchants/:id/rotate-secret", requireAdmin, async (req: Request, res: Response) => {
     try {
       const id = Number(req.params.id);
-      const newSecret = generateWebhookSecret();
-      const row = await storage.updateGamingMerchant(id, { webhookSecret: newSecret });
+      const plaintextSecret = generateWebhookSecret();
+      const row = await storage.updateGamingMerchant(id, { webhookSecret: encryptCredential(plaintextSecret) });
       if (!row) return res.status(404).json({ error: "Not found" });
-      res.json({ webhookSecret: newSecret });
+      res.json({ webhookSecretPlaintext: plaintextSecret });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -312,13 +350,13 @@ export function registerGamingRoutes(app: Express) {
     }
   });
 
-  // Player mappings
+  // Player mappings — email and phone masked in responses
   app.get("/api/admin/gaming/players", requireAdmin, async (req: Request, res: Response) => {
     try {
       const { merchantId } = req.query;
       if (!merchantId) return res.status(400).json({ error: "merchantId required" });
       const rows = await storage.getGamingPlayerMappings(merchantId as string);
-      res.json(rows);
+      res.json(rows.map(maskPlayerMapping));
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -336,7 +374,7 @@ export function registerGamingRoutes(app: Express) {
         verifiedStatus: z.enum(["unverified", "verified", "suspended"]).optional(),
       }).parse(req.body);
       const row = await storage.createGamingPlayerMapping(body);
-      res.status(201).json(row);
+      res.status(201).json(maskPlayerMapping(row));
     } catch (err: any) {
       if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors });
       res.status(500).json({ error: err.message });
@@ -348,7 +386,7 @@ export function registerGamingRoutes(app: Express) {
       const id = Number(req.params.id);
       const row = await storage.updateGamingPlayerMapping(id, req.body);
       if (!row) return res.status(404).json({ error: "Not found" });
-      res.json(row);
+      res.json(maskPlayerMapping(row));
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -376,13 +414,13 @@ export function registerGamingRoutes(app: Express) {
     }
   });
 
-  // Withdrawals
+  // Withdrawals — account numbers already masked in DB
   app.get("/api/admin/gaming/withdrawals", requireAdmin, async (req: Request, res: Response) => {
     try {
       const { merchantId, status } = req.query;
       if (!merchantId) return res.status(400).json({ error: "merchantId required" });
       const rows = await storage.getGamingWithdrawals(merchantId as string, status as string | undefined);
-      res.json(rows);
+      res.json(rows.map(maskWithdrawal));
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
