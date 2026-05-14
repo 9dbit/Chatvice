@@ -1553,7 +1553,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     },
     onSuccess: (data, variables) => {
       if (data.success) {
-        const finalName = data.sanitizedName || nameInputValue.trim();
+        const finalName = data.sanitizedName || variables.name;
         setCustomerName(finalName);
         setHasSubmittedName(true);
         setSelectedQuickMessage(null); // Clear selected quick message after submission
@@ -1618,7 +1618,16 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   });
 
   const handleNameSubmit = () => {
-    const name = nameInputValue.trim();
+    const nameInputEl =
+      document.querySelector<HTMLInputElement>('input[placeholder="Enter your name"]') ||
+      document.querySelector<HTMLInputElement>('input[data-testid="input-customer-name"]') ||
+      document.querySelector<HTMLInputElement>('input[data-testid="input-name"]');
+
+    const name = (nameInputValue || nameInputEl?.value || "").trim();
+    if (name && name !== nameInputValue) {
+      setNameInputValue(name);
+    }
+
     let hasError = false;
     
     // Validate name
