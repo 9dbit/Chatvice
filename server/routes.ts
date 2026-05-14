@@ -8370,6 +8370,17 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                 const gamingRules = await storage.getGamingAiResponseRules(resolvedMerchantId, gamingIntentKey);
                 const activeGamingRules = gamingRules.filter(r => r.active);
 
+                // For withdraw flow: also load "turnover.not_enough" rules so merchants
+                // can configure a specific message when the withdrawal is rejected
+                // because the player has not met their turnover requirement.
+                let turnoverNotEnoughRules: typeof activeGamingRules = [];
+                if (gamingIntentKey === "withdraw_status") {
+                  try {
+                    const tnRules = await storage.getGamingAiResponseRules(resolvedMerchantId, "turnover.not_enough");
+                    turnoverNotEnoughRules = tnRules.filter(r => r.active);
+                  } catch { /* non-critical */ }
+                }
+
                 // Audit: log every lookup attempt (success or failure)
                 try {
                   await storage.createGamingWebhookLog({
@@ -8393,12 +8404,28 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                   await storage.createMessage({ sessionId, from: "chatvice", content: fallbackMsg });
                   broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: fallbackMsg } });
                 } else {
-                  // Evaluate rule conditions against masked API data to find the best matching rule
-                  const matchedRule = activeGamingRules
-                    .filter(r => r.conditionKey !== "error")
-                    .find(r => evaluateGamingRuleCondition(r, maskedApiData))
-                    ?? activeGamingRules.find(r => !r.conditionKey && r.conditionKey !== "error")
-                    ?? activeGamingRules[0];
+                  // Rule matching precedence for withdraw_status:
+                  // 1. "turnover.not_enough" rules when player is ineligible for withdraw
+                  // 2. Condition-matched "withdraw_status" rules
+                  // 3. Default (no-condition) "withdraw_status" rule or first active rule
+                  const isWithdrawIneligibleTurnover =
+                    gamingIntentKey === "withdraw_status" &&
+                    maskedApiData.eligibleWithdraw === "false" &&
+                    turnoverNotEnoughRules.length > 0;
+
+                  let matchedRule = isWithdrawIneligibleTurnover
+                    ? (turnoverNotEnoughRules.find(r => evaluateGamingRuleCondition(r, maskedApiData))
+                        ?? turnoverNotEnoughRules[0])
+                    : undefined;
+
+                  if (!matchedRule) {
+                    // Evaluate condition-matched rules for the primary intent
+                    matchedRule = activeGamingRules
+                      .filter(r => r.conditionKey !== "error")
+                      .find(r => evaluateGamingRuleCondition(r, maskedApiData))
+                      ?? activeGamingRules.find(r => !r.conditionKey)
+                      ?? activeGamingRules[0];
+                  }
 
                   let gamingResponseText: string;
                   if (matchedRule?.responseTemplate) {
