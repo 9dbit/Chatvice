@@ -743,6 +743,7 @@ export interface IStorage {
   updateGamingWebhookLog(id: number, data: Partial<GamingWebhookLog>): Promise<GamingWebhookLog | undefined>;
   isGamingEventDuplicate(merchantId: string, eventId: string): Promise<boolean>;
 
+  getGamingFailedEvent(id: number): Promise<GamingFailedEvent | undefined>;
   getGamingFailedEvents(merchantId: string, status?: string): Promise<GamingFailedEvent[]>;
   createGamingFailedEvent(data: InsertGamingFailedEvent): Promise<GamingFailedEvent>;
   updateGamingFailedEvent(id: number, data: Partial<GamingFailedEvent>): Promise<GamingFailedEvent | undefined>;
@@ -5218,6 +5219,11 @@ export class DatabaseStorage implements IStorage {
   async isGamingEventDuplicate(merchantId: string, eventId: string): Promise<boolean> {
     const [row] = await db.select({ id: gamingWebhookLogs.id }).from(gamingWebhookLogs).where(and(eq(gamingWebhookLogs.merchantId, merchantId), eq(gamingWebhookLogs.eventId, eventId))).limit(1);
     return !!row;
+  }
+
+  async getGamingFailedEvent(id: number): Promise<GamingFailedEvent | undefined> {
+    const [row] = await db.select().from(gamingFailedEvents).where(eq(gamingFailedEvents.id, id));
+    return row;
   }
 
   async getGamingFailedEvents(merchantId: string, status?: string): Promise<GamingFailedEvent[]> {

@@ -5,9 +5,11 @@ const IV_LENGTH = 12;
 const TAG_LENGTH = 16;
 
 function getEncKey(): Buffer {
-  const key = process.env.GAMING_ENC_KEY || process.env.SESSION_SECRET || "chatvice-gaming-fallback-key-32b";
-  const hashed = crypto.createHash("sha256").update(key).digest();
-  return hashed;
+  const key = process.env.GAMING_ENC_KEY || process.env.SESSION_SECRET;
+  if (!key) {
+    throw new Error("[gaming] Missing encryption key: set GAMING_ENC_KEY or SESSION_SECRET environment variable");
+  }
+  return crypto.createHash("sha256").update(key).digest();
 }
 
 export function encryptCredential(plaintext: string): string {

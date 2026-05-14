@@ -166,13 +166,14 @@ export function registerGamingRoutes(app: Express) {
       return res.status(400).json({ error: "Missing required headers" });
     }
 
-    // ±5 minute timestamp tolerance (supports both ms and s timestamps)
+    // Strict timestamp validation — reject missing, non-numeric, or out-of-tolerance values
     const tsNum = Number(timestamp);
-    if (!isNaN(tsNum)) {
-      const tsMs = tsNum > 1e12 ? tsNum : tsNum * 1000; // normalise to ms
-      if (Math.abs(Date.now() - tsMs) > 5 * 60 * 1000) {
-        return res.status(400).json({ error: "Timestamp out of tolerance" });
-      }
+    if (!timestamp || isNaN(tsNum) || tsNum <= 0) {
+      return res.status(400).json({ error: "Invalid or missing timestamp header" });
+    }
+    const tsMs = tsNum > 1e12 ? tsNum : tsNum * 1000; // normalise seconds → ms
+    if (Math.abs(Date.now() - tsMs) > 5 * 60 * 1000) {
+      return res.status(400).json({ error: "Timestamp out of tolerance (±5 minutes)" });
     }
 
     // Verify merchant config exists
@@ -477,9 +478,37 @@ export function registerGamingRoutes(app: Express) {
   app.patch("/api/admin/gaming/failed-events/:id/retry", requireAdmin, async (req: Request, res: Response) => {
     try {
       const id = Number(req.params.id);
-      const row = await storage.updateGamingFailedEvent(id, { status: "pending", retryCount: 0, nextRetryAt: new Date() });
-      if (!row) return res.status(404).json({ error: "Not found" });
-      res.json(row);
+      const existing = await storage.getGamingFailedEvent(id);
+      if (!existing) return res.status(404).json({ error: "Not found" });
+
+      // Mark as retrying
+      const row = await storage.updateGamingFailedEvent(id, {
+        status: "retrying",
+        retryCount: (existing.retryCount ?? 0) + 1,
+        nextRetryAt: null,
+      });
+
+      // Re-dispatch the event processor immediately (non-blocking)
+      const eventPayload = existing.payload as any;
+      const eventId = eventPayload?.eventId ?? `retry-${id}`;
+      const logRow = await storage.createGamingWebhookLog({
+        merchantId: existing.merchantId,
+        eventType: existing.eventType,
+        eventId: `retry-${id}-${Date.now()}`,
+        playerId: eventPayload?.player_id ?? eventPayload?.playerId ?? null,
+        transactionId: eventPayload?.transaction_id ?? eventPayload?.transactionId ?? null,
+        payload: eventPayload,
+        signatureValid: true,
+        status: "pending",
+        errorMessage: null,
+      });
+      setImmediate(async () => {
+        await processGamingWebhookEvent(existing.merchantId, existing.eventType, eventId, eventPayload, logRow.id);
+        // Mark failed event as resolved if processor succeeds
+        await storage.updateGamingFailedEvent(id, { status: "resolved" });
+      });
+
+      res.json({ ...row, dispatched: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
