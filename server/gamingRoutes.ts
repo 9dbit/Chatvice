@@ -31,6 +31,7 @@ function maskWithdrawal(row: any) {
 
 // ── Webhook Event Processor ───────────────────────────────────────────────────
 // Handles all 12 canonical event types.
+// Returns true on success, false on failure (never throws — callers check return value).
 
 async function processGamingWebhookEvent(
   merchantId: string,
@@ -38,7 +39,7 @@ async function processGamingWebhookEvent(
   eventId: string,
   payload: any,
   logId: number,
-): Promise<void> {
+): Promise<boolean> {
   try {
     switch (eventType) {
       // ── Deposit events (5 types) ──────────────────────────────────────────
@@ -137,6 +138,7 @@ async function processGamingWebhookEvent(
     }
 
     await storage.updateGamingWebhookLog(logId, { status: "processed", processedAt: new Date() });
+    return true;
   } catch (err: any) {
     console.error(`[gaming-webhook] Error processing event ${eventType}:`, err.message);
     await storage.updateGamingWebhookLog(logId, { status: "failed", errorMessage: err.message });
@@ -149,6 +151,7 @@ async function processGamingWebhookEvent(
       status: "pending",
       nextRetryAt: new Date(Date.now() + 5 * 60 * 1000),
     });
+    return false;
   }
 }
 
@@ -182,30 +185,37 @@ export function registerGamingRoutes(app: Express) {
       return res.status(403).json({ error: "Unknown merchant or missing webhook secret" });
     }
 
-    // Decrypt stored webhook secret before HMAC verification
+    // Decrypt stored webhook secret — reject if decryption yields empty (corrupt/missing)
     const webhookSecret = decryptCredential(config.webhookSecret);
+    if (!webhookSecret) {
+      console.error(`[gaming-webhook] Decrypt failed for merchant ${merchantId} — webhook_secret may be corrupted`);
+      return res.status(500).json({ error: "Webhook secret configuration error" });
+    }
 
     // HMAC verification against raw request bytes (avoids JSON canonicalization issues)
     const rawBodyBuf = (req as any).rawBody as Buffer | undefined;
     const rawBodyForVerify: Buffer | string = Buffer.isBuffer(rawBodyBuf) ? rawBodyBuf : JSON.stringify(req.body);
     const sigValid = verifyHmacSignature(rawBodyForVerify, signature, webhookSecret);
 
-    // Event deduplication
-    if (eventId) {
-      const isDuplicate = await storage.isGamingEventDuplicate(merchantId, eventId);
+    const payload = req.body;
+    const eventType = payload?.event_type ?? payload?.eventType ?? "unknown";
+
+    // Resolve event ID from header first, then fall back to payload field
+    const resolvedEventId = (eventId || payload?.event_id || payload?.eventId || "") as string;
+
+    // Event deduplication — check before logging to prevent duplicate processing
+    if (resolvedEventId) {
+      const isDuplicate = await storage.isGamingEventDuplicate(merchantId, resolvedEventId);
       if (isDuplicate) {
         return res.status(200).json({ status: "duplicate", message: "Event already processed" });
       }
     }
 
-    const payload = req.body;
-    const eventType = payload?.event_type ?? payload?.eventType ?? "unknown";
-
     // Log incoming webhook
     const log = await storage.createGamingWebhookLog({
       merchantId,
       eventType,
-      eventId: eventId || null,
+      eventId: resolvedEventId || null,
       playerId: payload?.player_id ?? payload?.playerId ?? null,
       transactionId: payload?.transaction_id ?? payload?.transactionId ?? null,
       payload,
@@ -222,7 +232,7 @@ export function registerGamingRoutes(app: Express) {
     res.status(200).json({ status: "received", logId: log.id });
 
     // Process in background
-    setImmediate(() => processGamingWebhookEvent(merchantId, eventType, eventId, payload, log.id));
+    setImmediate(() => processGamingWebhookEvent(merchantId, eventType, resolvedEventId, payload, log.id));
   });
 
   // ── Admin Endpoints ─────────────────────────────────────────────────────────
@@ -503,9 +513,16 @@ export function registerGamingRoutes(app: Express) {
         errorMessage: null,
       });
       setImmediate(async () => {
-        await processGamingWebhookEvent(existing.merchantId, existing.eventType, eventId, eventPayload, logRow.id);
-        // Mark failed event as resolved if processor succeeds
-        await storage.updateGamingFailedEvent(id, { status: "resolved" });
+        const success = await processGamingWebhookEvent(existing.merchantId, existing.eventType, eventId, eventPayload, logRow.id);
+        // Only mark resolved when processor actually succeeds
+        if (success) {
+          await storage.updateGamingFailedEvent(id, { status: "resolved" });
+        } else {
+          await storage.updateGamingFailedEvent(id, {
+            status: "failed",
+            nextRetryAt: new Date(Date.now() + 5 * 60 * 1000),
+          });
+        }
       });
 
       res.json({ ...row, dispatched: true });

@@ -2933,7 +2933,7 @@ export type InsertMerchantTokenUsageDaily = typeof merchantTokenUsageDaily.$infe
 
 export const gamingMerchants = pgTable("gaming_merchants", {
   id: serial("id").primaryKey(),
-  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull().unique(),
   merchantName: text("merchant_name").notNull(),
   brandName: text("brand_name"),
   apiBaseUrl: text("api_base_url").notNull(),
@@ -2945,7 +2945,7 @@ export const gamingMerchants = pgTable("gaming_merchants", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (t) => [
-  index("gaming_merchants_merchant_id_idx").on(t.merchantId),
+  uniqueIndex("gaming_merchants_merchant_id_uidx").on(t.merchantId),
 ]);
 
 export const insertGamingMerchantSchema = createInsertSchema(gamingMerchants).omit({ id: true, createdAt: true, updatedAt: true });
