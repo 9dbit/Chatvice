@@ -8236,11 +8236,41 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                 let gamingApiData: Record<string, string | number | boolean> = {};
                 let gamingApiError: string | null = null;
 
+                // ── Ownership check helper: confirm a returned record belongs to
+                // the authenticated player to prevent cross-player data leakage.
+                function assertOwnership(
+                  returnedPlayerId: string | undefined,
+                  returnedUsername: string | undefined,
+                  label: string,
+                ): boolean {
+                  const authPlayerId = playerMapping.gamingPlayerId;
+                  const authUsername = playerMapping.gamingUsername;
+                  const idMatch = authPlayerId && returnedPlayerId
+                    ? authPlayerId === returnedPlayerId
+                    : false;
+                  const usernameMatch = authUsername && returnedUsername
+                    ? authUsername.toLowerCase() === returnedUsername.toLowerCase()
+                    : false;
+                  if (!idMatch && !usernameMatch) {
+                    console.warn(
+                      `[GamingLookup] Ownership mismatch on ${label} for session ${sessionId}: ` +
+                      `returned playerId="${returnedPlayerId}" username="${returnedUsername}" ` +
+                      `vs authoritative playerId="${authPlayerId}" username="${authUsername}"`,
+                    );
+                    return false;
+                  }
+                  return true;
+                }
+
                 try {
                   if (gamingIntentKey === "deposit_status") {
                     const txId = gamingFields.transaction_id || gamingFields.transactionId || gamingFields.id || "";
                     const depositResult = await getDepositStatus(resolvedMerchantId, txId);
                     if (depositResult) {
+                      // Verify the deposit belongs to the authenticated player
+                      if (!assertOwnership(depositResult.playerId, depositResult.username, "deposit_status")) {
+                        throw new Error("Deposit record does not belong to authenticated player");
+                      }
                       gamingApiData = {
                         username: depositResult.username || gamingUsername,
                         transactionId: depositResult.transactionId,
@@ -8265,6 +8295,10 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                     const wd = withdrawResult.status === "fulfilled" ? withdrawResult.value : null;
                     const to = withdrawTurnoverResult.status === "fulfilled" ? withdrawTurnoverResult.value : null;
                     if (wd) {
+                      // Verify the withdrawal belongs to the authenticated player
+                      if (!assertOwnership(wd.playerId, wd.username, "withdraw_status")) {
+                        throw new Error("Withdrawal record does not belong to authenticated player");
+                      }
                       gamingApiData = {
                         username: wd.username || gamingUsername,
                         withdrawId: wd.withdrawId,
