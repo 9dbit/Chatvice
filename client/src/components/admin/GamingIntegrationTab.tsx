@@ -26,6 +26,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
   AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Users, Building2, TrendingUp, AlertTriangle, Activity, Bot,
   Layers, BookOpen, RefreshCw, Eye, Plus, Trash2, Pencil,
@@ -106,6 +107,16 @@ function usePagination<T>(items: T[], pageSize = 20) {
     </div>
   );
   return { paged, page, totalPages, setPage, Pagination };
+}
+
+// Reusable error state
+function ErrorState({ error }: { error: Error | null | undefined }) {
+  return (
+    <Alert>
+      <AlertTriangle className="h-4 w-4" />
+      <AlertDescription>{(error as any)?.message ?? "An error occurred. Please try again."}</AlertDescription>
+    </Alert>
+  );
 }
 
 // Shared merchant selector — populates from /api/admin/gaming/merchants
@@ -268,7 +279,7 @@ export function GamingPlayersTab({ toast }: { toast: any }) {
   const [showLink, setShowLink] = useState(false);
   const [form, setForm] = useState({ gamingUsername: "", gamingPlayerId: "", chatviceUserId: "", phoneNumber: "", email: "" });
 
-  const { data = [], isLoading, refetch } = useQuery<any[]>({
+  const { data = [], isLoading, isError, error, refetch } = useQuery<any[]>({
     queryKey: ["/api/admin/gaming/players", merchantId],
     queryFn: async () => {
       if (!merchantId) return [];
@@ -288,6 +299,12 @@ export function GamingPlayersTab({ toast }: { toast: any }) {
   const createMutation = useMutation({
     mutationFn: (body: any) => apiRequest("POST", "/api/admin/gaming/players", { ...body, merchantId }),
     onSuccess: () => { toast({ title: "Player linked" }); setShowLink(false); setForm({ gamingUsername: "", gamingPlayerId: "", chatviceUserId: "", phoneNumber: "", email: "" }); refetch(); },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const syncMutation = useMutation({
+    mutationFn: () => refetch().then(() => null),
+    onSuccess: () => toast({ title: "Players refreshed" }),
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
@@ -321,6 +338,9 @@ export function GamingPlayersTab({ toast }: { toast: any }) {
             <SelectItem value="suspended">Suspended</SelectItem>
           </SelectContent>
         </Select>
+        <Button size="sm" variant="outline" disabled={!merchantId || syncMutation.isPending} onClick={() => syncMutation.mutate()} data-testid="button-sync-players">
+          {syncMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <RefreshCw className="w-4 h-4 mr-1" />}Manual Sync
+        </Button>
         <Dialog open={showLink} onOpenChange={setShowLink}>
           <DialogTrigger asChild>
             <Button size="sm" disabled={!merchantId} data-testid="button-link-player"><Plus className="w-4 h-4 mr-1" />Link Player</Button>
@@ -346,7 +366,8 @@ export function GamingPlayersTab({ toast }: { toast: any }) {
 
       <Card>
         <CardContent className="pt-4">
-          {!merchantId ? (
+          {isError ? <ErrorState error={error as Error} />
+          : !merchantId ? (
             <p className="text-center text-muted-foreground py-12">Select a merchant to view player mappings.</p>
           ) : isLoading ? (
             <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
@@ -412,8 +433,11 @@ export function GamingPlayersTab({ toast }: { toast: any }) {
 export function GamingDepositsTab({ toast }: { toast: any }) {
   const [merchantId, setMerchantId] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [usernameFilter, setUsernameFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
-  const { data = [], isLoading } = useQuery<any[]>({
+  const { data = [], isLoading, isError, error } = useQuery<any[]>({
     queryKey: ["/api/admin/gaming/deposits", merchantId],
     queryFn: async () => {
       if (!merchantId) return [];
@@ -424,9 +448,13 @@ export function GamingDepositsTab({ toast }: { toast: any }) {
     enabled: !!merchantId,
   });
 
-  const filtered = useMemo(() =>
-    statusFilter === "all" ? data : data.filter((r: any) => r.status === statusFilter),
-    [data, statusFilter]);
+  const filtered = useMemo(() => {
+    let rows = statusFilter === "all" ? data : data.filter((r: any) => r.status === statusFilter);
+    if (usernameFilter) rows = rows.filter((r: any) => r.username?.toLowerCase().includes(usernameFilter.toLowerCase()));
+    if (dateFrom) rows = rows.filter((r: any) => r.createdAt && new Date(r.createdAt) >= new Date(dateFrom));
+    if (dateTo) rows = rows.filter((r: any) => r.createdAt && new Date(r.createdAt) <= new Date(dateTo + "T23:59:59"));
+    return rows;
+  }, [data, statusFilter, usernameFilter, dateFrom, dateTo]);
 
   const { paged, Pagination } = usePagination(filtered);
 
@@ -436,7 +464,7 @@ export function GamingDepositsTab({ toast }: { toast: any }) {
         <h2 className="text-2xl font-bold flex items-center gap-2"><ArrowDownLeft className="w-6 h-6" />Deposit Monitor</h2>
         <p className="text-muted-foreground text-sm mt-1">Filterable log of all deposit transactions per merchant.</p>
       </div>
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-end">
         <MerchantSelector value={merchantId} onChange={setMerchantId} />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
@@ -449,10 +477,23 @@ export function GamingDepositsTab({ toast }: { toast: any }) {
             <SelectItem value="expired">Expired</SelectItem>
           </SelectContent>
         </Select>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Username</Label>
+          <Input className="w-36 h-9" value={usernameFilter} onChange={e => setUsernameFilter(e.target.value)} placeholder="Filter by username" data-testid="input-deposit-username" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Date From</Label>
+          <Input type="date" className="w-36 h-9" value={dateFrom} onChange={e => setDateFrom(e.target.value)} data-testid="input-deposit-date-from" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Date To</Label>
+          <Input type="date" className="w-36 h-9" value={dateTo} onChange={e => setDateTo(e.target.value)} data-testid="input-deposit-date-to" />
+        </div>
       </div>
       <Card>
         <CardContent className="pt-4">
-          {!merchantId ? <p className="text-center text-muted-foreground py-12">Select a merchant to view deposits.</p>
+          {isError ? <ErrorState error={error as Error} />
+          : !merchantId ? <p className="text-center text-muted-foreground py-12">Select a merchant to view deposits.</p>
             : isLoading ? <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
             : paged.length === 0 ? <p className="text-center text-muted-foreground py-12">No deposits found.</p>
             : (
@@ -499,8 +540,11 @@ export function GamingDepositsTab({ toast }: { toast: any }) {
 export function GamingWithdrawalsTab({ toast }: { toast: any }) {
   const [merchantId, setMerchantId] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [usernameFilter, setUsernameFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
-  const { data = [], isLoading } = useQuery<any[]>({
+  const { data = [], isLoading, isError, error } = useQuery<any[]>({
     queryKey: ["/api/admin/gaming/withdrawals", merchantId],
     queryFn: async () => {
       if (!merchantId) return [];
@@ -511,9 +555,13 @@ export function GamingWithdrawalsTab({ toast }: { toast: any }) {
     enabled: !!merchantId,
   });
 
-  const filtered = useMemo(() =>
-    statusFilter === "all" ? data : data.filter((r: any) => r.status === statusFilter),
-    [data, statusFilter]);
+  const filtered = useMemo(() => {
+    let rows = statusFilter === "all" ? data : data.filter((r: any) => r.status === statusFilter);
+    if (usernameFilter) rows = rows.filter((r: any) => r.username?.toLowerCase().includes(usernameFilter.toLowerCase()));
+    if (dateFrom) rows = rows.filter((r: any) => r.requestedAt && new Date(r.requestedAt) >= new Date(dateFrom));
+    if (dateTo) rows = rows.filter((r: any) => r.requestedAt && new Date(r.requestedAt) <= new Date(dateTo + "T23:59:59"));
+    return rows;
+  }, [data, statusFilter, usernameFilter, dateFrom, dateTo]);
 
   const { paged, Pagination } = usePagination(filtered);
 
@@ -523,7 +571,7 @@ export function GamingWithdrawalsTab({ toast }: { toast: any }) {
         <h2 className="text-2xl font-bold flex items-center gap-2"><ArrowUpLeft className="w-6 h-6" />Withdrawal Monitor</h2>
         <p className="text-muted-foreground text-sm mt-1">Filterable log of all withdrawal transactions. Bank account numbers are masked.</p>
       </div>
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-end">
         <MerchantSelector value={merchantId} onChange={setMerchantId} />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
@@ -535,10 +583,23 @@ export function GamingWithdrawalsTab({ toast }: { toast: any }) {
             <SelectItem value="completed">Completed</SelectItem>
           </SelectContent>
         </Select>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Username</Label>
+          <Input className="w-36 h-9" value={usernameFilter} onChange={e => setUsernameFilter(e.target.value)} placeholder="Filter by username" data-testid="input-withdraw-username" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Date From</Label>
+          <Input type="date" className="w-36 h-9" value={dateFrom} onChange={e => setDateFrom(e.target.value)} data-testid="input-withdraw-date-from" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs">Date To</Label>
+          <Input type="date" className="w-36 h-9" value={dateTo} onChange={e => setDateTo(e.target.value)} data-testid="input-withdraw-date-to" />
+        </div>
       </div>
       <Card>
         <CardContent className="pt-4">
-          {!merchantId ? <p className="text-center text-muted-foreground py-12">Select a merchant to view withdrawals.</p>
+          {isError ? <ErrorState error={error as Error} />
+          : !merchantId ? <p className="text-center text-muted-foreground py-12">Select a merchant to view withdrawals.</p>
             : isLoading ? <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
             : paged.length === 0 ? <p className="text-center text-muted-foreground py-12">No withdrawals found.</p>
             : (

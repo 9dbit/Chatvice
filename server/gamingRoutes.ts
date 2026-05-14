@@ -13,6 +13,28 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+// ── Credential hint helper (last-4 chars, never returns plaintext) ───────────
+
+function credentialHint(encrypted: string | null | undefined): string | null {
+  if (!encrypted) return null;
+  try {
+    const plain = decryptCredential(encrypted);
+    return plain.length >= 4 ? `●●●●●● ...${plain.slice(-4)}` : "●●●● (set)";
+  } catch { return "●●●● (set)"; }
+}
+
+function sanitizeGamingMerchant(r: any) {
+  return {
+    ...r,
+    apiKeyEncrypted: null,
+    apiSecretEncrypted: null,
+    webhookSecret: null,
+    apiKeyHint: credentialHint(r.apiKeyEncrypted),
+    apiSecretHint: credentialHint(r.apiSecretEncrypted),
+    webhookSecretSet: !!r.webhookSecret,
+  };
+}
+
 // ── Sensitive field masking for API responses ────────────────────────────────
 
 function maskPlayerMapping(row: GamingPlayerMapping) {
@@ -299,13 +321,7 @@ export function registerGamingRoutes(app: Express) {
         const { desc } = await import("drizzle-orm");
         rows = await db.select().from(gamingMerchants).orderBy(desc(gamingMerchants.createdAt));
       }
-      const sanitized = rows.map((r) => ({
-        ...r,
-        apiKeyEncrypted: r.apiKeyEncrypted ? "***" : null,
-        apiSecretEncrypted: r.apiSecretEncrypted ? "***" : null,
-        webhookSecret: r.webhookSecret ? "***" : null,
-      }));
-      res.json(sanitized);
+      res.json(rows.map(sanitizeGamingMerchant));
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -316,12 +332,7 @@ export function registerGamingRoutes(app: Express) {
       const id = Number(req.params.id);
       const row = await storage.getGamingMerchant(id);
       if (!row) return res.status(404).json({ error: "Not found" });
-      res.json({
-        ...row,
-        apiKeyEncrypted: row.apiKeyEncrypted ? "***" : null,
-        apiSecretEncrypted: row.apiSecretEncrypted ? "***" : null,
-        webhookSecret: row.webhookSecret ? "***" : null,
-      });
+      res.json(sanitizeGamingMerchant(row));
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -353,12 +364,7 @@ export function registerGamingRoutes(app: Express) {
         ipWhitelist: body.ipWhitelist ?? [],
         status: body.status ?? "active",
       });
-      res.status(201).json({
-        ...row,
-        apiKeyEncrypted: "***",
-        apiSecretEncrypted: "***",
-        webhookSecret: "***",
-      });
+      res.status(201).json(sanitizeGamingMerchant(row));
     } catch (err: any) {
       if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors });
       res.status(500).json({ error: err.message });
@@ -379,7 +385,7 @@ export function registerGamingRoutes(app: Express) {
       if (body.status) updates.status = body.status;
       const row = await storage.updateGamingMerchant(id, updates);
       if (!row) return res.status(404).json({ error: "Not found" });
-      res.json({ ...row, apiKeyEncrypted: "***", apiSecretEncrypted: "***", webhookSecret: "***" });
+      res.json(sanitizeGamingMerchant(row));
     } catch (err: any) {
       if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors });
       res.status(500).json({ error: err.message });
@@ -393,6 +399,39 @@ export function registerGamingRoutes(app: Express) {
       const row = await storage.updateGamingMerchant(id, { webhookSecret: encryptCredential(generateWebhookSecret()) });
       if (!row) return res.status(404).json({ error: "Not found" });
       res.json({ success: true, webhookSecret: "***", message: "Webhook secret rotated. Configure the new secret via your panel integration settings." });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Test webhook — pings the merchant's apiBaseUrl/health with the configured API key
+  app.post("/api/admin/gaming/merchants/:id/test-webhook", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const row = await storage.getGamingMerchant(id);
+      if (!row) return res.status(404).json({ error: "Not found" });
+
+      const apiKey = row.apiKeyEncrypted ? decryptCredential(row.apiKeyEncrypted) : null;
+      const testedUrl = `${row.apiBaseUrl.replace(/\/$/, "")}/health`;
+      const startTime = Date.now();
+
+      try {
+        const resp = await fetch(testedUrl, {
+          method: "GET",
+          headers: {
+            ...(apiKey ? { "Authorization": `Bearer ${apiKey}`, "X-Api-Key": apiKey } : {}),
+            "Content-Type": "application/json",
+            "X-Chatvice-Probe": "1",
+          },
+          signal: AbortSignal.timeout(10000),
+        });
+        const responseTimeMs = Date.now() - startTime;
+        const body = await resp.text().catch(() => "");
+        res.json({ success: resp.ok, statusCode: resp.status, responseTimeMs, body: body.slice(0, 500), testedUrl });
+      } catch (fetchErr: any) {
+        const responseTimeMs = Date.now() - startTime;
+        res.json({ success: false, statusCode: null, responseTimeMs, error: fetchErr.message, testedUrl });
+      }
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -520,6 +559,24 @@ export function registerGamingRoutes(app: Express) {
     }
   });
 
+  // Webhook Log Reprocess — re-dispatches a single webhook event
+  app.post("/api/admin/gaming/webhook-logs/:id/reprocess", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const log = await storage.getGamingWebhookLog(id);
+      if (!log) return res.status(404).json({ error: "Not found" });
+
+      await storage.updateGamingWebhookLog(id, { status: "pending", errorMessage: null });
+      const eventPayload = log.payload as Record<string, unknown>;
+      setImmediate(async () => {
+        await processGamingWebhookEvent(log.merchantId, log.eventType, log.eventId ?? `reprocess-${id}`, eventPayload, id);
+      });
+      res.json({ success: true, message: "Event queued for reprocessing." });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Failed Events — raw payloads sanitized before returning
   app.get("/api/admin/gaming/failed-events", requireAdmin, async (req: Request, res: Response) => {
     try {
@@ -527,6 +584,18 @@ export function registerGamingRoutes(app: Express) {
       if (!merchantId) return res.status(400).json({ error: "merchantId required" });
       const rows = await storage.getGamingFailedEvents(merchantId as string, status as string | undefined);
       res.json(rows.map(sanitizeFailedEvent));
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Mark a failed event as resolved without re-processing
+  app.patch("/api/admin/gaming/failed-events/:id/resolve", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const row = await storage.updateGamingFailedEvent(id, { status: "resolved", nextRetryAt: null });
+      if (!row) return res.status(404).json({ error: "Not found" });
+      res.json(sanitizeFailedEvent(row));
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -646,6 +715,34 @@ export function registerGamingRoutes(app: Express) {
     }
   });
 
+  // Integration Tasks — seed default tasks if DB is empty
+  app.post("/api/admin/gaming/tasks/seed", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const existing = await storage.getGamingIntegrationTasks();
+      if (existing.length > 0) {
+        return res.json({ seeded: 0, message: "Tasks already exist — no seeding needed." });
+      }
+      const SEED_TASKS = [
+        { category: "Backend", title: "Webhook receiver with HMAC-SHA256 verification", status: "done", priority: "critical", description: "Secure endpoint receiving all 12 gaming event types. Verifies signature, deduplicates, and dispatches processor.", ownerRole: "Backend Dev", acceptanceCriteria: "All event types processed; invalid signatures rejected; duplicate eventIds ignored." },
+        { category: "Backend", title: "Player mapping CRUD", status: "done", priority: "high", description: "Store and manage gaming username ↔ Chatvice customer identity links with verification status.", ownerRole: "Backend Dev", acceptanceCriteria: "Create, read, update, delete player mappings; phone/email masked in API responses." },
+        { category: "Backend", title: "Deposit & withdrawal transaction logs", status: "done", priority: "high", description: "Persist deposit and withdrawal events from webhook payloads with full status tracking.", ownerRole: "Backend Dev", acceptanceCriteria: "All deposit/withdraw events stored; account numbers masked at rest; paginated admin API." },
+        { category: "Backend", title: "Turnover tracking & eligibility engine", status: "done", priority: "medium", description: "Track bonus turnover progress per player and flag eligibility for withdrawal.", ownerRole: "Backend Dev", acceptanceCriteria: "progressPercentage computed; eligibleWithdraw flag accurate; admin filter by eligibility." },
+        { category: "Backend", title: "API health monitoring endpoint", status: "done", priority: "medium", description: "Log per-endpoint health checks with response time, status code, and uptime percentage.", ownerRole: "Backend Dev", acceptanceCriteria: "Health logs stored; summary (uptime%, avg response time) computed correctly." },
+        { category: "Backend", title: "AES-256-GCM credential encryption at rest", status: "done", priority: "critical", description: "All gaming API keys, secrets, and webhook secrets encrypted before DB storage.", ownerRole: "Backend Dev", acceptanceCriteria: "No plaintext credentials in DB; decryption works correctly; key hints shown in admin UI." },
+        { category: "Admin UI", title: "13-page gaming integration admin dashboard", status: "done", priority: "high", description: "Full admin UI with overview stats, audit checklist, and 11 per-merchant management pages.", ownerRole: "Frontend Dev", acceptanceCriteria: "All 13 pages accessible via URL routing; loading/empty/error states on every page." },
+        { category: "AI Integration", title: "AI agent gaming queries (Task #397)", status: "in_progress", priority: "critical", description: "Enable AI chatbot to answer deposit status, withdrawal status, and turnover queries by injecting gaming data into prompts.", ownerRole: "AI Engineer", acceptanceCriteria: "AI correctly answers 'what is my deposit status', 'my withdrawal status', 'my turnover progress' from live gaming data." },
+        { category: "QA", title: "End-to-end gaming webhook test suite", status: "testing", priority: "high", description: "Automated tests covering all 12 event types, signature failure cases, and duplicate detection.", ownerRole: "QA Engineer", acceptanceCriteria: "All 12 event types tested; edge cases for bad signatures and duplicates covered; CI passes." },
+        { category: "Backend", title: "Rate-limit and IP whitelist enforcement", status: "testing", priority: "medium", description: "Enforce per-merchant IP whitelist on webhook receiver; rate-limit burst events.", ownerRole: "Backend Dev", acceptanceCriteria: "Requests from non-whitelisted IPs rejected with 403; burst rate limit tested and documented." },
+        { category: "Admin UI", title: "CSV export for deposits and withdrawals", status: "todo", priority: "low", description: "Allow admin to export filtered transaction logs as CSV files for reconciliation.", ownerRole: "Frontend Dev", acceptanceCriteria: "Export button on deposits/withdrawals page; respects current filters; downloads valid CSV." },
+        { category: "Backend", title: "Real-time dashboard alert thresholds", status: "backlog", priority: "medium", description: "Configurable alert thresholds for failed events, pending withdrawal SLA, and API downtime.", ownerRole: "Backend Dev", acceptanceCriteria: "Admin can set threshold values; alerts triggered when thresholds breached; WebSocket push to admin panel." },
+      ];
+      const created = await Promise.all(SEED_TASKS.map((t) => storage.createGamingIntegrationTask(t)));
+      res.json({ seeded: created.length });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Integration Tasks
   app.get("/api/admin/gaming/tasks", requireAdmin, async (req: Request, res: Response) => {
     try {
@@ -664,7 +761,7 @@ export function registerGamingRoutes(app: Express) {
         title: z.string().min(1),
         description: z.string().optional(),
         priority: z.enum(["low", "medium", "high", "critical"]).optional(),
-        status: z.enum(["backlog", "todo", "in_progress", "done", "cancelled"]).optional(),
+        status: z.enum(["backlog", "todo", "in_progress", "testing", "done", "cancelled"]).optional(),
         ownerRole: z.string().optional(),
         dependencies: z.array(z.string()).optional(),
         acceptanceCriteria: z.string().optional(),
