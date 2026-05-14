@@ -303,9 +303,10 @@ export function registerGamingRoutes(app: Express) {
         status: "pending",
         errorMessage: null,
       });
-    } catch (insertErr: any) {
+    } catch (insertErr: unknown) {
       // Postgres unique violation = 23505; treat as a duplicate event
-      if (insertErr?.code === "23505" && resolvedEventId) {
+      const pgErr = insertErr as { code?: string };
+      if (pgErr?.code === "23505" && resolvedEventId) {
         return res.status(200).json({ status: "duplicate", message: "Event already processed" });
       }
       throw insertErr;
@@ -386,7 +387,7 @@ export function registerGamingRoutes(app: Express) {
     try {
       const id = Number(req.params.id);
       const body = upsertGamingMerchantSchema.partial().parse(req.body);
-      const updates: any = {};
+      const updates: Partial<{ merchantName: string; brandName: string; apiBaseUrl: string; apiKeyEncrypted: string; apiSecretEncrypted: string; ipWhitelist: string[]; status: string }> = {};
       if (body.merchantName) updates.merchantName = body.merchantName;
       if (body.brandName !== undefined) updates.brandName = body.brandName;
       if (body.apiBaseUrl) updates.apiBaseUrl = body.apiBaseUrl;
@@ -656,21 +657,21 @@ export function registerGamingRoutes(app: Express) {
       });
 
       // Re-dispatch the event processor immediately (non-blocking)
-      const eventPayload = existing.payload as any;
-      const eventId = eventPayload?.eventId ?? `retry-${id}`;
+      const eventPayload = (existing.payload ?? {}) as Record<string, unknown>;
+      const retryEventId = str(eventPayload.eventId) ?? `retry-${id}`;
       const logRow = await storage.createGamingWebhookLog({
         merchantId: existing.merchantId,
         eventType: existing.eventType,
         eventId: `retry-${id}-${Date.now()}`,
-        playerId: eventPayload?.player_id ?? eventPayload?.playerId ?? null,
-        transactionId: eventPayload?.transaction_id ?? eventPayload?.transactionId ?? null,
+        playerId: str(eventPayload.player_id ?? eventPayload.playerId) ?? null,
+        transactionId: str(eventPayload.transaction_id ?? eventPayload.transactionId) ?? null,
         payload: eventPayload,
         signatureValid: true,
         status: "pending",
         errorMessage: null,
       });
       setImmediate(async () => {
-        const success = await processGamingWebhookEvent(existing.merchantId, existing.eventType, eventId, eventPayload, logRow.id);
+        const success = await processGamingWebhookEvent(existing.merchantId, existing.eventType, retryEventId, eventPayload, logRow.id);
         // Only mark resolved when processor actually succeeds
         if (success) {
           await storage.updateGamingFailedEvent(id, { status: "resolved" });
@@ -836,7 +837,8 @@ export function registerGamingRoutes(app: Express) {
   app.patch("/api/admin/gaming/tasks/:id", requireAdmin, async (req: Request, res: Response) => {
     try {
       const id = Number(req.params.id);
-      const updates: any = { ...req.body };
+      const body = req.body as Record<string, unknown>;
+      const updates: Partial<{ category: string; title: string; description: string; priority: string; status: string; ownerRole: string; acceptanceCriteria: string; completedAt: Date }> = { ...body as object };
       if (updates.status === "done" && !updates.completedAt) updates.completedAt = new Date();
       const row = await storage.updateGamingIntegrationTask(id, updates);
       if (!row) return res.status(404).json({ error: "Not found" });
@@ -900,7 +902,7 @@ export function registerGamingRoutes(app: Express) {
       ]);
 
       const healthChecks = recentHealth.length;
-      const successChecks = recentHealth.filter((r: any) => r.success).length;
+      const successChecks = recentHealth.filter((r) => r.success).length;
       const uptimePct = healthChecks > 0 ? Math.round((successChecks / healthChecks) * 100) : 100;
 
       res.json({

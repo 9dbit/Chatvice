@@ -475,28 +475,31 @@ export function GamingPlayersTab({ toast }: { toast: ToastFn }) {
 
   const { paged, Pagination } = usePagination(filtered);
 
+  interface PlayerFormBody { gamingUsername: string; gamingPlayerId?: string; chatviceUserId?: string; phoneNumber?: string; email?: string; }
+  interface PlayerUpdateBody { verifiedStatus?: string; }
+
   const createMutation = useMutation({
-    mutationFn: (body: any) => apiRequest("POST", "/api/admin/gaming/players", { ...body, merchantId }),
+    mutationFn: (body: PlayerFormBody) => apiRequest("POST", "/api/admin/gaming/players", { ...body, merchantId }),
     onSuccess: () => { toast({ title: "Player linked" }); setShowLink(false); setForm({ gamingUsername: "", gamingPlayerId: "", chatviceUserId: "", phoneNumber: "", email: "" }); refetch(); },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const syncMutation = useMutation({
     mutationFn: () => refetch().then(() => null),
     onSuccess: () => toast({ title: "Players refreshed" }),
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, body }: { id: number; body: any }) => apiRequest("PATCH", `/api/admin/gaming/players/${id}`, body),
+    mutationFn: ({ id, body }: { id: number; body: PlayerUpdateBody }) => apiRequest("PATCH", `/api/admin/gaming/players/${id}`, body),
     onSuccess: () => { toast({ title: "Updated" }); refetch(); },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/admin/gaming/players/${id}`),
     onSuccess: () => { toast({ title: "Unlinked" }); refetch(); },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   return (
@@ -567,7 +570,7 @@ export function GamingPlayersTab({ toast }: { toast: ToastFn }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paged.map((row: any) => (
+                  {paged.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell className="font-medium">{row.gamingUsername}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">{row.gamingPlayerId ?? "—"}</TableCell>

@@ -18,7 +18,6 @@ import WidgetDemoPage from "@/pages/widget-demo";
 import ChatWidget from "@/pages/chat-widget";
 import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/dashboard";
-import GamingIntegrationPage from "@/pages/admin/gaming-integration";
 
 import FAQPage from "@/pages/faq";
 import FeaturesPage from "@/pages/features";
@@ -217,8 +216,6 @@ function MainRouter() {
       <Route path="/dashboard/:a/:b/:c" component={DashboardLayout} />
       <Route path="/supervisor" component={SupervisorPanel} />
       <Route path="/admin/login" component={AdminLogin} />
-      <Route path="/admin/gaming-integration" component={GamingIntegrationPage} />
-      <Route path="/admin/gaming-integration/:subpage" component={GamingIntegrationPage} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/:page*" component={AdminDashboard} />
       <Route path="/widget-demo" component={WidgetDemoPage} />
