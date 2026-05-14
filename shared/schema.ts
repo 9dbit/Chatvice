@@ -493,7 +493,7 @@ export type ProfileStep1Data = z.infer<typeof profileStep1Schema>;
 export const profileStep2Schema = z.object({
   picName: z.string().min(2, "Contact name must be at least 2 characters").max(100),
   phoneCountryCode: z.string().min(1, "Please select a country code"),
-  phone: z.string().min(5, "Phone number must be at least 5 digits").max(20),
+  phone: z.string().optional().default(""),
   country: z.string().min(2, "Please select a country"),
   city: z.string().optional(),
   region: z.string().optional(),

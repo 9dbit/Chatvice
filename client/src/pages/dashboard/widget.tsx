@@ -2201,7 +2201,56 @@ async function handleLogin() {
                 )}
               </div>
 
-              <Separator />
+              
+                <div className="rounded-lg border p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <Label htmlFor="require-phone-number">Require phone number</Label>
+                      <p className="text-sm text-muted-foreground">
+                        When enabled, visitors must enter their phone number before starting a chat.
+                      </p>
+                    </div>
+                    {(() => {
+                      const existingFields = Array.isArray((preChatConfig as any).requiredFields)
+                        ? (preChatConfig as any).requiredFields
+                        : [];
+                      const phoneField = existingFields.find((field: any) => field?.name === "customerPhone");
+                      const phoneRequired = phoneField?.required === true;
+
+                      return (
+                        <Switch
+                          id="require-phone-number"
+                          data-testid="switch-require-phone-number"
+                          checked={phoneRequired}
+                          onCheckedChange={(checked) => {
+                            const nextFields = existingFields.some((field: any) => field?.name === "customerPhone")
+                              ? existingFields.map((field: any) =>
+                                  field?.name === "customerPhone"
+                                    ? { ...field, required: checked }
+                                    : field
+                                )
+                              : [
+                                  ...existingFields,
+                                  {
+                                    name: "customerPhone",
+                                    label: "Phone",
+                                    type: "tel",
+                                    required: checked,
+                                  },
+                                ];
+
+                            setPreChatConfig({
+                              ...preChatConfig,
+                              requiredFields: nextFields,
+                            } as any);
+                          }}
+                        />
+                      );
+                    })()}
+                  </div>
+                </div>
+
+<Separator />
 
               <Button
                 onClick={() => preChatMutation.mutate(preChatConfig)}
