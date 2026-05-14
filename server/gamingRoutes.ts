@@ -757,34 +757,6 @@ export function registerGamingRoutes(app: Express) {
     }
   });
 
-  // Integration Tasks — seed default tasks if DB is empty
-  app.post("/api/admin/gaming/tasks/seed", requireAdmin, async (req: Request, res: Response) => {
-    try {
-      const existing = await storage.getGamingIntegrationTasks();
-      if (existing.length > 0) {
-        return res.json({ seeded: 0, message: "Tasks already exist — no seeding needed." });
-      }
-      const SEED_TASKS = [
-        { category: "Backend", title: "Webhook receiver with HMAC-SHA256 verification", status: "done", priority: "critical", description: "Secure endpoint receiving all 12 gaming event types. Verifies signature, deduplicates, and dispatches processor.", ownerRole: "Backend Dev", acceptanceCriteria: "All event types processed; invalid signatures rejected; duplicate eventIds ignored." },
-        { category: "Backend", title: "Player mapping CRUD", status: "done", priority: "high", description: "Store and manage gaming username ↔ Chatvice customer identity links with verification status.", ownerRole: "Backend Dev", acceptanceCriteria: "Create, read, update, delete player mappings; phone/email masked in API responses." },
-        { category: "Backend", title: "Deposit & withdrawal transaction logs", status: "done", priority: "high", description: "Persist deposit and withdrawal events from webhook payloads with full status tracking.", ownerRole: "Backend Dev", acceptanceCriteria: "All deposit/withdraw events stored; account numbers masked at rest; paginated admin API." },
-        { category: "Backend", title: "Turnover tracking & eligibility engine", status: "done", priority: "medium", description: "Track bonus turnover progress per player and flag eligibility for withdrawal.", ownerRole: "Backend Dev", acceptanceCriteria: "progressPercentage computed; eligibleWithdraw flag accurate; admin filter by eligibility." },
-        { category: "Backend", title: "API health monitoring endpoint", status: "done", priority: "medium", description: "Log per-endpoint health checks with response time, status code, and uptime percentage.", ownerRole: "Backend Dev", acceptanceCriteria: "Health logs stored; summary (uptime%, avg response time) computed correctly." },
-        { category: "Backend", title: "AES-256-GCM credential encryption at rest", status: "done", priority: "critical", description: "All gaming API keys, secrets, and webhook secrets encrypted before DB storage.", ownerRole: "Backend Dev", acceptanceCriteria: "No plaintext credentials in DB; decryption works correctly; key hints shown in admin UI." },
-        { category: "Admin UI", title: "13-page gaming integration admin dashboard", status: "done", priority: "high", description: "Full admin UI with overview stats, audit checklist, and 11 per-merchant management pages.", ownerRole: "Frontend Dev", acceptanceCriteria: "All 13 pages accessible via URL routing; loading/empty/error states on every page." },
-        { category: "AI Integration", title: "AI agent gaming queries (Task #397)", status: "in_progress", priority: "critical", description: "Enable AI chatbot to answer deposit status, withdrawal status, and turnover queries by injecting gaming data into prompts.", ownerRole: "AI Engineer", acceptanceCriteria: "AI correctly answers 'what is my deposit status', 'my withdrawal status', 'my turnover progress' from live gaming data." },
-        { category: "QA", title: "End-to-end gaming webhook test suite", status: "testing", priority: "high", description: "Automated tests covering all 12 event types, signature failure cases, and duplicate detection.", ownerRole: "QA Engineer", acceptanceCriteria: "All 12 event types tested; edge cases for bad signatures and duplicates covered; CI passes." },
-        { category: "Backend", title: "Rate-limit and IP whitelist enforcement", status: "testing", priority: "medium", description: "Enforce per-merchant IP whitelist on webhook receiver; rate-limit burst events.", ownerRole: "Backend Dev", acceptanceCriteria: "Requests from non-whitelisted IPs rejected with 403; burst rate limit tested and documented." },
-        { category: "Admin UI", title: "CSV export for deposits and withdrawals", status: "todo", priority: "low", description: "Allow admin to export filtered transaction logs as CSV files for reconciliation.", ownerRole: "Frontend Dev", acceptanceCriteria: "Export button on deposits/withdrawals page; respects current filters; downloads valid CSV." },
-        { category: "Backend", title: "Real-time dashboard alert thresholds", status: "backlog", priority: "medium", description: "Configurable alert thresholds for failed events, pending withdrawal SLA, and API downtime.", ownerRole: "Backend Dev", acceptanceCriteria: "Admin can set threshold values; alerts triggered when thresholds breached; WebSocket push to admin panel." },
-      ];
-      const created = await Promise.all(SEED_TASKS.map((t) => storage.createGamingIntegrationTask(t)));
-      res.json({ seeded: created.length });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
   const SEED_TASKS = [
     { category: "Backend", title: "Webhook receiver with HMAC-SHA256 verification", status: "done", priority: "critical", description: "Secure endpoint receiving all 12 gaming event types. Verifies signature, deduplicates, and dispatches processor.", ownerRole: "Backend Dev", acceptanceCriteria: "All event types processed; invalid signatures rejected; duplicate eventIds ignored." },
     { category: "Backend", title: "Player mapping CRUD", status: "done", priority: "high", description: "Store and manage gaming username ↔ Chatvice customer identity links with verification status.", ownerRole: "Backend Dev", acceptanceCriteria: "Create, read, update, delete player mappings; phone/email masked in API responses." },
@@ -799,6 +771,20 @@ export function registerGamingRoutes(app: Express) {
     { category: "Admin UI", title: "CSV export for deposits and withdrawals", status: "todo", priority: "low", description: "Allow admin to export filtered transaction logs as CSV files for reconciliation.", ownerRole: "Frontend Dev", acceptanceCriteria: "Export button on deposits/withdrawals page; respects current filters; downloads valid CSV." },
     { category: "Backend", title: "Real-time dashboard alert thresholds", status: "backlog", priority: "medium", description: "Configurable alert thresholds for failed events, pending withdrawal SLA, and API downtime.", ownerRole: "Backend Dev", acceptanceCriteria: "Admin can set threshold values; alerts triggered when thresholds breached; WebSocket push to admin panel." },
   ];
+
+  // Integration Tasks — seed default tasks if DB is empty
+  app.post("/api/admin/gaming/tasks/seed", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const existing = await storage.getGamingIntegrationTasks();
+      if (existing.length > 0) {
+        return res.json({ seeded: 0, message: "Tasks already exist — no seeding needed." });
+      }
+      const created = await Promise.all(SEED_TASKS.map((t) => storage.createGamingIntegrationTask(t)));
+      res.json({ seeded: created.length });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
   // Integration Tasks — auto-seed on first GET if DB is empty
   app.get("/api/admin/gaming/tasks", requireAdmin, async (req: Request, res: Response) => {
