@@ -29,6 +29,43 @@ function maskWithdrawal(row: any) {
   };
 }
 
+// Recursively sanitize a webhook/failed-event payload object, masking PII fields.
+const PII_KEYS = new Set(["email", "phone", "phone_number", "account_number", "bank_account", "card_number", "nric", "ktp"]);
+
+function sanitizePayload(obj: any, depth = 0): any {
+  if (depth > 8 || obj === null || obj === undefined) return obj;
+  if (typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) return obj.map((item) => sanitizePayload(item, depth + 1));
+  const out: any = {};
+  for (const [k, v] of Object.entries(obj)) {
+    const lower = k.toLowerCase();
+    if (PII_KEYS.has(lower)) {
+      if (typeof v === "string" && v.length > 0) {
+        if (lower === "email" || (lower.includes("email") && (v as string).includes("@"))) {
+          out[k] = maskEmail(v as string);
+        } else if (lower.includes("phone") || lower.includes("number")) {
+          out[k] = maskPhone(v as string);
+        } else {
+          out[k] = maskBankAccount(v as string);
+        }
+      } else {
+        out[k] = v;
+      }
+    } else {
+      out[k] = sanitizePayload(v, depth + 1);
+    }
+  }
+  return out;
+}
+
+function sanitizeWebhookLog(row: any) {
+  return { ...row, payload: row.payload ? sanitizePayload(row.payload) : null };
+}
+
+function sanitizeFailedEvent(row: any) {
+  return { ...row, payload: row.payload ? sanitizePayload(row.payload) : null };
+}
+
 // ── Webhook Event Processor ───────────────────────────────────────────────────
 // Handles all 12 canonical event types.
 // Returns true on success, false on failure (never throws — callers check return value).
@@ -303,13 +340,11 @@ export function registerGamingRoutes(app: Express) {
         ipWhitelist: body.ipWhitelist ?? [],
         status: body.status ?? "active",
       });
-      // Return plaintext secret exactly once so merchant can configure their webhook
       res.status(201).json({
         ...row,
-        webhookSecretPlaintext: plaintextSecret,
-        webhookSecret: "***",
         apiKeyEncrypted: "***",
         apiSecretEncrypted: "***",
+        webhookSecret: "***",
       });
     } catch (err: any) {
       if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors });
@@ -338,14 +373,13 @@ export function registerGamingRoutes(app: Express) {
     }
   });
 
-  // Rotate webhook secret — stores encrypted, returns plaintext once
+  // Rotate webhook secret — stores new secret encrypted; credential never returned in response
   app.post("/api/admin/gaming/merchants/:id/rotate-secret", requireAdmin, async (req: Request, res: Response) => {
     try {
       const id = Number(req.params.id);
-      const plaintextSecret = generateWebhookSecret();
-      const row = await storage.updateGamingMerchant(id, { webhookSecret: encryptCredential(plaintextSecret) });
+      const row = await storage.updateGamingMerchant(id, { webhookSecret: encryptCredential(generateWebhookSecret()) });
       if (!row) return res.status(404).json({ error: "Not found" });
-      res.json({ webhookSecretPlaintext: plaintextSecret });
+      res.json({ success: true, webhookSecret: "***", message: "Webhook secret rotated. Configure the new secret via your panel integration settings." });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -461,25 +495,25 @@ export function registerGamingRoutes(app: Express) {
     }
   });
 
-  // Webhook Logs
+  // Webhook Logs — raw payloads sanitized before returning
   app.get("/api/admin/gaming/webhook-logs", requireAdmin, async (req: Request, res: Response) => {
     try {
       const { merchantId, limit } = req.query;
       if (!merchantId) return res.status(400).json({ error: "merchantId required" });
       const rows = await storage.getGamingWebhookLogs(merchantId as string, limit ? Number(limit) : 100);
-      res.json(rows);
+      res.json(rows.map(sanitizeWebhookLog));
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   });
 
-  // Failed Events
+  // Failed Events — raw payloads sanitized before returning
   app.get("/api/admin/gaming/failed-events", requireAdmin, async (req: Request, res: Response) => {
     try {
       const { merchantId, status } = req.query;
       if (!merchantId) return res.status(400).json({ error: "merchantId required" });
       const rows = await storage.getGamingFailedEvents(merchantId as string, status as string | undefined);
-      res.json(rows);
+      res.json(rows.map(sanitizeFailedEvent));
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

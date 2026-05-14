@@ -1,8 +1,9 @@
 import crypto from "crypto";
 import { db } from "../../db";
-import { gamingMerchants, gamingApiHealthLogs } from "@shared/schema";
+import { gamingMerchants } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { decryptCredential, maskBankAccount, maskPhone, maskEmail } from "./cryptoHelpers";
+import { storage } from "../../storage";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_RETRIES = 2;
@@ -101,7 +102,7 @@ async function logApiHealth(
   errorMessage?: string,
 ) {
   try {
-    await db.insert(gamingApiHealthLogs).values({
+    await storage.createGamingApiHealthLog({
       merchantId,
       endpoint,
       method,
@@ -111,6 +112,7 @@ async function logApiHealth(
       errorMessage: errorMessage ?? null,
     });
   } catch {
+    // Health logging is non-critical; swallow errors silently
   }
 }
 

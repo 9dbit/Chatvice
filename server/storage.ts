@@ -748,6 +748,7 @@ export interface IStorage {
   createGamingFailedEvent(data: InsertGamingFailedEvent): Promise<GamingFailedEvent>;
   updateGamingFailedEvent(id: number, data: Partial<GamingFailedEvent>): Promise<GamingFailedEvent | undefined>;
 
+  createGamingApiHealthLog(data: InsertGamingApiHealthLog): Promise<GamingApiHealthLog>;
   getGamingApiHealthLogs(merchantId: string, limit?: number): Promise<GamingApiHealthLog[]>;
   getGamingApiHealthSummary(merchantId: string): Promise<{ total: number; success: number; avgResponseMs: number; lastChecked: Date | null }>;
 
@@ -5239,6 +5240,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateGamingFailedEvent(id: number, data: Partial<GamingFailedEvent>): Promise<GamingFailedEvent | undefined> {
     const [row] = await db.update(gamingFailedEvents).set({ ...data, updatedAt: new Date() }).where(eq(gamingFailedEvents.id, id)).returning();
+    return row;
+  }
+
+  async createGamingApiHealthLog(data: InsertGamingApiHealthLog): Promise<GamingApiHealthLog> {
+    const [row] = await db.insert(gamingApiHealthLogs).values(data).returning();
     return row;
   }
 
