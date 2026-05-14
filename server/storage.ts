@@ -720,6 +720,7 @@ export interface IStorage {
   getGamingPlayerMappings(merchantId: string): Promise<GamingPlayerMapping[]>;
   getGamingPlayerMapping(id: number): Promise<GamingPlayerMapping | undefined>;
   getGamingPlayerMappingByUsername(merchantId: string, username: string): Promise<GamingPlayerMapping | undefined>;
+  getGamingPlayerMappingByPhone(merchantId: string, phoneNumber: string): Promise<GamingPlayerMapping | undefined>;
   createGamingPlayerMapping(data: InsertGamingPlayerMapping): Promise<GamingPlayerMapping>;
   updateGamingPlayerMapping(id: number, data: Partial<GamingPlayerMapping>): Promise<GamingPlayerMapping | undefined>;
   deleteGamingPlayerMapping(id: number): Promise<boolean>;
@@ -5130,6 +5131,11 @@ export class DatabaseStorage implements IStorage {
 
   async getGamingPlayerMappingByUsername(merchantId: string, username: string): Promise<GamingPlayerMapping | undefined> {
     const [row] = await db.select().from(gamingPlayerMappings).where(and(eq(gamingPlayerMappings.merchantId, merchantId), eq(gamingPlayerMappings.gamingUsername, username))).limit(1);
+    return row;
+  }
+
+  async getGamingPlayerMappingByPhone(merchantId: string, phoneNumber: string): Promise<GamingPlayerMapping | undefined> {
+    const [row] = await db.select().from(gamingPlayerMappings).where(and(eq(gamingPlayerMappings.merchantId, merchantId), eq(gamingPlayerMappings.phoneNumber, phoneNumber))).limit(1);
     return row;
   }
 

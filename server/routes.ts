@@ -8129,6 +8129,42 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       const gamingLookupMatch = result.answer.match(/\[GAMING_LOOKUP:([^\]]+)\]/i);
       if (gamingLookupMatch) {
         try {
+          // ── Helper: evaluate a single gaming AI rule condition against API data ──
+          function evaluateGamingRuleCondition(
+            rule: { conditionKey: string | null; conditionOperator: string | null; conditionValue: string | null },
+            data: Record<string, string | number | boolean>,
+          ): boolean {
+            if (!rule.conditionKey) return true; // no condition → always matches
+            const actual = String(data[rule.conditionKey] ?? "");
+            const expected = rule.conditionValue ?? "";
+            const op = rule.conditionOperator ?? "eq";
+            switch (op) {
+              case "ne": return actual !== expected;
+              case "contains": return actual.toLowerCase().includes(expected.toLowerCase());
+              case "gte": return Number(actual) >= Number(expected);
+              case "lte": return Number(actual) <= Number(expected);
+              case "gt": return Number(actual) > Number(expected);
+              case "lt": return Number(actual) < Number(expected);
+              default: return actual === expected; // "eq" or unknown
+            }
+          }
+
+          // ── Helper: explicitly re-mask sensitive fields before customer exposure ──
+          const { maskBankAccount, maskPhone, maskEmail } = await import("./services/gaming/cryptoHelpers");
+          function maskSensitiveFields(data: Record<string, string | number | boolean>): Record<string, string | number | boolean> {
+            const masked = { ...data };
+            if (typeof masked.accountNumberMasked === "string" && masked.accountNumberMasked !== "-") {
+              masked.accountNumberMasked = maskBankAccount(masked.accountNumberMasked);
+            }
+            if (typeof masked.phone === "string" && masked.phone !== "-") {
+              masked.phone = maskPhone(masked.phone);
+            }
+            if (typeof masked.email === "string" && masked.email !== "-") {
+              masked.email = maskEmail(masked.email);
+            }
+            return masked;
+          }
+
           const rawSignal = gamingLookupMatch[1];
           const parts = rawSignal.split("|").map((s: string) => s.trim()).filter(Boolean);
           const gamingIntentKey = parts.shift() || "";
@@ -8144,15 +8180,56 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
           if (gamingIntentKey) {
             const gamingConfig = await storage.getGamingMerchantByMerchantId(resolvedMerchantId);
             if (gamingConfig && gamingConfig.status === "active") {
-              const gamingUsername = gamingFields.username || gamingFields.Username || "";
-              const playerMapping = gamingUsername
-                ? await storage.getGamingPlayerMappingByUsername(resolvedMerchantId, gamingUsername)
+              // ── IDOR protection: bind to session customer identity ──
+              // Resolve player mapping from authoritative session phone first.
+              // Only fall back to AI-provided username if session has no phone.
+              const currentSession = await storage.getSession(sessionId);
+              const sessionPhone = currentSession?.customerPhone ?? null;
+              const signalUsername = gamingFields.username || gamingFields.Username || "";
+
+              let playerMapping = sessionPhone
+                ? await storage.getGamingPlayerMappingByPhone(resolvedMerchantId, sessionPhone)
                 : undefined;
 
+              // If phone-based lookup succeeded, verify the requested username is
+              // consistent (warn but still proceed with the authoritative mapping).
+              if (playerMapping && signalUsername && playerMapping.gamingUsername !== signalUsername) {
+                console.warn(
+                  `[GamingLookup] Username mismatch for session ${sessionId}: ` +
+                  `signal="${signalUsername}" authoritative="${playerMapping.gamingUsername}" — using authoritative mapping`,
+                );
+              }
+
+              // Fall back to username lookup only when the session has no phone
+              // (e.g., anonymous widget sessions without identity verification).
+              if (!playerMapping && signalUsername) {
+                playerMapping = await storage.getGamingPlayerMappingByUsername(resolvedMerchantId, signalUsername);
+              }
+
+              const gamingUsername = playerMapping?.gamingUsername || signalUsername;
+
               if (!playerMapping) {
-                const unverifiedMsg = "Maaf, username gaming Anda belum terdaftar atau belum terverifikasi di sistem kami. Silakan hubungi tim support untuk memverifikasi akun gaming Anda terlebih dahulu.";
+                // Use configurable "player not found" rule if merchant has one
+                const notFoundRules = await storage.getGamingAiResponseRules(resolvedMerchantId, "player_not_found");
+                const notFoundRule = notFoundRules.find(r => r.active);
+                const unverifiedMsg = notFoundRule?.responseTemplate
+                  ?? "Maaf, username gaming Anda belum terdaftar atau belum terverifikasi di sistem kami. Silakan hubungi tim support untuk memverifikasi akun gaming Anda terlebih dahulu.";
                 await storage.createMessage({ sessionId, from: "chatvice", content: unverifiedMsg });
                 broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: unverifiedMsg } });
+                // Audit: record player-not-found event
+                try {
+                  await storage.createGamingWebhookLog({
+                    merchantId: resolvedMerchantId,
+                    eventType: gamingIntentKey,
+                    eventId: null,
+                    playerId: null,
+                    transactionId: gamingFields.transaction_id || gamingFields.withdraw_id || null,
+                    payload: { sessionId, intent: gamingIntentKey, fields: gamingFields, outcome: "player_not_found" },
+                    signatureValid: false,
+                    status: "skipped",
+                    errorMessage: "No verified player mapping for this session",
+                  });
+                } catch { /* audit write is non-critical */ }
               } else {
                 const { getPlayerBalance, getDepositStatus, getWithdrawStatus, getTurnoverStatus } = await import("./services/gaming/gamingApiClient");
 
@@ -8205,7 +8282,8 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                         currentTurnover: turnoverResult.currentTurnover,
                         remainingTurnover: turnoverResult.remainingTurnover,
                         progressPercentage: turnoverResult.progressPercentage,
-                        eligibleWithdraw: turnoverResult.eligibleWithdraw ? "Ya" : "Belum",
+                        eligibleWithdraw: turnoverResult.eligibleWithdraw ? "true" : "false",
+                        eligibleWithdrawLabel: turnoverResult.eligibleWithdraw ? "Ya" : "Belum",
                         expiryDate: turnoverResult.expiryDate ?? "-",
                         status: turnoverResult.status,
                       };
@@ -8235,8 +8313,27 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                   });
                 }
 
+                // Enforce masking before any data reaches the response template
+                const maskedApiData = maskSensitiveFields(gamingApiData);
+
                 const gamingRules = await storage.getGamingAiResponseRules(resolvedMerchantId, gamingIntentKey);
                 const activeGamingRules = gamingRules.filter(r => r.active);
+
+                // Audit: log every lookup attempt (success or failure)
+                try {
+                  await storage.createGamingWebhookLog({
+                    merchantId: resolvedMerchantId,
+                    eventType: gamingIntentKey,
+                    eventId: null,
+                    playerId: playerMapping.gamingPlayerId ?? null,
+                    transactionId: gamingFields.transaction_id || gamingFields.withdraw_id || null,
+                    payload: { sessionId, intent: gamingIntentKey, fields: gamingFields, outcome: gamingApiError ? "api_error" : "success" },
+                    signatureValid: true,
+                    status: gamingApiError ? "failed" : "processed",
+                    errorMessage: gamingApiError ?? null,
+                    processedAt: new Date(),
+                  });
+                } catch { /* audit write is non-critical */ }
 
                 if (gamingApiError) {
                   const errorRule = activeGamingRules.find(r => r.conditionKey === "error");
@@ -8245,15 +8342,22 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                   await storage.createMessage({ sessionId, from: "chatvice", content: fallbackMsg });
                   broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: fallbackMsg } });
                 } else {
-                  const matchedRule = activeGamingRules.find(r => r.conditionKey !== "error") ?? activeGamingRules[0];
+                  // Evaluate rule conditions against masked API data to find the best matching rule
+                  const matchedRule = activeGamingRules
+                    .filter(r => r.conditionKey !== "error")
+                    .find(r => evaluateGamingRuleCondition(r, maskedApiData))
+                    ?? activeGamingRules.find(r => !r.conditionKey && r.conditionKey !== "error")
+                    ?? activeGamingRules[0];
+
                   let gamingResponseText: string;
                   if (matchedRule?.responseTemplate) {
                     gamingResponseText = matchedRule.responseTemplate.replace(/\{(\w+)\}/g, (_m: string, key: string) => {
-                      const val = gamingApiData[key];
+                      const val = maskedApiData[key];
                       return val !== undefined ? String(val) : `{${key}}`;
                     });
                   } else {
-                    const dataLines = Object.entries(gamingApiData)
+                    const dataLines = Object.entries(maskedApiData)
+                      .filter(([k]) => !["eligibleWithdraw"].includes(k)) // filter raw boolean keys
                       .map(([k, v]) => `• ${k}: ${v}`)
                       .join("\n");
                     gamingResponseText = `Data gaming untuk ${gamingUsername}:\n${dataLines}`;
