@@ -109,12 +109,157 @@ function usePagination<T>(items: T[], pageSize = 20) {
   return { paged, page, totalPages, setPage, Pagination };
 }
 
+// ─── Shared data interfaces ───────────────────────────────────────────────────
+
+interface GamingMerchantSummary {
+  id: number;
+  merchantId: string;
+  merchantName: string;
+  brandName: string | null;
+  apiBaseUrl: string;
+  ipWhitelist: string[];
+  status: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+  webhookSecretRotatedAt: string | null;
+  apiKeyHint: string | null;
+  apiSecretHint: string | null;
+  webhookSecretSet: boolean;
+}
+
+interface GamingPlayerRow {
+  id: number;
+  merchantId: string;
+  gamingUsername: string;
+  gamingPlayerId: string | null;
+  chatviceUserId: string | null;
+  phoneNumber: string | null;
+  email: string | null;
+  verifiedStatus: string;
+  linkedAt: string | null;
+}
+
+interface GamingDepositRow {
+  id: number;
+  merchantId: string;
+  transactionId: string | null;
+  username: string | null;
+  externalRef: string | null;
+  amount: number | null;
+  currency: string | null;
+  paymentMethod: string | null;
+  paymentChannel: string | null;
+  paidAt: string | null;
+  status: string;
+  createdAt: string | null;
+}
+
+interface GamingWithdrawRow {
+  id: number;
+  merchantId: string;
+  withdrawId: string | null;
+  username: string | null;
+  amount: number | null;
+  currency: string | null;
+  bankName: string | null;
+  accountNumberMasked: string | null;
+  rejectedReason: string | null;
+  status: string;
+  requestedAt: string | null;
+}
+
+interface GamingTurnoverRow {
+  id: number;
+  username: string | null;
+  bonusName: string | null;
+  currentTurnover: number | null;
+  requiredTurnover: number | null;
+  progressPercentage: number | null;
+  eligibleWithdraw: boolean;
+  status: string;
+  expiryDate: string | null;
+}
+
+interface GamingBalanceRow {
+  id: number;
+  username: string | null;
+  currentBalance: number | null;
+  lockedBalance: number | null;
+  bonusBalance: number | null;
+  currency: string | null;
+  source: string | null;
+  createdAt: string | null;
+}
+
+interface GamingWebhookLogRow {
+  id: number;
+  eventType: string;
+  eventId: string | null;
+  playerId: string | null;
+  signatureValid: boolean;
+  status: string;
+  receivedAt: string | null;
+  errorMessage: string | null;
+  rawPayload: unknown;
+  processedPayload: unknown;
+}
+
+interface GamingHealthLogRow {
+  id: number;
+  endpoint: string;
+  success: boolean;
+  statusCode: number | null;
+  responseTimeMs: number | null;
+  errorMessage: string | null;
+  checkedAt: string | null;
+}
+
+interface GamingHealthSummary {
+  totalChecks: number;
+  successChecks: number;
+  uptimePct: number;
+  avgResponseMs: number | null;
+}
+
+interface GamingFailedEventRow {
+  id: number;
+  eventType: string;
+  failureReason: string | null;
+  retryCount: number | null;
+  nextRetryAt: string | null;
+  status: string;
+  createdAt: string | null;
+}
+
+interface GamingAiRuleRow {
+  id: number;
+  merchantId: string;
+  eventType: string;
+  conditionKey: string | null;
+  conditionOperator: string | null;
+  conditionValue: string | null;
+  responseTemplate: string;
+  escalationRequired: boolean;
+  active: boolean;
+}
+
+interface GamingTaskRow {
+  id: number;
+  category: string;
+  title: string;
+  description: string | null;
+  priority: string;
+  status: string;
+  ownerRole: string | null;
+  acceptanceCriteria: string | null;
+}
+
 // Reusable error state
 function ErrorState({ error }: { error: Error | null | undefined }) {
   return (
     <Alert>
       <AlertTriangle className="h-4 w-4" />
-      <AlertDescription>{(error as any)?.message ?? "An error occurred. Please try again."}</AlertDescription>
+      <AlertDescription>{error?.message ?? "An error occurred. Please try again."}</AlertDescription>
     </Alert>
   );
 }
@@ -123,7 +268,7 @@ function ErrorState({ error }: { error: Error | null | undefined }) {
 function MerchantSelector({
   value, onChange,
 }: { value: string; onChange: (v: string) => void }) {
-  const { data = [] } = useQuery<any[]>({
+  const { data = [] } = useQuery<GamingMerchantSummary[]>({
     queryKey: ["/api/admin/gaming/merchants"],
   });
   return (
@@ -132,7 +277,7 @@ function MerchantSelector({
         <SelectValue placeholder="Select gaming merchant…" />
       </SelectTrigger>
       <SelectContent>
-        {data.map((m: any) => (
+        {data.map((m) => (
           <SelectItem key={m.id} value={m.merchantId}>
             {m.merchantName} {m.brandName ? `(${m.brandName})` : ""}
           </SelectItem>
@@ -144,8 +289,21 @@ function MerchantSelector({
 
 // ─── 1. Overview ─────────────────────────────────────────────────────────────
 
+interface GamingOverviewData {
+  totalMerchants: number;
+  activeMerchants: number;
+  totalPlayers: number;
+  depositsToday: number;
+  withdrawalsToday: number;
+  pendingWithdrawals: number;
+  failedEvents: number;
+  totalWebhookEvents: number;
+  apiUptimePct: number;
+  turnoverIssues: number;
+}
+
 export function GamingOverviewTab({ toast }: { toast: any }) {
-  const { data, isLoading } = useQuery<any>({
+  const { data, isLoading, isError, error } = useQuery<GamingOverviewData>({
     queryKey: ["/api/admin/gaming/overview"],
   });
 
@@ -159,6 +317,8 @@ export function GamingOverviewTab({ toast }: { toast: any }) {
     { label: "API Uptime", value: data?.apiUptimePct != null ? `${data.apiUptimePct}%` : null, sub: "last 100 checks", icon: Server, color: (data?.apiUptimePct ?? 100) >= 95 ? "text-green-500" : "text-red-500" },
     { label: "Turnover Issues", value: data?.turnoverIssues, sub: "not eligible yet", icon: TrendingUp, color: "text-orange-500" },
   ];
+
+  if (isError) return <ErrorState error={error as Error} />;
 
   return (
     <div className="space-y-6">
@@ -235,6 +395,7 @@ const auditRiskColor: Record<string, string> = {
 };
 
 export function GamingAuditTab({ toast }: { toast: any }) {
+  const { paged, Pagination } = usePagination(AUDIT_DATA, 10);
   return (
     <div className="space-y-6">
       <div>
@@ -243,28 +404,35 @@ export function GamingAuditTab({ toast }: { toast: any }) {
       </div>
       <Card>
         <CardContent className="pt-4">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Module</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Risk</TableHead>
-                <TableHead>Notes</TableHead>
-                <TableHead>Recommended Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {AUDIT_DATA.map((row) => (
-                <TableRow key={row.module}>
-                  <TableCell className="font-medium whitespace-nowrap">{row.module}</TableCell>
-                  <TableCell><Badge className={auditStatusColor[row.status] ?? ""}>{row.status}</Badge></TableCell>
-                  <TableCell><Badge className={auditRiskColor[row.risk] ?? ""}>{row.risk}</Badge></TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-xs">{row.notes}</TableCell>
-                  <TableCell className="text-sm max-w-xs">{row.action}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {paged.length === 0 ? (
+            <p className="text-center text-muted-foreground py-12">No audit items.</p>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Module</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Risk</TableHead>
+                    <TableHead>Notes</TableHead>
+                    <TableHead>Recommended Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paged.map((row) => (
+                    <TableRow key={row.module}>
+                      <TableCell className="font-medium whitespace-nowrap">{row.module}</TableCell>
+                      <TableCell><Badge className={auditStatusColor[row.status] ?? ""}>{row.status}</Badge></TableCell>
+                      <TableCell><Badge className={auditRiskColor[row.risk] ?? ""}>{row.risk}</Badge></TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-xs">{row.notes}</TableCell>
+                      <TableCell className="text-sm max-w-xs">{row.action}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <Pagination />
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -279,7 +447,7 @@ export function GamingPlayersTab({ toast }: { toast: any }) {
   const [showLink, setShowLink] = useState(false);
   const [form, setForm] = useState({ gamingUsername: "", gamingPlayerId: "", chatviceUserId: "", phoneNumber: "", email: "" });
 
-  const { data = [], isLoading, isError, error, refetch } = useQuery<any[]>({
+  const { data = [], isLoading, isError, error, refetch } = useQuery<GamingPlayerRow[]>({
     queryKey: ["/api/admin/gaming/players", merchantId],
     queryFn: async () => {
       if (!merchantId) return [];
@@ -291,7 +459,7 @@ export function GamingPlayersTab({ toast }: { toast: any }) {
   });
 
   const filtered = useMemo(() =>
-    statusFilter === "all" ? data : data.filter((r: any) => r.verifiedStatus === statusFilter),
+    statusFilter === "all" ? data : data.filter((r) => r.verifiedStatus === statusFilter),
     [data, statusFilter]);
 
   const { paged, Pagination } = usePagination(filtered);
@@ -437,7 +605,7 @@ export function GamingDepositsTab({ toast }: { toast: any }) {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  const { data = [], isLoading, isError, error } = useQuery<any[]>({
+  const { data = [], isLoading, isError, error } = useQuery<GamingDepositRow[]>({
     queryKey: ["/api/admin/gaming/deposits", merchantId],
     queryFn: async () => {
       if (!merchantId) return [];
@@ -449,10 +617,10 @@ export function GamingDepositsTab({ toast }: { toast: any }) {
   });
 
   const filtered = useMemo(() => {
-    let rows = statusFilter === "all" ? data : data.filter((r: any) => r.status === statusFilter);
-    if (usernameFilter) rows = rows.filter((r: any) => r.username?.toLowerCase().includes(usernameFilter.toLowerCase()));
-    if (dateFrom) rows = rows.filter((r: any) => r.createdAt && new Date(r.createdAt) >= new Date(dateFrom));
-    if (dateTo) rows = rows.filter((r: any) => r.createdAt && new Date(r.createdAt) <= new Date(dateTo + "T23:59:59"));
+    let rows = statusFilter === "all" ? data : data.filter((r) => r.status === statusFilter);
+    if (usernameFilter) rows = rows.filter((r) => r.username?.toLowerCase().includes(usernameFilter.toLowerCase()));
+    if (dateFrom) rows = rows.filter((r) => r.createdAt && new Date(r.createdAt) >= new Date(dateFrom));
+    if (dateTo) rows = rows.filter((r) => r.createdAt && new Date(r.createdAt) <= new Date(dateTo + "T23:59:59"));
     return rows;
   }, [data, statusFilter, usernameFilter, dateFrom, dateTo]);
 
@@ -512,9 +680,9 @@ export function GamingDepositsTab({ toast }: { toast: any }) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paged.map((r: any) => (
+                    {paged.map((r) => (
                       <TableRow key={r.id}>
-                        <TableCell className="font-mono text-xs">{r.transactionId}</TableCell>
+                        <TableCell className="font-mono text-xs">{r.transactionId ?? "—"}</TableCell>
                         <TableCell>{r.username ?? "—"}</TableCell>
                         <TableCell>{formatIDR(r.amount)}</TableCell>
                         <TableCell className="text-sm">{r.paymentMethod ?? "—"}</TableCell>
@@ -537,14 +705,14 @@ export function GamingDepositsTab({ toast }: { toast: any }) {
 
 // ─── 5. Withdrawal Monitor ────────────────────────────────────────────────────
 
-export function GamingWithdrawalsTab({ toast }: { toast: any }) {
+export function GamingWithdrawalsTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
   const [merchantId, setMerchantId] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [usernameFilter, setUsernameFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  const { data = [], isLoading, isError, error } = useQuery<any[]>({
+  const { data = [], isLoading, isError, error } = useQuery<GamingWithdrawRow[]>({
     queryKey: ["/api/admin/gaming/withdrawals", merchantId],
     queryFn: async () => {
       if (!merchantId) return [];
@@ -556,10 +724,10 @@ export function GamingWithdrawalsTab({ toast }: { toast: any }) {
   });
 
   const filtered = useMemo(() => {
-    let rows = statusFilter === "all" ? data : data.filter((r: any) => r.status === statusFilter);
-    if (usernameFilter) rows = rows.filter((r: any) => r.username?.toLowerCase().includes(usernameFilter.toLowerCase()));
-    if (dateFrom) rows = rows.filter((r: any) => r.requestedAt && new Date(r.requestedAt) >= new Date(dateFrom));
-    if (dateTo) rows = rows.filter((r: any) => r.requestedAt && new Date(r.requestedAt) <= new Date(dateTo + "T23:59:59"));
+    let rows = statusFilter === "all" ? data : data.filter((r) => r.status === statusFilter);
+    if (usernameFilter) rows = rows.filter((r) => r.username?.toLowerCase().includes(usernameFilter.toLowerCase()));
+    if (dateFrom) rows = rows.filter((r) => r.requestedAt && new Date(r.requestedAt) >= new Date(dateFrom));
+    if (dateTo) rows = rows.filter((r) => r.requestedAt && new Date(r.requestedAt) <= new Date(dateTo + "T23:59:59"));
     return rows;
   }, [data, statusFilter, usernameFilter, dateFrom, dateTo]);
 
@@ -618,9 +786,9 @@ export function GamingWithdrawalsTab({ toast }: { toast: any }) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paged.map((r: any) => (
+                    {paged.map((r) => (
                       <TableRow key={r.id}>
-                        <TableCell className="font-mono text-xs">{r.withdrawId}</TableCell>
+                        <TableCell className="font-mono text-xs">{r.withdrawId ?? "—"}</TableCell>
                         <TableCell>{r.username ?? "—"}</TableCell>
                         <TableCell>{formatIDR(r.amount)}</TableCell>
                         <TableCell className="text-sm">{r.bankName ?? "—"}</TableCell>
@@ -643,11 +811,11 @@ export function GamingWithdrawalsTab({ toast }: { toast: any }) {
 
 // ─── 6. Turnover Monitor ──────────────────────────────────────────────────────
 
-export function GamingTurnoversTab({ toast }: { toast: any }) {
+export function GamingTurnoversTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
   const [merchantId, setMerchantId] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const { data = [], isLoading, isError, error } = useQuery<any[]>({
+  const { data = [], isLoading, isError, error } = useQuery<GamingTurnoverRow[]>({
     queryKey: ["/api/admin/gaming/turnovers", merchantId],
     queryFn: async () => {
       if (!merchantId) return [];
@@ -659,7 +827,7 @@ export function GamingTurnoversTab({ toast }: { toast: any }) {
   });
 
   const filtered = useMemo(() =>
-    statusFilter === "all" ? data : data.filter((r: any) => r.status === statusFilter),
+    statusFilter === "all" ? data : data.filter((r) => r.status === statusFilter),
     [data, statusFilter]);
 
   const { paged, Pagination } = usePagination(filtered);
@@ -703,7 +871,7 @@ export function GamingTurnoversTab({ toast }: { toast: any }) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paged.map((r: any) => {
+                    {paged.map((r) => {
                       const pct = r.progressPercentage ?? 0;
                       return (
                         <TableRow key={r.id}>
@@ -735,10 +903,10 @@ export function GamingTurnoversTab({ toast }: { toast: any }) {
 
 // ─── 7. Balance Snapshots ─────────────────────────────────────────────────────
 
-export function GamingBalancesTab({ toast }: { toast: any }) {
+export function GamingBalancesTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
   const [merchantId, setMerchantId] = useState("");
 
-  const { data = [], isLoading, isError, error } = useQuery<any[]>({
+  const { data = [], isLoading, isError, error } = useQuery<GamingBalanceRow[]>({
     queryKey: ["/api/admin/gaming/balances", merchantId],
     queryFn: async () => {
       if (!merchantId) return [];
@@ -779,7 +947,7 @@ export function GamingBalancesTab({ toast }: { toast: any }) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paged.map((r: any) => (
+                    {paged.map((r) => (
                       <TableRow key={r.id}>
                         <TableCell className="font-medium">{r.username ?? "—"}</TableCell>
                         <TableCell>{formatIDR(r.currentBalance)}</TableCell>
@@ -803,11 +971,11 @@ export function GamingBalancesTab({ toast }: { toast: any }) {
 
 // ─── 8. Webhook Logs ──────────────────────────────────────────────────────────
 
-export function GamingWebhooksTab({ toast }: { toast: any }) {
+export function GamingWebhooksTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
   const [merchantId, setMerchantId] = useState("");
-  const [viewPayload, setViewPayload] = useState<any>(null);
+  const [viewPayload, setViewPayload] = useState<GamingWebhookLogRow | null>(null);
 
-  const { data = [], isLoading, isError, error, refetch } = useQuery<any[]>({
+  const { data = [], isLoading, isError, error, refetch } = useQuery<GamingWebhookLogRow[]>({
     queryKey: ["/api/admin/gaming/webhook-logs", merchantId],
     queryFn: async () => {
       if (!merchantId) return [];
@@ -821,7 +989,7 @@ export function GamingWebhooksTab({ toast }: { toast: any }) {
   const reprocessMutation = useMutation({
     mutationFn: (id: number) => apiRequest("POST", `/api/admin/gaming/webhook-logs/${id}/reprocess`, {}),
     onSuccess: () => { toast({ title: "Event queued for reprocessing" }); refetch(); },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const { paged, Pagination } = usePagination(data);
@@ -866,7 +1034,7 @@ export function GamingWebhooksTab({ toast }: { toast: any }) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paged.map((r: any) => (
+                    {paged.map((r) => (
                       <TableRow key={r.id}>
                         <TableCell className="font-mono text-xs">{r.eventType}</TableCell>
                         <TableCell className="font-mono text-xs text-muted-foreground truncate max-w-[100px]">{r.eventId ?? "—"}</TableCell>
@@ -898,10 +1066,10 @@ export function GamingWebhooksTab({ toast }: { toast: any }) {
 
 // ─── 9. API Health Monitor ────────────────────────────────────────────────────
 
-export function GamingHealthTab({ toast }: { toast: any }) {
+export function GamingHealthTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
   const [merchantId, setMerchantId] = useState("");
 
-  const { data, isLoading, isError, error } = useQuery<{ summary: any; logs: any[] }>({
+  const { data, isLoading, isError, error } = useQuery<{ summary: GamingHealthSummary | null; logs: GamingHealthLogRow[] }>({
     queryKey: ["/api/admin/gaming/health", merchantId],
     queryFn: async () => {
       if (!merchantId) return { summary: null, logs: [] };
@@ -963,12 +1131,12 @@ export function GamingHealthTab({ toast }: { toast: any }) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paged.map((r: any) => (
+                    {paged.map((r) => (
                       <TableRow key={r.id}>
                         <TableCell className="font-mono text-xs truncate max-w-[200px]">{r.endpoint}</TableCell>
-                        <TableCell><Badge variant="outline">{r.method ?? "GET"}</Badge></TableCell>
+                        <TableCell><Badge variant="outline">{"GET"}</Badge></TableCell>
                         <TableCell>
-                          <Badge className={r.statusCode >= 200 && r.statusCode < 300 ? "bg-green-500/20 text-green-700 dark:text-green-400" : "bg-red-500/20 text-red-700 dark:text-red-400"}>
+                          <Badge className={(r.statusCode ?? 0) >= 200 && (r.statusCode ?? 0) < 300 ? "bg-green-500/20 text-green-700 dark:text-green-400" : "bg-red-500/20 text-red-700 dark:text-red-400"}>
                             {r.statusCode ?? "—"}
                           </Badge>
                         </TableCell>
@@ -991,11 +1159,11 @@ export function GamingHealthTab({ toast }: { toast: any }) {
 
 // ─── 10. Failed Events ────────────────────────────────────────────────────────
 
-export function GamingFailedEventsTab({ toast }: { toast: any }) {
+export function GamingFailedEventsTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
   const [merchantId, setMerchantId] = useState("");
   const [statusFilter, setStatusFilter] = useState("pending");
 
-  const { data = [], isLoading, refetch } = useQuery<any[]>({
+  const { data = [], isLoading, isError, error, refetch } = useQuery<GamingFailedEventRow[]>({
     queryKey: ["/api/admin/gaming/failed-events", merchantId, statusFilter],
     queryFn: async () => {
       if (!merchantId) return [];
@@ -1013,13 +1181,13 @@ export function GamingFailedEventsTab({ toast }: { toast: any }) {
   const retryMutation = useMutation({
     mutationFn: (id: number) => apiRequest("PATCH", `/api/admin/gaming/failed-events/${id}/retry`, {}),
     onSuccess: () => { toast({ title: "Event queued for retry" }); refetch(); },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const resolveMutation = useMutation({
     mutationFn: (id: number) => apiRequest("PATCH", `/api/admin/gaming/failed-events/${id}/resolve`, {}),
     onSuccess: () => { toast({ title: "Event marked as resolved" }); refetch(); },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   return (
@@ -1043,7 +1211,8 @@ export function GamingFailedEventsTab({ toast }: { toast: any }) {
       </div>
       <Card>
         <CardContent className="pt-4">
-          {!merchantId ? <p className="text-center text-muted-foreground py-12">Select a merchant to view failed events.</p>
+          {isError ? <ErrorState error={error as Error} />
+          : !merchantId ? <p className="text-center text-muted-foreground py-12">Select a merchant to view failed events.</p>
             : isLoading ? <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
             : paged.length === 0 ? <p className="text-center text-muted-foreground py-12">No failed events found.</p>
             : (
@@ -1061,7 +1230,7 @@ export function GamingFailedEventsTab({ toast }: { toast: any }) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paged.map((r: any) => (
+                    {paged.map((r) => (
                       <TableRow key={r.id}>
                         <TableCell className="font-mono text-xs">{r.eventType}</TableCell>
                         <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{r.failureReason ?? "—"}</TableCell>
@@ -1115,14 +1284,14 @@ const EVENT_TYPES = [
   "turnover.updated", "balance.updated", "player.verified",
 ];
 
-export function GamingAiRulesTab({ toast }: { toast: any }) {
+export function GamingAiRulesTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
   const [merchantId, setMerchantId] = useState("");
   const [showDialog, setShowDialog] = useState(false);
-  const [editRow, setEditRow] = useState<any>(null);
+  const [editRow, setEditRow] = useState<GamingAiRuleRow | null>(null);
   const emptyForm = { eventType: "", conditionKey: "", conditionOperator: "", conditionValue: "", responseTemplate: "", escalationRequired: false, active: true };
   const [form, setForm] = useState(emptyForm);
 
-  const { data = [], isLoading, isError, error, refetch } = useQuery<any[]>({
+  const { data = [], isLoading, isError, error, refetch } = useQuery<GamingAiRuleRow[]>({
     queryKey: ["/api/admin/gaming/ai-rules", merchantId],
     queryFn: async () => {
       if (!merchantId) return [];
@@ -1136,24 +1305,24 @@ export function GamingAiRulesTab({ toast }: { toast: any }) {
   const { paged, Pagination } = usePagination(data);
 
   const openCreate = () => { setEditRow(null); setForm(emptyForm); setShowDialog(true); };
-  const openEdit = (row: any) => {
+  const openEdit = (row: GamingAiRuleRow) => {
     setEditRow(row);
     setForm({ eventType: row.eventType, conditionKey: row.conditionKey ?? "", conditionOperator: row.conditionOperator ?? "", conditionValue: row.conditionValue ?? "", responseTemplate: row.responseTemplate, escalationRequired: !!row.escalationRequired, active: !!row.active });
     setShowDialog(true);
   };
 
   const saveMutation = useMutation({
-    mutationFn: (body: any) => editRow
+    mutationFn: (body: typeof emptyForm) => editRow
       ? apiRequest("PATCH", `/api/admin/gaming/ai-rules/${editRow.id}`, body)
       : apiRequest("POST", "/api/admin/gaming/ai-rules", { ...body, merchantId }),
     onSuccess: () => { toast({ title: editRow ? "Rule updated" : "Rule created" }); setShowDialog(false); refetch(); },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/admin/gaming/ai-rules/${id}`),
     onSuccess: () => { toast({ title: "Rule deleted" }); refetch(); },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   return (
@@ -1228,7 +1397,7 @@ export function GamingAiRulesTab({ toast }: { toast: any }) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paged.map((r: any) => (
+                    {paged.map((r) => (
                       <TableRow key={r.id}>
                         <TableCell className="font-mono text-xs">{r.eventType}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
@@ -1269,47 +1438,49 @@ export function GamingAiRulesTab({ toast }: { toast: any }) {
 
 // ─── 12. Security Settings ────────────────────────────────────────────────────
 
-export function GamingSecurityTab({ toast }: { toast: any }) {
+interface TestResult { success: boolean; statusCode?: number; responseTimeMs?: number; error?: string; }
+
+export function GamingSecurityTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
   const [showCreate, setShowCreate] = useState(false);
-  const [editRow, setEditRow] = useState<any>(null);
-  const [testResult, setTestResult] = useState<Record<number, any>>({});
+  const [editRow, setEditRow] = useState<GamingMerchantSummary | null>(null);
+  const [testResult, setTestResult] = useState<Record<number, TestResult>>({});
   const [testingId, setTestingId] = useState<number | null>(null);
   const emptyForm = { merchantId: "", merchantName: "", brandName: "", apiBaseUrl: "", apiKey: "", apiSecret: "", ipWhitelist: "", status: "active" };
   const [form, setForm] = useState(emptyForm);
 
-  const { data: allMerchants = [], isLoading, isError, error, refetch } = useQuery<any[]>({
+  const { data: allMerchants = [], isLoading, isError, error, refetch } = useQuery<GamingMerchantSummary[]>({
     queryKey: ["/api/admin/gaming/merchants"],
   });
 
   const createMutation = useMutation({
-    mutationFn: (body: any) => editRow
+    mutationFn: (body: typeof emptyForm & { ipWhitelist: string[] }) => editRow
       ? apiRequest("PATCH", `/api/admin/gaming/merchants/${editRow.id}`, body)
       : apiRequest("POST", "/api/admin/gaming/merchants", body),
     onSuccess: () => { toast({ title: editRow ? "Merchant updated" : "Merchant created" }); setShowCreate(false); setEditRow(null); refetch(); },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const rotateMutation = useMutation({
     mutationFn: (id: number) => apiRequest("POST", `/api/admin/gaming/merchants/${id}/rotate-secret`, {}),
     onSuccess: () => { toast({ title: "Webhook secret rotated. Configure the new secret in your panel integration." }); refetch(); },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/admin/gaming/merchants/${id}`),
     onSuccess: () => { toast({ title: "Merchant removed" }); refetch(); },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const openCreate = () => { setEditRow(null); setForm(emptyForm); setShowCreate(true); };
-  const openEdit = (row: any) => {
+  const openEdit = (row: GamingMerchantSummary) => {
     setEditRow(row);
     setForm({ merchantId: row.merchantId, merchantName: row.merchantName, brandName: row.brandName ?? "", apiBaseUrl: row.apiBaseUrl, apiKey: "", apiSecret: "", ipWhitelist: (row.ipWhitelist ?? []).join(", "), status: row.status });
     setShowCreate(true);
   };
 
   const handleSave = () => {
-    const body: any = {
+    const body = {
       merchantId: form.merchantId,
       merchantName: form.merchantName,
       brandName: form.brandName || undefined,
@@ -1322,15 +1493,16 @@ export function GamingSecurityTab({ toast }: { toast: any }) {
     createMutation.mutate(body);
   };
 
-  const testWebhook = async (m: any) => {
+  const testWebhook = async (m: GamingMerchantSummary) => {
     setTestingId(m.id);
     try {
-      const res = await apiRequest("POST", `/api/admin/gaming/merchants/${m.id}/test-webhook`, {});
+      const res = await apiRequest("POST", `/api/admin/gaming/merchants/${m.id}/test-webhook`, {}) as TestResult;
       setTestResult(prev => ({ ...prev, [m.id]: res }));
-      toast({ title: (res as any).success ? "Webhook reachable" : "Webhook unreachable", description: `Status: ${(res as any).statusCode ?? "—"} | ${(res as any).responseTimeMs}ms` });
-    } catch (e: any) {
-      setTestResult(prev => ({ ...prev, [m.id]: { success: false, error: e.message } }));
-      toast({ title: "Test failed", description: e.message, variant: "destructive" });
+      toast({ title: res.success ? "Webhook reachable" : "Webhook unreachable", description: `Status: ${res.statusCode ?? "—"} | ${res.responseTimeMs}ms` });
+    } catch (e: unknown) {
+      const msg = (e as Error).message;
+      setTestResult(prev => ({ ...prev, [m.id]: { success: false, error: msg } }));
+      toast({ title: "Test failed", description: msg, variant: "destructive" });
     } finally {
       setTestingId(null);
     }
@@ -1391,7 +1563,7 @@ export function GamingSecurityTab({ toast }: { toast: any }) {
             : (
               <>
                 <div className="space-y-4">
-                  {paged.map((m: any) => {
+                  {paged.map((m) => {
                     const tr = testResult[m.id];
                     return (
                       <Card key={m.id} className="border">
@@ -1408,7 +1580,7 @@ export function GamingSecurityTab({ toast }: { toast: any }) {
                                 <div><span className="font-medium">API Base URL:</span> {m.apiBaseUrl}</div>
                                 <div><span className="font-medium">API Key:</span> {m.apiKeyHint ? <code className="bg-muted px-1 rounded">{m.apiKeyHint}</code> : <span className="text-yellow-600">Not set</span>}</div>
                                 <div><span className="font-medium">API Secret:</span> {m.apiSecretHint ? <code className="bg-muted px-1 rounded">{m.apiSecretHint}</code> : <span className="text-yellow-600">Not set</span>}</div>
-                                <div><span className="font-medium">Webhook Secret:</span> {m.webhookSecretSet ? <span className="text-green-600">Set</span> : <span className="text-yellow-600">Not set</span>}</div>
+                                <div><span className="font-medium">Webhook Secret:</span> {m.webhookSecretSet ? <span className="text-green-600">Set</span> : <span className="text-yellow-600">Not set</span>} {m.webhookSecretRotatedAt && <span className="text-muted-foreground">(last rotated {safeFormat(m.webhookSecretRotatedAt, "dd MMM yyyy")})</span>}</div>
                                 <div><span className="font-medium">IP Whitelist:</span> {(m.ipWhitelist ?? []).length > 0 ? m.ipWhitelist.join(", ") : <span className="text-muted-foreground">None (all IPs allowed)</span>}</div>
                                 <div><span className="font-medium">Created:</span> {safeFormat(m.createdAt, "dd MMM yyyy")}</div>
                               </div>
@@ -1465,12 +1637,12 @@ const KANBAN_COLUMNS = [
   { id: "done", label: "Done" },
 ];
 
-export function GamingRoadmapTab({ toast }: { toast: any }) {
+export function GamingRoadmapTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
   const [showCreate, setShowCreate] = useState(false);
   const emptyForm = { category: "", title: "", description: "", priority: "medium", status: "backlog", ownerRole: "", acceptanceCriteria: "" };
   const [form, setForm] = useState(emptyForm);
 
-  const { data = [], isLoading, isError, error, refetch } = useQuery<any[]>({
+  const { data = [], isLoading, isError, error, refetch } = useQuery<GamingTaskRow[]>({
     queryKey: ["/api/admin/gaming/tasks"],
     queryFn: async () => {
       const res = await fetch("/api/admin/gaming/tasks", { credentials: "include" });
@@ -1480,37 +1652,39 @@ export function GamingRoadmapTab({ toast }: { toast: any }) {
   });
 
   const createMutation = useMutation({
-    mutationFn: (body: any) => apiRequest("POST", "/api/admin/gaming/tasks", body),
+    mutationFn: (body: typeof emptyForm) => apiRequest("POST", "/api/admin/gaming/tasks", body),
     onSuccess: () => { toast({ title: "Task created" }); setShowCreate(false); setForm(emptyForm); refetch(); },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const seedMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/admin/gaming/tasks/seed", {}),
-    onSuccess: (r: any) => { toast({ title: r.seeded > 0 ? `Seeded ${r.seeded} tasks` : (r.message ?? "Tasks already exist") }); refetch(); },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onSuccess: (r: unknown) => {
+      const result = r as { seeded: number; message?: string };
+      toast({ title: result.seeded > 0 ? `Seeded ${result.seeded} tasks` : (result.message ?? "Tasks already exist") });
+      refetch();
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, body }: { id: number; body: any }) => apiRequest("PATCH", `/api/admin/gaming/tasks/${id}`, body),
+    mutationFn: ({ id, body }: { id: number; body: { status: string } }) => apiRequest("PATCH", `/api/admin/gaming/tasks/${id}`, body),
     onSuccess: () => { toast({ title: "Updated" }); refetch(); },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/admin/gaming/tasks/${id}`),
     onSuccess: () => { toast({ title: "Deleted" }); refetch(); },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const tasksByStatus = useMemo(() => {
-    const map: Record<string, any[]> = {};
+    const map: Record<string, GamingTaskRow[]> = {};
     KANBAN_COLUMNS.forEach(c => { map[c.id] = []; });
-    data.forEach((t: any) => { if (map[t.status]) map[t.status].push(t); });
+    data.forEach((t) => { if (map[t.status]) map[t.status].push(t); });
     return map;
   }, [data]);
-
-  const MOVE_OPTIONS = KANBAN_COLUMNS.map(c => c.id);
 
   return (
     <div className="space-y-6">
@@ -1586,7 +1760,7 @@ export function GamingRoadmapTab({ toast }: { toast: any }) {
               <div className="space-y-2 min-h-[200px]">
                 {(tasksByStatus[col.id] ?? []).length === 0 ? (
                   <div className="border border-dashed rounded-md p-4 text-center text-xs text-muted-foreground">Empty</div>
-                ) : (tasksByStatus[col.id] ?? []).map((task: any) => (
+                ) : (tasksByStatus[col.id] ?? []).map((task) => (
                   <Card key={task.id} className="p-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">

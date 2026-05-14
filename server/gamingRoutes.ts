@@ -23,12 +23,18 @@ function credentialHint(encrypted: string | null | undefined): string | null {
   } catch { return "●●●● (set)"; }
 }
 
-function sanitizeGamingMerchant(r: any) {
+function sanitizeGamingMerchant(r: GamingMerchant) {
   return {
-    ...r,
-    apiKeyEncrypted: null,
-    apiSecretEncrypted: null,
-    webhookSecret: null,
+    id: r.id,
+    merchantId: r.merchantId,
+    merchantName: r.merchantName,
+    brandName: r.brandName,
+    apiBaseUrl: r.apiBaseUrl,
+    ipWhitelist: r.ipWhitelist,
+    status: r.status,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+    webhookSecretRotatedAt: r.webhookSecretRotatedAt,
     apiKeyHint: credentialHint(r.apiKeyEncrypted),
     apiSecretHint: credentialHint(r.apiSecretEncrypted),
     webhookSecretSet: !!r.webhookSecret,
@@ -396,20 +402,50 @@ export function registerGamingRoutes(app: Express) {
   app.post("/api/admin/gaming/merchants/:id/rotate-secret", requireAdmin, async (req: Request, res: Response) => {
     try {
       const id = Number(req.params.id);
-      const row = await storage.updateGamingMerchant(id, { webhookSecret: encryptCredential(generateWebhookSecret()) });
+      const row = await storage.updateGamingMerchant(id, { webhookSecret: encryptCredential(generateWebhookSecret()), webhookSecretRotatedAt: new Date() });
       if (!row) return res.status(404).json({ error: "Not found" });
       res.json({ success: true, webhookSecret: "***", message: "Webhook secret rotated. Configure the new secret via your panel integration settings." });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
+    } catch (err: unknown) {
+      res.status(500).json({ error: (err as Error).message });
     }
   });
 
   // Test webhook — pings the merchant's apiBaseUrl/health with the configured API key
+  // SSRF guard: only allow public HTTPS URLs; block private/loopback/link-local ranges.
+  function isSafeWebhookUrl(raw: string): { ok: boolean; reason?: string } {
+    let parsed: URL;
+    try { parsed = new URL(raw); } catch { return { ok: false, reason: "Invalid URL" }; }
+    if (parsed.protocol !== "https:") return { ok: false, reason: "Only HTTPS URLs are allowed" };
+    const hostname = parsed.hostname.toLowerCase();
+    // Block loopback, private, link-local, metadata ranges
+    const privatePatterns = [
+      /^localhost$/i,
+      /^127\./,
+      /^10\./,
+      /^172\.(1[6-9]|2\d|3[01])\./,
+      /^192\.168\./,
+      /^169\.254\./,
+      /^::1$/,
+      /^fc00:/i,
+      /^fe80:/i,
+      /^0\.0\.0\.0$/,
+      /^metadata\.google\.internal$/i,
+      /^169\.254\.169\.254$/,
+    ];
+    for (const pattern of privatePatterns) {
+      if (pattern.test(hostname)) return { ok: false, reason: "Requests to private/internal addresses are not allowed" };
+    }
+    return { ok: true };
+  }
+
   app.post("/api/admin/gaming/merchants/:id/test-webhook", requireAdmin, async (req: Request, res: Response) => {
     try {
       const id = Number(req.params.id);
       const row = await storage.getGamingMerchant(id);
       if (!row) return res.status(404).json({ error: "Not found" });
+
+      const guard = isSafeWebhookUrl(row.apiBaseUrl ?? "");
+      if (!guard.ok) return res.status(400).json({ error: guard.reason });
 
       const apiKey = row.apiKeyEncrypted ? decryptCredential(row.apiKeyEncrypted) : null;
       const testedUrl = `${row.apiBaseUrl.replace(/\/$/, "")}/health`;
@@ -428,12 +464,12 @@ export function registerGamingRoutes(app: Express) {
         const responseTimeMs = Date.now() - startTime;
         const body = await resp.text().catch(() => "");
         res.json({ success: resp.ok, statusCode: resp.status, responseTimeMs, body: body.slice(0, 500), testedUrl });
-      } catch (fetchErr: any) {
+      } catch (fetchErr: unknown) {
         const responseTimeMs = Date.now() - startTime;
-        res.json({ success: false, statusCode: null, responseTimeMs, error: fetchErr.message, testedUrl });
+        res.json({ success: false, statusCode: null, responseTimeMs, error: (fetchErr as Error).message, testedUrl });
       }
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
+    } catch (err: unknown) {
+      res.status(500).json({ error: (err as Error).message });
     }
   });
 

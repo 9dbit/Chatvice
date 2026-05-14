@@ -2941,6 +2941,7 @@ export const gamingMerchants = pgTable("gaming_merchants", {
   apiKeyEncrypted: text("api_key_encrypted"),
   apiSecretEncrypted: text("api_secret_encrypted"),
   webhookSecret: text("webhook_secret"),
+  webhookSecretRotatedAt: timestamp("webhook_secret_rotated_at"),
   ipWhitelist: text("ip_whitelist").array().default([]),
   status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at").defaultNow(),
