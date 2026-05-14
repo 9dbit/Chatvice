@@ -1,0 +1,888 @@
+Kamu adalah senior full-stack engineer, system architect, dan product auditor untuk project Chatvice.
+
+Project context:
+Chatvice adalah platform AI customer service dan live chat yang memiliki admin dashboard, AI agent, merchant dashboard, chat inbox, user management, dan rencana integrasi ke banyak website/merchant. Sekarang Chatvice ingin diintegrasikan dengan dashboard panel gaming agar Chatvice bisa membaca data transaksi deposit, withdraw, status turnover, saldo player, histori transaksi, dan status bonus secara aman.
+
+Tugas utama kamu:
+1. Audit dulu sistem admin dashboard Chatvice yang sudah ada.
+2. Identifikasi fitur yang sudah tersedia, belum tersedia, rusak, kurang aman, atau perlu dikembangkan.
+3. Buat dan terapkan to-do list teknis untuk membangun Gaming Panel Integration.
+4. Implementasikan struktur halaman, komponen, database schema, API route, webhook receiver, security layer, dan UI dashboard yang dibutuhkan.
+5. Jangan menghapus fitur existing kecuali memang broken atau duplicate.
+6. Semua perubahan harus production-minded, aman, modular, dan siap dikembangkan menjadi multi-merchant.
+
+==================================================
+PHASE 1: AUDIT EXISTING CHATVICE ADMIN DASHBOARD
+==================================================
+
+Lakukan audit menyeluruh terhadap project existing.
+
+Periksa apakah dashboard Chatvice sudah memiliki modul berikut:
+
+A. Core Admin Dashboard
+- Login admin
+- Role admin
+- Super admin
+- Merchant admin
+- Supervisor
+- CS agent
+- Finance role
+- Permission per role
+- Sidebar navigation
+- Dashboard overview
+- Settings page
+- Activity log
+
+B. Chat & AI System
+- Chat inbox
+- Conversation history
+- AI agent settings
+- Human handover
+- Supervisor escalation
+- Read receipts
+- Typing indicator
+- Customer profile panel
+- AI response template
+- Product card / recommendation card
+- Chat widget settings
+
+C. Merchant System
+- Merchant list
+- Merchant detail
+- Merchant API key
+- Merchant domain tracking
+- Merchant status active/inactive
+- Merchant billing/subscription
+- Merchant webhook configuration
+- Multi-store support
+
+D. Transaction / Billing System
+- Order table
+- Payment transaction table
+- Webhook log
+- Payment gateway config
+- Coin / balance / credit system
+- Manual top-up
+- Refund or adjustment log
+- Failed payment log
+
+E. Security & Infrastructure
+- JWT/session auth
+- API key management
+- Rate limiting
+- IP whitelist
+- Webhook signature verification
+- Audit trail
+- Error logging
+- Environment variable management
+- Role-based access control
+
+F. Existing API / Backend
+- Existing routes
+- Existing database schema
+- Existing services
+- Existing middleware
+- Existing auth flow
+- Existing webhook endpoint
+- Existing database migration pattern
+
+Output audit result in a new page:
+
+Route:
+/admin/gaming-integration/audit
+
+UI sections:
+- Audit Summary
+- Existing Features Detected
+- Missing Features
+- Risk Level
+- Required Fixes
+- Recommended Next Steps
+
+Use status badges:
+- Available
+- Partial
+- Missing
+- Broken
+- Needs Review
+
+Each audit item should have:
+- Module name
+- Current status
+- Risk level
+- Notes
+- Recommended action
+
+==================================================
+PHASE 2: CREATE GAMING INTEGRATION MODULE
+==================================================
+
+Create a new admin module called:
+
+Gaming Integration
+
+Add sidebar menu:
+
+Gaming Integration
+- Overview
+- Audit
+- Player Mapping
+- Deposit Monitor
+- Withdraw Monitor
+- Turnover Monitor
+- Balance Monitor
+- Webhook Logs
+- API Health
+- Failed Events
+- AI Response Rules
+- Security Settings
+- To-Do Roadmap
+
+Main route:
+
+/admin/gaming-integration
+
+Design style:
+- Frosted glass morphism
+- Purple Chatvice theme
+- Dark/light mode compatible
+- Premium SaaS admin UI
+- Clean cards
+- Soft gradients
+- Rounded corners
+- Status badges
+- Progress bars
+- Tables with filters
+- Mobile responsive
+
+==================================================
+PHASE 3: DATABASE SCHEMA
+==================================================
+
+Create or extend database schema for gaming integration.
+
+Tables needed:
+
+1. gaming_merchants
+
+Fields:
+- id
+- merchant_id
+- merchant_name
+- brand_name
+- api_base_url
+- api_key_encrypted
+- api_secret_encrypted
+- webhook_secret
+- ip_whitelist
+- status
+- created_at
+- updated_at
+
+2. gaming_player_mappings
+
+Fields:
+- id
+- chatvice_user_id
+- merchant_id
+- gaming_username
+- gaming_player_id
+- phone_number
+- email
+- verified_status
+- linked_at
+- created_at
+- updated_at
+
+3. gaming_deposit_transactions
+
+Fields:
+- id
+- merchant_id
+- player_id
+- username
+- transaction_id
+- amount
+- currency
+- payment_method
+- payment_channel
+- status
+- proof_url
+- created_at
+- paid_at
+- expired_at
+- raw_payload
+- synced_at
+
+4. gaming_withdraw_transactions
+
+Fields:
+- id
+- merchant_id
+- player_id
+- username
+- withdraw_id
+- amount
+- currency
+- bank_name
+- account_name
+- account_number_masked
+- status
+- rejected_reason
+- requested_at
+- approved_at
+- rejected_at
+- raw_payload
+- synced_at
+
+5. gaming_turnover_status
+
+Fields:
+- id
+- merchant_id
+- player_id
+- username
+- bonus_id
+- bonus_name
+- required_turnover
+- current_turnover
+- remaining_turnover
+- progress_percentage
+- eligible_withdraw
+- expiry_date
+- status
+- raw_payload
+- synced_at
+
+6. gaming_balance_snapshots
+
+Fields:
+- id
+- merchant_id
+- player_id
+- username
+- current_balance
+- locked_balance
+- bonus_balance
+- currency
+- source
+- raw_payload
+- created_at
+
+7. gaming_webhook_logs
+
+Fields:
+- id
+- merchant_id
+- event_type
+- event_id
+- player_id
+- transaction_id
+- payload
+- signature_valid
+- status
+- error_message
+- received_at
+- processed_at
+
+8. gaming_failed_events
+
+Fields:
+- id
+- merchant_id
+- event_type
+- payload
+- failure_reason
+- retry_count
+- next_retry_at
+- status
+- created_at
+- updated_at
+
+9. gaming_api_health_logs
+
+Fields:
+- id
+- merchant_id
+- endpoint
+- method
+- status_code
+- response_time_ms
+- success
+- error_message
+- checked_at
+
+10. gaming_ai_response_rules
+
+Fields:
+- id
+- merchant_id
+- event_type
+- condition_key
+- condition_operator
+- condition_value
+- response_template
+- escalation_required
+- active
+- created_at
+- updated_at
+
+11. gaming_integration_tasks
+
+Fields:
+- id
+- category
+- title
+- description
+- priority
+- status
+- owner_role
+- dependencies
+- acceptance_criteria
+- created_at
+- updated_at
+- completed_at
+
+==================================================
+PHASE 4: API CLIENT FROM CHATVICE TO GAMING PANEL
+==================================================
+
+Create service layer:
+
+/server/services/gaming/gamingApiClient.ts
+
+This service should support:
+
+GET player profile
+GET player balance
+GET player deposits
+GET player withdrawals
+GET player turnover
+GET player transactions
+GET bonus status
+
+Required methods:
+
+getPlayerProfile(merchantId, playerId)
+getPlayerBalance(merchantId, playerId)
+getDepositStatus(merchantId, transactionId)
+getWithdrawStatus(merchantId, withdrawId)
+getTurnoverStatus(merchantId, playerId)
+getTransactionHistory(merchantId, playerId)
+syncPlayerData(merchantId, playerId)
+
+Use:
+- API key
+- API secret
+- HMAC signature
+- timestamp
+- request ID
+- timeout handling
+- retry handling
+- error logging
+- API health logging
+
+Do not expose raw sensitive data to frontend.
+
+Mask:
+- bank account number
+- email if needed
+- phone number if needed
+- internal risk notes
+
+==================================================
+PHASE 5: WEBHOOK RECEIVER
+==================================================
+
+Create webhook endpoint:
+
+POST /api/webhooks/gaming/events
+
+Supported event types:
+
+deposit.created
+deposit.success
+deposit.failed
+withdraw.requested
+withdraw.approved
+withdraw.rejected
+turnover.updated
+balance.updated
+bonus.claimed
+bonus.expired
+player.suspended
+player.verified
+
+Webhook payload example:
+
+{
+  "event_type": "deposit.success",
+  "event_id": "evt_123456",
+  "merchant_id": "gunungmas88",
+  "player_id": "GM8899123",
+  "username": "adwin123",
+  "transaction_id": "DEP-20260515-0001",
+  "data": {
+    "amount": 500000,
+    "currency": "IDR",
+    "status": "success",
+    "payment_method": "QRIS"
+  },
+  "timestamp": "2026-05-15T01:45:00+07:00"
+}
+
+Webhook requirements:
+- Verify HMAC signature
+- Verify timestamp
+- Prevent replay attack
+- Validate merchant ID
+- Save raw payload
+- Process event
+- Update related transaction table
+- Trigger AI/customer notification rules
+- Log success/failure
+- If failed, move to failed events table
+- Support retry mechanism
+
+Headers:
+
+X-Chatvice-Merchant-ID
+X-Chatvice-Signature
+X-Chatvice-Timestamp
+X-Chatvice-Event-ID
+
+==================================================
+PHASE 6: SECURITY LAYER
+==================================================
+
+Implement:
+
+1. Merchant API credential management
+- Encrypted API key
+- Encrypted API secret
+- Webhook secret
+- Status active/inactive
+
+2. Webhook validation
+- HMAC SHA256
+- timestamp tolerance
+- event ID deduplication
+- IP whitelist optional
+
+3. RBAC
+Roles:
+- Super Admin
+- Merchant Admin
+- Supervisor
+- CS Agent
+- Finance
+- Auditor
+
+Permission rules:
+
+AI Agent can see:
+- deposit status
+- withdraw status
+- turnover progress
+- balance summary
+- bonus status
+
+AI Agent cannot see:
+- full bank number
+- password
+- PIN
+- admin note
+- fraud score detail
+- internal API secret
+
+CS Agent can see:
+- customer profile
+- transaction status
+- turnover progress
+- limited transaction history
+
+Finance can see:
+- withdraw details
+- deposit verification
+- payment channel
+- bank name
+- masked account number
+
+Super Admin can see:
+- integration settings
+- API health
+- webhook logs
+- security settings
+- merchant credentials masked
+
+==================================================
+PHASE 7: ADMIN UI PAGES
+==================================================
+
+Build these pages:
+
+1. Gaming Integration Overview
+
+Cards:
+- Total connected merchants
+- Total mapped players
+- Deposit today
+- Withdraw today
+- Pending withdraw
+- Failed webhook events
+- API uptime
+- Turnover issues
+
+2. Audit Page
+
+Display audit checklist and result.
+
+3. Player Mapping
+
+Table columns:
+- Chatvice user
+- Phone
+- Merchant
+- Gaming username
+- Gaming player ID
+- Verified status
+- Last sync
+- Action
+
+Actions:
+- Link player
+- Verify mapping
+- Manual sync
+- Unlink
+
+4. Deposit Monitor
+
+Table columns:
+- Transaction ID
+- Merchant
+- Username
+- Amount
+- Method
+- Status
+- Created at
+- Paid at
+- Source
+- Action
+
+Filters:
+- merchant
+- username
+- status
+- date range
+
+5. Withdraw Monitor
+
+Table columns:
+- Withdraw ID
+- Merchant
+- Username
+- Amount
+- Bank
+- Account masked
+- Status
+- Requested at
+- Approved at
+- Rejected reason
+- Action
+
+6. Turnover Monitor
+
+Table columns:
+- Player ID
+- Username
+- Bonus
+- Required turnover
+- Current turnover
+- Remaining turnover
+- Progress
+- Eligible withdraw
+- Expiry date
+
+7. Balance Monitor
+
+Table columns:
+- Player ID
+- Username
+- Current balance
+- Locked balance
+- Bonus balance
+- Currency
+- Last update
+
+8. Webhook Logs
+
+Table columns:
+- Event ID
+- Event type
+- Merchant
+- Player ID
+- Signature valid
+- Status
+- Received at
+- Processed at
+- Error message
+
+Actions:
+- View payload
+- Reprocess event
+
+9. API Health
+
+Show:
+- Endpoint
+- Status
+- Response time
+- Last checked
+- Error message
+- Uptime percentage
+
+10. Failed Events
+
+Show failed webhook/API events with:
+- Retry count
+- Next retry time
+- Failure reason
+- Reprocess button
+- Mark resolved button
+
+11. AI Response Rules
+
+Allow admin to configure response templates.
+
+Examples:
+
+deposit.success:
+"Deposit Anda sebesar Rp{{amount}} sudah berhasil masuk. Saldo akun Anda sudah diperbarui."
+
+withdraw.pending:
+"Withdraw Anda sedang dalam proses pengecekan oleh tim finance."
+
+turnover.not_enough:
+"Turnover Anda saat ini Rp{{current_turnover}} dari total syarat Rp{{required_turnover}}. Sisa turnover Anda adalah Rp{{remaining_turnover}}."
+
+withdraw.rejected_turnover:
+"Withdraw belum dapat diproses karena turnover belum memenuhi syarat."
+
+12. Security Settings
+
+Show:
+- API key masked
+- Webhook secret masked
+- IP whitelist
+- Signature status
+- Last credential rotation
+- Rotate credential button
+- Test webhook button
+
+13. To-Do Roadmap
+
+Create a roadmap board with columns:
+- Backlog
+- To Do
+- In Progress
+- Testing
+- Done
+
+Seed tasks:
+
+Critical:
+- Audit existing admin dashboard
+- Add Gaming Integration sidebar
+- Create gaming merchant table
+- Create player mapping table
+- Build webhook receiver
+- Add HMAC signature verification
+- Create deposit monitor
+- Create withdraw monitor
+- Create turnover monitor
+- Create webhook logs
+- Add failed event retry system
+
+High:
+- Build gaming API client
+- Add API health monitor
+- Add manual sync
+- Add AI response rules
+- Add RBAC permission
+- Add masked sensitive fields
+- Add transaction search filters
+
+Medium:
+- Add notification template editor
+- Add merchant credential rotation
+- Add test webhook simulator
+- Add export CSV
+- Add dashboard analytics
+
+Low:
+- Add advanced anomaly detection
+- Add risk flag dashboard
+- Add multi-language templates
+- Add merchant onboarding wizard
+
+Each task must have:
+- Priority
+- Category
+- Description
+- Acceptance criteria
+- Status
+- Dependencies
+
+==================================================
+PHASE 8: AI AGENT BEHAVIOR
+==================================================
+
+Add safe AI data access policy.
+
+When customer asks:
+"Deposit saya sudah masuk belum?"
+
+AI flow:
+1. Identify logged-in user.
+2. Check player mapping.
+3. Fetch latest deposit status.
+4. If data found, answer with status.
+5. If pending, explain politely.
+6. If failed, escalate if needed.
+7. Never expose internal payload.
+
+When customer asks:
+"Withdraw saya kenapa ditolak?"
+
+AI flow:
+1. Check latest withdraw.
+2. Check turnover status.
+3. If turnover insufficient, explain remaining turnover.
+4. If rejected by finance, show safe reason.
+5. If unclear, escalate to human CS.
+
+When customer asks:
+"Turnover saya kurang berapa?"
+
+AI flow:
+1. Get turnover data.
+2. Show required, current, remaining.
+3. Show percentage.
+4. Explain eligibility for withdraw.
+
+Example AI answer:
+
+"Turnover Anda saat ini Rp3.250.000 dari total syarat Rp5.000.000. Sisa turnover yang perlu diselesaikan adalah Rp1.750.000. Setelah terpenuhi, withdraw dapat diproses sesuai ketentuan."
+
+==================================================
+PHASE 9: TEST SCENARIOS
+==================================================
+
+Create test scenarios page or seed documentation.
+
+Test cases:
+
+1. Deposit success webhook received
+Expected:
+- Signature valid
+- Deposit table updated
+- Webhook log success
+- AI notification created
+
+2. Withdraw rejected due turnover
+Expected:
+- Withdraw table updated
+- Turnover checked
+- AI template response ready
+- Escalation optional
+
+3. Invalid webhook signature
+Expected:
+- Reject request
+- Save failed log
+- Do not update transaction
+
+4. Duplicate event ID
+Expected:
+- Ignore duplicate
+- Do not double process transaction
+
+5. API timeout
+Expected:
+- Log health issue
+- Retry if configured
+- Show fallback message
+
+6. Player not mapped
+Expected:
+- Ask user to verify account
+- Do not reveal data
+
+7. CS role access
+Expected:
+- Can see status
+- Cannot see API secret
+- Cannot see full bank account
+
+8. Finance role access
+Expected:
+- Can see withdraw detail
+- Can update finance note if feature exists
+
+==================================================
+PHASE 10: IMPLEMENTATION REQUIREMENTS
+==================================================
+
+Important:
+- Keep code modular.
+- Do not hardcode merchant names.
+- Make everything multi-merchant ready.
+- Use environment variables for secrets.
+- Never expose secrets to frontend.
+- Mask sensitive data.
+- Add proper error handling.
+- Add loading state.
+- Add empty state.
+- Add responsive UI.
+- Add seed/demo data if real API is not connected yet.
+- Do not break existing Chatvice features.
+- Preserve existing styling unless improving consistency.
+- Use TypeScript-safe patterns if the project uses TypeScript.
+- Use existing database ORM pattern.
+- Use existing auth/session middleware.
+
+==================================================
+FINAL OUTPUT EXPECTED
+==================================================
+
+After implementation, provide:
+
+1. Audit summary:
+- What exists
+- What is missing
+- What was added
+- What still needs manual config
+
+2. New routes created
+
+3. New database tables created
+
+4. New API endpoints created
+
+5. New UI pages created
+
+6. Security notes
+
+7. Testing checklist
+
+8. Remaining manual steps:
+- Add real gaming panel API base URL
+- Add merchant API key
+- Add merchant secret
+- Configure webhook URL on gaming panel
+- Whitelist Chatvice server IP if needed
+- Run webhook test
+- Verify player mapping
+- Test deposit, withdraw, turnover event
+
+Start by auditing the existing project structure first, then implement the Gaming Integration module carefully.
