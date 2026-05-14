@@ -1567,7 +1567,8 @@ export function GamingSecurityTab({ toast }: { toast: ToastFn }) {
   const testWebhook = async (m: GamingMerchantSummary) => {
     setTestingId(m.id);
     try {
-      const res = await apiRequest("POST", `/api/admin/gaming/merchants/${m.id}/test-webhook`, {}) as unknown as TestResult;
+      const response = await apiRequest("POST", `/api/admin/gaming/merchants/${m.id}/test-webhook`, {});
+      const res: TestResult = await response.json();
       setTestResult(prev => ({ ...prev, [m.id]: res }));
       toast({ title: res.success ? "Webhook reachable" : "Webhook unreachable", description: `Status: ${res.statusCode ?? "—"} | ${res.responseTimeMs}ms` });
     } catch (e: unknown) {
@@ -1728,10 +1729,13 @@ export function GamingRoadmapTab({ toast }: { toast: ToastFn }) {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  interface SeedResult { seeded: number; message?: string; }
   const seedMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/admin/gaming/tasks/seed", {}),
-    onSuccess: (r: unknown) => {
-      const result = r as { seeded: number; message?: string };
+    mutationFn: async (): Promise<SeedResult> => {
+      const response = await apiRequest("POST", "/api/admin/gaming/tasks/seed", {});
+      return response.json() as Promise<SeedResult>;
+    },
+    onSuccess: (result: SeedResult) => {
       toast({ title: result.seeded > 0 ? `Seeded ${result.seeded} tasks` : (result.message ?? "Tasks already exist") });
       refetch();
     },
