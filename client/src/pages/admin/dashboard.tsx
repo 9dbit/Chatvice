@@ -426,7 +426,15 @@ export default function AdminDashboard() {
     }
   };
 
-  const sidebarItems = [
+  interface SidebarItem {
+    id: string;
+    label: string;
+    icon: React.ElementType;
+    section?: string;
+    href?: string;
+  }
+
+  const sidebarItems: SidebarItem[] = [
     { id: "overview", label: "Overview", icon: BarChart3 },
     { id: "merchants", label: "All Merchants", icon: Building2 },
     { id: "subscribers", label: "Active Subscribers", icon: UserCheck },
@@ -497,18 +505,22 @@ export default function AdminDashboard() {
           }
 
           // Inject section header when section changes
-          const prevSection = idx > 0 ? (sidebarItems[idx - 1] as any).section : undefined;
-          const currSection = (item as any).section;
+          const prevSection = idx > 0 ? sidebarItems[idx - 1].section : undefined;
+          const currSection = item.section;
           const showSectionHeader = currSection && currSection !== prevSection;
 
-          const itemHref = (item as typeof item & { href?: string }).href;
+          const itemHref = item.href;
+          // For link-based items (gaming), derive active state from current URL path
+          const isActive = itemHref
+            ? location === itemHref
+            : activeTab === item.id;
           const itemContent = (
             <>
               <item.icon className="w-5 h-5 flex-shrink-0" />
               <span className="truncate flex-1 text-left">{item.label}</span>
               {badgeCount > 0 && (
                 <span className={`min-w-6 h-6 flex items-center justify-center text-xs font-medium rounded-full ${
-                  activeTab === item.id 
+                  isActive 
                     ? "bg-primary-foreground/20 text-primary-foreground" 
                     : "bg-amber-500 text-white"
                 }`}>
@@ -518,7 +530,7 @@ export default function AdminDashboard() {
             </>
           );
           const btnClass = `w-full flex items-center gap-3 px-3 py-3 min-h-[48px] rounded-md text-sm transition-colors relative ${
-            activeTab === item.id
+            isActive
               ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:bg-muted hover:text-foreground"
           }`;
