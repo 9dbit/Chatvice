@@ -647,7 +647,7 @@ export function GamingTurnoversTab({ toast }: { toast: any }) {
   const [merchantId, setMerchantId] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const { data = [], isLoading } = useQuery<any[]>({
+  const { data = [], isLoading, isError, error } = useQuery<any[]>({
     queryKey: ["/api/admin/gaming/turnovers", merchantId],
     queryFn: async () => {
       if (!merchantId) return [];
@@ -684,7 +684,8 @@ export function GamingTurnoversTab({ toast }: { toast: any }) {
       </div>
       <Card>
         <CardContent className="pt-4">
-          {!merchantId ? <p className="text-center text-muted-foreground py-12">Select a merchant to view turnovers.</p>
+          {isError ? <ErrorState error={error as Error} />
+          : !merchantId ? <p className="text-center text-muted-foreground py-12">Select a merchant to view turnovers.</p>
             : isLoading ? <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
             : paged.length === 0 ? <p className="text-center text-muted-foreground py-12">No turnover records found.</p>
             : (
@@ -737,7 +738,7 @@ export function GamingTurnoversTab({ toast }: { toast: any }) {
 export function GamingBalancesTab({ toast }: { toast: any }) {
   const [merchantId, setMerchantId] = useState("");
 
-  const { data = [], isLoading } = useQuery<any[]>({
+  const { data = [], isLoading, isError, error } = useQuery<any[]>({
     queryKey: ["/api/admin/gaming/balances", merchantId],
     queryFn: async () => {
       if (!merchantId) return [];
@@ -759,7 +760,8 @@ export function GamingBalancesTab({ toast }: { toast: any }) {
       <MerchantSelector value={merchantId} onChange={setMerchantId} />
       <Card>
         <CardContent className="pt-4">
-          {!merchantId ? <p className="text-center text-muted-foreground py-12">Select a merchant to view balances.</p>
+          {isError ? <ErrorState error={error as Error} />
+          : !merchantId ? <p className="text-center text-muted-foreground py-12">Select a merchant to view balances.</p>
             : isLoading ? <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
             : paged.length === 0 ? <p className="text-center text-muted-foreground py-12">No balance snapshots found.</p>
             : (
@@ -805,7 +807,7 @@ export function GamingWebhooksTab({ toast }: { toast: any }) {
   const [merchantId, setMerchantId] = useState("");
   const [viewPayload, setViewPayload] = useState<any>(null);
 
-  const { data = [], isLoading, refetch } = useQuery<any[]>({
+  const { data = [], isLoading, isError, error, refetch } = useQuery<any[]>({
     queryKey: ["/api/admin/gaming/webhook-logs", merchantId],
     queryFn: async () => {
       if (!merchantId) return [];
@@ -814,6 +816,12 @@ export function GamingWebhooksTab({ toast }: { toast: any }) {
       return res.json();
     },
     enabled: !!merchantId,
+  });
+
+  const reprocessMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("POST", `/api/admin/gaming/webhook-logs/${id}/reprocess`, {}),
+    onSuccess: () => { toast({ title: "Event queued for reprocessing" }); refetch(); },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const { paged, Pagination } = usePagination(data);
@@ -838,7 +846,8 @@ export function GamingWebhooksTab({ toast }: { toast: any }) {
 
       <Card>
         <CardContent className="pt-4">
-          {!merchantId ? <p className="text-center text-muted-foreground py-12">Select a merchant to view webhook logs.</p>
+          {isError ? <ErrorState error={error as Error} />
+          : !merchantId ? <p className="text-center text-muted-foreground py-12">Select a merchant to view webhook logs.</p>
             : isLoading ? <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
             : paged.length === 0 ? <p className="text-center text-muted-foreground py-12">No webhook logs found.</p>
             : (
@@ -853,7 +862,7 @@ export function GamingWebhooksTab({ toast }: { toast: any }) {
                       <TableHead>Status</TableHead>
                       <TableHead>Received At</TableHead>
                       <TableHead>Error</TableHead>
-                      <TableHead className="w-20">Payload</TableHead>
+                      <TableHead className="w-32">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -867,7 +876,12 @@ export function GamingWebhooksTab({ toast }: { toast: any }) {
                         <TableCell className="text-sm text-muted-foreground">{safeFormat(r.receivedAt, "dd MMM HH:mm:ss")}</TableCell>
                         <TableCell className="text-xs text-muted-foreground max-w-[120px] truncate">{r.errorMessage ?? "—"}</TableCell>
                         <TableCell>
-                          <Button size="sm" variant="ghost" onClick={() => setViewPayload(r)} data-testid={`button-view-payload-${r.id}`}><Eye className="w-3 h-3" /></Button>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="ghost" onClick={() => setViewPayload(r)} data-testid={`button-view-payload-${r.id}`}><Eye className="w-3 h-3" /></Button>
+                            <Button size="sm" variant="ghost" disabled={reprocessMutation.isPending || r.status === "processed"} onClick={() => reprocessMutation.mutate(r.id)} data-testid={`button-reprocess-${r.id}`} title="Reprocess">
+                              {reprocessMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -887,7 +901,7 @@ export function GamingWebhooksTab({ toast }: { toast: any }) {
 export function GamingHealthTab({ toast }: { toast: any }) {
   const [merchantId, setMerchantId] = useState("");
 
-  const { data, isLoading } = useQuery<{ summary: any; logs: any[] }>({
+  const { data, isLoading, isError, error } = useQuery<{ summary: any; logs: any[] }>({
     queryKey: ["/api/admin/gaming/health", merchantId],
     queryFn: async () => {
       if (!merchantId) return { summary: null, logs: [] };
@@ -930,7 +944,8 @@ export function GamingHealthTab({ toast }: { toast: any }) {
 
       <Card>
         <CardContent className="pt-4">
-          {!merchantId ? <p className="text-center text-muted-foreground py-12">Select a merchant to view health logs.</p>
+          {isError ? <ErrorState error={error as Error} />
+          : !merchantId ? <p className="text-center text-muted-foreground py-12">Select a merchant to view health logs.</p>
             : isLoading ? <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
             : paged.length === 0 ? <p className="text-center text-muted-foreground py-12">No health logs found.</p>
             : (
@@ -1001,11 +1016,17 @@ export function GamingFailedEventsTab({ toast }: { toast: any }) {
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const resolveMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("PATCH", `/api/admin/gaming/failed-events/${id}/resolve`, {}),
+    onSuccess: () => { toast({ title: "Event marked as resolved" }); refetch(); },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold flex items-center gap-2"><AlertTriangle className="w-6 h-6" />Failed Events</h2>
-        <p className="text-muted-foreground text-sm mt-1">Events that failed during processing. Use "Reprocess" to retry them.</p>
+        <p className="text-muted-foreground text-sm mt-1">Events that failed during processing. Retry to re-process or mark resolved to dismiss.</p>
       </div>
       <div className="flex flex-wrap gap-3">
         <MerchantSelector value={merchantId} onChange={setMerchantId} />
@@ -1049,16 +1070,29 @@ export function GamingFailedEventsTab({ toast }: { toast: any }) {
                         <TableCell>{statusBadge(r.status)}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{safeFormat(r.createdAt, "dd MMM HH:mm")}</TableCell>
                         <TableCell>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={retryMutation.isPending || r.status === "resolved"}
-                            onClick={() => retryMutation.mutate(r.id)}
-                            data-testid={`button-retry-event-${r.id}`}
-                          >
-                            {retryMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
-                            Retry
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={retryMutation.isPending || r.status === "resolved"}
+                              onClick={() => retryMutation.mutate(r.id)}
+                              data-testid={`button-retry-event-${r.id}`}
+                              title="Retry"
+                            >
+                              {retryMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
+                              Retry
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={resolveMutation.isPending || r.status === "resolved"}
+                              onClick={() => resolveMutation.mutate(r.id)}
+                              data-testid={`button-resolve-event-${r.id}`}
+                              title="Mark resolved"
+                            >
+                              <CheckCircle className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1088,7 +1122,7 @@ export function GamingAiRulesTab({ toast }: { toast: any }) {
   const emptyForm = { eventType: "", conditionKey: "", conditionOperator: "", conditionValue: "", responseTemplate: "", escalationRequired: false, active: true };
   const [form, setForm] = useState(emptyForm);
 
-  const { data = [], isLoading, refetch } = useQuery<any[]>({
+  const { data = [], isLoading, isError, error, refetch } = useQuery<any[]>({
     queryKey: ["/api/admin/gaming/ai-rules", merchantId],
     queryFn: async () => {
       if (!merchantId) return [];
@@ -1176,7 +1210,8 @@ export function GamingAiRulesTab({ toast }: { toast: any }) {
 
       <Card>
         <CardContent className="pt-4">
-          {!merchantId ? <p className="text-center text-muted-foreground py-12">Select a merchant to view AI rules.</p>
+          {isError ? <ErrorState error={error as Error} />
+          : !merchantId ? <p className="text-center text-muted-foreground py-12">Select a merchant to view AI rules.</p>
             : isLoading ? <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
             : paged.length === 0 ? <p className="text-center text-muted-foreground py-12">No AI rules configured. Create one to get started.</p>
             : (
@@ -1237,10 +1272,12 @@ export function GamingAiRulesTab({ toast }: { toast: any }) {
 export function GamingSecurityTab({ toast }: { toast: any }) {
   const [showCreate, setShowCreate] = useState(false);
   const [editRow, setEditRow] = useState<any>(null);
+  const [testResult, setTestResult] = useState<Record<number, any>>({});
+  const [testingId, setTestingId] = useState<number | null>(null);
   const emptyForm = { merchantId: "", merchantName: "", brandName: "", apiBaseUrl: "", apiKey: "", apiSecret: "", ipWhitelist: "", status: "active" };
   const [form, setForm] = useState(emptyForm);
 
-  const { data: allMerchants = [], isLoading, refetch } = useQuery<any[]>({
+  const { data: allMerchants = [], isLoading, isError, error, refetch } = useQuery<any[]>({
     queryKey: ["/api/admin/gaming/merchants"],
   });
 
@@ -1283,6 +1320,20 @@ export function GamingSecurityTab({ toast }: { toast: any }) {
     if (form.apiKey) body.apiKey = form.apiKey;
     if (form.apiSecret) body.apiSecret = form.apiSecret;
     createMutation.mutate(body);
+  };
+
+  const testWebhook = async (m: any) => {
+    setTestingId(m.id);
+    try {
+      const res = await apiRequest("POST", `/api/admin/gaming/merchants/${m.id}/test-webhook`, {});
+      setTestResult(prev => ({ ...prev, [m.id]: res }));
+      toast({ title: (res as any).success ? "Webhook reachable" : "Webhook unreachable", description: `Status: ${(res as any).statusCode ?? "—"} | ${(res as any).responseTimeMs}ms` });
+    } catch (e: any) {
+      setTestResult(prev => ({ ...prev, [m.id]: { success: false, error: e.message } }));
+      toast({ title: "Test failed", description: e.message, variant: "destructive" });
+    } finally {
+      setTestingId(null);
+    }
   };
 
   const { paged, Pagination } = usePagination(allMerchants);
@@ -1334,53 +1385,66 @@ export function GamingSecurityTab({ toast }: { toast: any }) {
 
       <Card>
         <CardContent className="pt-4">
-          {isLoading ? <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+          {isError ? <ErrorState error={error as Error} />
+          : isLoading ? <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
             : paged.length === 0 ? <p className="text-center text-muted-foreground py-12">No gaming merchants configured yet.</p>
             : (
               <>
                 <div className="space-y-4">
-                  {paged.map((m: any) => (
-                    <Card key={m.id} className="border">
-                      <CardContent className="pt-4">
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                          <div className="space-y-2 flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold">{m.merchantName}</span>
-                              {m.brandName && <span className="text-muted-foreground text-sm">({m.brandName})</span>}
-                              {statusBadge(m.status)}
+                  {paged.map((m: any) => {
+                    const tr = testResult[m.id];
+                    return (
+                      <Card key={m.id} className="border">
+                        <CardContent className="pt-4">
+                          <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="space-y-2 flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold">{m.merchantName}</span>
+                                {m.brandName && <span className="text-muted-foreground text-sm">({m.brandName})</span>}
+                                {statusBadge(m.status)}
+                              </div>
+                              <div className="text-xs text-muted-foreground space-y-1">
+                                <div><span className="font-medium">Merchant ID:</span> {m.merchantId}</div>
+                                <div><span className="font-medium">API Base URL:</span> {m.apiBaseUrl}</div>
+                                <div><span className="font-medium">API Key:</span> {m.apiKeyHint ? <code className="bg-muted px-1 rounded">{m.apiKeyHint}</code> : <span className="text-yellow-600">Not set</span>}</div>
+                                <div><span className="font-medium">API Secret:</span> {m.apiSecretHint ? <code className="bg-muted px-1 rounded">{m.apiSecretHint}</code> : <span className="text-yellow-600">Not set</span>}</div>
+                                <div><span className="font-medium">Webhook Secret:</span> {m.webhookSecretSet ? <span className="text-green-600">Set</span> : <span className="text-yellow-600">Not set</span>}</div>
+                                <div><span className="font-medium">IP Whitelist:</span> {(m.ipWhitelist ?? []).length > 0 ? m.ipWhitelist.join(", ") : <span className="text-muted-foreground">None (all IPs allowed)</span>}</div>
+                                <div><span className="font-medium">Created:</span> {safeFormat(m.createdAt, "dd MMM yyyy")}</div>
+                              </div>
+                              {tr && (
+                                <div className={`mt-2 text-xs px-2 py-1 rounded ${tr.success ? "bg-green-500/10 text-green-700 dark:text-green-400" : "bg-red-500/10 text-red-700 dark:text-red-400"}`}>
+                                  Test result: {tr.success ? `OK ${tr.statusCode}` : `FAIL${tr.statusCode ? ` ${tr.statusCode}` : ""}`} — {tr.responseTimeMs}ms
+                                  {tr.error ? ` (${tr.error})` : ""}
+                                </div>
+                              )}
                             </div>
-                            <div className="text-xs text-muted-foreground space-y-1">
-                              <div><span className="font-medium">Merchant ID:</span> {m.merchantId}</div>
-                              <div><span className="font-medium">API Base URL:</span> {m.apiBaseUrl}</div>
-                              <div><span className="font-medium">API Key:</span> {m.apiKeyEncrypted ? "●●●●●●●● (set)" : <span className="text-yellow-600">Not set</span>}</div>
-                              <div><span className="font-medium">API Secret:</span> {m.apiSecretEncrypted ? "●●●●●●●● (set)" : <span className="text-yellow-600">Not set</span>}</div>
-                              <div><span className="font-medium">Webhook Secret:</span> {m.webhookSecret ? "●●●●●●●● (set)" : <span className="text-yellow-600">Not set</span>}</div>
-                              <div><span className="font-medium">IP Whitelist:</span> {(m.ipWhitelist ?? []).length > 0 ? m.ipWhitelist.join(", ") : <span className="text-muted-foreground">None (all IPs allowed)</span>}</div>
-                              <div><span className="font-medium">Created:</span> {safeFormat(m.createdAt, "dd MMM yyyy")}</div>
+                            <div className="flex flex-wrap gap-2">
+                              <Button size="sm" variant="outline" onClick={() => openEdit(m)} data-testid={`button-edit-merchant-${m.id}`}><Pencil className="w-3 h-3 mr-1" />Edit</Button>
+                              <Button size="sm" variant="outline" disabled={testingId === m.id} onClick={() => testWebhook(m)} data-testid={`button-test-webhook-${m.id}`}>
+                                {testingId === m.id ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Wifi className="w-3 h-3 mr-1" />}Test
+                              </Button>
+                              <Button size="sm" variant="outline" disabled={rotateMutation.isPending} onClick={() => rotateMutation.mutate(m.id)} data-testid={`button-rotate-secret-${m.id}`}>
+                                {rotateMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RotateCcw className="w-3 h-3 mr-1" />}Rotate Secret
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button size="sm" variant="outline" data-testid={`button-delete-merchant-${m.id}`}><Trash2 className="w-3 h-3 mr-1" />Remove</Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader><AlertDialogTitle>Remove merchant?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the gaming merchant configuration and all associated data.</AlertDialogDescription></AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => deleteMutation.mutate(m.id)}>Remove</AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </div>
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Button size="sm" variant="outline" onClick={() => openEdit(m)} data-testid={`button-edit-merchant-${m.id}`}><Pencil className="w-3 h-3 mr-1" />Edit</Button>
-                            <Button size="sm" variant="outline" disabled={rotateMutation.isPending} onClick={() => rotateMutation.mutate(m.id)} data-testid={`button-rotate-secret-${m.id}`}>
-                              {rotateMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RotateCcw className="w-3 h-3 mr-1" />}Rotate Secret
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button size="sm" variant="outline" data-testid={`button-delete-merchant-${m.id}`}><Trash2 className="w-3 h-3 mr-1" />Remove</Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader><AlertDialogTitle>Remove merchant?</AlertDialogTitle><AlertDialogDescription>This will permanently delete the gaming merchant configuration and all associated data.</AlertDialogDescription></AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => deleteMutation.mutate(m.id)}>Remove</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
                 <Pagination />
               </>
@@ -1397,8 +1461,8 @@ const KANBAN_COLUMNS = [
   { id: "backlog", label: "Backlog" },
   { id: "todo", label: "To Do" },
   { id: "in_progress", label: "In Progress" },
+  { id: "testing", label: "Testing" },
   { id: "done", label: "Done" },
-  { id: "cancelled", label: "Cancelled" },
 ];
 
 export function GamingRoadmapTab({ toast }: { toast: any }) {
@@ -1406,7 +1470,7 @@ export function GamingRoadmapTab({ toast }: { toast: any }) {
   const emptyForm = { category: "", title: "", description: "", priority: "medium", status: "backlog", ownerRole: "", acceptanceCriteria: "" };
   const [form, setForm] = useState(emptyForm);
 
-  const { data = [], isLoading, refetch } = useQuery<any[]>({
+  const { data = [], isLoading, isError, error, refetch } = useQuery<any[]>({
     queryKey: ["/api/admin/gaming/tasks"],
     queryFn: async () => {
       const res = await fetch("/api/admin/gaming/tasks", { credentials: "include" });
@@ -1418,6 +1482,12 @@ export function GamingRoadmapTab({ toast }: { toast: any }) {
   const createMutation = useMutation({
     mutationFn: (body: any) => apiRequest("POST", "/api/admin/gaming/tasks", body),
     onSuccess: () => { toast({ title: "Task created" }); setShowCreate(false); setForm(emptyForm); refetch(); },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const seedMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/gaming/tasks/seed", {}),
+    onSuccess: (r: any) => { toast({ title: r.seeded > 0 ? `Seeded ${r.seeded} tasks` : (r.message ?? "Tasks already exist") }); refetch(); },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
@@ -1449,53 +1519,59 @@ export function GamingRoadmapTab({ toast }: { toast: any }) {
           <h2 className="text-2xl font-bold flex items-center gap-2"><Layers className="w-6 h-6" />Integration Roadmap</h2>
           <p className="text-muted-foreground text-sm mt-1">Kanban board tracking gaming integration development tasks.</p>
         </div>
-        <Dialog open={showCreate} onOpenChange={setShowCreate}>
-          <DialogTrigger asChild>
-            <Button size="sm" data-testid="button-create-task"><Plus className="w-4 h-4 mr-1" />New Task</Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>Create Task</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div><Label>Category *</Label><Input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="e.g. Backend, UI, QA" /></div>
-                <div>
-                  <Label>Priority</Label>
-                  <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="critical">Critical</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" disabled={seedMutation.isPending} onClick={() => seedMutation.mutate()} data-testid="button-seed-tasks">
+            {seedMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <RefreshCw className="w-4 h-4 mr-1" />}Seed Default Tasks
+          </Button>
+          <Dialog open={showCreate} onOpenChange={setShowCreate}>
+            <DialogTrigger asChild>
+              <Button size="sm" data-testid="button-create-task"><Plus className="w-4 h-4 mr-1" />New Task</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader><DialogTitle>Create Task</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div><Label>Category *</Label><Input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} placeholder="e.g. Backend, UI, QA" /></div>
+                  <div>
+                    <Label>Priority</Label>
+                    <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="critical">Critical</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="low">Low</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-              </div>
-              <div><Label>Title *</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
-              <div><Label>Description</Label><Textarea rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label>Status</Label>
-                  <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{KANBAN_COLUMNS.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
-                  </Select>
+                <div><Label>Title *</Label><Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></div>
+                <div><Label>Description</Label><Textarea rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label>Status</Label>
+                    <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{KANBAN_COLUMNS.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>Owner Role</Label><Input value={form.ownerRole} onChange={e => setForm(f => ({ ...f, ownerRole: e.target.value }))} placeholder="e.g. Backend Dev" /></div>
                 </div>
-                <div><Label>Owner Role</Label><Input value={form.ownerRole} onChange={e => setForm(f => ({ ...f, ownerRole: e.target.value }))} placeholder="e.g. Backend Dev" /></div>
+                <div><Label>Acceptance Criteria</Label><Textarea rows={2} value={form.acceptanceCriteria} onChange={e => setForm(f => ({ ...f, acceptanceCriteria: e.target.value }))} /></div>
               </div>
-              <div><Label>Acceptance Criteria</Label><Textarea rows={2} value={form.acceptanceCriteria} onChange={e => setForm(f => ({ ...f, acceptanceCriteria: e.target.value }))} /></div>
-            </div>
-            <DialogFooter>
-              <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-              <Button disabled={!form.category || !form.title || createMutation.isPending} onClick={() => createMutation.mutate(form)} data-testid="button-save-task">
-                {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}Create
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                <Button disabled={!form.category || !form.title || createMutation.isPending} onClick={() => createMutation.mutate(form)} data-testid="button-save-task">
+                  {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}Create
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      {isLoading ? (
+      {isError ? <ErrorState error={error as Error} />
+      : isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           {KANBAN_COLUMNS.map(c => <Skeleton key={c.id} className="h-64 w-full" />)}
         </div>
