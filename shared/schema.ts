@@ -1,4 +1,5 @@
 import { pgTable, text, varchar, boolean, integer, timestamp, jsonb, index, uniqueIndex, serial } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -3089,8 +3090,8 @@ export const gamingWebhookLogs = pgTable("gaming_webhook_logs", {
   processedAt: timestamp("processed_at"),
 }, (t) => [
   index("gaming_webhook_logs_merchant_idx").on(t.merchantId),
-  index("gaming_webhook_logs_event_id_idx").on(t.eventId),
   index("gaming_webhook_logs_status_idx").on(t.status),
+  uniqueIndex("gaming_webhook_logs_merchant_event_uidx").on(t.merchantId, t.eventId).where(sql`event_id IS NOT NULL`),
 ]);
 
 export const insertGamingWebhookLogSchema = createInsertSchema(gamingWebhookLogs).omit({ id: true, receivedAt: true });
