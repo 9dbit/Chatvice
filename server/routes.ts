@@ -8187,23 +8187,23 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
               const sessionPhone = currentSession?.customerPhone ?? null;
               const signalUsername = gamingFields.username || gamingFields.Username || "";
 
-              let playerMapping = sessionPhone
+              // Identity resolution: authoritative lookup by session phone ONLY.
+              // We do not fall back to AI-provided username because it comes from
+              // unverified customer input and would allow one user to query another
+              // player's data by simply claiming their username (IDOR).
+              // If the session has no phone, the customer must verify their account
+              // through the support team before gaming lookups are available.
+              const playerMapping = sessionPhone
                 ? await storage.getGamingPlayerMappingByPhone(resolvedMerchantId, sessionPhone)
                 : undefined;
 
-              // If phone-based lookup succeeded, verify the requested username is
-              // consistent (warn but still proceed with the authoritative mapping).
+              // Log a warning when the username the customer provided differs from
+              // the authoritative mapping, but still use the authoritative data.
               if (playerMapping && signalUsername && playerMapping.gamingUsername !== signalUsername) {
                 console.warn(
                   `[GamingLookup] Username mismatch for session ${sessionId}: ` +
                   `signal="${signalUsername}" authoritative="${playerMapping.gamingUsername}" — using authoritative mapping`,
                 );
-              }
-
-              // Fall back to username lookup only when the session has no phone
-              // (e.g., anonymous widget sessions without identity verification).
-              if (!playerMapping && signalUsername) {
-                playerMapping = await storage.getGamingPlayerMappingByUsername(resolvedMerchantId, signalUsername);
               }
 
               const gamingUsername = playerMapping?.gamingUsername || signalUsername;
@@ -8255,20 +8255,37 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                     }
                   } else if (gamingIntentKey === "withdraw_status") {
                     const wdId = gamingFields.withdraw_id || gamingFields.withdrawId || gamingFields.id || "";
-                    const withdrawResult = await getWithdrawStatus(resolvedMerchantId, wdId);
-                    if (withdrawResult) {
+                    // Fetch withdraw status and turnover in parallel so the response
+                    // can explain "withdrawal rejected due to insufficient turnover".
+                    const withdrawPlayerId = playerMapping.gamingPlayerId || gamingUsername;
+                    const [withdrawResult, withdrawTurnoverResult] = await Promise.allSettled([
+                      getWithdrawStatus(resolvedMerchantId, wdId),
+                      getTurnoverStatus(resolvedMerchantId, withdrawPlayerId),
+                    ]);
+                    const wd = withdrawResult.status === "fulfilled" ? withdrawResult.value : null;
+                    const to = withdrawTurnoverResult.status === "fulfilled" ? withdrawTurnoverResult.value : null;
+                    if (wd) {
                       gamingApiData = {
-                        username: withdrawResult.username || gamingUsername,
-                        withdrawId: withdrawResult.withdrawId,
-                        amount: withdrawResult.amount,
-                        currency: withdrawResult.currency,
-                        status: withdrawResult.status,
-                        bankName: withdrawResult.bankName ?? "-",
-                        accountName: withdrawResult.accountName ?? "-",
-                        accountNumberMasked: withdrawResult.accountNumberMasked ?? "-",
-                        rejectedReason: withdrawResult.rejectedReason ?? "-",
-                        requestedAt: withdrawResult.requestedAt ?? "-",
-                        approvedAt: withdrawResult.approvedAt ?? "-",
+                        username: wd.username || gamingUsername,
+                        withdrawId: wd.withdrawId,
+                        amount: wd.amount,
+                        currency: wd.currency,
+                        status: wd.status,
+                        bankName: wd.bankName ?? "-",
+                        accountName: wd.accountName ?? "-",
+                        accountNumberMasked: wd.accountNumberMasked ?? "-",
+                        rejectedReason: wd.rejectedReason ?? "-",
+                        requestedAt: wd.requestedAt ?? "-",
+                        approvedAt: wd.approvedAt ?? "-",
+                        // Turnover fields (populated if API returned data; "-" otherwise)
+                        requiredTurnover: to?.requiredTurnover ?? "-",
+                        currentTurnover: to?.currentTurnover ?? "-",
+                        remainingTurnover: to?.remainingTurnover ?? "-",
+                        progressPercentage: to?.progressPercentage ?? "-",
+                        eligibleWithdraw: to ? (to.eligibleWithdraw ? "true" : "false") : "unknown",
+                        eligibleWithdrawLabel: to ? (to.eligibleWithdraw ? "Ya" : "Belum") : "-",
+                        bonusName: to?.bonusName ?? "-",
+                        turnoverStatus: to?.status ?? "-",
                       };
                     }
                   } else if (gamingIntentKey === "turnover_progress") {
