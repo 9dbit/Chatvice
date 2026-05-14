@@ -456,19 +456,19 @@ export default function AdminDashboard() {
     { id: "widget-style", label: "Widget Style", icon: Palette },
     { id: "settings", label: "Settings", icon: Settings },
     // ── Gaming Integration ──────────────────────────────────────────────────
-    { id: "gaming-overview", label: "Gaming Overview", icon: Gamepad2, section: "Gaming Integration" },
-    { id: "gaming-audit", label: "Audit Checklist", icon: CheckCircle2, section: "Gaming Integration" },
-    { id: "gaming-players", label: "Player Mappings", icon: Users, section: "Gaming Integration" },
-    { id: "gaming-deposits", label: "Deposit Monitor", icon: ArrowDownLeft, section: "Gaming Integration" },
-    { id: "gaming-withdrawals", label: "Withdrawal Monitor", icon: ArrowUpLeft, section: "Gaming Integration" },
-    { id: "gaming-turnovers", label: "Turnover Tracker", icon: TrendingUp, section: "Gaming Integration" },
-    { id: "gaming-balances", label: "Balance Snapshots", icon: Database, section: "Gaming Integration" },
-    { id: "gaming-webhooks", label: "Webhook Logs", icon: Wifi, section: "Gaming Integration" },
-    { id: "gaming-health", label: "API Health", icon: Activity, section: "Gaming Integration" },
-    { id: "gaming-failed", label: "Failed Events", icon: AlertTriangle, section: "Gaming Integration" },
-    { id: "gaming-ai-rules", label: "AI Response Rules", icon: Bot, section: "Gaming Integration" },
-    { id: "gaming-security", label: "Security Settings", icon: Shield, section: "Gaming Integration" },
-    { id: "gaming-roadmap", label: "Roadmap", icon: Layers, section: "Gaming Integration" },
+    { id: "gaming-overview", label: "Gaming Overview", icon: Gamepad2, section: "Gaming Integration", href: "/admin/gaming-integration" },
+    { id: "gaming-audit", label: "Audit Checklist", icon: CheckCircle2, section: "Gaming Integration", href: "/admin/gaming-integration/audit" },
+    { id: "gaming-players", label: "Player Mappings", icon: Users, section: "Gaming Integration", href: "/admin/gaming-integration/player-mapping" },
+    { id: "gaming-deposits", label: "Deposit Monitor", icon: ArrowDownLeft, section: "Gaming Integration", href: "/admin/gaming-integration/deposit-monitor" },
+    { id: "gaming-withdrawals", label: "Withdrawal Monitor", icon: ArrowUpLeft, section: "Gaming Integration", href: "/admin/gaming-integration/withdraw-monitor" },
+    { id: "gaming-turnovers", label: "Turnover Tracker", icon: TrendingUp, section: "Gaming Integration", href: "/admin/gaming-integration/turnover-monitor" },
+    { id: "gaming-balances", label: "Balance Snapshots", icon: Database, section: "Gaming Integration", href: "/admin/gaming-integration/balance-monitor" },
+    { id: "gaming-webhooks", label: "Webhook Logs", icon: Wifi, section: "Gaming Integration", href: "/admin/gaming-integration/webhook-logs" },
+    { id: "gaming-health", label: "API Health", icon: Activity, section: "Gaming Integration", href: "/admin/gaming-integration/api-health" },
+    { id: "gaming-failed", label: "Failed Events", icon: AlertTriangle, section: "Gaming Integration", href: "/admin/gaming-integration/failed-events" },
+    { id: "gaming-ai-rules", label: "AI Response Rules", icon: Bot, section: "Gaming Integration", href: "/admin/gaming-integration/ai-response-rules" },
+    { id: "gaming-security", label: "Security Settings", icon: Shield, section: "Gaming Integration", href: "/admin/gaming-integration/security-settings" },
+    { id: "gaming-roadmap", label: "Roadmap", icon: Layers, section: "Gaming Integration", href: "/admin/gaming-integration/roadmap" },
   ];
 
   const SidebarContent = () => (
@@ -501,6 +501,28 @@ export default function AdminDashboard() {
           const currSection = (item as any).section;
           const showSectionHeader = currSection && currSection !== prevSection;
 
+          const itemHref = (item as typeof item & { href?: string }).href;
+          const itemContent = (
+            <>
+              <item.icon className="w-5 h-5 flex-shrink-0" />
+              <span className="truncate flex-1 text-left">{item.label}</span>
+              {badgeCount > 0 && (
+                <span className={`min-w-6 h-6 flex items-center justify-center text-xs font-medium rounded-full ${
+                  activeTab === item.id 
+                    ? "bg-primary-foreground/20 text-primary-foreground" 
+                    : "bg-amber-500 text-white"
+                }`}>
+                  {badgeCount > 99 ? "99+" : badgeCount}
+                </span>
+              )}
+            </>
+          );
+          const btnClass = `w-full flex items-center gap-3 px-3 py-3 min-h-[48px] rounded-md text-sm transition-colors relative ${
+            activeTab === item.id
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`;
+
           return (
             <div key={item.id}>
               {showSectionHeader && (
@@ -508,31 +530,25 @@ export default function AdminDashboard() {
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{currSection}</p>
                 </div>
               )}
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleTabChange(item.id);
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-3 min-h-[48px] rounded-md text-sm transition-colors relative ${
-                  activeTab === item.id
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-                data-testid={`nav-${item.id}`}
-              >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                <span className="truncate flex-1 text-left">{item.label}</span>
-                {badgeCount > 0 && (
-                  <span className={`min-w-6 h-6 flex items-center justify-center text-xs font-medium rounded-full ${
-                    activeTab === item.id 
-                      ? "bg-primary-foreground/20 text-primary-foreground" 
-                      : "bg-amber-500 text-white"
-                  }`}>
-                    {badgeCount > 99 ? "99+" : badgeCount}
-                  </span>
-                )}
-              </button>
+              {itemHref ? (
+                <Link href={itemHref}>
+                  <button className={btnClass} data-testid={`nav-${item.id}`}>
+                    {itemContent}
+                  </button>
+                </Link>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleTabChange(item.id);
+                  }}
+                  className={btnClass}
+                  data-testid={`nav-${item.id}`}
+                >
+                  {itemContent}
+                </button>
+              )}
             </div>
           );
         })}
