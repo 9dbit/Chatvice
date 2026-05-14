@@ -38,6 +38,7 @@ import { messages, sessions, merchants, chatLogs, paymentTransactions, customers
 import crypto from "crypto";
 import { encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup, buildPostmanCollection, buildHtmlDocs, DEFAULT_INTENTS, PRESET_INTENTS, PRESET_META, getCustomDataHealthSummary, checkOneSourceHealth, maskValue } from "./customConnector";
 import { registerCustomDataPresetRoutes } from "./customDataPresetRoutes";
+import { registerGamingRoutes } from "./gamingRoutes";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import sharp from "sharp";
 
@@ -31489,6 +31490,9 @@ Please create a comprehensive help center article that would be useful for custo
       res.status(500).json({ error: "Server error" });
     }
   });
+
+  // Gaming Integration routes
+  registerGamingRoutes(app);
 
   // Start session-level password recovery poller (needs to be inside registerRoutes to share broadcastToSession)
   startPasswordRecoverySessionPoller();

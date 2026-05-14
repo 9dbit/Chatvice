@@ -1,0 +1,599 @@
+import type { Express, Request, Response } from "express";
+import { z } from "zod";
+import { storage } from "./storage";
+import { verifyHmacSignature, encryptCredential, decryptCredential, generateWebhookSecret } from "./services/gaming/cryptoHelpers";
+
+// ── Middleware ────────────────────────────────────────────────────────────────
+
+function requireAdmin(req: Request, res: Response, next: Function) {
+  if (!req.session?.userId || req.session.userType !== "admin" || !req.session.isAdmin) {
+    return res.status(401).json({ error: "Unauthorized - Admin access required" });
+  }
+  next();
+}
+
+// ── Webhook Processor ─────────────────────────────────────────────────────────
+
+async function processGamingWebhookEvent(
+  merchantId: string,
+  eventType: string,
+  eventId: string,
+  payload: any,
+  logId: number,
+): Promise<void> {
+  try {
+    switch (eventType) {
+      case "deposit.created":
+      case "deposit.updated":
+      case "deposit.paid":
+      case "deposit.expired": {
+        await storage.upsertGamingDeposit({
+          merchantId,
+          transactionId: payload.transaction_id ?? payload.transactionId ?? eventId,
+          playerId: payload.player_id ?? payload.playerId,
+          username: payload.username,
+          amount: payload.amount ? Number(payload.amount) : undefined,
+          currency: payload.currency ?? "IDR",
+          paymentMethod: payload.payment_method ?? payload.paymentMethod,
+          paymentChannel: payload.payment_channel ?? payload.paymentChannel,
+          status: payload.status ?? eventType.split(".")[1],
+          proofUrl: payload.proof_url ?? payload.proofUrl,
+          paidAt: payload.paid_at ? new Date(payload.paid_at) : undefined,
+          expiredAt: payload.expired_at ? new Date(payload.expired_at) : undefined,
+          rawPayload: payload,
+        });
+        break;
+      }
+
+      case "withdraw.requested":
+      case "withdraw.approved":
+      case "withdraw.rejected":
+      case "withdraw.processing": {
+        await storage.upsertGamingWithdrawal({
+          merchantId,
+          withdrawId: payload.withdraw_id ?? payload.withdrawId ?? eventId,
+          playerId: payload.player_id ?? payload.playerId,
+          username: payload.username,
+          amount: payload.amount ? Number(payload.amount) : undefined,
+          currency: payload.currency ?? "IDR",
+          bankName: payload.bank_name ?? payload.bankName,
+          accountName: payload.account_name ?? payload.accountName,
+          accountNumberMasked: payload.account_number_masked ?? payload.accountNumberMasked,
+          status: payload.status ?? eventType.split(".")[1],
+          rejectedReason: payload.rejected_reason ?? payload.rejectedReason,
+          approvedAt: payload.approved_at ? new Date(payload.approved_at) : undefined,
+          rejectedAt: payload.rejected_at ? new Date(payload.rejected_at) : undefined,
+          rawPayload: payload,
+        });
+        break;
+      }
+
+      case "turnover.updated": {
+        const required = Number(payload.required_turnover ?? payload.requiredTurnover ?? 0);
+        const current = Number(payload.current_turnover ?? payload.currentTurnover ?? 0);
+        const remaining = Math.max(0, required - current);
+        const pct = required > 0 ? Math.min(100, Math.round((current / required) * 100)) : 100;
+        await storage.upsertGamingTurnover({
+          merchantId,
+          playerId: payload.player_id ?? payload.playerId,
+          username: payload.username,
+          bonusId: payload.bonus_id ?? payload.bonusId,
+          bonusName: payload.bonus_name ?? payload.bonusName,
+          requiredTurnover: required,
+          currentTurnover: current,
+          remainingTurnover: remaining,
+          progressPercentage: pct,
+          eligibleWithdraw: pct >= 100,
+          expiryDate: payload.expiry_date ? new Date(payload.expiry_date) : undefined,
+          status: payload.status ?? "active",
+          rawPayload: payload,
+        });
+        break;
+      }
+
+      case "balance.updated": {
+        await storage.createGamingBalanceSnapshot({
+          merchantId,
+          playerId: payload.player_id ?? payload.playerId,
+          username: payload.username,
+          currentBalance: payload.current_balance ? Number(payload.current_balance) : undefined,
+          lockedBalance: payload.locked_balance ? Number(payload.locked_balance) : undefined,
+          bonusBalance: payload.bonus_balance ? Number(payload.bonus_balance) : undefined,
+          currency: payload.currency ?? "IDR",
+          source: "webhook",
+          rawPayload: payload,
+        });
+        break;
+      }
+
+      default:
+        console.log(`[gaming-webhook] Unhandled event type: ${eventType}`);
+    }
+
+    await storage.updateGamingWebhookLog(logId, { status: "processed", processedAt: new Date() });
+  } catch (err: any) {
+    console.error(`[gaming-webhook] Error processing event ${eventType}:`, err.message);
+    await storage.updateGamingWebhookLog(logId, { status: "failed", errorMessage: err.message });
+    await storage.createGamingFailedEvent({
+      merchantId,
+      eventType,
+      payload: { eventId, ...payload },
+      failureReason: err.message,
+      retryCount: 0,
+      status: "pending",
+      nextRetryAt: new Date(Date.now() + 5 * 60 * 1000),
+    });
+  }
+}
+
+// ── Route Registration ────────────────────────────────────────────────────────
+
+export function registerGamingRoutes(app: Express) {
+  // ── Public Webhook Receiver ─────────────────────────────────────────────────
+  app.post("/api/webhooks/gaming/events", async (req: Request, res: Response) => {
+    const merchantId = req.headers["x-chatvice-merchant-id"] as string;
+    const signature = req.headers["x-chatvice-signature"] as string;
+    const timestamp = req.headers["x-chatvice-timestamp"] as string;
+    const eventId = req.headers["x-chatvice-event-id"] as string;
+
+    if (!merchantId || !signature || !timestamp) {
+      return res.status(400).json({ error: "Missing required headers" });
+    }
+
+    // ±5 minute timestamp tolerance
+    const tsNum = Number(timestamp);
+    if (!isNaN(tsNum) && Math.abs(Date.now() - tsNum) > 5 * 60 * 1000) {
+      return res.status(400).json({ error: "Timestamp out of tolerance" });
+    }
+
+    // Verify merchant config exists
+    const config = await storage.getGamingMerchantByMerchantId(merchantId);
+    if (!config || !config.webhookSecret) {
+      return res.status(403).json({ error: "Unknown merchant or missing webhook secret" });
+    }
+
+    // HMAC verification
+    const rawBody = JSON.stringify(req.body);
+    const sigValid = verifyHmacSignature(rawBody, signature, config.webhookSecret);
+
+    // Event deduplication
+    if (eventId) {
+      const isDuplicate = await storage.isGamingEventDuplicate(merchantId, eventId);
+      if (isDuplicate) {
+        return res.status(200).json({ status: "duplicate", message: "Event already processed" });
+      }
+    }
+
+    const payload = req.body;
+    const eventType = payload?.event_type ?? payload?.eventType ?? "unknown";
+
+    // Log incoming webhook
+    const log = await storage.createGamingWebhookLog({
+      merchantId,
+      eventType,
+      eventId: eventId || null,
+      playerId: payload?.player_id ?? payload?.playerId ?? null,
+      transactionId: payload?.transaction_id ?? payload?.transactionId ?? null,
+      payload,
+      signatureValid: sigValid,
+      status: sigValid ? "pending" : "invalid_signature",
+      errorMessage: sigValid ? null : "HMAC signature mismatch",
+    });
+
+    if (!sigValid) {
+      return res.status(401).json({ error: "Invalid signature" });
+    }
+
+    // Respond fast, process async
+    res.status(200).json({ status: "received", logId: log.id });
+
+    // Process in background
+    setImmediate(() => processGamingWebhookEvent(merchantId, eventType, eventId, payload, log.id));
+  });
+
+  // ── Admin Endpoints ─────────────────────────────────────────────────────────
+
+  // GET /api/admin/gaming/merchants - list all gaming merchant configs
+  app.get("/api/admin/gaming/merchants", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { merchantId } = req.query;
+      let rows;
+      if (merchantId) {
+        rows = await storage.getGamingMerchants(merchantId as string);
+      } else {
+        // Get all - not in interface, so get per merchant by fetching all
+        const { db } = await import("./db");
+        const { gamingMerchants } = await import("@shared/schema");
+        const { desc } = await import("drizzle-orm");
+        rows = await db.select().from(gamingMerchants).orderBy(desc(gamingMerchants.createdAt));
+      }
+      // Strip encrypted fields before returning
+      const sanitized = rows.map((r) => ({
+        ...r,
+        apiKeyEncrypted: r.apiKeyEncrypted ? "***" : null,
+        apiSecretEncrypted: r.apiSecretEncrypted ? "***" : null,
+        webhookSecret: r.webhookSecret ? "***" : null,
+      }));
+      res.json(sanitized);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/admin/gaming/merchants/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const row = await storage.getGamingMerchant(id);
+      if (!row) return res.status(404).json({ error: "Not found" });
+      res.json({
+        ...row,
+        apiKeyEncrypted: row.apiKeyEncrypted ? "***" : null,
+        apiSecretEncrypted: row.apiSecretEncrypted ? "***" : null,
+        webhookSecret: row.webhookSecret ? "***" : null,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  const upsertGamingMerchantSchema = z.object({
+    merchantId: z.string().min(1),
+    merchantName: z.string().min(1),
+    brandName: z.string().optional(),
+    apiBaseUrl: z.string().url(),
+    apiKey: z.string().optional(),
+    apiSecret: z.string().optional(),
+    ipWhitelist: z.array(z.string()).optional(),
+    status: z.enum(["active", "inactive"]).optional(),
+  });
+
+  app.post("/api/admin/gaming/merchants", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const body = upsertGamingMerchantSchema.parse(req.body);
+      const secret = generateWebhookSecret();
+      const row = await storage.createGamingMerchant({
+        merchantId: body.merchantId,
+        merchantName: body.merchantName,
+        brandName: body.brandName,
+        apiBaseUrl: body.apiBaseUrl,
+        apiKeyEncrypted: body.apiKey ? encryptCredential(body.apiKey) : undefined,
+        apiSecretEncrypted: body.apiSecret ? encryptCredential(body.apiSecret) : undefined,
+        webhookSecret: secret,
+        ipWhitelist: body.ipWhitelist ?? [],
+        status: body.status ?? "active",
+      });
+      res.status(201).json({ ...row, webhookSecret: secret, apiKeyEncrypted: "***", apiSecretEncrypted: "***" });
+    } catch (err: any) {
+      if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors });
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.patch("/api/admin/gaming/merchants/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const body = upsertGamingMerchantSchema.partial().parse(req.body);
+      const updates: any = {};
+      if (body.merchantName) updates.merchantName = body.merchantName;
+      if (body.brandName !== undefined) updates.brandName = body.brandName;
+      if (body.apiBaseUrl) updates.apiBaseUrl = body.apiBaseUrl;
+      if (body.apiKey) updates.apiKeyEncrypted = encryptCredential(body.apiKey);
+      if (body.apiSecret) updates.apiSecretEncrypted = encryptCredential(body.apiSecret);
+      if (body.ipWhitelist) updates.ipWhitelist = body.ipWhitelist;
+      if (body.status) updates.status = body.status;
+      const row = await storage.updateGamingMerchant(id, updates);
+      if (!row) return res.status(404).json({ error: "Not found" });
+      res.json({ ...row, apiKeyEncrypted: "***", apiSecretEncrypted: "***", webhookSecret: "***" });
+    } catch (err: any) {
+      if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors });
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/gaming/merchants/:id/rotate-secret", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const newSecret = generateWebhookSecret();
+      const row = await storage.updateGamingMerchant(id, { webhookSecret: newSecret });
+      if (!row) return res.status(404).json({ error: "Not found" });
+      res.json({ webhookSecret: newSecret });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/admin/gaming/merchants/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      await storage.deleteGamingMerchant(id);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Player mappings
+  app.get("/api/admin/gaming/players", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { merchantId } = req.query;
+      if (!merchantId) return res.status(400).json({ error: "merchantId required" });
+      const rows = await storage.getGamingPlayerMappings(merchantId as string);
+      res.json(rows);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/gaming/players", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const body = z.object({
+        merchantId: z.string(),
+        gamingUsername: z.string().min(1),
+        gamingPlayerId: z.string().optional(),
+        chatviceUserId: z.string().optional(),
+        phoneNumber: z.string().optional(),
+        email: z.string().email().optional(),
+        verifiedStatus: z.enum(["unverified", "verified", "suspended"]).optional(),
+      }).parse(req.body);
+      const row = await storage.createGamingPlayerMapping(body);
+      res.status(201).json(row);
+    } catch (err: any) {
+      if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors });
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.patch("/api/admin/gaming/players/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const row = await storage.updateGamingPlayerMapping(id, req.body);
+      if (!row) return res.status(404).json({ error: "Not found" });
+      res.json(row);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/admin/gaming/players/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      await storage.deleteGamingPlayerMapping(id);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Deposits
+  app.get("/api/admin/gaming/deposits", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { merchantId, status } = req.query;
+      if (!merchantId) return res.status(400).json({ error: "merchantId required" });
+      const rows = await storage.getGamingDeposits(merchantId as string, status as string | undefined);
+      res.json(rows);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Withdrawals
+  app.get("/api/admin/gaming/withdrawals", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { merchantId, status } = req.query;
+      if (!merchantId) return res.status(400).json({ error: "merchantId required" });
+      const rows = await storage.getGamingWithdrawals(merchantId as string, status as string | undefined);
+      res.json(rows);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Turnovers
+  app.get("/api/admin/gaming/turnovers", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { merchantId, playerId } = req.query;
+      if (!merchantId) return res.status(400).json({ error: "merchantId required" });
+      const rows = await storage.getGamingTurnovers(merchantId as string, playerId as string | undefined);
+      res.json(rows);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Balance Snapshots
+  app.get("/api/admin/gaming/balances", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { merchantId, playerId } = req.query;
+      if (!merchantId) return res.status(400).json({ error: "merchantId required" });
+      const rows = await storage.getGamingBalanceSnapshots(merchantId as string, playerId as string | undefined);
+      res.json(rows);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Webhook Logs
+  app.get("/api/admin/gaming/webhook-logs", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { merchantId, limit } = req.query;
+      if (!merchantId) return res.status(400).json({ error: "merchantId required" });
+      const rows = await storage.getGamingWebhookLogs(merchantId as string, limit ? Number(limit) : 100);
+      res.json(rows);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Failed Events
+  app.get("/api/admin/gaming/failed-events", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { merchantId, status } = req.query;
+      if (!merchantId) return res.status(400).json({ error: "merchantId required" });
+      const rows = await storage.getGamingFailedEvents(merchantId as string, status as string | undefined);
+      res.json(rows);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.patch("/api/admin/gaming/failed-events/:id/retry", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const row = await storage.updateGamingFailedEvent(id, { status: "pending", retryCount: 0, nextRetryAt: new Date() });
+      if (!row) return res.status(404).json({ error: "Not found" });
+      res.json(row);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // API Health
+  app.get("/api/admin/gaming/health", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { merchantId } = req.query;
+      if (!merchantId) return res.status(400).json({ error: "merchantId required" });
+      const [logs, summary] = await Promise.all([
+        storage.getGamingApiHealthLogs(merchantId as string, 50),
+        storage.getGamingApiHealthSummary(merchantId as string),
+      ]);
+      res.json({ summary, logs });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // AI Response Rules
+  app.get("/api/admin/gaming/ai-rules", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { merchantId, eventType } = req.query;
+      if (!merchantId) return res.status(400).json({ error: "merchantId required" });
+      const rows = await storage.getGamingAiResponseRules(merchantId as string, eventType as string | undefined);
+      res.json(rows);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/gaming/ai-rules", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const body = z.object({
+        merchantId: z.string(),
+        eventType: z.string().min(1),
+        conditionKey: z.string().optional(),
+        conditionOperator: z.string().optional(),
+        conditionValue: z.string().optional(),
+        responseTemplate: z.string().min(1),
+        escalationRequired: z.boolean().optional(),
+        active: z.boolean().optional(),
+      }).parse(req.body);
+      const row = await storage.createGamingAiResponseRule(body);
+      res.status(201).json(row);
+    } catch (err: any) {
+      if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors });
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.patch("/api/admin/gaming/ai-rules/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const row = await storage.updateGamingAiResponseRule(id, req.body);
+      if (!row) return res.status(404).json({ error: "Not found" });
+      res.json(row);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/admin/gaming/ai-rules/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      await storage.deleteGamingAiResponseRule(id);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Integration Tasks
+  app.get("/api/admin/gaming/tasks", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { status } = req.query;
+      const rows = await storage.getGamingIntegrationTasks(status as string | undefined);
+      res.json(rows);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/admin/gaming/tasks", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const body = z.object({
+        category: z.string().min(1),
+        title: z.string().min(1),
+        description: z.string().optional(),
+        priority: z.enum(["low", "medium", "high", "critical"]).optional(),
+        status: z.enum(["backlog", "todo", "in_progress", "done", "cancelled"]).optional(),
+        ownerRole: z.string().optional(),
+        dependencies: z.array(z.string()).optional(),
+        acceptanceCriteria: z.string().optional(),
+      }).parse(req.body);
+      const row = await storage.createGamingIntegrationTask(body);
+      res.status(201).json(row);
+    } catch (err: any) {
+      if (err instanceof z.ZodError) return res.status(400).json({ error: err.errors });
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.patch("/api/admin/gaming/tasks/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const updates: any = { ...req.body };
+      if (updates.status === "done" && !updates.completedAt) updates.completedAt = new Date();
+      const row = await storage.updateGamingIntegrationTask(id, updates);
+      if (!row) return res.status(404).json({ error: "Not found" });
+      res.json(row);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete("/api/admin/gaming/tasks/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      await storage.deleteGamingIntegrationTask(id);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Stats overview
+  app.get("/api/admin/gaming/stats", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { merchantId } = req.query;
+      if (!merchantId) return res.status(400).json({ error: "merchantId required" });
+      const [deposits, withdrawals, webhookLogs, failedEvents, healthSummary, players] = await Promise.all([
+        storage.getGamingDeposits(merchantId as string),
+        storage.getGamingWithdrawals(merchantId as string),
+        storage.getGamingWebhookLogs(merchantId as string, 500),
+        storage.getGamingFailedEvents(merchantId as string, "pending"),
+        storage.getGamingApiHealthSummary(merchantId as string),
+        storage.getGamingPlayerMappings(merchantId as string),
+      ]);
+      res.json({
+        totalDeposits: deposits.length,
+        pendingDeposits: deposits.filter((d) => d.status === "pending").length,
+        totalWithdrawals: withdrawals.length,
+        pendingWithdrawals: withdrawals.filter((w) => w.status === "pending").length,
+        totalPlayers: players.length,
+        totalWebhookEvents: webhookLogs.length,
+        failedEventsCount: failedEvents.length,
+        apiHealth: healthSummary,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+}

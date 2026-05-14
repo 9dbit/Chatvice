@@ -2929,3 +2929,250 @@ export const merchantTokenUsageDaily = pgTable("merchant_token_usage_daily", {
 export type MerchantTokenUsageDaily = typeof merchantTokenUsageDaily.$inferSelect;
 export type InsertMerchantTokenUsageDaily = typeof merchantTokenUsageDaily.$inferInsert;
 
+// ── Gaming Panel Integration ────────────────────────────────────────────────
+
+export const gamingMerchants = pgTable("gaming_merchants", {
+  id: serial("id").primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  merchantName: text("merchant_name").notNull(),
+  brandName: text("brand_name"),
+  apiBaseUrl: text("api_base_url").notNull(),
+  apiKeyEncrypted: text("api_key_encrypted"),
+  apiSecretEncrypted: text("api_secret_encrypted"),
+  webhookSecret: text("webhook_secret"),
+  ipWhitelist: text("ip_whitelist").array().default([]),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (t) => [
+  index("gaming_merchants_merchant_id_idx").on(t.merchantId),
+]);
+
+export const insertGamingMerchantSchema = createInsertSchema(gamingMerchants).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertGamingMerchant = z.infer<typeof insertGamingMerchantSchema>;
+export type GamingMerchant = typeof gamingMerchants.$inferSelect;
+
+export const gamingPlayerMappings = pgTable("gaming_player_mappings", {
+  id: serial("id").primaryKey(),
+  chatviceUserId: varchar("chatvice_user_id", { length: 64 }),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  gamingUsername: text("gaming_username").notNull(),
+  gamingPlayerId: text("gaming_player_id"),
+  phoneNumber: text("phone_number"),
+  email: text("email"),
+  verifiedStatus: text("verified_status").notNull().default("unverified"),
+  linkedAt: timestamp("linked_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (t) => [
+  index("gaming_player_mappings_merchant_idx").on(t.merchantId),
+  index("gaming_player_mappings_phone_idx").on(t.phoneNumber),
+]);
+
+export const insertGamingPlayerMappingSchema = createInsertSchema(gamingPlayerMappings).omit({ id: true, linkedAt: true, createdAt: true, updatedAt: true });
+export type InsertGamingPlayerMapping = z.infer<typeof insertGamingPlayerMappingSchema>;
+export type GamingPlayerMapping = typeof gamingPlayerMappings.$inferSelect;
+
+export const gamingDepositTransactions = pgTable("gaming_deposit_transactions", {
+  id: serial("id").primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  playerId: text("player_id"),
+  username: text("username"),
+  transactionId: text("transaction_id").notNull(),
+  amount: integer("amount"),
+  currency: text("currency").default("IDR"),
+  paymentMethod: text("payment_method"),
+  paymentChannel: text("payment_channel"),
+  status: text("status").notNull().default("pending"),
+  proofUrl: text("proof_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  paidAt: timestamp("paid_at"),
+  expiredAt: timestamp("expired_at"),
+  rawPayload: jsonb("raw_payload"),
+  syncedAt: timestamp("synced_at").defaultNow(),
+}, (t) => [
+  index("gaming_deposits_merchant_idx").on(t.merchantId),
+  index("gaming_deposits_tx_id_idx").on(t.transactionId),
+  index("gaming_deposits_status_idx").on(t.status),
+]);
+
+export const insertGamingDepositSchema = createInsertSchema(gamingDepositTransactions).omit({ id: true, createdAt: true, syncedAt: true });
+export type InsertGamingDeposit = z.infer<typeof insertGamingDepositSchema>;
+export type GamingDeposit = typeof gamingDepositTransactions.$inferSelect;
+
+export const gamingWithdrawTransactions = pgTable("gaming_withdraw_transactions", {
+  id: serial("id").primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  playerId: text("player_id"),
+  username: text("username"),
+  withdrawId: text("withdraw_id").notNull(),
+  amount: integer("amount"),
+  currency: text("currency").default("IDR"),
+  bankName: text("bank_name"),
+  accountName: text("account_name"),
+  accountNumberMasked: text("account_number_masked"),
+  status: text("status").notNull().default("pending"),
+  rejectedReason: text("rejected_reason"),
+  requestedAt: timestamp("requested_at").defaultNow(),
+  approvedAt: timestamp("approved_at"),
+  rejectedAt: timestamp("rejected_at"),
+  rawPayload: jsonb("raw_payload"),
+  syncedAt: timestamp("synced_at").defaultNow(),
+}, (t) => [
+  index("gaming_withdrawals_merchant_idx").on(t.merchantId),
+  index("gaming_withdrawals_withdraw_id_idx").on(t.withdrawId),
+  index("gaming_withdrawals_status_idx").on(t.status),
+]);
+
+export const insertGamingWithdrawSchema = createInsertSchema(gamingWithdrawTransactions).omit({ id: true, requestedAt: true, syncedAt: true });
+export type InsertGamingWithdraw = z.infer<typeof insertGamingWithdrawSchema>;
+export type GamingWithdraw = typeof gamingWithdrawTransactions.$inferSelect;
+
+export const gamingTurnoverStatus = pgTable("gaming_turnover_status", {
+  id: serial("id").primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  playerId: text("player_id"),
+  username: text("username"),
+  bonusId: text("bonus_id"),
+  bonusName: text("bonus_name"),
+  requiredTurnover: integer("required_turnover"),
+  currentTurnover: integer("current_turnover"),
+  remainingTurnover: integer("remaining_turnover"),
+  progressPercentage: integer("progress_percentage"),
+  eligibleWithdraw: boolean("eligible_withdraw").default(false),
+  expiryDate: timestamp("expiry_date"),
+  status: text("status").notNull().default("active"),
+  rawPayload: jsonb("raw_payload"),
+  syncedAt: timestamp("synced_at").defaultNow(),
+}, (t) => [
+  index("gaming_turnover_merchant_idx").on(t.merchantId),
+  index("gaming_turnover_player_idx").on(t.playerId),
+]);
+
+export const insertGamingTurnoverSchema = createInsertSchema(gamingTurnoverStatus).omit({ id: true, syncedAt: true });
+export type InsertGamingTurnover = z.infer<typeof insertGamingTurnoverSchema>;
+export type GamingTurnover = typeof gamingTurnoverStatus.$inferSelect;
+
+export const gamingBalanceSnapshots = pgTable("gaming_balance_snapshots", {
+  id: serial("id").primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  playerId: text("player_id"),
+  username: text("username"),
+  currentBalance: integer("current_balance"),
+  lockedBalance: integer("locked_balance"),
+  bonusBalance: integer("bonus_balance"),
+  currency: text("currency").default("IDR"),
+  source: text("source"),
+  rawPayload: jsonb("raw_payload"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (t) => [
+  index("gaming_balance_merchant_idx").on(t.merchantId),
+  index("gaming_balance_player_idx").on(t.playerId),
+]);
+
+export const insertGamingBalanceSchema = createInsertSchema(gamingBalanceSnapshots).omit({ id: true, createdAt: true });
+export type InsertGamingBalance = z.infer<typeof insertGamingBalanceSchema>;
+export type GamingBalance = typeof gamingBalanceSnapshots.$inferSelect;
+
+export const gamingWebhookLogs = pgTable("gaming_webhook_logs", {
+  id: serial("id").primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  eventType: text("event_type").notNull(),
+  eventId: text("event_id"),
+  playerId: text("player_id"),
+  transactionId: text("transaction_id"),
+  payload: jsonb("payload"),
+  signatureValid: boolean("signature_valid").default(false),
+  status: text("status").notNull().default("pending"),
+  errorMessage: text("error_message"),
+  receivedAt: timestamp("received_at").defaultNow(),
+  processedAt: timestamp("processed_at"),
+}, (t) => [
+  index("gaming_webhook_logs_merchant_idx").on(t.merchantId),
+  index("gaming_webhook_logs_event_id_idx").on(t.eventId),
+  index("gaming_webhook_logs_status_idx").on(t.status),
+]);
+
+export const insertGamingWebhookLogSchema = createInsertSchema(gamingWebhookLogs).omit({ id: true, receivedAt: true });
+export type InsertGamingWebhookLog = z.infer<typeof insertGamingWebhookLogSchema>;
+export type GamingWebhookLog = typeof gamingWebhookLogs.$inferSelect;
+
+export const gamingFailedEvents = pgTable("gaming_failed_events", {
+  id: serial("id").primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  eventType: text("event_type").notNull(),
+  payload: jsonb("payload"),
+  failureReason: text("failure_reason"),
+  retryCount: integer("retry_count").default(0),
+  nextRetryAt: timestamp("next_retry_at"),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (t) => [
+  index("gaming_failed_events_merchant_idx").on(t.merchantId),
+  index("gaming_failed_events_status_idx").on(t.status),
+]);
+
+export const insertGamingFailedEventSchema = createInsertSchema(gamingFailedEvents).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertGamingFailedEvent = z.infer<typeof insertGamingFailedEventSchema>;
+export type GamingFailedEvent = typeof gamingFailedEvents.$inferSelect;
+
+export const gamingApiHealthLogs = pgTable("gaming_api_health_logs", {
+  id: serial("id").primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  endpoint: text("endpoint").notNull(),
+  method: text("method").default("GET"),
+  statusCode: integer("status_code"),
+  responseTimeMs: integer("response_time_ms"),
+  success: boolean("success").default(false),
+  errorMessage: text("error_message"),
+  checkedAt: timestamp("checked_at").defaultNow(),
+}, (t) => [
+  index("gaming_api_health_merchant_idx").on(t.merchantId),
+  index("gaming_api_health_checked_at_idx").on(t.checkedAt),
+]);
+
+export const insertGamingApiHealthLogSchema = createInsertSchema(gamingApiHealthLogs).omit({ id: true, checkedAt: true });
+export type InsertGamingApiHealthLog = z.infer<typeof insertGamingApiHealthLogSchema>;
+export type GamingApiHealthLog = typeof gamingApiHealthLogs.$inferSelect;
+
+export const gamingAiResponseRules = pgTable("gaming_ai_response_rules", {
+  id: serial("id").primaryKey(),
+  merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  eventType: text("event_type").notNull(),
+  conditionKey: text("condition_key"),
+  conditionOperator: text("condition_operator"),
+  conditionValue: text("condition_value"),
+  responseTemplate: text("response_template").notNull(),
+  escalationRequired: boolean("escalation_required").default(false),
+  active: boolean("active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (t) => [
+  index("gaming_ai_rules_merchant_idx").on(t.merchantId),
+  index("gaming_ai_rules_event_type_idx").on(t.eventType),
+]);
+
+export const insertGamingAiResponseRuleSchema = createInsertSchema(gamingAiResponseRules).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertGamingAiResponseRule = z.infer<typeof insertGamingAiResponseRuleSchema>;
+export type GamingAiResponseRule = typeof gamingAiResponseRules.$inferSelect;
+
+export const gamingIntegrationTasks = pgTable("gaming_integration_tasks", {
+  id: serial("id").primaryKey(),
+  category: text("category").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  priority: text("priority").notNull().default("medium"),
+  status: text("status").notNull().default("backlog"),
+  ownerRole: text("owner_role"),
+  dependencies: text("dependencies").array().default([]),
+  acceptanceCriteria: text("acceptance_criteria"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertGamingIntegrationTaskSchema = createInsertSchema(gamingIntegrationTasks).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertGamingIntegrationTask = z.infer<typeof insertGamingIntegrationTaskSchema>;
+export type GamingIntegrationTask = typeof gamingIntegrationTasks.$inferSelect;
+

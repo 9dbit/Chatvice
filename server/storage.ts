@@ -102,6 +102,17 @@ import {
   blogPosts, type BlogPost, type InsertBlogPost,
   blogGenerationLogs, type BlogGenerationLog, type InsertBlogGenerationLog,
   merchantTokenUsageDaily, type MerchantTokenUsageDaily,
+  gamingMerchants, type GamingMerchant, type InsertGamingMerchant,
+  gamingPlayerMappings, type GamingPlayerMapping, type InsertGamingPlayerMapping,
+  gamingDepositTransactions, type GamingDeposit, type InsertGamingDeposit,
+  gamingWithdrawTransactions, type GamingWithdraw, type InsertGamingWithdraw,
+  gamingTurnoverStatus, type GamingTurnover, type InsertGamingTurnover,
+  gamingBalanceSnapshots, type GamingBalance, type InsertGamingBalance,
+  gamingWebhookLogs, type GamingWebhookLog, type InsertGamingWebhookLog,
+  gamingFailedEvents, type GamingFailedEvent, type InsertGamingFailedEvent,
+  gamingApiHealthLogs, type GamingApiHealthLog, type InsertGamingApiHealthLog,
+  gamingAiResponseRules, type GamingAiResponseRule, type InsertGamingAiResponseRule,
+  gamingIntegrationTasks, type GamingIntegrationTask, type InsertGamingIntegrationTask,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, gte, gt, and, or, lt, isNull, isNotNull, sql, count, inArray, ne, SQL } from "drizzle-orm";
@@ -697,6 +708,59 @@ export interface IStorage {
   getMerchantTokenUsageSummary(merchantId: string, since: Date): Promise<{ promptTokens: number; completionTokens: number; requests: number; costMicroUsd: number }>;
   getAllMerchantsTokenUsageSummary(since: Date): Promise<Array<{ merchantId: string; promptTokens: number; completionTokens: number; requests: number; costMicroUsd: number }>>;
   cleanupOldTokenUsage(beforeDate: string): Promise<number>;
+
+  // Gaming Integration
+  getGamingMerchants(merchantId: string): Promise<GamingMerchant[]>;
+  getGamingMerchant(id: number): Promise<GamingMerchant | undefined>;
+  getGamingMerchantByMerchantId(merchantId: string): Promise<GamingMerchant | undefined>;
+  createGamingMerchant(data: InsertGamingMerchant): Promise<GamingMerchant>;
+  updateGamingMerchant(id: number, data: Partial<GamingMerchant>): Promise<GamingMerchant | undefined>;
+  deleteGamingMerchant(id: number): Promise<boolean>;
+
+  getGamingPlayerMappings(merchantId: string): Promise<GamingPlayerMapping[]>;
+  getGamingPlayerMapping(id: number): Promise<GamingPlayerMapping | undefined>;
+  getGamingPlayerMappingByUsername(merchantId: string, username: string): Promise<GamingPlayerMapping | undefined>;
+  createGamingPlayerMapping(data: InsertGamingPlayerMapping): Promise<GamingPlayerMapping>;
+  updateGamingPlayerMapping(id: number, data: Partial<GamingPlayerMapping>): Promise<GamingPlayerMapping | undefined>;
+  deleteGamingPlayerMapping(id: number): Promise<boolean>;
+
+  getGamingDeposits(merchantId: string, status?: string): Promise<GamingDeposit[]>;
+  getGamingDepositByTxId(merchantId: string, transactionId: string): Promise<GamingDeposit | undefined>;
+  upsertGamingDeposit(data: InsertGamingDeposit): Promise<GamingDeposit>;
+
+  getGamingWithdrawals(merchantId: string, status?: string): Promise<GamingWithdraw[]>;
+  getGamingWithdrawalByWithdrawId(merchantId: string, withdrawId: string): Promise<GamingWithdraw | undefined>;
+  upsertGamingWithdrawal(data: InsertGamingWithdraw): Promise<GamingWithdraw>;
+
+  getGamingTurnovers(merchantId: string, playerId?: string): Promise<GamingTurnover[]>;
+  upsertGamingTurnover(data: InsertGamingTurnover): Promise<GamingTurnover>;
+
+  getGamingBalanceSnapshots(merchantId: string, playerId?: string): Promise<GamingBalance[]>;
+  createGamingBalanceSnapshot(data: InsertGamingBalance): Promise<GamingBalance>;
+
+  getGamingWebhookLogs(merchantId: string, limit?: number): Promise<GamingWebhookLog[]>;
+  createGamingWebhookLog(data: InsertGamingWebhookLog): Promise<GamingWebhookLog>;
+  updateGamingWebhookLog(id: number, data: Partial<GamingWebhookLog>): Promise<GamingWebhookLog | undefined>;
+  isGamingEventDuplicate(merchantId: string, eventId: string): Promise<boolean>;
+
+  getGamingFailedEvents(merchantId: string, status?: string): Promise<GamingFailedEvent[]>;
+  createGamingFailedEvent(data: InsertGamingFailedEvent): Promise<GamingFailedEvent>;
+  updateGamingFailedEvent(id: number, data: Partial<GamingFailedEvent>): Promise<GamingFailedEvent | undefined>;
+
+  getGamingApiHealthLogs(merchantId: string, limit?: number): Promise<GamingApiHealthLog[]>;
+  getGamingApiHealthSummary(merchantId: string): Promise<{ total: number; success: number; avgResponseMs: number; lastChecked: Date | null }>;
+
+  getGamingAiResponseRules(merchantId: string, eventType?: string): Promise<GamingAiResponseRule[]>;
+  getGamingAiResponseRule(id: number): Promise<GamingAiResponseRule | undefined>;
+  createGamingAiResponseRule(data: InsertGamingAiResponseRule): Promise<GamingAiResponseRule>;
+  updateGamingAiResponseRule(id: number, data: Partial<GamingAiResponseRule>): Promise<GamingAiResponseRule | undefined>;
+  deleteGamingAiResponseRule(id: number): Promise<boolean>;
+
+  getGamingIntegrationTasks(status?: string): Promise<GamingIntegrationTask[]>;
+  getGamingIntegrationTask(id: number): Promise<GamingIntegrationTask | undefined>;
+  createGamingIntegrationTask(data: InsertGamingIntegrationTask): Promise<GamingIntegrationTask>;
+  updateGamingIntegrationTask(id: number, data: Partial<GamingIntegrationTask>): Promise<GamingIntegrationTask | undefined>;
+  deleteGamingIntegrationTask(id: number): Promise<boolean>;
 }
 
 function generateId(prefix: string = ""): string {
@@ -5004,6 +5068,246 @@ export class DatabaseStorage implements IStorage {
       .where(lt(merchantTokenUsageDaily.date, beforeDate))
       .returning({ id: merchantTokenUsageDaily.id });
     return result.length;
+  }
+
+  // ── Gaming Integration ────────────────────────────────────────────────────
+
+  async getGamingMerchants(merchantId: string): Promise<GamingMerchant[]> {
+    return db.select().from(gamingMerchants).where(eq(gamingMerchants.merchantId, merchantId)).orderBy(desc(gamingMerchants.createdAt));
+  }
+
+  async getGamingMerchant(id: number): Promise<GamingMerchant | undefined> {
+    const [row] = await db.select().from(gamingMerchants).where(eq(gamingMerchants.id, id));
+    return row;
+  }
+
+  async getGamingMerchantByMerchantId(merchantId: string): Promise<GamingMerchant | undefined> {
+    const [row] = await db.select().from(gamingMerchants).where(eq(gamingMerchants.merchantId, merchantId)).limit(1);
+    return row;
+  }
+
+  async createGamingMerchant(data: InsertGamingMerchant): Promise<GamingMerchant> {
+    const [row] = await db.insert(gamingMerchants).values(data).returning();
+    return row;
+  }
+
+  async updateGamingMerchant(id: number, data: Partial<GamingMerchant>): Promise<GamingMerchant | undefined> {
+    const [row] = await db.update(gamingMerchants).set({ ...data, updatedAt: new Date() }).where(eq(gamingMerchants.id, id)).returning();
+    return row;
+  }
+
+  async deleteGamingMerchant(id: number): Promise<boolean> {
+    const result = await db.delete(gamingMerchants).where(eq(gamingMerchants.id, id)).returning({ id: gamingMerchants.id });
+    return result.length > 0;
+  }
+
+  async getGamingPlayerMappings(merchantId: string): Promise<GamingPlayerMapping[]> {
+    return db.select().from(gamingPlayerMappings).where(eq(gamingPlayerMappings.merchantId, merchantId)).orderBy(desc(gamingPlayerMappings.createdAt));
+  }
+
+  async getGamingPlayerMapping(id: number): Promise<GamingPlayerMapping | undefined> {
+    const [row] = await db.select().from(gamingPlayerMappings).where(eq(gamingPlayerMappings.id, id));
+    return row;
+  }
+
+  async getGamingPlayerMappingByUsername(merchantId: string, username: string): Promise<GamingPlayerMapping | undefined> {
+    const [row] = await db.select().from(gamingPlayerMappings).where(and(eq(gamingPlayerMappings.merchantId, merchantId), eq(gamingPlayerMappings.gamingUsername, username))).limit(1);
+    return row;
+  }
+
+  async createGamingPlayerMapping(data: InsertGamingPlayerMapping): Promise<GamingPlayerMapping> {
+    const [row] = await db.insert(gamingPlayerMappings).values(data).returning();
+    return row;
+  }
+
+  async updateGamingPlayerMapping(id: number, data: Partial<GamingPlayerMapping>): Promise<GamingPlayerMapping | undefined> {
+    const [row] = await db.update(gamingPlayerMappings).set({ ...data, updatedAt: new Date() }).where(eq(gamingPlayerMappings.id, id)).returning();
+    return row;
+  }
+
+  async deleteGamingPlayerMapping(id: number): Promise<boolean> {
+    const result = await db.delete(gamingPlayerMappings).where(eq(gamingPlayerMappings.id, id)).returning({ id: gamingPlayerMappings.id });
+    return result.length > 0;
+  }
+
+  async getGamingDeposits(merchantId: string, status?: string): Promise<GamingDeposit[]> {
+    const conditions = [eq(gamingDepositTransactions.merchantId, merchantId)];
+    if (status) conditions.push(eq(gamingDepositTransactions.status, status));
+    return db.select().from(gamingDepositTransactions).where(and(...conditions)).orderBy(desc(gamingDepositTransactions.syncedAt));
+  }
+
+  async getGamingDepositByTxId(merchantId: string, transactionId: string): Promise<GamingDeposit | undefined> {
+    const [row] = await db.select().from(gamingDepositTransactions).where(and(eq(gamingDepositTransactions.merchantId, merchantId), eq(gamingDepositTransactions.transactionId, transactionId))).limit(1);
+    return row;
+  }
+
+  async upsertGamingDeposit(data: InsertGamingDeposit): Promise<GamingDeposit> {
+    const existing = data.merchantId && data.transactionId ? await this.getGamingDepositByTxId(data.merchantId, data.transactionId) : undefined;
+    if (existing) {
+      const [row] = await db.update(gamingDepositTransactions).set({ ...data, syncedAt: new Date() }).where(eq(gamingDepositTransactions.id, existing.id)).returning();
+      return row;
+    }
+    const [row] = await db.insert(gamingDepositTransactions).values(data).returning();
+    return row;
+  }
+
+  async getGamingWithdrawals(merchantId: string, status?: string): Promise<GamingWithdraw[]> {
+    const conditions = [eq(gamingWithdrawTransactions.merchantId, merchantId)];
+    if (status) conditions.push(eq(gamingWithdrawTransactions.status, status));
+    return db.select().from(gamingWithdrawTransactions).where(and(...conditions)).orderBy(desc(gamingWithdrawTransactions.syncedAt));
+  }
+
+  async getGamingWithdrawalByWithdrawId(merchantId: string, withdrawId: string): Promise<GamingWithdraw | undefined> {
+    const [row] = await db.select().from(gamingWithdrawTransactions).where(and(eq(gamingWithdrawTransactions.merchantId, merchantId), eq(gamingWithdrawTransactions.withdrawId, withdrawId))).limit(1);
+    return row;
+  }
+
+  async upsertGamingWithdrawal(data: InsertGamingWithdraw): Promise<GamingWithdraw> {
+    const existing = data.merchantId && data.withdrawId ? await this.getGamingWithdrawalByWithdrawId(data.merchantId, data.withdrawId) : undefined;
+    if (existing) {
+      const [row] = await db.update(gamingWithdrawTransactions).set({ ...data, syncedAt: new Date() }).where(eq(gamingWithdrawTransactions.id, existing.id)).returning();
+      return row;
+    }
+    const [row] = await db.insert(gamingWithdrawTransactions).values(data).returning();
+    return row;
+  }
+
+  async getGamingTurnovers(merchantId: string, playerId?: string): Promise<GamingTurnover[]> {
+    const conditions = [eq(gamingTurnoverStatus.merchantId, merchantId)];
+    if (playerId) conditions.push(eq(gamingTurnoverStatus.playerId, playerId));
+    return db.select().from(gamingTurnoverStatus).where(and(...conditions)).orderBy(desc(gamingTurnoverStatus.syncedAt));
+  }
+
+  async upsertGamingTurnover(data: InsertGamingTurnover): Promise<GamingTurnover> {
+    if (data.merchantId && data.playerId) {
+      const [existing] = await db.select().from(gamingTurnoverStatus).where(and(eq(gamingTurnoverStatus.merchantId, data.merchantId), eq(gamingTurnoverStatus.playerId, data.playerId))).limit(1);
+      if (existing) {
+        const [row] = await db.update(gamingTurnoverStatus).set({ ...data, syncedAt: new Date() }).where(eq(gamingTurnoverStatus.id, existing.id)).returning();
+        return row;
+      }
+    }
+    const [row] = await db.insert(gamingTurnoverStatus).values(data).returning();
+    return row;
+  }
+
+  async getGamingBalanceSnapshots(merchantId: string, playerId?: string): Promise<GamingBalance[]> {
+    const conditions = [eq(gamingBalanceSnapshots.merchantId, merchantId)];
+    if (playerId) conditions.push(eq(gamingBalanceSnapshots.playerId, playerId));
+    return db.select().from(gamingBalanceSnapshots).where(and(...conditions)).orderBy(desc(gamingBalanceSnapshots.createdAt));
+  }
+
+  async createGamingBalanceSnapshot(data: InsertGamingBalance): Promise<GamingBalance> {
+    const [row] = await db.insert(gamingBalanceSnapshots).values(data).returning();
+    return row;
+  }
+
+  async getGamingWebhookLogs(merchantId: string, limit = 100): Promise<GamingWebhookLog[]> {
+    return db.select().from(gamingWebhookLogs).where(eq(gamingWebhookLogs.merchantId, merchantId)).orderBy(desc(gamingWebhookLogs.receivedAt)).limit(limit);
+  }
+
+  async createGamingWebhookLog(data: InsertGamingWebhookLog): Promise<GamingWebhookLog> {
+    const [row] = await db.insert(gamingWebhookLogs).values(data).returning();
+    return row;
+  }
+
+  async updateGamingWebhookLog(id: number, data: Partial<GamingWebhookLog>): Promise<GamingWebhookLog | undefined> {
+    const [row] = await db.update(gamingWebhookLogs).set(data).where(eq(gamingWebhookLogs.id, id)).returning();
+    return row;
+  }
+
+  async isGamingEventDuplicate(merchantId: string, eventId: string): Promise<boolean> {
+    const [row] = await db.select({ id: gamingWebhookLogs.id }).from(gamingWebhookLogs).where(and(eq(gamingWebhookLogs.merchantId, merchantId), eq(gamingWebhookLogs.eventId, eventId))).limit(1);
+    return !!row;
+  }
+
+  async getGamingFailedEvents(merchantId: string, status?: string): Promise<GamingFailedEvent[]> {
+    const conditions = [eq(gamingFailedEvents.merchantId, merchantId)];
+    if (status) conditions.push(eq(gamingFailedEvents.status, status));
+    return db.select().from(gamingFailedEvents).where(and(...conditions)).orderBy(desc(gamingFailedEvents.createdAt));
+  }
+
+  async createGamingFailedEvent(data: InsertGamingFailedEvent): Promise<GamingFailedEvent> {
+    const [row] = await db.insert(gamingFailedEvents).values(data).returning();
+    return row;
+  }
+
+  async updateGamingFailedEvent(id: number, data: Partial<GamingFailedEvent>): Promise<GamingFailedEvent | undefined> {
+    const [row] = await db.update(gamingFailedEvents).set({ ...data, updatedAt: new Date() }).where(eq(gamingFailedEvents.id, id)).returning();
+    return row;
+  }
+
+  async getGamingApiHealthLogs(merchantId: string, limit = 50): Promise<GamingApiHealthLog[]> {
+    return db.select().from(gamingApiHealthLogs).where(eq(gamingApiHealthLogs.merchantId, merchantId)).orderBy(desc(gamingApiHealthLogs.checkedAt)).limit(limit);
+  }
+
+  async getGamingApiHealthSummary(merchantId: string): Promise<{ total: number; success: number; avgResponseMs: number; lastChecked: Date | null }> {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const rows = await db.select({
+      total: count(),
+      success: sql<number>`COALESCE(SUM(CASE WHEN ${gamingApiHealthLogs.success} THEN 1 ELSE 0 END), 0)`,
+      avgResponseMs: sql<number>`COALESCE(AVG(${gamingApiHealthLogs.responseTimeMs}), 0)`,
+      lastChecked: sql<Date>`MAX(${gamingApiHealthLogs.checkedAt})`,
+    }).from(gamingApiHealthLogs).where(and(eq(gamingApiHealthLogs.merchantId, merchantId), gte(gamingApiHealthLogs.checkedAt, cutoff)));
+    const r = rows[0];
+    return {
+      total: Number(r?.total ?? 0),
+      success: Number(r?.success ?? 0),
+      avgResponseMs: Number(r?.avgResponseMs ?? 0),
+      lastChecked: r?.lastChecked ?? null,
+    };
+  }
+
+  async getGamingAiResponseRules(merchantId: string, eventType?: string): Promise<GamingAiResponseRule[]> {
+    const conditions = [eq(gamingAiResponseRules.merchantId, merchantId)];
+    if (eventType) conditions.push(eq(gamingAiResponseRules.eventType, eventType));
+    return db.select().from(gamingAiResponseRules).where(and(...conditions)).orderBy(desc(gamingAiResponseRules.createdAt));
+  }
+
+  async getGamingAiResponseRule(id: number): Promise<GamingAiResponseRule | undefined> {
+    const [row] = await db.select().from(gamingAiResponseRules).where(eq(gamingAiResponseRules.id, id));
+    return row;
+  }
+
+  async createGamingAiResponseRule(data: InsertGamingAiResponseRule): Promise<GamingAiResponseRule> {
+    const [row] = await db.insert(gamingAiResponseRules).values(data).returning();
+    return row;
+  }
+
+  async updateGamingAiResponseRule(id: number, data: Partial<GamingAiResponseRule>): Promise<GamingAiResponseRule | undefined> {
+    const [row] = await db.update(gamingAiResponseRules).set({ ...data, updatedAt: new Date() }).where(eq(gamingAiResponseRules.id, id)).returning();
+    return row;
+  }
+
+  async deleteGamingAiResponseRule(id: number): Promise<boolean> {
+    const result = await db.delete(gamingAiResponseRules).where(eq(gamingAiResponseRules.id, id)).returning({ id: gamingAiResponseRules.id });
+    return result.length > 0;
+  }
+
+  async getGamingIntegrationTasks(status?: string): Promise<GamingIntegrationTask[]> {
+    if (status) {
+      return db.select().from(gamingIntegrationTasks).where(eq(gamingIntegrationTasks.status, status)).orderBy(desc(gamingIntegrationTasks.createdAt));
+    }
+    return db.select().from(gamingIntegrationTasks).orderBy(desc(gamingIntegrationTasks.createdAt));
+  }
+
+  async getGamingIntegrationTask(id: number): Promise<GamingIntegrationTask | undefined> {
+    const [row] = await db.select().from(gamingIntegrationTasks).where(eq(gamingIntegrationTasks.id, id));
+    return row;
+  }
+
+  async createGamingIntegrationTask(data: InsertGamingIntegrationTask): Promise<GamingIntegrationTask> {
+    const [row] = await db.insert(gamingIntegrationTasks).values(data).returning();
+    return row;
+  }
+
+  async updateGamingIntegrationTask(id: number, data: Partial<GamingIntegrationTask>): Promise<GamingIntegrationTask | undefined> {
+    const [row] = await db.update(gamingIntegrationTasks).set({ ...data, updatedAt: new Date() }).where(eq(gamingIntegrationTasks.id, id)).returning();
+    return row;
+  }
+
+  async deleteGamingIntegrationTask(id: number): Promise<boolean> {
+    const result = await db.delete(gamingIntegrationTasks).where(eq(gamingIntegrationTasks.id, id)).returning({ id: gamingIntegrationTasks.id });
+    return result.length > 0;
   }
 }
 
