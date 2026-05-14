@@ -95,6 +95,11 @@ function sanitizeFailedEvent(row: GamingFailedEvent) {
   return { ...row, payload: row.payload ? sanitizePayload(row.payload) : null };
 }
 
+// ── Payload field helpers ─────────────────────────────────────────────────────
+// Safe coercions from Record<string, unknown> to primitive types for storage calls.
+function str(v: unknown): string | undefined { return v != null ? String(v) : undefined; }
+function dt(v: unknown): Date | undefined { return v != null ? new Date(String(v)) : undefined; }
+
 // ── Webhook Event Processor ───────────────────────────────────────────────────
 // Handles all 12 canonical event types.
 // Returns true on success, false on failure (never throws — callers check return value).
@@ -116,17 +121,17 @@ async function processGamingWebhookEvent(
       case "deposit.cancelled": {
         await storage.upsertGamingDeposit({
           merchantId,
-          transactionId: payload.transaction_id ?? payload.transactionId ?? eventId,
-          playerId: payload.player_id ?? payload.playerId,
-          username: payload.username,
+          transactionId: str(payload.transaction_id ?? payload.transactionId) ?? eventId,
+          playerId: str(payload.player_id ?? payload.playerId),
+          username: str(payload.username),
           amount: payload.amount ? Number(payload.amount) : undefined,
-          currency: payload.currency ?? "IDR",
-          paymentMethod: payload.payment_method ?? payload.paymentMethod,
-          paymentChannel: payload.payment_channel ?? payload.paymentChannel,
-          status: payload.status ?? eventType.split(".")[1],
-          proofUrl: payload.proof_url ?? payload.proofUrl,
-          paidAt: payload.paid_at ? new Date(payload.paid_at) : undefined,
-          expiredAt: payload.expired_at ? new Date(payload.expired_at) : undefined,
+          currency: str(payload.currency) ?? "IDR",
+          paymentMethod: str(payload.payment_method ?? payload.paymentMethod),
+          paymentChannel: str(payload.payment_channel ?? payload.paymentChannel),
+          status: str(payload.status) ?? eventType.split(".")[1],
+          proofUrl: str(payload.proof_url ?? payload.proofUrl),
+          paidAt: dt(payload.paid_at),
+          expiredAt: dt(payload.expired_at),
           rawPayload: payload,
         });
         break;
@@ -140,20 +145,20 @@ async function processGamingWebhookEvent(
       case "withdraw.completed": {
         await storage.upsertGamingWithdrawal({
           merchantId,
-          withdrawId: payload.withdraw_id ?? payload.withdrawId ?? eventId,
-          playerId: payload.player_id ?? payload.playerId,
-          username: payload.username,
+          withdrawId: str(payload.withdraw_id ?? payload.withdrawId) ?? eventId,
+          playerId: str(payload.player_id ?? payload.playerId),
+          username: str(payload.username),
           amount: payload.amount ? Number(payload.amount) : undefined,
-          currency: payload.currency ?? "IDR",
-          bankName: payload.bank_name ?? payload.bankName,
-          accountName: payload.account_name ?? payload.accountName,
+          currency: str(payload.currency) ?? "IDR",
+          bankName: str(payload.bank_name ?? payload.bankName),
+          accountName: str(payload.account_name ?? payload.accountName),
           accountNumberMasked: payload.account_number
-            ? maskBankAccount(payload.account_number)
-            : (payload.account_number_masked ?? payload.accountNumberMasked),
-          status: payload.status ?? eventType.split(".")[1],
-          rejectedReason: payload.rejected_reason ?? payload.rejectedReason,
-          approvedAt: payload.approved_at ? new Date(payload.approved_at) : undefined,
-          rejectedAt: payload.rejected_at ? new Date(payload.rejected_at) : undefined,
+            ? maskBankAccount(String(payload.account_number))
+            : str(payload.account_number_masked ?? payload.accountNumberMasked),
+          status: str(payload.status) ?? eventType.split(".")[1],
+          rejectedReason: str(payload.rejected_reason ?? payload.rejectedReason),
+          approvedAt: dt(payload.approved_at),
+          rejectedAt: dt(payload.rejected_at),
           rawPayload: payload,
         });
         break;
@@ -167,17 +172,17 @@ async function processGamingWebhookEvent(
         const pct = required > 0 ? Math.min(100, Math.round((current / required) * 100)) : 100;
         await storage.upsertGamingTurnover({
           merchantId,
-          playerId: payload.player_id ?? payload.playerId,
-          username: payload.username,
-          bonusId: payload.bonus_id ?? payload.bonusId,
-          bonusName: payload.bonus_name ?? payload.bonusName,
+          playerId: str(payload.player_id ?? payload.playerId),
+          username: str(payload.username),
+          bonusId: str(payload.bonus_id ?? payload.bonusId),
+          bonusName: str(payload.bonus_name ?? payload.bonusName),
           requiredTurnover: required,
           currentTurnover: current,
           remainingTurnover: remaining,
           progressPercentage: pct,
           eligibleWithdraw: pct >= 100,
-          expiryDate: payload.expiry_date ? new Date(payload.expiry_date) : undefined,
-          status: payload.status ?? "active",
+          expiryDate: dt(payload.expiry_date),
+          status: str(payload.status) ?? "active",
           rawPayload: payload,
         });
         break;
@@ -187,12 +192,12 @@ async function processGamingWebhookEvent(
       case "balance.updated": {
         await storage.createGamingBalanceSnapshot({
           merchantId,
-          playerId: payload.player_id ?? payload.playerId,
-          username: payload.username,
+          playerId: str(payload.player_id ?? payload.playerId),
+          username: str(payload.username),
           currentBalance: payload.current_balance != null ? Number(payload.current_balance) : undefined,
           lockedBalance: payload.locked_balance != null ? Number(payload.locked_balance) : undefined,
           bonusBalance: payload.bonus_balance != null ? Number(payload.bonus_balance) : undefined,
-          currency: payload.currency ?? "IDR",
+          currency: str(payload.currency) ?? "IDR",
           source: "webhook",
           rawPayload: payload,
         });
@@ -277,10 +282,10 @@ export function registerGamingRoutes(app: Express) {
     }
 
     const payload = req.body as Record<string, unknown>;
-    const eventType = payload?.event_type ?? payload?.eventType ?? "unknown";
+    const eventType = str(payload?.event_type ?? payload?.eventType) ?? "unknown";
 
     // Resolve event ID from header first, then fall back to payload field
-    const resolvedEventId = (eventId || payload?.event_id || payload?.eventId || "") as string;
+    const resolvedEventId = str(eventId || payload?.event_id || payload?.eventId) ?? "";
 
     // Log incoming webhook — use DB-level unique constraint on (merchant_id, event_id)
     // for race-safe deduplication: a duplicate event_id will throw a unique violation
@@ -291,8 +296,8 @@ export function registerGamingRoutes(app: Express) {
         merchantId,
         eventType,
         eventId: resolvedEventId || null,
-        playerId: payload?.player_id ?? payload?.playerId ?? null,
-        transactionId: payload?.transaction_id ?? payload?.transactionId ?? null,
+        playerId: str(payload?.player_id ?? payload?.playerId) ?? null,
+        transactionId: str(payload?.transaction_id ?? payload?.transactionId) ?? null,
         payload,
         signatureValid: true,
         status: "pending",
@@ -779,11 +784,29 @@ export function registerGamingRoutes(app: Express) {
     }
   });
 
-  // Integration Tasks
+  const SEED_TASKS = [
+    { category: "Backend", title: "Webhook receiver with HMAC-SHA256 verification", status: "done", priority: "critical", description: "Secure endpoint receiving all 12 gaming event types. Verifies signature, deduplicates, and dispatches processor.", ownerRole: "Backend Dev", acceptanceCriteria: "All event types processed; invalid signatures rejected; duplicate eventIds ignored." },
+    { category: "Backend", title: "Player mapping CRUD", status: "done", priority: "high", description: "Store and manage gaming username ↔ Chatvice customer identity links with verification status.", ownerRole: "Backend Dev", acceptanceCriteria: "Create, read, update, delete player mappings; phone/email masked in API responses." },
+    { category: "Backend", title: "Deposit & withdrawal transaction logs", status: "done", priority: "high", description: "Persist deposit and withdrawal events from webhook payloads with full status tracking.", ownerRole: "Backend Dev", acceptanceCriteria: "All deposit/withdraw events stored; account numbers masked at rest; paginated admin API." },
+    { category: "Backend", title: "Turnover tracking & eligibility engine", status: "done", priority: "medium", description: "Track bonus turnover progress per player and flag eligibility for withdrawal.", ownerRole: "Backend Dev", acceptanceCriteria: "progressPercentage computed; eligibleWithdraw flag accurate; admin filter by eligibility." },
+    { category: "Backend", title: "API health monitoring endpoint", status: "done", priority: "medium", description: "Log per-endpoint health checks with response time, status code, and uptime percentage.", ownerRole: "Backend Dev", acceptanceCriteria: "Health logs stored; summary (uptime%, avg response time) computed correctly." },
+    { category: "Backend", title: "AES-256-GCM credential encryption at rest", status: "done", priority: "critical", description: "All gaming API keys, secrets, and webhook secrets encrypted before DB storage.", ownerRole: "Backend Dev", acceptanceCriteria: "No plaintext credentials in DB; decryption works correctly; key hints shown in admin UI." },
+    { category: "Admin UI", title: "13-page gaming integration admin dashboard", status: "done", priority: "high", description: "Full admin UI with overview stats, audit checklist, and 11 per-merchant management pages.", ownerRole: "Frontend Dev", acceptanceCriteria: "All 13 pages accessible via URL routing; loading/empty/error states on every page." },
+    { category: "AI Integration", title: "AI agent gaming queries (Task #397)", status: "in_progress", priority: "critical", description: "Enable AI chatbot to answer deposit status, withdrawal status, and turnover queries by injecting gaming data into prompts.", ownerRole: "AI Engineer", acceptanceCriteria: "AI correctly answers 'what is my deposit status', 'my withdrawal status', 'my turnover progress' from live gaming data." },
+    { category: "QA", title: "End-to-end gaming webhook test suite", status: "testing", priority: "high", description: "Automated tests covering all 12 event types, signature failure cases, and duplicate detection.", ownerRole: "QA Engineer", acceptanceCriteria: "All 12 event types tested; edge cases for bad signatures and duplicates covered; CI passes." },
+    { category: "Backend", title: "Rate-limit and IP whitelist enforcement", status: "testing", priority: "medium", description: "Enforce per-merchant IP whitelist on webhook receiver; rate-limit burst events.", ownerRole: "Backend Dev", acceptanceCriteria: "Requests from non-whitelisted IPs rejected with 403; burst rate limit tested and documented." },
+    { category: "Admin UI", title: "CSV export for deposits and withdrawals", status: "todo", priority: "low", description: "Allow admin to export filtered transaction logs as CSV files for reconciliation.", ownerRole: "Frontend Dev", acceptanceCriteria: "Export button on deposits/withdrawals page; respects current filters; downloads valid CSV." },
+    { category: "Backend", title: "Real-time dashboard alert thresholds", status: "backlog", priority: "medium", description: "Configurable alert thresholds for failed events, pending withdrawal SLA, and API downtime.", ownerRole: "Backend Dev", acceptanceCriteria: "Admin can set threshold values; alerts triggered when thresholds breached; WebSocket push to admin panel." },
+  ];
+
+  // Integration Tasks — auto-seed on first GET if DB is empty
   app.get("/api/admin/gaming/tasks", requireAdmin, async (req: Request, res: Response) => {
     try {
       const { status } = req.query;
-      const rows = await storage.getGamingIntegrationTasks(status as string | undefined);
+      let rows = await storage.getGamingIntegrationTasks(status as string | undefined);
+      if (rows.length === 0 && !status) {
+        rows = await Promise.all(SEED_TASKS.map((t) => storage.createGamingIntegrationTask(t)));
+      }
       res.json(rows);
     } catch (err: any) {
       res.status(500).json({ error: err.message });

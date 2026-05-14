@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -109,6 +110,8 @@ function usePagination<T>(items: T[], pageSize = 20) {
   return { paged, page, totalPages, setPage, Pagination };
 }
 
+type ToastFn = ReturnType<typeof useToast>["toast"];
+
 // ─── Shared data interfaces ───────────────────────────────────────────────────
 
 interface GamingMerchantSummary {
@@ -200,8 +203,8 @@ interface GamingWebhookLogRow {
   status: string;
   receivedAt: string | null;
   errorMessage: string | null;
-  rawPayload: unknown;
-  processedPayload: unknown;
+  rawPayload: Record<string, unknown> | null;
+  processedPayload: Record<string, unknown> | null;
 }
 
 interface GamingHealthLogRow {
@@ -215,10 +218,18 @@ interface GamingHealthLogRow {
 }
 
 interface GamingHealthSummary {
-  totalChecks: number;
-  successChecks: number;
+  total: number;
+  success: number;
+  avgResponseMs: number;
+  lastChecked: string | null;
+}
+
+interface GamingEndpointUptimeRow {
+  endpoint: string;
+  total: number;
+  success: number;
   uptimePct: number;
-  avgResponseMs: number | null;
+  avgResponseMs: number;
 }
 
 interface GamingFailedEventRow {
@@ -302,7 +313,7 @@ interface GamingOverviewData {
   turnoverIssues: number;
 }
 
-export function GamingOverviewTab({ toast }: { toast: any }) {
+export function GamingOverviewTab({ toast }: { toast: ToastFn }) {
   const { data, isLoading, isError, error } = useQuery<GamingOverviewData>({
     queryKey: ["/api/admin/gaming/overview"],
   });
@@ -313,7 +324,7 @@ export function GamingOverviewTab({ toast }: { toast: any }) {
     { label: "Deposits Today", value: data?.depositsToday, sub: "transactions", icon: ArrowDownLeft, color: "text-emerald-500" },
     { label: "Withdrawals Today", value: data?.withdrawalsToday, sub: "transactions", icon: ArrowUpLeft, color: "text-cyan-500" },
     { label: "Pending Withdrawals", value: data?.pendingWithdrawals, sub: "awaiting approval", icon: Clock, color: "text-yellow-500" },
-    { label: "Failed Webhook Events", value: data?.failedEvents, sub: "need attention", icon: AlertTriangle, color: data?.failedEvents > 0 ? "text-red-500" : "text-muted-foreground" },
+    { label: "Failed Webhook Events", value: data?.failedEvents, sub: "need attention", icon: AlertTriangle, color: (data?.failedEvents ?? 0) > 0 ? "text-red-500" : "text-muted-foreground" },
     { label: "API Uptime", value: data?.apiUptimePct != null ? `${data.apiUptimePct}%` : null, sub: "last 100 checks", icon: Server, color: (data?.apiUptimePct ?? 100) >= 95 ? "text-green-500" : "text-red-500" },
     { label: "Turnover Issues", value: data?.turnoverIssues, sub: "not eligible yet", icon: TrendingUp, color: "text-orange-500" },
   ];
@@ -394,7 +405,7 @@ const auditRiskColor: Record<string, string> = {
   Critical: "bg-red-500/20 text-red-700 dark:text-red-400",
 };
 
-export function GamingAuditTab({ toast }: { toast: any }) {
+export function GamingAuditTab({ toast }: { toast: ToastFn }) {
   const { paged, Pagination } = usePagination(AUDIT_DATA, 10);
   return (
     <div className="space-y-6">
@@ -441,7 +452,7 @@ export function GamingAuditTab({ toast }: { toast: any }) {
 
 // ─── 3. Player Mappings ───────────────────────────────────────────────────────
 
-export function GamingPlayersTab({ toast }: { toast: any }) {
+export function GamingPlayersTab({ toast }: { toast: ToastFn }) {
   const [merchantId, setMerchantId] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showLink, setShowLink] = useState(false);
@@ -598,7 +609,7 @@ export function GamingPlayersTab({ toast }: { toast: any }) {
 
 // ─── 4. Deposit Monitor ───────────────────────────────────────────────────────
 
-export function GamingDepositsTab({ toast }: { toast: any }) {
+export function GamingDepositsTab({ toast }: { toast: ToastFn }) {
   const [merchantId, setMerchantId] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [usernameFilter, setUsernameFilter] = useState("");
@@ -705,7 +716,7 @@ export function GamingDepositsTab({ toast }: { toast: any }) {
 
 // ─── 5. Withdrawal Monitor ────────────────────────────────────────────────────
 
-export function GamingWithdrawalsTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
+export function GamingWithdrawalsTab({ toast }: { toast: ToastFn }) {
   const [merchantId, setMerchantId] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [usernameFilter, setUsernameFilter] = useState("");
@@ -811,7 +822,7 @@ export function GamingWithdrawalsTab({ toast }: { toast: (opts: { title: string;
 
 // ─── 6. Turnover Monitor ──────────────────────────────────────────────────────
 
-export function GamingTurnoversTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
+export function GamingTurnoversTab({ toast }: { toast: ToastFn }) {
   const [merchantId, setMerchantId] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -903,7 +914,7 @@ export function GamingTurnoversTab({ toast }: { toast: (opts: { title: string; d
 
 // ─── 7. Balance Snapshots ─────────────────────────────────────────────────────
 
-export function GamingBalancesTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
+export function GamingBalancesTab({ toast }: { toast: ToastFn }) {
   const [merchantId, setMerchantId] = useState("");
 
   const { data = [], isLoading, isError, error } = useQuery<GamingBalanceRow[]>({
@@ -971,7 +982,7 @@ export function GamingBalancesTab({ toast }: { toast: (opts: { title: string; de
 
 // ─── 8. Webhook Logs ──────────────────────────────────────────────────────────
 
-export function GamingWebhooksTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
+export function GamingWebhooksTab({ toast }: { toast: ToastFn }) {
   const [merchantId, setMerchantId] = useState("");
   const [viewPayload, setViewPayload] = useState<GamingWebhookLogRow | null>(null);
 
@@ -1006,7 +1017,7 @@ export function GamingWebhooksTab({ toast }: { toast: (opts: { title: string; de
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>Webhook Payload</DialogTitle><DialogDescription>Sanitized event payload for log #{viewPayload?.id}</DialogDescription></DialogHeader>
           <pre className="bg-muted rounded-md p-4 text-xs overflow-auto max-h-96 whitespace-pre-wrap break-all">
-            {viewPayload ? JSON.stringify(viewPayload.payload, null, 2) : ""}
+            {viewPayload ? JSON.stringify(viewPayload.rawPayload ?? viewPayload.processedPayload ?? {}, null, 2) : ""}
           </pre>
           <DialogFooter><DialogClose asChild><Button variant="outline">Close</Button></DialogClose></DialogFooter>
         </DialogContent>
@@ -1066,7 +1077,7 @@ export function GamingWebhooksTab({ toast }: { toast: (opts: { title: string; de
 
 // ─── 9. API Health Monitor ────────────────────────────────────────────────────
 
-export function GamingHealthTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
+export function GamingHealthTab({ toast }: { toast: ToastFn }) {
   const [merchantId, setMerchantId] = useState("");
 
   const { data, isLoading, isError, error } = useQuery<{ summary: GamingHealthSummary | null; logs: GamingHealthLogRow[] }>({
@@ -1084,6 +1095,23 @@ export function GamingHealthTab({ toast }: { toast: (opts: { title: string; desc
   const summary = data?.summary;
   const { paged, Pagination } = usePagination(logs);
 
+  const endpointUptime = useMemo((): GamingEndpointUptimeRow[] => {
+    const map: Record<string, { total: number; success: number; totalMs: number }> = {};
+    for (const r of logs) {
+      if (!map[r.endpoint]) map[r.endpoint] = { total: 0, success: 0, totalMs: 0 };
+      map[r.endpoint].total++;
+      if (r.success) map[r.endpoint].success++;
+      map[r.endpoint].totalMs += r.responseTimeMs ?? 0;
+    }
+    return Object.entries(map).map(([endpoint, v]) => ({
+      endpoint,
+      total: v.total,
+      success: v.success,
+      uptimePct: v.total > 0 ? Math.round((v.success / v.total) * 100) : 100,
+      avgResponseMs: v.total > 0 ? Math.round(v.totalMs / v.total) : 0,
+    })).sort((a, b) => a.uptimePct - b.uptimePct);
+  }, [logs]);
+
   return (
     <div className="space-y-6">
       <div>
@@ -1095,10 +1123,10 @@ export function GamingHealthTab({ toast }: { toast: (opts: { title: string; desc
       {merchantId && summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Total Checks", value: summary.totalChecks ?? 0 },
-            { label: "Successful", value: summary.successfulChecks ?? 0 },
-            { label: "Failed", value: summary.failedChecks ?? 0 },
-            { label: "Uptime", value: summary.uptimePercentage != null ? `${summary.uptimePercentage}%` : "—" },
+            { label: "Total Checks", value: summary.total },
+            { label: "Successful", value: summary.success },
+            { label: "Failed", value: summary.total - summary.success },
+            { label: "Uptime", value: summary.total > 0 ? `${Math.round((summary.success / summary.total) * 100)}%` : "—" },
           ].map((s) => (
             <Card key={s.label}>
               <CardContent className="pt-4">
@@ -1108,6 +1136,42 @@ export function GamingHealthTab({ toast }: { toast: (opts: { title: string; desc
             </Card>
           ))}
         </div>
+      )}
+
+      {merchantId && endpointUptime.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Per-Endpoint Uptime</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Endpoint</TableHead>
+                  <TableHead className="text-right">Checks</TableHead>
+                  <TableHead className="text-right">Success</TableHead>
+                  <TableHead className="text-right">Uptime %</TableHead>
+                  <TableHead className="text-right">Avg Response</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {endpointUptime.map((e) => (
+                  <TableRow key={e.endpoint}>
+                    <TableCell className="font-mono text-xs truncate max-w-[280px]">{e.endpoint}</TableCell>
+                    <TableCell className="text-right text-sm">{e.total}</TableCell>
+                    <TableCell className="text-right text-sm">{e.success}</TableCell>
+                    <TableCell className="text-right">
+                      <Badge className={e.uptimePct >= 95 ? "bg-green-500/20 text-green-700 dark:text-green-400" : e.uptimePct >= 80 ? "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400" : "bg-red-500/20 text-red-700 dark:text-red-400"}>
+                        {e.uptimePct}%
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right text-sm">{e.avgResponseMs}ms</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       <Card>
@@ -1122,7 +1186,6 @@ export function GamingHealthTab({ toast }: { toast: (opts: { title: string; desc
                   <TableHeader>
                     <TableRow>
                       <TableHead>Endpoint</TableHead>
-                      <TableHead>Method</TableHead>
                       <TableHead>Status Code</TableHead>
                       <TableHead>Response Time</TableHead>
                       <TableHead>Result</TableHead>
@@ -1134,7 +1197,6 @@ export function GamingHealthTab({ toast }: { toast: (opts: { title: string; desc
                     {paged.map((r) => (
                       <TableRow key={r.id}>
                         <TableCell className="font-mono text-xs truncate max-w-[200px]">{r.endpoint}</TableCell>
-                        <TableCell><Badge variant="outline">{"GET"}</Badge></TableCell>
                         <TableCell>
                           <Badge className={(r.statusCode ?? 0) >= 200 && (r.statusCode ?? 0) < 300 ? "bg-green-500/20 text-green-700 dark:text-green-400" : "bg-red-500/20 text-red-700 dark:text-red-400"}>
                             {r.statusCode ?? "—"}
@@ -1159,7 +1221,7 @@ export function GamingHealthTab({ toast }: { toast: (opts: { title: string; desc
 
 // ─── 10. Failed Events ────────────────────────────────────────────────────────
 
-export function GamingFailedEventsTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
+export function GamingFailedEventsTab({ toast }: { toast: ToastFn }) {
   const [merchantId, setMerchantId] = useState("");
   const [statusFilter, setStatusFilter] = useState("pending");
 
@@ -1284,7 +1346,7 @@ const EVENT_TYPES = [
   "turnover.updated", "balance.updated", "player.verified",
 ];
 
-export function GamingAiRulesTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
+export function GamingAiRulesTab({ toast }: { toast: ToastFn }) {
   const [merchantId, setMerchantId] = useState("");
   const [showDialog, setShowDialog] = useState(false);
   const [editRow, setEditRow] = useState<GamingAiRuleRow | null>(null);
@@ -1440,7 +1502,13 @@ export function GamingAiRulesTab({ toast }: { toast: (opts: { title: string; des
 
 interface TestResult { success: boolean; statusCode?: number; responseTimeMs?: number; error?: string; }
 
-export function GamingSecurityTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
+interface MerchantFormBody {
+  merchantId: string; merchantName: string; brandName?: string;
+  apiBaseUrl: string; status: string; ipWhitelist: string[];
+  apiKey?: string; apiSecret?: string;
+}
+
+export function GamingSecurityTab({ toast }: { toast: ToastFn }) {
   const [showCreate, setShowCreate] = useState(false);
   const [editRow, setEditRow] = useState<GamingMerchantSummary | null>(null);
   const [testResult, setTestResult] = useState<Record<number, TestResult>>({});
@@ -1453,7 +1521,7 @@ export function GamingSecurityTab({ toast }: { toast: (opts: { title: string; de
   });
 
   const createMutation = useMutation({
-    mutationFn: (body: typeof emptyForm & { ipWhitelist: string[] }) => editRow
+    mutationFn: (body: MerchantFormBody) => editRow
       ? apiRequest("PATCH", `/api/admin/gaming/merchants/${editRow.id}`, body)
       : apiRequest("POST", "/api/admin/gaming/merchants", body),
     onSuccess: () => { toast({ title: editRow ? "Merchant updated" : "Merchant created" }); setShowCreate(false); setEditRow(null); refetch(); },
@@ -1480,7 +1548,7 @@ export function GamingSecurityTab({ toast }: { toast: (opts: { title: string; de
   };
 
   const handleSave = () => {
-    const body = {
+    const body: MerchantFormBody = {
       merchantId: form.merchantId,
       merchantName: form.merchantName,
       brandName: form.brandName || undefined,
@@ -1496,7 +1564,7 @@ export function GamingSecurityTab({ toast }: { toast: (opts: { title: string; de
   const testWebhook = async (m: GamingMerchantSummary) => {
     setTestingId(m.id);
     try {
-      const res = await apiRequest("POST", `/api/admin/gaming/merchants/${m.id}/test-webhook`, {}) as TestResult;
+      const res = await apiRequest("POST", `/api/admin/gaming/merchants/${m.id}/test-webhook`, {}) as unknown as TestResult;
       setTestResult(prev => ({ ...prev, [m.id]: res }));
       toast({ title: res.success ? "Webhook reachable" : "Webhook unreachable", description: `Status: ${res.statusCode ?? "—"} | ${res.responseTimeMs}ms` });
     } catch (e: unknown) {
@@ -1637,7 +1705,7 @@ const KANBAN_COLUMNS = [
   { id: "done", label: "Done" },
 ];
 
-export function GamingRoadmapTab({ toast }: { toast: (opts: { title: string; description?: string; variant?: string }) => void }) {
+export function GamingRoadmapTab({ toast }: { toast: ToastFn }) {
   const [showCreate, setShowCreate] = useState(false);
   const emptyForm = { category: "", title: "", description: "", priority: "medium", status: "backlog", ownerRole: "", acceptanceCriteria: "" };
   const [form, setForm] = useState(emptyForm);

@@ -39,7 +39,7 @@ const GAMING_NAV = [
   { id: "roadmap", label: "Integration Roadmap", icon: Layers },
 ];
 
-function renderPage(subpage: string, toast: any) {
+function renderPage(subpage: string, toast: Parameters<typeof GamingOverviewTab>[0]["toast"]) {
   switch (subpage) {
     case "":            return <GamingOverviewTab toast={toast} />;
     case "audit":       return <GamingAuditTab toast={toast} />;
