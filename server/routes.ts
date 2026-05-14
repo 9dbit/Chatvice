@@ -21008,7 +21008,7 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
       // Return 200 with success:false for validation errors so widget can display user-friendly messages
       // isAutoOpen sessions are anonymous — phone is not required
       if (!merchantId || !sessionId || !customerName || (!customerPhone && !isAutoOpen)) {
-        return res.json({ success: false, error: "Please enter your name and phone number" });
+        return res.json({ success: false, error: "Please enter your name" });
       }
       
       // Validate email format if provided
