@@ -725,32 +725,48 @@ export interface IStorage {
   deleteGamingPlayerMapping(id: number): Promise<boolean>;
 
   getGamingDeposits(merchantId: string, status?: string): Promise<GamingDeposit[]>;
+  getGamingDeposit(id: number): Promise<GamingDeposit | undefined>;
   getGamingDepositByTxId(merchantId: string, transactionId: string): Promise<GamingDeposit | undefined>;
   upsertGamingDeposit(data: InsertGamingDeposit): Promise<GamingDeposit>;
+  updateGamingDeposit(id: number, data: Partial<GamingDeposit>): Promise<GamingDeposit | undefined>;
+  deleteGamingDeposit(id: number): Promise<boolean>;
 
   getGamingWithdrawals(merchantId: string, status?: string): Promise<GamingWithdraw[]>;
+  getGamingWithdrawal(id: number): Promise<GamingWithdraw | undefined>;
   getGamingWithdrawalByWithdrawId(merchantId: string, withdrawId: string): Promise<GamingWithdraw | undefined>;
   upsertGamingWithdrawal(data: InsertGamingWithdraw): Promise<GamingWithdraw>;
+  updateGamingWithdrawal(id: number, data: Partial<GamingWithdraw>): Promise<GamingWithdraw | undefined>;
+  deleteGamingWithdrawal(id: number): Promise<boolean>;
 
   getGamingTurnovers(merchantId: string, playerId?: string): Promise<GamingTurnover[]>;
+  getGamingTurnover(id: number): Promise<GamingTurnover | undefined>;
   upsertGamingTurnover(data: InsertGamingTurnover): Promise<GamingTurnover>;
+  updateGamingTurnover(id: number, data: Partial<GamingTurnover>): Promise<GamingTurnover | undefined>;
+  deleteGamingTurnover(id: number): Promise<boolean>;
 
   getGamingBalanceSnapshots(merchantId: string, playerId?: string): Promise<GamingBalance[]>;
+  getGamingBalanceSnapshot(id: number): Promise<GamingBalance | undefined>;
   createGamingBalanceSnapshot(data: InsertGamingBalance): Promise<GamingBalance>;
+  deleteGamingBalanceSnapshot(id: number): Promise<boolean>;
 
   getGamingWebhookLogs(merchantId: string, limit?: number): Promise<GamingWebhookLog[]>;
+  getGamingWebhookLog(id: number): Promise<GamingWebhookLog | undefined>;
   createGamingWebhookLog(data: InsertGamingWebhookLog): Promise<GamingWebhookLog>;
   updateGamingWebhookLog(id: number, data: Partial<GamingWebhookLog>): Promise<GamingWebhookLog | undefined>;
+  deleteGamingWebhookLog(id: number): Promise<boolean>;
   isGamingEventDuplicate(merchantId: string, eventId: string): Promise<boolean>;
 
   getGamingFailedEvent(id: number): Promise<GamingFailedEvent | undefined>;
   getGamingFailedEvents(merchantId: string, status?: string): Promise<GamingFailedEvent[]>;
   createGamingFailedEvent(data: InsertGamingFailedEvent): Promise<GamingFailedEvent>;
   updateGamingFailedEvent(id: number, data: Partial<GamingFailedEvent>): Promise<GamingFailedEvent | undefined>;
+  deleteGamingFailedEvent(id: number): Promise<boolean>;
 
   createGamingApiHealthLog(data: InsertGamingApiHealthLog): Promise<GamingApiHealthLog>;
+  getGamingApiHealthLog(id: number): Promise<GamingApiHealthLog | undefined>;
   getGamingApiHealthLogs(merchantId: string, limit?: number): Promise<GamingApiHealthLog[]>;
   getGamingApiHealthSummary(merchantId: string): Promise<{ total: number; success: number; avgResponseMs: number; lastChecked: Date | null }>;
+  deleteGamingApiHealthLog(id: number): Promise<boolean>;
 
   getGamingAiResponseRules(merchantId: string, eventType?: string): Promise<GamingAiResponseRule[]>;
   getGamingAiResponseRule(id: number): Promise<GamingAiResponseRule | undefined>;
@@ -5153,6 +5169,21 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
+  async getGamingDeposit(id: number): Promise<GamingDeposit | undefined> {
+    const [row] = await db.select().from(gamingDepositTransactions).where(eq(gamingDepositTransactions.id, id));
+    return row;
+  }
+
+  async updateGamingDeposit(id: number, data: Partial<GamingDeposit>): Promise<GamingDeposit | undefined> {
+    const [row] = await db.update(gamingDepositTransactions).set({ ...data, syncedAt: new Date() }).where(eq(gamingDepositTransactions.id, id)).returning();
+    return row;
+  }
+
+  async deleteGamingDeposit(id: number): Promise<boolean> {
+    const result = await db.delete(gamingDepositTransactions).where(eq(gamingDepositTransactions.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
   async getGamingWithdrawals(merchantId: string, status?: string): Promise<GamingWithdraw[]> {
     const conditions = [eq(gamingWithdrawTransactions.merchantId, merchantId)];
     if (status) conditions.push(eq(gamingWithdrawTransactions.status, status));
@@ -5174,6 +5205,21 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
+  async getGamingWithdrawal(id: number): Promise<GamingWithdraw | undefined> {
+    const [row] = await db.select().from(gamingWithdrawTransactions).where(eq(gamingWithdrawTransactions.id, id));
+    return row;
+  }
+
+  async updateGamingWithdrawal(id: number, data: Partial<GamingWithdraw>): Promise<GamingWithdraw | undefined> {
+    const [row] = await db.update(gamingWithdrawTransactions).set({ ...data, syncedAt: new Date() }).where(eq(gamingWithdrawTransactions.id, id)).returning();
+    return row;
+  }
+
+  async deleteGamingWithdrawal(id: number): Promise<boolean> {
+    const result = await db.delete(gamingWithdrawTransactions).where(eq(gamingWithdrawTransactions.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
   async getGamingTurnovers(merchantId: string, playerId?: string): Promise<GamingTurnover[]> {
     const conditions = [eq(gamingTurnoverStatus.merchantId, merchantId)];
     if (playerId) conditions.push(eq(gamingTurnoverStatus.playerId, playerId));
@@ -5192,6 +5238,21 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
+  async getGamingTurnover(id: number): Promise<GamingTurnover | undefined> {
+    const [row] = await db.select().from(gamingTurnoverStatus).where(eq(gamingTurnoverStatus.id, id));
+    return row;
+  }
+
+  async updateGamingTurnover(id: number, data: Partial<GamingTurnover>): Promise<GamingTurnover | undefined> {
+    const [row] = await db.update(gamingTurnoverStatus).set({ ...data, syncedAt: new Date() }).where(eq(gamingTurnoverStatus.id, id)).returning();
+    return row;
+  }
+
+  async deleteGamingTurnover(id: number): Promise<boolean> {
+    const result = await db.delete(gamingTurnoverStatus).where(eq(gamingTurnoverStatus.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
   async getGamingBalanceSnapshots(merchantId: string, playerId?: string): Promise<GamingBalance[]> {
     const conditions = [eq(gamingBalanceSnapshots.merchantId, merchantId)];
     if (playerId) conditions.push(eq(gamingBalanceSnapshots.playerId, playerId));
@@ -5201,6 +5262,16 @@ export class DatabaseStorage implements IStorage {
   async createGamingBalanceSnapshot(data: InsertGamingBalance): Promise<GamingBalance> {
     const [row] = await db.insert(gamingBalanceSnapshots).values(data).returning();
     return row;
+  }
+
+  async getGamingBalanceSnapshot(id: number): Promise<GamingBalance | undefined> {
+    const [row] = await db.select().from(gamingBalanceSnapshots).where(eq(gamingBalanceSnapshots.id, id));
+    return row;
+  }
+
+  async deleteGamingBalanceSnapshot(id: number): Promise<boolean> {
+    const result = await db.delete(gamingBalanceSnapshots).where(eq(gamingBalanceSnapshots.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 
   async getGamingWebhookLogs(merchantId: string, limit = 100): Promise<GamingWebhookLog[]> {
@@ -5215,6 +5286,16 @@ export class DatabaseStorage implements IStorage {
   async updateGamingWebhookLog(id: number, data: Partial<GamingWebhookLog>): Promise<GamingWebhookLog | undefined> {
     const [row] = await db.update(gamingWebhookLogs).set(data).where(eq(gamingWebhookLogs.id, id)).returning();
     return row;
+  }
+
+  async getGamingWebhookLog(id: number): Promise<GamingWebhookLog | undefined> {
+    const [row] = await db.select().from(gamingWebhookLogs).where(eq(gamingWebhookLogs.id, id));
+    return row;
+  }
+
+  async deleteGamingWebhookLog(id: number): Promise<boolean> {
+    const result = await db.delete(gamingWebhookLogs).where(eq(gamingWebhookLogs.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 
   async isGamingEventDuplicate(merchantId: string, eventId: string): Promise<boolean> {
@@ -5243,13 +5324,28 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
+  async deleteGamingFailedEvent(id: number): Promise<boolean> {
+    const result = await db.delete(gamingFailedEvents).where(eq(gamingFailedEvents.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
   async createGamingApiHealthLog(data: InsertGamingApiHealthLog): Promise<GamingApiHealthLog> {
     const [row] = await db.insert(gamingApiHealthLogs).values(data).returning();
     return row;
   }
 
+  async getGamingApiHealthLog(id: number): Promise<GamingApiHealthLog | undefined> {
+    const [row] = await db.select().from(gamingApiHealthLogs).where(eq(gamingApiHealthLogs.id, id));
+    return row;
+  }
+
   async getGamingApiHealthLogs(merchantId: string, limit = 50): Promise<GamingApiHealthLog[]> {
     return db.select().from(gamingApiHealthLogs).where(eq(gamingApiHealthLogs.merchantId, merchantId)).orderBy(desc(gamingApiHealthLogs.checkedAt)).limit(limit);
+  }
+
+  async deleteGamingApiHealthLog(id: number): Promise<boolean> {
+    const result = await db.delete(gamingApiHealthLogs).where(eq(gamingApiHealthLogs.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 
   async getGamingApiHealthSummary(merchantId: string): Promise<{ total: number; success: number; avgResponseMs: number; lastChecked: Date | null }> {

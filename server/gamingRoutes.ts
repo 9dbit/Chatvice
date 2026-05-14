@@ -229,10 +229,13 @@ export function registerGamingRoutes(app: Express) {
       return res.status(500).json({ error: "Webhook secret configuration error" });
     }
 
-    // HMAC verification against raw request bytes (avoids JSON canonicalization issues)
+    // HMAC verification against raw request bytes — MUST happen before any business logic
     const rawBodyBuf = (req as any).rawBody as Buffer | undefined;
     const rawBodyForVerify: Buffer | string = Buffer.isBuffer(rawBodyBuf) ? rawBodyBuf : JSON.stringify(req.body);
     const sigValid = verifyHmacSignature(rawBodyForVerify, signature, webhookSecret);
+    if (!sigValid) {
+      return res.status(401).json({ error: "Invalid signature" });
+    }
 
     const payload = req.body;
     const eventType = payload?.event_type ?? payload?.eventType ?? "unknown";
@@ -240,29 +243,28 @@ export function registerGamingRoutes(app: Express) {
     // Resolve event ID from header first, then fall back to payload field
     const resolvedEventId = (eventId || payload?.event_id || payload?.eventId || "") as string;
 
-    // Event deduplication — check before logging to prevent duplicate processing
-    if (resolvedEventId) {
-      const isDuplicate = await storage.isGamingEventDuplicate(merchantId, resolvedEventId);
-      if (isDuplicate) {
+    // Log incoming webhook — use DB-level unique constraint on (merchant_id, event_id)
+    // for race-safe deduplication: a duplicate event_id will throw a unique violation
+    // which we catch below instead of doing a separate read-then-insert.
+    let log: Awaited<ReturnType<typeof storage.createGamingWebhookLog>>;
+    try {
+      log = await storage.createGamingWebhookLog({
+        merchantId,
+        eventType,
+        eventId: resolvedEventId || null,
+        playerId: payload?.player_id ?? payload?.playerId ?? null,
+        transactionId: payload?.transaction_id ?? payload?.transactionId ?? null,
+        payload,
+        signatureValid: true,
+        status: "pending",
+        errorMessage: null,
+      });
+    } catch (insertErr: any) {
+      // Postgres unique violation = 23505; treat as a duplicate event
+      if (insertErr?.code === "23505" && resolvedEventId) {
         return res.status(200).json({ status: "duplicate", message: "Event already processed" });
       }
-    }
-
-    // Log incoming webhook
-    const log = await storage.createGamingWebhookLog({
-      merchantId,
-      eventType,
-      eventId: resolvedEventId || null,
-      playerId: payload?.player_id ?? payload?.playerId ?? null,
-      transactionId: payload?.transaction_id ?? payload?.transactionId ?? null,
-      payload,
-      signatureValid: sigValid,
-      status: sigValid ? "pending" : "invalid_signature",
-      errorMessage: sigValid ? null : "HMAC signature mismatch",
-    });
-
-    if (!sigValid) {
-      return res.status(401).json({ error: "Invalid signature" });
+      throw insertErr;
     }
 
     // Respond fast, process async
