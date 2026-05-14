@@ -1,11 +1,12 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { storage } from "./storage";
 import { verifyHmacSignature, encryptCredential, decryptCredential, generateWebhookSecret, maskEmail, maskPhone, maskBankAccount } from "./services/gaming/cryptoHelpers";
+import type { GamingMerchant, GamingPlayerMapping, GamingWithdraw, GamingWebhookLog, GamingFailedEvent } from "../shared/schema";
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 
-function requireAdmin(req: Request, res: Response, next: Function) {
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.session?.userId || req.session.userType !== "admin" || !req.session.isAdmin) {
     return res.status(401).json({ error: "Unauthorized - Admin access required" });
   }
@@ -14,7 +15,7 @@ function requireAdmin(req: Request, res: Response, next: Function) {
 
 // ── Sensitive field masking for API responses ────────────────────────────────
 
-function maskPlayerMapping(row: any) {
+function maskPlayerMapping(row: GamingPlayerMapping) {
   return {
     ...row,
     email: row.email ? maskEmail(row.email) : null,
@@ -22,31 +23,31 @@ function maskPlayerMapping(row: any) {
   };
 }
 
-function maskWithdrawal(row: any) {
+function maskWithdrawal(row: GamingWithdraw) {
   return {
     ...row,
-    accountNumberMasked: row.accountNumberMasked ?? (row.accountNumber ? maskBankAccount(row.accountNumber) : null),
+    accountNumberMasked: row.accountNumberMasked ?? null,
   };
 }
 
 // Recursively sanitize a webhook/failed-event payload object, masking PII fields.
 const PII_KEYS = new Set(["email", "phone", "phone_number", "account_number", "bank_account", "card_number", "nric", "ktp"]);
 
-function sanitizePayload(obj: any, depth = 0): any {
+function sanitizePayload(obj: unknown, depth = 0): unknown {
   if (depth > 8 || obj === null || obj === undefined) return obj;
   if (typeof obj !== "object") return obj;
-  if (Array.isArray(obj)) return obj.map((item) => sanitizePayload(item, depth + 1));
-  const out: any = {};
-  for (const [k, v] of Object.entries(obj)) {
+  if (Array.isArray(obj)) return (obj as unknown[]).map((item) => sanitizePayload(item, depth + 1));
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
     const lower = k.toLowerCase();
     if (PII_KEYS.has(lower)) {
       if (typeof v === "string" && v.length > 0) {
-        if (lower === "email" || (lower.includes("email") && (v as string).includes("@"))) {
-          out[k] = maskEmail(v as string);
+        if (lower === "email" || (lower.includes("email") && v.includes("@"))) {
+          out[k] = maskEmail(v);
         } else if (lower.includes("phone") || lower.includes("number")) {
-          out[k] = maskPhone(v as string);
+          out[k] = maskPhone(v);
         } else {
-          out[k] = maskBankAccount(v as string);
+          out[k] = maskBankAccount(v);
         }
       } else {
         out[k] = v;
@@ -58,11 +59,11 @@ function sanitizePayload(obj: any, depth = 0): any {
   return out;
 }
 
-function sanitizeWebhookLog(row: any) {
+function sanitizeWebhookLog(row: GamingWebhookLog) {
   return { ...row, payload: row.payload ? sanitizePayload(row.payload) : null };
 }
 
-function sanitizeFailedEvent(row: any) {
+function sanitizeFailedEvent(row: GamingFailedEvent) {
   return { ...row, payload: row.payload ? sanitizePayload(row.payload) : null };
 }
 
@@ -74,7 +75,7 @@ async function processGamingWebhookEvent(
   merchantId: string,
   eventType: string,
   eventId: string,
-  payload: any,
+  payload: Record<string, unknown>,
   logId: number,
 ): Promise<boolean> {
   try {
@@ -230,14 +231,24 @@ export function registerGamingRoutes(app: Express) {
     }
 
     // HMAC verification against raw request bytes — MUST happen before any business logic
-    const rawBodyBuf = (req as any).rawBody as Buffer | undefined;
+    const rawBodyBuf = (req as unknown as { rawBody?: Buffer }).rawBody;
     const rawBodyForVerify: Buffer | string = Buffer.isBuffer(rawBodyBuf) ? rawBodyBuf : JSON.stringify(req.body);
     const sigValid = verifyHmacSignature(rawBodyForVerify, signature, webhookSecret);
     if (!sigValid) {
       return res.status(401).json({ error: "Invalid signature" });
     }
 
-    const payload = req.body;
+    // IP whitelist enforcement — skip when list is empty (open access)
+    const whitelist: string[] = Array.isArray(config.ipWhitelist) ? (config.ipWhitelist as string[]) : [];
+    if (whitelist.length > 0) {
+      const callerIp = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ?? req.socket.remoteAddress ?? "";
+      if (!whitelist.includes(callerIp)) {
+        console.warn(`[gaming-webhook] Rejected IP ${callerIp} for merchant ${merchantId} — not in whitelist`);
+        return res.status(403).json({ error: "Caller IP not whitelisted" });
+      }
+    }
+
+    const payload = req.body as Record<string, unknown>;
     const eventType = payload?.event_type ?? payload?.eventType ?? "unknown";
 
     // Resolve event ID from header first, then fall back to payload field
