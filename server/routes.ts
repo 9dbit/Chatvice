@@ -1815,7 +1815,67 @@ Contoh penggunaan signal:
     // Custom data source signals are optional
   }
 
-  const finalSystemMessage = `${systemMessage}${hospitalitySignals ? `\n${hospitalitySignals}` : ""}${passwordRecoverySignals ? `\n${passwordRecoverySignals}` : ""}${customDataSignals ? `\n${customDataSignals}` : ""}
+  // Inject gaming data lookup signals if active gaming integration exists
+  let gamingSignals = "";
+  try {
+    const gamingConfig = await storage.getGamingMerchantByMerchantId(merchantId);
+    if (gamingConfig && gamingConfig.status === "active") {
+      const gamingIntents = [
+        {
+          key: "deposit_status",
+          name: "Cek Status Deposit",
+          keywords: "cek depo, status deposit, depo saya, deposit saya, depo pending, depo belum masuk, cek deposit",
+          fields: "username (username gaming), transaction_id (ID transaksi deposit)",
+        },
+        {
+          key: "withdraw_status",
+          name: "Cek Status Withdraw",
+          keywords: "cek wd, status withdraw, wd saya, tarik saya, withdraw pending, wd belum cair, cek penarikan",
+          fields: "username (username gaming), withdraw_id (ID penarikan)",
+        },
+        {
+          key: "turnover_progress",
+          name: "Cek Progress Turnover",
+          keywords: "cek turnover, progress turnover, syarat wd, target to, turnover saya, to saya, berapa to",
+          fields: "username (username gaming)",
+        },
+        {
+          key: "balance_check",
+          name: "Cek Saldo",
+          keywords: "cek saldo, saldo saya, berapa saldo, lihat saldo, balance saya",
+          fields: "username (username gaming)",
+        },
+      ];
+      const gamingIntentLines = gamingIntents
+        .map(i =>
+          `- intent_key=${i.key} | nama="${i.name}"\n  trigger keywords: ${i.keywords}\n  required fields: ${i.fields}`
+        )
+        .join("\n");
+      gamingSignals = `
+GAMING DATA ACCESS (REALTIME):
+Merchant ini menggunakan sistem gaming terintegrasi. Anda BISA mengecek data gaming realtime untuk customer. Ikuti aturan berikut:
+
+1. Identifikasi intent gaming yang sesuai dari pertanyaan customer (cocokkan trigger keywords).
+2. Kumpulkan SEMUA required fields dari customer dengan satu pertanyaan ramah. Contoh: "Untuk cek deposit Kakak, mohon kirim username gaming dan ID transaksinya ya."
+3. Setelah semua field lengkap, emit signal di akhir respons:
+   [GAMING_LOOKUP:intent_key|field1=value1|field2=value2|...]
+4. JANGAN karang data gaming. Sistem akan memanggil API gaming dan menjawab dengan data nyata.
+5. JANGAN tampilkan signal tag ke customer (sistem otomatis menyembunyikannya).
+6. Jika customer belum kirim semua field, minta dengan sopan dalam bahasa yang sama.
+7. Setelah signal dikirim, sistem otomatis menampilkan jawaban — jangan ulang pertanyaan yang sama.
+
+DAFTAR INTENT GAMING:
+${gamingIntentLines}
+
+Contoh penggunaan:
+- Customer: "username saya Budi123, cek depo ID TXN-4567"
+- Anda balas: "Sebentar ya Kak, saya cek status deposit-nya. [GAMING_LOOKUP:deposit_status|username=Budi123|transaction_id=TXN-4567]"`;
+    }
+  } catch (_err) {
+    // Gaming signals are optional
+  }
+
+  const finalSystemMessage = `${systemMessage}${hospitalitySignals ? `\n${hospitalitySignals}` : ""}${passwordRecoverySignals ? `\n${passwordRecoverySignals}` : ""}${customDataSignals ? `\n${customDataSignals}` : ""}${gamingSignals ? `\n${gamingSignals}` : ""}
 Relevant Company Information:
 ${knowledgeContext || "No specific knowledge base configured yet."}
 
@@ -7400,17 +7460,19 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         .replace(/\[PASSWORD_RECOVERY_DETECTED:[^\]]*\]/gi, "")
         .replace(/\[PASSWORD_LOOKUP_DETECTED:[^\]]*\]/gi, "")
         .replace(/\[CUSTOM_LOOKUP:[^\]]*\]/gi, "")
+        .replace(/\[GAMING_LOOKUP:[^\]]*\]/gi, "")
         .trim();
 
       const responseClientId = clientMessageId ? `response_${clientMessageId}` : undefined;
 
-      // If a [CUSTOM_LOOKUP] signal is present, suppress AI's pre-lookup prose
-      // (it may contain fabricated facts). Replace with a neutral "checking…" line
-      // so the customer sees something while the panel API call runs. The real
-      // answer is broadcast by the dispatcher below from the panel response.
+      // If a [CUSTOM_LOOKUP] or [GAMING_LOOKUP] signal is present, suppress AI's
+      // pre-lookup prose (it may contain fabricated facts). Replace with a neutral
+      // "checking…" line so the customer sees something while the API call runs.
+      // The real answer is broadcast by the dispatcher below from the API response.
       const hasCustomLookupSignal = /\[CUSTOM_LOOKUP:[^\]]+\]/i.test(result.answer);
+      const hasGamingLookupSignal = /\[GAMING_LOOKUP:[^\]]+\]/i.test(result.answer);
       let answerToSend = cleanAnswer;
-      if (hasCustomLookupSignal) {
+      if (hasCustomLookupSignal || hasGamingLookupSignal) {
         answerToSend = "Sebentar ya, saya cek dulu datanya…";
       }
 
@@ -8058,6 +8120,161 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         } catch (cdsErr) {
           console.error("[CustomLookup Signal] Error handling custom data lookup:", cdsErr);
           const errMsg = "Maaf, sistem sedang sibuk. Silakan coba lagi sebentar.";
+          await storage.createMessage({ sessionId, from: "chatvice", content: errMsg });
+          broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: errMsg } });
+        }
+      }
+
+      // ───── GAMING DATA SOURCE LOOKUP ─────
+      const gamingLookupMatch = result.answer.match(/\[GAMING_LOOKUP:([^\]]+)\]/i);
+      if (gamingLookupMatch) {
+        try {
+          const rawSignal = gamingLookupMatch[1];
+          const parts = rawSignal.split("|").map((s: string) => s.trim()).filter(Boolean);
+          const gamingIntentKey = parts.shift() || "";
+          const gamingFields: Record<string, string> = {};
+          for (const p of parts) {
+            const eqIdx = p.indexOf("=");
+            if (eqIdx > 0) {
+              const k = p.slice(0, eqIdx).trim();
+              const v = p.slice(eqIdx + 1).trim();
+              if (k) gamingFields[k] = v;
+            }
+          }
+          if (gamingIntentKey) {
+            const gamingConfig = await storage.getGamingMerchantByMerchantId(resolvedMerchantId);
+            if (gamingConfig && gamingConfig.status === "active") {
+              const gamingUsername = gamingFields.username || gamingFields.Username || "";
+              const playerMapping = gamingUsername
+                ? await storage.getGamingPlayerMappingByUsername(resolvedMerchantId, gamingUsername)
+                : undefined;
+
+              if (!playerMapping) {
+                const unverifiedMsg = "Maaf, username gaming Anda belum terdaftar atau belum terverifikasi di sistem kami. Silakan hubungi tim support untuk memverifikasi akun gaming Anda terlebih dahulu.";
+                await storage.createMessage({ sessionId, from: "chatvice", content: unverifiedMsg });
+                broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: unverifiedMsg } });
+              } else {
+                const { getPlayerBalance, getDepositStatus, getWithdrawStatus, getTurnoverStatus } = await import("./services/gaming/gamingApiClient");
+
+                let gamingApiData: Record<string, string | number | boolean> = {};
+                let gamingApiError: string | null = null;
+
+                try {
+                  if (gamingIntentKey === "deposit_status") {
+                    const txId = gamingFields.transaction_id || gamingFields.transactionId || gamingFields.id || "";
+                    const depositResult = await getDepositStatus(resolvedMerchantId, txId);
+                    if (depositResult) {
+                      gamingApiData = {
+                        username: depositResult.username || gamingUsername,
+                        transactionId: depositResult.transactionId,
+                        amount: depositResult.amount,
+                        currency: depositResult.currency,
+                        status: depositResult.status,
+                        paymentMethod: depositResult.paymentMethod ?? "-",
+                        paymentChannel: depositResult.paymentChannel ?? "-",
+                        createdAt: depositResult.createdAt ?? "-",
+                        paidAt: depositResult.paidAt ?? "-",
+                      };
+                    }
+                  } else if (gamingIntentKey === "withdraw_status") {
+                    const wdId = gamingFields.withdraw_id || gamingFields.withdrawId || gamingFields.id || "";
+                    const withdrawResult = await getWithdrawStatus(resolvedMerchantId, wdId);
+                    if (withdrawResult) {
+                      gamingApiData = {
+                        username: withdrawResult.username || gamingUsername,
+                        withdrawId: withdrawResult.withdrawId,
+                        amount: withdrawResult.amount,
+                        currency: withdrawResult.currency,
+                        status: withdrawResult.status,
+                        bankName: withdrawResult.bankName ?? "-",
+                        accountName: withdrawResult.accountName ?? "-",
+                        accountNumberMasked: withdrawResult.accountNumberMasked ?? "-",
+                        rejectedReason: withdrawResult.rejectedReason ?? "-",
+                        requestedAt: withdrawResult.requestedAt ?? "-",
+                        approvedAt: withdrawResult.approvedAt ?? "-",
+                      };
+                    }
+                  } else if (gamingIntentKey === "turnover_progress") {
+                    const turnoverPlayerId = playerMapping.gamingPlayerId || gamingUsername;
+                    const turnoverResult = await getTurnoverStatus(resolvedMerchantId, turnoverPlayerId);
+                    if (turnoverResult) {
+                      gamingApiData = {
+                        username: turnoverResult.username || gamingUsername,
+                        bonusName: turnoverResult.bonusName ?? "-",
+                        requiredTurnover: turnoverResult.requiredTurnover,
+                        currentTurnover: turnoverResult.currentTurnover,
+                        remainingTurnover: turnoverResult.remainingTurnover,
+                        progressPercentage: turnoverResult.progressPercentage,
+                        eligibleWithdraw: turnoverResult.eligibleWithdraw ? "Ya" : "Belum",
+                        expiryDate: turnoverResult.expiryDate ?? "-",
+                        status: turnoverResult.status,
+                      };
+                    }
+                  } else if (gamingIntentKey === "balance_check") {
+                    const balancePlayerId = playerMapping.gamingPlayerId || gamingUsername;
+                    const balanceResult = await getPlayerBalance(resolvedMerchantId, balancePlayerId);
+                    if (balanceResult) {
+                      gamingApiData = {
+                        username: balanceResult.username || gamingUsername,
+                        currentBalance: balanceResult.currentBalance,
+                        lockedBalance: balanceResult.lockedBalance,
+                        bonusBalance: balanceResult.bonusBalance,
+                        currency: balanceResult.currency,
+                      };
+                    }
+                  }
+                } catch (gamingApiCallErr: unknown) {
+                  gamingApiError = gamingApiCallErr instanceof Error ? gamingApiCallErr.message : "Gaming API error";
+                  console.error(`[GamingLookup] API call failed intent=${gamingIntentKey}:`, gamingApiCallErr);
+                  await storage.createGamingFailedEvent({
+                    merchantId: resolvedMerchantId,
+                    eventType: gamingIntentKey,
+                    payload: { sessionId, fields: gamingFields },
+                    failureReason: gamingApiError,
+                    status: "pending",
+                  });
+                }
+
+                const gamingRules = await storage.getGamingAiResponseRules(resolvedMerchantId, gamingIntentKey);
+                const activeGamingRules = gamingRules.filter(r => r.active);
+
+                if (gamingApiError) {
+                  const errorRule = activeGamingRules.find(r => r.conditionKey === "error");
+                  const fallbackMsg = errorRule?.responseTemplate
+                    ?? "Maaf, data gaming sedang tidak tersedia saat ini. Silakan coba beberapa saat lagi atau hubungi tim support.";
+                  await storage.createMessage({ sessionId, from: "chatvice", content: fallbackMsg });
+                  broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: fallbackMsg } });
+                } else {
+                  const matchedRule = activeGamingRules.find(r => r.conditionKey !== "error") ?? activeGamingRules[0];
+                  let gamingResponseText: string;
+                  if (matchedRule?.responseTemplate) {
+                    gamingResponseText = matchedRule.responseTemplate.replace(/\{(\w+)\}/g, (_m: string, key: string) => {
+                      const val = gamingApiData[key];
+                      return val !== undefined ? String(val) : `{${key}}`;
+                    });
+                  } else {
+                    const dataLines = Object.entries(gamingApiData)
+                      .map(([k, v]) => `• ${k}: ${v}`)
+                      .join("\n");
+                    gamingResponseText = `Data gaming untuk ${gamingUsername}:\n${dataLines}`;
+                  }
+
+                  await storage.createMessage({ sessionId, from: "chatvice", content: gamingResponseText });
+                  broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: gamingResponseText } });
+                  console.log(`[GamingLookup] intent=${gamingIntentKey} username=${gamingUsername} session=${sessionId}`);
+
+                  if (matchedRule?.escalationRequired) {
+                    await storage.updateSession(sessionId, { mode: "HUMAN", needsSupervisorAttention: true });
+                    await notifySupervisors(resolvedMerchantId, sessionId, "trigger");
+                    broadcastToSession(sessionId, { type: "mode_change", mode: "HUMAN" });
+                  }
+                }
+              }
+            }
+          }
+        } catch (gamingLookupErr) {
+          console.error("[GamingLookup Signal] Error handling gaming lookup:", gamingLookupErr);
+          const errMsg = "Maaf, sistem gaming sedang sibuk. Silakan coba lagi sebentar.";
           await storage.createMessage({ sessionId, from: "chatvice", content: errMsg });
           broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: errMsg } });
         }
