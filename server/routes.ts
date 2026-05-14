@@ -8262,11 +8262,21 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                   return true;
                 }
 
+                // gamingDataNotFound is set true when API returns null (record not found).
+                // This is distinct from an API error and gets its own response path.
+                let gamingDataNotFound = false;
+
                 try {
                   if (gamingIntentKey === "deposit_status") {
                     const txId = gamingFields.transaction_id || gamingFields.transactionId || gamingFields.id || "";
+                    // Required-field guard: transaction ID must be non-empty
+                    if (!txId) {
+                      throw new Error("Missing required field: transaction_id");
+                    }
                     const depositResult = await getDepositStatus(resolvedMerchantId, txId);
-                    if (depositResult) {
+                    if (!depositResult) {
+                      gamingDataNotFound = true;
+                    } else {
                       // Verify the deposit belongs to the authenticated player
                       if (!assertOwnership(depositResult.playerId, depositResult.username, "deposit_status")) {
                         throw new Error("Deposit record does not belong to authenticated player");
@@ -8285,6 +8295,10 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                     }
                   } else if (gamingIntentKey === "withdraw_status") {
                     const wdId = gamingFields.withdraw_id || gamingFields.withdrawId || gamingFields.id || "";
+                    // Required-field guard: withdraw ID must be non-empty
+                    if (!wdId) {
+                      throw new Error("Missing required field: withdraw_id");
+                    }
                     // Fetch withdraw status and turnover in parallel so the response
                     // can explain "withdrawal rejected due to insufficient turnover".
                     const withdrawPlayerId = playerMapping.gamingPlayerId || gamingUsername;
@@ -8294,7 +8308,9 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                     ]);
                     const wd = withdrawResult.status === "fulfilled" ? withdrawResult.value : null;
                     const to = withdrawTurnoverResult.status === "fulfilled" ? withdrawTurnoverResult.value : null;
-                    if (wd) {
+                    if (!wd) {
+                      gamingDataNotFound = true;
+                    } else {
                       // Verify the withdrawal belongs to the authenticated player
                       if (!assertOwnership(wd.playerId, wd.username, "withdraw_status")) {
                         throw new Error("Withdrawal record does not belong to authenticated player");
@@ -8325,7 +8341,9 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                   } else if (gamingIntentKey === "turnover_progress") {
                     const turnoverPlayerId = playerMapping.gamingPlayerId || gamingUsername;
                     const turnoverResult = await getTurnoverStatus(resolvedMerchantId, turnoverPlayerId);
-                    if (turnoverResult) {
+                    if (!turnoverResult) {
+                      gamingDataNotFound = true;
+                    } else {
                       gamingApiData = {
                         username: turnoverResult.username || gamingUsername,
                         bonusName: turnoverResult.bonusName ?? "-",
@@ -8342,7 +8360,9 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                   } else if (gamingIntentKey === "balance_check") {
                     const balancePlayerId = playerMapping.gamingPlayerId || gamingUsername;
                     const balanceResult = await getPlayerBalance(resolvedMerchantId, balancePlayerId);
-                    if (balanceResult) {
+                    if (!balanceResult) {
+                      gamingDataNotFound = true;
+                    } else {
                       gamingApiData = {
                         username: balanceResult.username || gamingUsername,
                         currentBalance: balanceResult.currentBalance,
@@ -8381,7 +8401,8 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                   } catch { /* non-critical */ }
                 }
 
-                // Audit: log every lookup attempt (success or failure)
+                // Audit: log every lookup attempt (success, not-found, or api-error)
+                const auditOutcome = gamingApiError ? "api_error" : gamingDataNotFound ? "not_found" : "success";
                 try {
                   await storage.createGamingWebhookLog({
                     merchantId: resolvedMerchantId,
@@ -8389,7 +8410,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                     eventId: null,
                     playerId: playerMapping.gamingPlayerId ?? null,
                     transactionId: gamingFields.transaction_id || gamingFields.withdraw_id || null,
-                    payload: { sessionId, intent: gamingIntentKey, fields: gamingFields, outcome: gamingApiError ? "api_error" : "success" },
+                    payload: { sessionId, intent: gamingIntentKey, fields: gamingFields, outcome: auditOutcome },
                     signatureValid: true,
                     status: gamingApiError ? "failed" : "processed",
                     errorMessage: gamingApiError ?? null,
@@ -8403,6 +8424,16 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                     ?? "Maaf, data gaming sedang tidak tersedia saat ini. Silakan coba beberapa saat lagi atau hubungi tim support.";
                   await storage.createMessage({ sessionId, from: "chatvice", content: fallbackMsg });
                   broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: fallbackMsg } });
+                } else if (gamingDataNotFound) {
+                  // API returned null — record not found. Use "not_found" event-type rule if configured,
+                  // otherwise fall back to a generic safe message.
+                  const notFoundRules = activeGamingRules.filter(r => r.conditionKey === "not_found");
+                  const notFoundRule = notFoundRules[0];
+                  const notFoundMsg = notFoundRule?.responseTemplate
+                    ?? `Data tidak ditemukan untuk permintaan ${gamingIntentKey.replace(/_/g, " ")}. Pastikan ID yang diberikan sudah benar atau hubungi tim support.`;
+                  await storage.createMessage({ sessionId, from: "chatvice", content: notFoundMsg });
+                  broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: notFoundMsg } });
+                  console.log(`[GamingLookup] not_found intent=${gamingIntentKey} username=${gamingUsername} session=${sessionId}`);
                 } else {
                   // Rule matching precedence for withdraw_status:
                   // 1. "turnover.not_enough" rules when player is ineligible for withdraw
