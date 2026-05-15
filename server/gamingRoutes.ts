@@ -803,6 +803,20 @@ export function registerGamingRoutes(app: Express) {
       let rows = await storage.getGamingIntegrationTasks(status as string | undefined);
       if (rows.length === 0 && !status) {
         rows = await Promise.all(SEED_TASKS.map((t) => storage.createGamingIntegrationTask(t)));
+      } else {
+        // One-time reconciliation: mark Task #397 as done if it is still in_progress
+        const staleTask = rows.find(
+          (r) => r.title.toLowerCase().includes("task #397") && r.status === "in_progress"
+        );
+        if (staleTask) {
+          const updated = await storage.updateGamingIntegrationTask(staleTask.id, {
+            status: "done",
+            completedAt: new Date(),
+          });
+          if (updated) {
+            rows = rows.map((r) => (r.id === staleTask.id ? updated : r));
+          }
+        }
       }
       res.json(rows);
     } catch (err: any) {
