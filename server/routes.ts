@@ -19555,7 +19555,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         });
       }
       
-      const { name, description, agentType } = req.body;
+      const { name, description, agentType, returnToAiMessage } = req.body;
       
       // Default prompts based on agent type
       const defaultPrompts = {
@@ -19569,6 +19569,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         description: description || "",
         agentType: agentType || "support",
         systemPrompt: defaultPrompts[agentType as keyof typeof defaultPrompts] || defaultPrompts.support,
+        ...(returnToAiMessage ? { returnToAiMessage } : {}),
       });
       
       res.json(agent);
