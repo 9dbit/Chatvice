@@ -13,9 +13,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Key, RefreshCw, Plug, Plus, Trash2, Pencil, Download, FileText, CheckCircle2, AlertCircle, Loader2, Copy, ArrowLeft, ArrowRight, Sparkles, Wand2, ClipboardList, Activity, HeartPulse } from "lucide-react";
+import { Database, Key, RefreshCw, Plug, Plus, Trash2, Pencil, Download, FileText, CheckCircle2, AlertCircle, Loader2, Copy, ArrowLeft, ArrowRight, Sparkles, Wand2, ClipboardList, Activity, HeartPulse, Eye } from "lucide-react";
 import { Link } from "wouter";
 import { useLanguage } from "@/hooks/use-language";
+import { DataEntryFormCard, useDataEntryFormCard } from "@/components/data-entry-form-card";
 
 interface CustomDataSource {
   id: string;
@@ -105,6 +106,8 @@ export default function CustomDataSourcePage() {
   const [intentDialogOpen, setIntentDialogOpen] = useState(false);
   const [editingIntent, setEditingIntent] = useState<Partial<CustomDataIntent> | null>(null);
   const [testResult, setTestResult] = useState<{ ok: boolean; status: number; latencyMs: number; sample?: string; error?: string } | null>(null);
+  const [previewIntent, setPreviewIntent] = useState<CustomDataIntent | null>(null);
+  const previewForm = useDataEntryFormCard();
 
   const { data: source, isLoading: srcLoading } = useQuery<CustomDataSource | null>({
     queryKey: ["/api/merchant/custom-data-source"],
@@ -528,6 +531,18 @@ export default function CustomDataSourcePage() {
                       onCheckedChange={(v) => saveIntent.mutate({ id: i.id, isEnabled: v })}
                       data-testid={`switch-intent-${i.id}`}
                     />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setPreviewIntent(i);
+                        previewForm.reset();
+                      }}
+                      data-testid={`button-preview-intent-${i.id}`}
+                    >
+                      <Eye className="w-4 h-4" />
+                      Preview Form
+                    </Button>
                     <Button size="icon" variant="ghost" onClick={() => openEditIntent(i)} data-testid={`button-edit-intent-${i.id}`}>
                       <Pencil className="w-4 h-4" />
                     </Button>
@@ -633,6 +648,39 @@ export default function CustomDataSourcePage() {
               {t("dashboard.customDataSource.apiKey.iSaved")}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Intent form preview dialog */}
+      <Dialog open={!!previewIntent} onOpenChange={(v) => { if (!v) { setPreviewIntent(null); previewForm.reset(); } }}>
+        <DialogContent className="max-w-sm" data-testid="dialog-preview-intent-form">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="w-4 h-4" />
+              Preview Form
+            </DialogTitle>
+            <DialogDescription>
+              This is how the data entry form appears to customers in the chat widget.
+            </DialogDescription>
+          </DialogHeader>
+
+          {previewIntent && (
+            <div className="flex justify-center py-2">
+              <DataEntryFormCard
+                intentName={previewIntent.name}
+                fields={previewIntent.requiredFields || []}
+                primaryColor="hsl(var(--primary))"
+                isDark={false}
+                values={previewForm.values}
+                onValuesChange={previewForm.setValues}
+                formState={previewForm.formState}
+                onSubmit={() => previewForm.submitPreview(previewIntent.requiredFields || [])}
+                previewMode
+                onPreviewReset={previewForm.reset}
+                testIdPrefix="preview"
+              />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

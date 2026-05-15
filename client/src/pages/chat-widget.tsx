@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Message, SuggestedQuestion, WelcomeBubble, ChatButton, ProductCard, ProductCardButton } from "@shared/schema";
 import { getImageLocation, type LocationData } from "@/lib/location-utils";
+import { DataEntryFormCard } from "@/components/data-entry-form-card";
 import { countryPhoneConfigs, validatePhoneNumber } from "@shared/phoneValidation";
 import chatviceLogoLight from "../assets/chatvice-logo-light.png";
 import chatviceLogoDark from "../assets/chatvice-logo-dark.png";
@@ -4575,17 +4576,6 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     const formVals = dataEntryFormValues[formKey] || {};
                     const formState = dataEntryFormStates[formKey] || { submitting: false, submitted: false };
 
-                    const inputStyle = {
-                      backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                      border: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)'}`,
-                      color: widgetIsDark ? 'rgba(255,255,255,0.9)' : '#1f2937',
-                      borderRadius: '8px',
-                      padding: '8px 10px',
-                      fontSize: '12px',
-                      width: '100%',
-                      outline: 'none',
-                    } as React.CSSProperties;
-
                     const handleDataEntrySubmit = async () => {
                       const missing = fields.filter(f => f.required !== false && !formVals[f.key]?.trim());
                       if (missing.length > 0) {
@@ -4613,82 +4603,17 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     };
 
                     return (
-                      <div
-                        className="rounded-xl overflow-hidden"
-                        style={{
-                          backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                          border: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
-                          maxWidth: '280px',
-                        }}
-                        data-testid="card-data-entry-form"
-                      >
-                        {/* Header */}
-                        <div
-                          className="flex items-center gap-2 px-3 py-2.5"
-                          style={{ borderBottom: `1px solid ${widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}` }}
-                        >
-                          <FileText className="w-3.5 h-3.5 shrink-0" style={{ color: primaryColor }} />
-                          <span className="text-xs font-semibold" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.9)' : '#111827' }}>
-                            {payload.intentName}
-                          </span>
-                        </div>
-
-                        {formState.submitted ? (
-                          <div className="px-3 py-4 flex flex-col items-center gap-2 text-center">
-                            <CheckCheck className="w-7 h-7" style={{ color: primaryColor }} />
-                            <p className="text-xs font-medium" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.85)' : '#111827' }}>
-                              Data terkirim
-                            </p>
-                            <p className="text-[11px]" style={{ color: widgetIsDark ? 'rgba(255,255,255,0.55)' : '#6b7280' }}>
-                              Sedang diproses...
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="px-3 py-3 space-y-2.5">
-                            {fields.map((field) => (
-                              <div key={field.key} className="space-y-1">
-                                <label
-                                  className="text-[10px] font-medium"
-                                  style={{ color: widgetIsDark ? 'rgba(255,255,255,0.65)' : '#4b5563' }}
-                                >
-                                  {field.label || field.key}{field.required !== false ? ' *' : ''}
-                                </label>
-                                <input
-                                  type={field.type === 'number' ? 'number' : 'text'}
-                                  inputMode={field.type === 'number' ? 'numeric' : 'text'}
-                                  style={inputStyle}
-                                  value={formVals[field.key] || ''}
-                                  onChange={e => setDataEntryFormValues(prev => ({
-                                    ...prev,
-                                    [formKey]: { ...formVals, [field.key]: e.target.value },
-                                  }))}
-                                  placeholder={field.label || field.key}
-                                  disabled={formState.submitting}
-                                  data-testid={`input-data-entry-${field.key}`}
-                                />
-                              </div>
-                            ))}
-
-                            {formState.error && (
-                              <p className="text-[10px] font-medium" style={{ color: '#f87171' }}>{formState.error}</p>
-                            )}
-
-                            <button
-                              onClick={handleDataEntrySubmit}
-                              disabled={formState.submitting}
-                              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-semibold text-white transition-opacity"
-                              style={{ backgroundColor: primaryColor, opacity: formState.submitting ? 0.7 : 1 }}
-                              data-testid="button-data-entry-submit"
-                            >
-                              {formState.submitting ? (
-                                <><Loader2 className="w-3 h-3 animate-spin" /> Memproses...</>
-                              ) : (
-                                'Kirim Data'
-                              )}
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                      <DataEntryFormCard
+                        intentName={payload.intentName}
+                        fields={fields}
+                        primaryColor={primaryColor}
+                        isDark={widgetIsDark}
+                        values={formVals}
+                        onValuesChange={(vals) => setDataEntryFormValues(prev => ({ ...prev, [formKey]: vals }))}
+                        formState={formState}
+                        onSubmit={handleDataEntrySubmit}
+                        testIdPrefix="data-entry"
+                      />
                     );
                   })()}
                   {(msg as any).messageType === "media" && (msg as any).payload && (
