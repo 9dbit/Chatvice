@@ -386,19 +386,21 @@ const AUDIT_DATA = [
   { module: "API Health Monitoring", status: "Available", risk: "Low", notes: "Per-endpoint uptime tracking with response time logging", action: "Alert if uptime drops below 95%" },
   { module: "AI Response Rules", status: "Available", risk: "Low", notes: "Event-type-based template rules with optional condition matching and escalation", action: "Review templates per merchant before go-live" },
   { module: "Credential Security", status: "Available", risk: "High", notes: "API key/secret AES-256-GCM encrypted at rest; webhook secret rotatable", action: "Rotate credentials every 90 days; enforce IP whitelist" },
-  { module: "AI Agent Gaming Queries", status: "Missing", risk: "High", notes: "Task #397 — AI agent cannot yet answer deposit/withdraw/turnover questions", action: "Complete Task #397 before merchant go-live" },
+  { module: "AI Agent Gaming Queries", status: "Complete", risk: "None", notes: "Task #397 merged — AI agent answers deposit/withdraw/turnover/balance queries via GAMING_LOOKUP signal pipeline with player ownership checks", action: "Verify live with a test player before merchant go-live" },
   { module: "CSV Export", status: "Missing", risk: "Low", notes: "Roadmap item — not yet implemented", action: "Schedule after core features are stable" },
   { module: "Real-time Dashboard Alerts", status: "Partial", risk: "Medium", notes: "Admin can see counts; no push notification or alert threshold configured yet", action: "Implement threshold-based alerts in future sprint" },
 ];
 
 const auditStatusColor: Record<string, string> = {
   Available: "bg-green-500/20 text-green-700 dark:text-green-400",
+  Complete: "bg-green-500/20 text-green-700 dark:text-green-400",
   Partial: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400",
   Missing: "bg-red-500/20 text-red-700 dark:text-red-400",
   Broken: "bg-red-500/20 text-red-700 dark:text-red-400",
   "Needs Review": "bg-orange-500/20 text-orange-700 dark:text-orange-400",
 };
 const auditRiskColor: Record<string, string> = {
+  None: "bg-green-500/20 text-green-700 dark:text-green-400",
   Low: "bg-green-500/20 text-green-700 dark:text-green-400",
   Medium: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400",
   High: "bg-red-500/20 text-red-700 dark:text-red-400",

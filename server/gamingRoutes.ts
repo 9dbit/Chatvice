@@ -631,6 +631,16 @@ export function registerGamingRoutes(app: Express) {
     }
   });
 
+  // Failed events badge count — pending + retrying across ALL merchants
+  app.get("/api/admin/gaming/failed-events/count", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const count = await storage.getGamingFailedEventsCount();
+      res.json({ count });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Mark a failed event as resolved without re-processing
   app.patch("/api/admin/gaming/failed-events/:id/resolve", requireAdmin, async (req: Request, res: Response) => {
     try {
@@ -765,7 +775,7 @@ export function registerGamingRoutes(app: Express) {
     { category: "Backend", title: "API health monitoring endpoint", status: "done", priority: "medium", description: "Log per-endpoint health checks with response time, status code, and uptime percentage.", ownerRole: "Backend Dev", acceptanceCriteria: "Health logs stored; summary (uptime%, avg response time) computed correctly." },
     { category: "Backend", title: "AES-256-GCM credential encryption at rest", status: "done", priority: "critical", description: "All gaming API keys, secrets, and webhook secrets encrypted before DB storage.", ownerRole: "Backend Dev", acceptanceCriteria: "No plaintext credentials in DB; decryption works correctly; key hints shown in admin UI." },
     { category: "Admin UI", title: "13-page gaming integration admin dashboard", status: "done", priority: "high", description: "Full admin UI with overview stats, audit checklist, and 11 per-merchant management pages.", ownerRole: "Frontend Dev", acceptanceCriteria: "All 13 pages accessible via URL routing; loading/empty/error states on every page." },
-    { category: "AI Integration", title: "AI agent gaming queries (Task #397)", status: "in_progress", priority: "critical", description: "Enable AI chatbot to answer deposit status, withdrawal status, and turnover queries by injecting gaming data into prompts.", ownerRole: "AI Engineer", acceptanceCriteria: "AI correctly answers 'what is my deposit status', 'my withdrawal status', 'my turnover progress' from live gaming data." },
+    { category: "AI Integration", title: "AI agent gaming queries (Task #397)", status: "done", priority: "critical", description: "Enable AI chatbot to answer deposit status, withdrawal status, and turnover queries by injecting gaming data into prompts.", ownerRole: "AI Engineer", acceptanceCriteria: "AI correctly answers 'what is my deposit status', 'my withdrawal status', 'my turnover progress' from live gaming data." },
     { category: "QA", title: "End-to-end gaming webhook test suite", status: "testing", priority: "high", description: "Automated tests covering all 12 event types, signature failure cases, and duplicate detection.", ownerRole: "QA Engineer", acceptanceCriteria: "All 12 event types tested; edge cases for bad signatures and duplicates covered; CI passes." },
     { category: "Backend", title: "Rate-limit and IP whitelist enforcement", status: "testing", priority: "medium", description: "Enforce per-merchant IP whitelist on webhook receiver; rate-limit burst events.", ownerRole: "Backend Dev", acceptanceCriteria: "Requests from non-whitelisted IPs rejected with 403; burst rate limit tested and documented." },
     { category: "Admin UI", title: "CSV export for deposits and withdrawals", status: "todo", priority: "low", description: "Allow admin to export filtered transaction logs as CSV files for reconciliation.", ownerRole: "Frontend Dev", acceptanceCriteria: "Export button on deposits/withdrawals page; respects current filters; downloads valid CSV." },

@@ -759,6 +759,7 @@ export interface IStorage {
 
   getGamingFailedEvent(id: number): Promise<GamingFailedEvent | undefined>;
   getGamingFailedEvents(merchantId: string, status?: string): Promise<GamingFailedEvent[]>;
+  getGamingFailedEventsCount(): Promise<number>;
   createGamingFailedEvent(data: InsertGamingFailedEvent): Promise<GamingFailedEvent>;
   updateGamingFailedEvent(id: number, data: Partial<GamingFailedEvent>): Promise<GamingFailedEvent | undefined>;
   deleteGamingFailedEvent(id: number): Promise<boolean>;
@@ -5318,6 +5319,13 @@ export class DatabaseStorage implements IStorage {
     const conditions = [eq(gamingFailedEvents.merchantId, merchantId)];
     if (status) conditions.push(eq(gamingFailedEvents.status, status));
     return db.select().from(gamingFailedEvents).where(and(...conditions)).orderBy(desc(gamingFailedEvents.createdAt));
+  }
+
+  async getGamingFailedEventsCount(): Promise<number> {
+    const [row] = await db.select({ count: count() }).from(gamingFailedEvents).where(
+      or(eq(gamingFailedEvents.status, "pending"), eq(gamingFailedEvents.status, "retrying"))
+    );
+    return Number(row?.count ?? 0);
   }
 
   async createGamingFailedEvent(data: InsertGamingFailedEvent): Promise<GamingFailedEvent> {

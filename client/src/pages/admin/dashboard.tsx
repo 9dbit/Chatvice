@@ -338,6 +338,13 @@ export default function AdminDashboard() {
   });
   const pendingWithdrawalsCount = withdrawalRequests.filter(w => w.status === "pending").length;
 
+  // Fetch gaming failed events count (pending + retrying) for sidebar badge
+  const { data: gamingFailedEventsData } = useQuery<{ count: number }>({
+    queryKey: ["/api/admin/gaming/failed-events/count"],
+    enabled: !!adminId,
+  });
+  const pendingGamingFailedEventsCount = gamingFailedEventsData?.count ?? 0;
+
   const handleLogout = () => {
     localStorage.removeItem("adminId");
     localStorage.removeItem("userType");
@@ -502,6 +509,8 @@ export default function AdminDashboard() {
             badgeCount = pendingAffiliatesCount;
           } else if (item.id === "withdrawals") {
             badgeCount = pendingWithdrawalsCount;
+          } else if (item.id === "gaming-failed") {
+            badgeCount = pendingGamingFailedEventsCount;
           }
 
           // Inject section header when section changes
