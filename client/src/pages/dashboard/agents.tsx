@@ -62,6 +62,7 @@ const agentSchema = z.object({
   followUpMessage: z.string().optional(),
   followUpSuggestions: z.array(z.string()).optional(),
   followUpIntervalMinutes: z.number().optional(),
+  returnToAiMessage: z.string().optional(),
 });
 
 type AgentFormData = z.infer<typeof agentSchema>;
@@ -134,6 +135,7 @@ export default function AgentsPage() {
       followUpMessage: t("dashboard.agents.followUpDefault"),
       followUpSuggestions: [],
       followUpIntervalMinutes: 5,
+      returnToAiMessage: "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?",
     },
   });
 
@@ -256,6 +258,7 @@ export default function AgentsPage() {
     form.setValue("followUpMessage", agent.followUpMessage || t("dashboard.agents.followUpDefault"));
     form.setValue("followUpSuggestions", (agent.followUpSuggestions as string[]) || []);
     form.setValue("followUpIntervalMinutes", agent.followUpIntervalMinutes || 5);
+    form.setValue("returnToAiMessage", (agent as any).returnToAiMessage || "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?");
     setPhotoUrl(agent.photoUrl || "");
     setIsDialogOpen(true);
   };
@@ -658,6 +661,32 @@ export default function AgentsPage() {
                       )}
                     </>
                   )}
+
+                  {/* Return to AI Message */}
+                  <FormField
+                    control={form.control}
+                    name="returnToAiMessage"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1">
+                        <FormLabel className="flex items-center gap-2">
+                          <Bot className="w-4 h-4 text-green-500" />
+                          Pesan Kembali ke AI
+                        </FormLabel>
+                        <FormDescription className="text-xs">
+                          Pesan yang muncul saat percakapan dikembalikan dari supervisor ke agen AI
+                        </FormDescription>
+                        <FormControl>
+                          <Input
+                            placeholder="Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?"
+                            data-testid="input-return-to-ai-message"
+                            maxLength={200}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <Separator />
 

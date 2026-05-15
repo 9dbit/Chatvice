@@ -10163,16 +10163,23 @@ Rules:
       if (!updated) {
         return res.status(404).json({ error: "Session not found" });
       }
+
+      const DEFAULT_RETURN_MSG = "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?";
+      let returnMsg = DEFAULT_RETURN_MSG;
+      if (session.agentId) {
+        const agent = await storage.getAgent(session.agentId);
+        if (agent?.returnToAiMessage) returnMsg = agent.returnToAiMessage;
+      }
       
       await storage.createMessage({
         sessionId,
         from: "system",
-        content: "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?",
+        content: returnMsg,
       });
       
       broadcastToSession(sessionId, {
         type: "message",
-        message: { from: "system", content: "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?" },
+        message: { from: "system", content: returnMsg },
       });
       
       res.json({ success: true });
@@ -10202,16 +10209,23 @@ Rules:
       if (!updated) {
         return res.status(404).json({ error: "Session not found" });
       }
+
+      const DEFAULT_RETURN_MSG = "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?";
+      let returnMsg = DEFAULT_RETURN_MSG;
+      if (session.agentId) {
+        const agent = await storage.getAgent(session.agentId);
+        if (agent?.returnToAiMessage) returnMsg = agent.returnToAiMessage;
+      }
       
       await storage.createMessage({
         sessionId,
         from: "system",
-        content: "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?",
+        content: returnMsg,
       });
       
       broadcastToSession(sessionId, {
         type: "message",
-        message: { from: "system", content: "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?" },
+        message: { from: "system", content: returnMsg },
       });
       
       res.json({ success: true });
