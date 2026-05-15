@@ -1658,6 +1658,7 @@ export class DatabaseStorage implements IStorage {
       widgetTheme: data.widgetTheme || "light",
       bubblePosition: data.bubblePosition || "right",
       widgetWelcomeMessage: data.widgetWelcomeMessage || "Hi! How can I help you today?",
+      returnToAiMessage: data.returnToAiMessage || "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?",
     }).returning();
     return result[0];
   }

@@ -258,7 +258,7 @@ export default function AgentsPage() {
     form.setValue("followUpMessage", agent.followUpMessage || t("dashboard.agents.followUpDefault"));
     form.setValue("followUpSuggestions", (agent.followUpSuggestions as string[]) || []);
     form.setValue("followUpIntervalMinutes", agent.followUpIntervalMinutes || 5);
-    form.setValue("returnToAiMessage", (agent as any).returnToAiMessage || "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?");
+    form.setValue("returnToAiMessage", agent.returnToAiMessage || "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?");
     setPhotoUrl(agent.photoUrl || "");
     setIsDialogOpen(true);
   };
