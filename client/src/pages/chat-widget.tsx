@@ -3907,7 +3907,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 const isFirstAppearance = allMessages.length > 0 && !initialMessagesShownRef.current;
                 if (isFirstAppearance) initialMessagesShownRef.current = true;
                 return (
-                <div className={`space-y-4 ${isFirstAppearance ? 'widget-messages-enter' : ''}`}>
+                <div className={`space-y-2 ${isFirstAppearance ? 'widget-messages-enter' : ''}`}>
                 {allMessages.map((msg, index) => {
                 const wIsCustomer = msg.from === "user";
                 const wIsLastAgentMsg = !wIsCustomer && index === allMessages.length - 1;
