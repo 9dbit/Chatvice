@@ -1792,23 +1792,24 @@ IMPORTANT: NEVER display the signal tags to the customer.${extraInstr}`;
         }).join("\n");
         customDataSignals = `
 PANEL DATA LOOKUP (REALTIME):
-Merchant ini terhubung dengan panel backend mereka via Custom Data Source. Anda BISA mengecek data realtime (status deposit/withdraw, turnover, IP login, dll) untuk customer. Untuk memanggil lookup, ikuti aturan:
+Merchant ini terhubung dengan panel backend mereka via Custom Data Source. Anda BISA mengecek data realtime (status deposit/withdraw, turnover, IP login, dll) untuk customer. Ikuti aturan KETAT berikut:
 
 1. Identifikasi intent yang sesuai dengan pertanyaan customer dari daftar di bawah (cocokkan dengan trigger keywords).
-2. Kumpulkan SEMUA required fields dari customer dengan satu pertanyaan ramah berisi daftar yang dibutuhkan. Contoh: "Untuk cek depo Kakak, mohon kirim: username, nominal depo, bank account, dan metode transfer ya."
-3. Setelah SEMUA required fields lengkap di pesan customer, emit signal di akhir respons:
-   [CUSTOM_LOOKUP:intent_key|field1=value1|field2=value2|...]
-4. JANGAN pernah menjawab dengan data yang dikarang. Selalu gunakan signal di atas — sistem akan memanggil panel API dan menjawab customer dengan data nyata.
+2. Begitu intent teridentifikasi, LANGSUNG emit signal berikut — JANGAN minta field satu per satu via chat:
+   [SHOW_FORM:intent_key]
+3. Sistem otomatis menampilkan form isian kepada customer. Customer tinggal mengisi dan submit — tidak perlu Anda tanya manual.
+4. JANGAN pernah meminta field secara manual (jangan tulis "mohon kirim username, nominal, dll"). JANGAN karang data. Hanya emit [SHOW_FORM:intent_key] dan sistem yang menangani.
 5. JANGAN tampilkan signal tag ke customer (sistem otomatis menyembunyikannya).
-6. Jika customer hanya kirim sebagian field, minta sisa field yang masih kurang dengan sopan dalam bahasa yang sama dengan customer.
-7. Setelah signal dikirim sistem akan otomatis menampilkan jawaban — jangan ulang menjawab pertanyaan yang sama.
+6. Jika intent tidak ada di daftar, jawab seperti biasa tanpa signal.
 
 DAFTAR INTENT TERSEDIA:
 ${intentLines}
 
 Contoh penggunaan signal:
-- Customer: "username Andi123, depo 100000 bank BCA via va"
-- Anda balas: "Sebentar ya Kak, saya cek dulu. [CUSTOM_LOOKUP:deposit_status|username=Andi123|amount=100000|bank_account=BCA|method=va]"`;
+- Customer: "cek depo"
+- Anda balas: "Tentu Kak, saya bantu cekkan. [SHOW_FORM:deposit_status]"
+- Customer: "mau cek wd saya"
+- Anda balas: "Boleh, saya cek sekarang. [SHOW_FORM:withdraw_status]"`;
       }
     }
   } catch (_err) {
@@ -7400,6 +7401,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         .replace(/\[PASSWORD_RECOVERY_DETECTED:[^\]]*\]/gi, "")
         .replace(/\[PASSWORD_LOOKUP_DETECTED:[^\]]*\]/gi, "")
         .replace(/\[CUSTOM_LOOKUP:[^\]]*\]/gi, "")
+        .replace(/\[SHOW_FORM:[^\]]*\]/gi, "")
         .trim();
 
       const responseClientId = clientMessageId ? `response_${clientMessageId}` : undefined;
@@ -7409,9 +7411,14 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       // so the customer sees something while the panel API call runs. The real
       // answer is broadcast by the dispatcher below from the panel response.
       const hasCustomLookupSignal = /\[CUSTOM_LOOKUP:[^\]]+\]/i.test(result.answer);
+      // If a [SHOW_FORM] signal is present, suppress AI text — the form card will appear instead.
+      const hasShowFormSignal = /\[SHOW_FORM:[^\]]+\]/i.test(result.answer);
       let answerToSend = cleanAnswer;
       if (hasCustomLookupSignal) {
         answerToSend = "Sebentar ya, saya cek dulu datanya…";
+      }
+      if (hasShowFormSignal) {
+        answerToSend = ""; // Form card will be inserted instead of text
       }
 
       // Only create/broadcast message if there's actual content to send
@@ -8060,6 +8067,44 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
           const errMsg = "Maaf, sistem sedang sibuk. Silakan coba lagi sebentar.";
           await storage.createMessage({ sessionId, from: "chatvice", content: errMsg });
           broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: errMsg } });
+        }
+      }
+
+      // ───── SHOW FORM signal — display inline data-entry form card in widget ─────
+      const showFormMatch = result.answer.match(/\[SHOW_FORM:([^\]]+)\]/i);
+      if (showFormMatch) {
+        try {
+          const intentKey = showFormMatch[1].trim();
+          const cdsSource = await storage.getCustomDataSource(resolvedMerchantId);
+          if (cdsSource && cdsSource.isEnabled) {
+            const cdsIntents = await storage.getCustomDataIntents(cdsSource.id);
+            const intent = cdsIntents.find(i => i.intentKey.toLowerCase() === intentKey.toLowerCase() && i.isEnabled);
+            if (intent) {
+              const rawFields = Array.isArray(intent.requiredFields) ? intent.requiredFields : [];
+              const formPayload = {
+                type: "dataEntryForm",
+                intentKey: intent.intentKey,
+                intentName: intent.name,
+                fields: rawFields,
+              };
+              await storage.createMessage({
+                sessionId,
+                from: "chatvice",
+                content: "",
+                messageType: "dataEntryForm",
+                payload: formPayload,
+              });
+              broadcastToSession(sessionId, {
+                type: "message",
+                message: { from: "chatvice", content: "", messageType: "dataEntryForm", payload: formPayload },
+              });
+              console.log(`[ShowForm] Displayed inline form for intent=${intentKey} session=${sessionId}`);
+            } else {
+              console.log(`[ShowForm] Intent not found or disabled: ${intentKey}`);
+            }
+          }
+        } catch (showFormErr) {
+          console.error("[ShowForm Signal] Error handling show-form signal:", showFormErr);
         }
       }
 
@@ -21537,6 +21582,70 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
     } catch (err) {
       console.error("[PassRecov Form] Submit error:", err);
       return res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Public endpoint: widget submits custom data-entry form fields for lookup
+  app.post("/api/widget/custom-lookup-submit", async (req, res) => {
+    try {
+      const { sessionId, merchantId: bodyMerchantId, intentKey, fields } = req.body;
+      if (!sessionId || !bodyMerchantId || !intentKey || !fields || typeof fields !== "object") {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const session = await storage.getSession(String(sessionId));
+      if (!session) return res.status(404).json({ error: "Session not found" });
+
+      const merchant = await resolveMerchant(String(bodyMerchantId));
+      if (!merchant) return res.status(404).json({ error: "Merchant not found" });
+      if (session.merchantId !== merchant.id) return res.status(403).json({ error: "Unauthorized" });
+
+      const cdsSource = await storage.getCustomDataSource(merchant.id);
+      if (!cdsSource || !cdsSource.isEnabled) {
+        return res.status(400).json({ error: "Custom data source not configured or disabled" });
+      }
+
+      const cdsIntents = await storage.getCustomDataIntents(cdsSource.id);
+      const intent = cdsIntents.find(i => i.intentKey.toLowerCase() === intentKey.toLowerCase() && i.isEnabled);
+      if (!intent) return res.status(404).json({ error: "Intent not found" });
+
+      // Store a customer-side message summarising submitted fields
+      const fieldEntries = fields as Record<string, string>;
+      const rawFields = Array.isArray(intent.requiredFields) ? intent.requiredFields : [];
+      const fieldSummary = rawFields
+        .filter((f: any) => fieldEntries[f.key] !== undefined)
+        .map((f: any) => `${f.label || f.key}: ${fieldEntries[f.key]}`)
+        .join("\n") || Object.entries(fieldEntries).map(([k, v]) => `${k}: ${v}`).join("\n");
+
+      await storage.createMessage({ sessionId: String(sessionId), from: "customer", content: fieldSummary });
+      broadcastToSession(String(sessionId), { type: "message", message: { from: "customer", content: fieldSummary } });
+
+      // Execute the intent lookup against merchant's panel API
+      const lookupRes = await executeIntentLookup({
+        source: cdsSource,
+        intent,
+        fields: fieldEntries,
+        merchantId: merchant.id,
+        sessionId: String(sessionId),
+      });
+
+      let finalText = lookupRes.text;
+
+      if (lookupRes.outcome === "not_found") {
+        const fieldNames = rawFields.map((f: any) => f.label || f.key).join(", ") || "data yang dimasukkan";
+        finalText = `Maaf, datanya belum ketemu untuk ${intent.name.toLowerCase()}. Boleh dicek ulang ${fieldNames}-nya, mungkin ada yang kurang tepat. Kalau sudah yakin benar, saya bantu hubungkan ke tim support ya.`;
+      }
+
+      if (finalText) {
+        await storage.createMessage({ sessionId: String(sessionId), from: "chatvice", content: finalText });
+        broadcastToSession(String(sessionId), { type: "message", message: { from: "chatvice", content: finalText } });
+      }
+
+      console.log(`[CustomLookupSubmit] intent=${intentKey} status=${lookupRes.httpStatus} outcome=${lookupRes.outcome || "?"} session=${sessionId}`);
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("[custom-lookup-submit] Error:", err);
+      return res.status(500).json({ error: "Internal server error" });
     }
   });
 
