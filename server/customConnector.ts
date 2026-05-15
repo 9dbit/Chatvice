@@ -527,11 +527,22 @@ export async function executeFallbackSheetLookup(opts: {
       return { ok: false, text: "", outcome: "error" };
     }
 
-    const sheetResult = await fetchGoogleSheet(fallbackSource.url);
-    if (!sheetResult.success || !sheetResult.content) {
-      console.warn(`[FallbackSheet] Failed to fetch sheet: ${sheetResult.error}`);
-      await logAudit({ ...auditBase, success: false, errorMessage: `Sheet fetch failed: ${sheetResult.error}`, fallbackUsed: true, fallbackOutcome: "sheet_fetch_error" });
-      return { ok: false, text: "", outcome: "error" };
+    // Prefer DB-cached content (synced by the background scheduler) to avoid
+    // a live HTTP round-trip on every fallback activation.  Fall back to a
+    // live fetch only when the cache is empty or stale (no content stored).
+    let sheetContent: string;
+    if (fallbackSource.content && fallbackSource.content.trim().length > 20) {
+      sheetContent = fallbackSource.content;
+      console.log(`[FallbackSheet] Using cached content for source=${fallbackSource.id} (${sheetContent.length} chars)`);
+    } else {
+      const sheetResult = await fetchGoogleSheet(fallbackSource.url);
+      if (!sheetResult.success || !sheetResult.content) {
+        console.warn(`[FallbackSheet] Failed to fetch sheet: ${sheetResult.error}`);
+        await logAudit({ ...auditBase, success: false, errorMessage: `Sheet fetch failed: ${sheetResult.error}`, fallbackUsed: true, fallbackOutcome: "sheet_fetch_error" });
+        return { ok: false, text: "", outcome: "error" };
+      }
+      sheetContent = sheetResult.content;
+      console.log(`[FallbackSheet] Live-fetched sheet for source=${fallbackSource.id} (${sheetContent.length} chars)`);
     }
 
     // Build a concise field summary so GPT knows what the customer submitted
@@ -541,7 +552,7 @@ export async function executeFallbackSheetLookup(opts: {
 
     const systemPrompt =
       `Kamu adalah asisten customer service yang membantu menjawab pertanyaan customer berdasarkan data dari Google Sheet berikut.\n\n` +
-      `DATA GOOGLE SHEET:\n${sheetResult.content.slice(0, 6000)}\n\n` +
+      `DATA GOOGLE SHEET:\n${sheetContent.slice(0, 6000)}\n\n` +
       `Data yang customer berikan: ${fieldSummary || "(tidak ada)"}\n\n` +
       `Jawab pertanyaan customer dalam bahasa yang sama dengan pesan mereka. ` +
       `Berikan jawaban langsung dan ringkas berdasarkan data di sheet. ` +

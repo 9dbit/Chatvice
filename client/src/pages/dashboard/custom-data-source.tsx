@@ -86,6 +86,8 @@ interface AuditRow {
   errorMessage: string | null;
   maskedFields: Record<string, string> | null;
   createdAt: string;
+  fallbackUsed?: boolean;
+  fallbackOutcome?: string | null;
 }
 
 const blankIntent = (): Partial<CustomDataIntent> => ({
@@ -623,11 +625,22 @@ export default function CustomDataSourcePage() {
                       <TableCell className="font-mono text-xs max-w-[240px] truncate" title={a.endpointUrl}>{a.endpointUrl}</TableCell>
                       <TableCell className="font-mono text-xs max-w-[200px] truncate" title={masked}>{masked}</TableCell>
                       <TableCell>
-                        {a.httpStatus ? (
-                          <Badge variant={a.httpStatus >= 200 && a.httpStatus < 300 ? "outline" : "secondary"}>{a.httpStatus}</Badge>
-                        ) : (
-                          <Badge variant="secondary">{t("dashboard.customDataSource.audit.errBadge")}</Badge>
-                        )}
+                        <div className="flex flex-wrap gap-1">
+                          {a.httpStatus ? (
+                            <Badge variant={a.httpStatus >= 200 && a.httpStatus < 300 ? "outline" : "secondary"}>{a.httpStatus}</Badge>
+                          ) : (
+                            <Badge variant="secondary">{t("dashboard.customDataSource.audit.errBadge")}</Badge>
+                          )}
+                          {a.fallbackUsed && (
+                            <Badge
+                              variant={a.fallbackOutcome === "sheet_ok" ? "outline" : "secondary"}
+                              title={`Fallback: ${a.fallbackOutcome ?? "used"}`}
+                              data-testid={`badge-fallback-${a.id}`}
+                            >
+                              {a.fallbackOutcome === "sheet_ok" ? "Sheet OK" : `Sheet: ${a.fallbackOutcome ?? "error"}`}
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-xs">{a.latencyMs ?? "-"}ms</TableCell>
                     </TableRow>
