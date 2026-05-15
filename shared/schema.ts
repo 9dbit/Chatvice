@@ -2821,7 +2821,7 @@ export const customDataIntents = pgTable("custom_data_intents", {
   // Optional Google Sheet source to fall back to when the primary panel lookup
   // returns not_found or error. When set, the sheet data is fetched and GPT
   // answers the customer query from the sheet content instead.
-  fallbackSourceId: varchar("fallback_source_id", { length: 32 }),
+  fallbackSourceId: varchar("fallback_source_id", { length: 32 }).references(() => sources.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({

@@ -30744,6 +30744,17 @@ Please create a comprehensive help center article that would be useful for custo
       if (!source) return res.status(400).json({ error: "Buat custom data source terlebih dahulu" });
       const { intentKey, name, description, triggerKeywords, httpMethod, endpointPath, requiredFields, responseTemplate, isEnabled, sortOrder, fallbackSourceId } = req.body;
       if (!intentKey || !name) return res.status(400).json({ error: "intentKey and name required" });
+
+      // Validate fallback source ownership and type before saving
+      let resolvedFallbackId: string | null = null;
+      if (fallbackSourceId) {
+        const fbSrc = await storage.getSource(fallbackSourceId);
+        if (!fbSrc || fbSrc.merchantId !== merchantId || fbSrc.sourceSubtype !== "google_sheet") {
+          return res.status(400).json({ error: "Invalid fallback source: must be an active Google Sheet source belonging to your account" });
+        }
+        resolvedFallbackId = fbSrc.id;
+      }
+
       const intent = await storage.createCustomDataIntent({
         sourceId: source.id,
         intentKey: String(intentKey).toLowerCase().replace(/[^a-z0-9_]/g, "_"),
@@ -30756,7 +30767,7 @@ Please create a comprehensive help center article that would be useful for custo
         responseTemplate: responseTemplate || "",
         isEnabled: isEnabled !== false,
         sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
-        fallbackSourceId: fallbackSourceId || null,
+        fallbackSourceId: resolvedFallbackId,
       });
       res.json(intent);
     } catch (err) {
@@ -30775,8 +30786,18 @@ Please create a comprehensive help center article that would be useful for custo
       const allowed = ["name", "description", "triggerKeywords", "httpMethod", "endpointPath", "requiredFields", "responseTemplate", "isEnabled", "sortOrder", "fallbackSourceId"];
       for (const k of allowed) if (k in req.body) data[k] = req.body[k];
       if (data.httpMethod) data.httpMethod = String(data.httpMethod).toUpperCase();
-      // Allow clearing fallbackSourceId (null/empty string → null)
-      if ("fallbackSourceId" in data && !data.fallbackSourceId) data.fallbackSourceId = null;
+      // Validate fallbackSourceId ownership and type when provided
+      if ("fallbackSourceId" in data) {
+        if (!data.fallbackSourceId) {
+          data.fallbackSourceId = null; // Allow clearing
+        } else {
+          const fbSrc = await storage.getSource(data.fallbackSourceId);
+          if (!fbSrc || fbSrc.merchantId !== merchantId || fbSrc.sourceSubtype !== "google_sheet") {
+            return res.status(400).json({ error: "Invalid fallback source: must be an active Google Sheet source belonging to your account" });
+          }
+          data.fallbackSourceId = fbSrc.id;
+        }
+      }
       const updated = await storage.updateCustomDataIntent(req.params.id, data);
       res.json(updated);
     } catch (err) {
