@@ -8071,6 +8071,9 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       }
 
       // ───── SHOW FORM signal — display inline data-entry form card in widget ─────
+      // showFormFallbackAnswer is set when form creation fails so the original
+      // AI text is sent as a fallback instead of leaving the customer with silence.
+      let showFormFallbackAnswer: string | undefined;
       const showFormMatch = result.answer.match(/\[SHOW_FORM:([^\]]+)\]/i);
       if (showFormMatch) {
         try {
@@ -8100,11 +8103,33 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
               });
               console.log(`[ShowForm] Displayed inline form for intent=${intentKey} session=${sessionId}`);
             } else {
-              console.log(`[ShowForm] Intent not found or disabled: ${intentKey}`);
+              // Intent not found or disabled — fall back to normal AI text so customer isn't left in silence
+              console.log(`[ShowForm] Intent not found or disabled: ${intentKey} — falling back to text`);
+              if (cleanAnswer) {
+                await storage.createMessage({ sessionId, from: "chatvice", content: cleanAnswer });
+                broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: cleanAnswer } });
+                showFormFallbackAnswer = cleanAnswer;
+              }
+            }
+          } else {
+            // CDS not configured or disabled — fall back to normal AI text
+            console.log(`[ShowForm] CDS not configured/enabled for merchant ${resolvedMerchantId} — falling back to text`);
+            if (cleanAnswer) {
+              await storage.createMessage({ sessionId, from: "chatvice", content: cleanAnswer });
+              broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: cleanAnswer } });
+              showFormFallbackAnswer = cleanAnswer;
             }
           }
         } catch (showFormErr) {
           console.error("[ShowForm Signal] Error handling show-form signal:", showFormErr);
+          // On unexpected error, also try to send a fallback text response
+          if (cleanAnswer && !showFormFallbackAnswer) {
+            try {
+              await storage.createMessage({ sessionId, from: "chatvice", content: cleanAnswer });
+              broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: cleanAnswer } });
+              showFormFallbackAnswer = cleanAnswer;
+            } catch {}
+          }
         }
       }
 
@@ -8174,8 +8199,16 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         console.error("Lead tracking error:", leadError);
       }
 
+      // Determine the answer to return to the client:
+      // - SHOW_FORM success: "" so no ghost text bubble appears (form card will appear via polling)
+      // - SHOW_FORM fallback (intent missing/error): the fallback text (already stored in DB)
+      // - All other cases: answerToSend (which may differ from cleanAnswer for CUSTOM_LOOKUP)
+      const clientAnswer = hasShowFormSignal
+        ? (showFormFallbackAnswer ?? "")
+        : answerToSend;
+
       res.json({ 
-        answer: cleanAnswer, 
+        answer: clientAnswer, 
         mode: result.mode,
         clientMessageId: clientMessageId,
         responseClientId: responseClientId,
