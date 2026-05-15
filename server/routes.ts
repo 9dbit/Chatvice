@@ -36,7 +36,7 @@ import { db, pool } from "./db";
 import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } from "drizzle-orm";
 import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, blastCampaigns } from "@shared/schema";
 import crypto from "crypto";
-import { encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup, buildPostmanCollection, buildHtmlDocs, DEFAULT_INTENTS, PRESET_INTENTS, PRESET_META, getCustomDataHealthSummary, checkOneSourceHealth, maskValue } from "./customConnector";
+import { encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup, executeFallbackSheetLookup, buildPostmanCollection, buildHtmlDocs, DEFAULT_INTENTS, PRESET_INTENTS, PRESET_META, getCustomDataHealthSummary, checkOneSourceHealth, maskValue } from "./customConnector";
 import { registerCustomDataPresetRoutes } from "./customDataPresetRoutes";
 import { registerGamingRoutes } from "./gamingRoutes";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -8009,54 +8009,79 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                 });
 
                 let finalText = lookupRes.text;
+                let lookupHandled = false;
 
-                // ── Smart follow-up on "not found" ──
-                // The panel responded cleanly but didn't find the record.
-                // Instead of dead-ending the customer with raw template text
-                // (which would be all "(tidak diketahui)" placeholders), ask
-                // the AI to phrase a friendly clarifying question in the
-                // customer's language.
-                if (lookupRes.outcome === "not_found") {
-                  try {
-                    const maskedFieldList = Object.entries(fields)
-                      .map(([k, v]) => `${k}=${maskValue(String(v))}`)
-                      .join(", ") || "(tidak ada)";
-                    const followUpSystem =
-                      `Kamu adalah asisten customer service yang ramah. ` +
-                      `Customer baru saja meminta cek "${intent.name}" ke sistem internal kami, ` +
-                      `tapi datanya TIDAK DITEMUKAN di panel. Field yang dicek (sudah dimask): ${maskedFieldList}. ` +
-                      `Tugasmu: jawab dalam bahasa yang sama dengan pesan terakhir customer. ` +
-                      `1) Akui dengan ramah bahwa data tidak ditemukan, jangan minta maaf berlebihan. ` +
-                      `2) Minta customer mengecek ulang field yang mungkin salah ketik (misal username/nomor/nominal). ` +
-                      `Sebut nama field-nya, jangan tampilkan nilainya. ` +
-                      `3) Tawarkan untuk coba lagi, atau hubungi tim support kalau merasa data sudah benar. ` +
-                      `Maksimal 2-3 kalimat. Jangan tampilkan JSON, jangan pakai emoji, jangan tampilkan tag teknis seperti [CUSTOM_LOOKUP].`;
-                    const followUpResp = await openai.chat.completions.create({
-                      model: "gpt-4.1-mini",
-                      temperature: 0.4,
-                      max_tokens: 220,
-                      messages: [
-                        { role: "system", content: followUpSystem },
-                        { role: "user", content: message },
-                      ],
-                    });
-                    const aiFollowUp = followUpResp.choices?.[0]?.message?.content?.trim();
-                    if (aiFollowUp) {
-                      finalText = aiFollowUp;
-                    } else {
-                      const fieldNames = Object.keys(fields).join(", ") || "data yang dimasukkan";
-                      finalText = `Maaf, datanya belum ketemu untuk ${intent.name.toLowerCase()}. Boleh dicek ulang ${fieldNames}-nya, mungkin ada yang kurang tepat. Kalau sudah yakin benar, saya bantu hubungkan ke tim support ya.`;
-                    }
-                  } catch (followUpErr) {
-                    console.error("[CustomLookup] Follow-up generation failed:", followUpErr);
-                    const fieldNames = Object.keys(fields).join(", ") || "data yang dimasukkan";
-                    finalText = `Maaf, datanya belum ketemu untuk ${intent.name.toLowerCase()}. Boleh dicek ulang ${fieldNames}-nya, mungkin ada yang kurang tepat. Kalau sudah yakin benar, saya bantu hubungkan ke tim support ya.`;
+                // ── Google Sheet fallback on not_found or error ──
+                // When the intent has a fallbackSourceId, try fetching that
+                // Google Sheet and answering via GPT before falling through to
+                // the generic clarification flow.
+                if ((lookupRes.outcome === "not_found" || lookupRes.outcome === "error") && intent.fallbackSourceId) {
+                  const fbRes = await executeFallbackSheetLookup({
+                    merchantId: resolvedMerchantId,
+                    intent,
+                    fields,
+                    customerMessage: message,
+                    sessionId,
+                    openai,
+                  });
+                  if (fbRes.ok && fbRes.text) {
+                    finalText = fbRes.text;
+                    await storage.createMessage({ sessionId, from: "chatvice", content: finalText });
+                    broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: finalText } });
+                    console.log(`[CustomLookup] intent=${intentKey} outcome=${lookupRes.outcome} fallback=sheet:${fbRes.outcome} session=${sessionId}`);
+                    lookupHandled = true;
                   }
                 }
 
-                await storage.createMessage({ sessionId, from: "chatvice", content: finalText });
-                broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: finalText } });
-                console.log(`[CustomLookup] intent=${intentKey} status=${lookupRes.httpStatus} outcome=${lookupRes.outcome || "?"} session=${sessionId}`);
+                if (!lookupHandled) {
+                  // ── Smart follow-up on "not found" ──
+                  // The panel responded cleanly but didn't find the record.
+                  // Instead of dead-ending the customer with raw template text
+                  // (which would be all "(tidak diketahui)" placeholders), ask
+                  // the AI to phrase a friendly clarifying question in the
+                  // customer's language.
+                  if (lookupRes.outcome === "not_found") {
+                    try {
+                      const maskedFieldList = Object.entries(fields)
+                        .map(([k, v]) => `${k}=${maskValue(String(v))}`)
+                        .join(", ") || "(tidak ada)";
+                      const followUpSystem =
+                        `Kamu adalah asisten customer service yang ramah. ` +
+                        `Customer baru saja meminta cek "${intent.name}" ke sistem internal kami, ` +
+                        `tapi datanya TIDAK DITEMUKAN di panel. Field yang dicek (sudah dimask): ${maskedFieldList}. ` +
+                        `Tugasmu: jawab dalam bahasa yang sama dengan pesan terakhir customer. ` +
+                        `1) Akui dengan ramah bahwa data tidak ditemukan, jangan minta maaf berlebihan. ` +
+                        `2) Minta customer mengecek ulang field yang mungkin salah ketik (misal username/nomor/nominal). ` +
+                        `Sebut nama field-nya, jangan tampilkan nilainya. ` +
+                        `3) Tawarkan untuk coba lagi, atau hubungi tim support kalau merasa data sudah benar. ` +
+                        `Maksimal 2-3 kalimat. Jangan tampilkan JSON, jangan pakai emoji, jangan tampilkan tag teknis seperti [CUSTOM_LOOKUP].`;
+                      const followUpResp = await openai.chat.completions.create({
+                        model: "gpt-4.1-mini",
+                        temperature: 0.4,
+                        max_tokens: 220,
+                        messages: [
+                          { role: "system", content: followUpSystem },
+                          { role: "user", content: message },
+                        ],
+                      });
+                      const aiFollowUp = followUpResp.choices?.[0]?.message?.content?.trim();
+                      if (aiFollowUp) {
+                        finalText = aiFollowUp;
+                      } else {
+                        const fieldNames = Object.keys(fields).join(", ") || "data yang dimasukkan";
+                        finalText = `Maaf, datanya belum ketemu untuk ${intent.name.toLowerCase()}. Boleh dicek ulang ${fieldNames}-nya, mungkin ada yang kurang tepat. Kalau sudah yakin benar, saya bantu hubungkan ke tim support ya.`;
+                      }
+                    } catch (followUpErr) {
+                      console.error("[CustomLookup] Follow-up generation failed:", followUpErr);
+                      const fieldNames = Object.keys(fields).join(", ") || "data yang dimasukkan";
+                      finalText = `Maaf, datanya belum ketemu untuk ${intent.name.toLowerCase()}. Boleh dicek ulang ${fieldNames}-nya, mungkin ada yang kurang tepat. Kalau sudah yakin benar, saya bantu hubungkan ke tim support ya.`;
+                    }
+                  }
+
+                  await storage.createMessage({ sessionId, from: "chatvice", content: finalText });
+                  broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: finalText } });
+                  console.log(`[CustomLookup] intent=${intentKey} status=${lookupRes.httpStatus} outcome=${lookupRes.outcome || "?"} session=${sessionId}`);
+                }
               } else {
                 console.log(`[CustomLookup] Intent not found or disabled: ${intentKey}`);
               }
@@ -21678,15 +21703,37 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
       });
 
       let finalText = lookupRes.text;
+      let submitHandled = false;
 
-      if (lookupRes.outcome === "not_found") {
-        const fieldNames = rawFields.map((f: any) => f.label || f.key).join(", ") || "data yang dimasukkan";
-        finalText = `Maaf, datanya belum ketemu untuk ${intent.name.toLowerCase()}. Boleh dicek ulang ${fieldNames}-nya, mungkin ada yang kurang tepat. Kalau sudah yakin benar, saya bantu hubungkan ke tim support ya.`;
+      // ── Google Sheet fallback on not_found or error (SHOW_FORM submit path) ──
+      if ((lookupRes.outcome === "not_found" || lookupRes.outcome === "error") && intent.fallbackSourceId) {
+        const fbRes = await executeFallbackSheetLookup({
+          merchantId: merchant.id,
+          intent,
+          fields: fieldEntries,
+          customerMessage: rawFields.map((f: any) => `${f.label || f.key}: ${fieldEntries[f.key] ?? ""}`).join(", "),
+          sessionId: String(sessionId),
+          openai,
+        });
+        if (fbRes.ok && fbRes.text) {
+          finalText = fbRes.text;
+          await storage.createMessage({ sessionId: String(sessionId), from: "chatvice", content: finalText });
+          broadcastToSession(String(sessionId), { type: "message", message: { from: "chatvice", content: finalText } });
+          console.log(`[CustomLookupSubmit] intent=${intentKey} outcome=${lookupRes.outcome} fallback=sheet:${fbRes.outcome} session=${sessionId}`);
+          submitHandled = true;
+        }
       }
 
-      if (finalText) {
-        await storage.createMessage({ sessionId: String(sessionId), from: "chatvice", content: finalText });
-        broadcastToSession(String(sessionId), { type: "message", message: { from: "chatvice", content: finalText } });
+      if (!submitHandled) {
+        if (lookupRes.outcome === "not_found") {
+          const fieldNames = rawFields.map((f: any) => f.label || f.key).join(", ") || "data yang dimasukkan";
+          finalText = `Maaf, datanya belum ketemu untuk ${intent.name.toLowerCase()}. Boleh dicek ulang ${fieldNames}-nya, mungkin ada yang kurang tepat. Kalau sudah yakin benar, saya bantu hubungkan ke tim support ya.`;
+        }
+
+        if (finalText) {
+          await storage.createMessage({ sessionId: String(sessionId), from: "chatvice", content: finalText });
+          broadcastToSession(String(sessionId), { type: "message", message: { from: "chatvice", content: finalText } });
+        }
       }
 
       console.log(`[CustomLookupSubmit] intent=${intentKey} status=${lookupRes.httpStatus} outcome=${lookupRes.outcome || "?"} session=${sessionId}`);
@@ -30667,6 +30714,17 @@ Please create a comprehensive help center article that would be useful for custo
     }
   });
 
+  // List Google Sheet active sources for use as fallback in Custom Data intents
+  app.get("/api/merchant/sources/google-sheets", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session!.merchantId!;
+      const sources = await storage.getGoogleSheetSourcesByMerchant(merchantId);
+      res.json(sources.map(s => ({ id: s.id, name: s.name || s.url, url: s.url })));
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch Google Sheet sources" });
+    }
+  });
+
   app.get("/api/merchant/custom-data-intents", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session!.merchantId!;
@@ -30684,7 +30742,7 @@ Please create a comprehensive help center article that would be useful for custo
       const merchantId = req.session!.merchantId!;
       const source = await storage.getCustomDataSource(merchantId);
       if (!source) return res.status(400).json({ error: "Buat custom data source terlebih dahulu" });
-      const { intentKey, name, description, triggerKeywords, httpMethod, endpointPath, requiredFields, responseTemplate, isEnabled, sortOrder } = req.body;
+      const { intentKey, name, description, triggerKeywords, httpMethod, endpointPath, requiredFields, responseTemplate, isEnabled, sortOrder, fallbackSourceId } = req.body;
       if (!intentKey || !name) return res.status(400).json({ error: "intentKey and name required" });
       const intent = await storage.createCustomDataIntent({
         sourceId: source.id,
@@ -30698,6 +30756,7 @@ Please create a comprehensive help center article that would be useful for custo
         responseTemplate: responseTemplate || "",
         isEnabled: isEnabled !== false,
         sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
+        fallbackSourceId: fallbackSourceId || null,
       });
       res.json(intent);
     } catch (err) {
@@ -30713,9 +30772,11 @@ Please create a comprehensive help center article that would be useful for custo
       const intent = await storage.getCustomDataIntent(req.params.id);
       if (!source || !intent || intent.sourceId !== source.id) return res.status(404).json({ error: "Not found" });
       const data: any = {};
-      const allowed = ["name", "description", "triggerKeywords", "httpMethod", "endpointPath", "requiredFields", "responseTemplate", "isEnabled", "sortOrder"];
+      const allowed = ["name", "description", "triggerKeywords", "httpMethod", "endpointPath", "requiredFields", "responseTemplate", "isEnabled", "sortOrder", "fallbackSourceId"];
       for (const k of allowed) if (k in req.body) data[k] = req.body[k];
       if (data.httpMethod) data.httpMethod = String(data.httpMethod).toUpperCase();
+      // Allow clearing fallbackSourceId (null/empty string → null)
+      if ("fallbackSourceId" in data && !data.fallbackSourceId) data.fallbackSourceId = null;
       const updated = await storage.updateCustomDataIntent(req.params.id, data);
       res.json(updated);
     } catch (err) {

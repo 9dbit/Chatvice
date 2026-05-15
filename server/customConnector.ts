@@ -3,6 +3,7 @@ import { promises as dnsPromises } from "dns";
 import net from "net";
 import { storage } from "./storage";
 import type { CustomDataIntent, CustomDataSource } from "@shared/schema";
+import { fetchGoogleSheet } from "./fileParser";
 
 // Shape of one entry in CustomDataIntent.requiredFields (jsonb column).
 export interface RequiredFieldDef {
@@ -459,6 +460,8 @@ async function logAudit(opts: {
   errorMessage?: string;
   endpointUrl?: string | null;
   httpMethod?: string | null;
+  fallbackUsed?: boolean;
+  fallbackOutcome?: string | null;
 }): Promise<void> {
   try {
     const masked: Record<string, string> = {};
@@ -475,9 +478,81 @@ async function logAudit(opts: {
       maskedFields: masked,
       endpointUrl: opts.endpointUrl ?? null,
       httpMethod: opts.httpMethod ?? null,
+      fallbackUsed: opts.fallbackUsed ?? false,
+      fallbackOutcome: opts.fallbackOutcome ?? null,
     });
   } catch (err) {
     console.error("[CustomConnector] Audit log failed:", err);
+  }
+}
+
+// ── Google Sheet fallback lookup ──────────────────────────────────────────
+// When a primary panel API lookup returns not_found or error, and the intent
+// has a fallbackSourceId pointing to a Google Sheet active source, we fetch
+// that sheet and ask GPT-4.1-mini to answer the customer's original query
+// from the sheet content instead of showing a generic error.
+export async function executeFallbackSheetLookup(opts: {
+  merchantId: string;
+  intent: CustomDataIntent;
+  fields: Record<string, string>;
+  customerMessage: string;
+  sessionId?: string;
+  openai: any; // OpenAI client passed in from routes.ts
+}): Promise<{ ok: boolean; text: string; outcome: "success" | "error" }> {
+  const { merchantId, intent, fields, customerMessage, sessionId, openai } = opts;
+
+  if (!intent.fallbackSourceId) {
+    return { ok: false, text: "", outcome: "error" };
+  }
+
+  try {
+    // Look up the source record for the fallback Google Sheet
+    const fallbackSource = await storage.getSource(intent.fallbackSourceId);
+    if (!fallbackSource || !fallbackSource.url) {
+      console.warn(`[FallbackSheet] Source ${intent.fallbackSourceId} not found or has no URL`);
+      return { ok: false, text: "", outcome: "error" };
+    }
+
+    const sheetResult = await fetchGoogleSheet(fallbackSource.url);
+    if (!sheetResult.success || !sheetResult.content) {
+      console.warn(`[FallbackSheet] Failed to fetch sheet: ${sheetResult.error}`);
+      return { ok: false, text: "", outcome: "error" };
+    }
+
+    // Build a concise field summary so GPT knows what the customer submitted
+    const fieldSummary = Object.entries(fields)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(", ");
+
+    const systemPrompt =
+      `Kamu adalah asisten customer service yang membantu menjawab pertanyaan customer berdasarkan data dari Google Sheet berikut.\n\n` +
+      `DATA GOOGLE SHEET:\n${sheetResult.content.slice(0, 6000)}\n\n` +
+      `Data yang customer berikan: ${fieldSummary || "(tidak ada)"}\n\n` +
+      `Jawab pertanyaan customer dalam bahasa yang sama dengan pesan mereka. ` +
+      `Berikan jawaban langsung dan ringkas berdasarkan data di sheet. ` +
+      `Jika data tidak ditemukan di sheet, akui dengan ramah dan sarankan menghubungi tim support. ` +
+      `Jangan tampilkan JSON, jangan pakai format markdown berlebihan, jangan sebut nama teknis sheet atau kolom.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      temperature: 0.3,
+      max_tokens: 350,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: customerMessage },
+      ],
+    });
+
+    const answer = response.choices?.[0]?.message?.content?.trim();
+    if (!answer) {
+      return { ok: false, text: "", outcome: "error" };
+    }
+
+    console.log(`[FallbackSheet] intent=${intent.intentKey} sheetSource=${fallbackSource.id} session=${sessionId}`);
+    return { ok: true, text: answer, outcome: "success" };
+  } catch (err) {
+    console.error("[FallbackSheet] Error during fallback sheet lookup:", err);
+    return { ok: false, text: "", outcome: "error" };
   }
 }
 

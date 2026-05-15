@@ -68,6 +68,13 @@ interface CustomDataIntent {
   responseTemplate: string;
   isEnabled: boolean;
   sortOrder: number;
+  fallbackSourceId?: string | null;
+}
+
+interface GoogleSheetSource {
+  id: string;
+  name: string;
+  url: string;
 }
 
 interface AuditRow {
@@ -114,6 +121,9 @@ export default function CustomDataSourcePage() {
   });
   const { data: intents = [] } = useQuery<CustomDataIntent[]>({
     queryKey: ["/api/merchant/custom-data-intents"],
+  });
+  const { data: googleSheetSources = [] } = useQuery<GoogleSheetSource[]>({
+    queryKey: ["/api/merchant/sources/google-sheets"],
   });
   const { data: audit = [] } = useQuery<AuditRow[]>({
     queryKey: ["/api/merchant/custom-data-source/audit"],
@@ -823,6 +833,34 @@ export default function CustomDataSourcePage() {
                 <p className="text-xs text-muted-foreground mt-1">
                   {t("dashboard.customDataSource.intent.responseTemplateEmptyHint")}
                 </p>
+              </div>
+              <div className="pt-2 border-t space-y-1">
+                <Label className="flex items-center gap-1">
+                  Google Sheet Fallback
+                  <Badge variant="outline" className="text-xs font-normal ml-1">Optional</Badge>
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  When the primary lookup returns "not found" or an error, the AI will fetch this Google Sheet and answer using its data instead.
+                </p>
+                <Select
+                  value={editingIntent.fallbackSourceId || "none"}
+                  onValueChange={(v) => setEditingIntent({ ...editingIntent, fallbackSourceId: v === "none" ? null : v })}
+                >
+                  <SelectTrigger data-testid="select-fallback-source">
+                    <SelectValue placeholder="No fallback sheet" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No fallback (default)</SelectItem>
+                    {googleSheetSources.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name || s.url}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {googleSheetSources.length === 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    No Google Sheet sources found. Add one in Active Sources → Knowledge Base first.
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-2 pt-2 border-t">
                 <Switch

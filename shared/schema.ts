@@ -2818,6 +2818,10 @@ export const customDataIntents = pgTable("custom_data_intents", {
   responseTemplate: text("response_template").notNull().default(""),
   isEnabled: boolean("is_enabled").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
+  // Optional Google Sheet source to fall back to when the primary panel lookup
+  // returns not_found or error. When set, the sheet data is fetched and GPT
+  // answers the customer query from the sheet content instead.
+  fallbackSourceId: varchar("fallback_source_id", { length: 32 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
@@ -2847,6 +2851,9 @@ export const customDataAuditLog = pgTable("custom_data_audit_log", {
   maskedFields: jsonb("masked_fields").default({}),
   endpointUrl: text("endpoint_url"),
   httpMethod: varchar("http_method", { length: 8 }),
+  // Fallback tracking: did we fall back to the Google Sheet source?
+  fallbackUsed: boolean("fallback_used").default(false),
+  fallbackOutcome: text("fallback_outcome"), // "success" | "error" | null
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   merchantIdx: index("cda_merchant_idx").on(table.merchantId, table.createdAt),
