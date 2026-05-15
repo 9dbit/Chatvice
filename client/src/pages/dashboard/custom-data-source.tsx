@@ -633,11 +633,11 @@ export default function CustomDataSourcePage() {
                           )}
                           {a.fallbackUsed && (
                             <Badge
-                              variant={a.fallbackOutcome === "sheet_ok" ? "outline" : "secondary"}
-                              title={`Fallback: ${a.fallbackOutcome ?? "used"}`}
+                              variant={a.fallbackOutcome === "success" ? "outline" : "secondary"}
+                              title={`Sheet fallback: ${a.fallbackOutcome ?? "used"}`}
                               data-testid={`badge-fallback-${a.id}`}
                             >
-                              {a.fallbackOutcome === "sheet_ok" ? "Sheet OK" : `Sheet: ${a.fallbackOutcome ?? "error"}`}
+                              {a.fallbackOutcome === "success" ? "Sheet OK" : "Sheet failed"}
                             </Badge>
                           )}
                         </div>

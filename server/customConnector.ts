@@ -513,17 +513,17 @@ export async function executeFallbackSheetLookup(opts: {
     const fallbackSource = await storage.getSource(intent.fallbackSourceId);
     if (!fallbackSource || !fallbackSource.url) {
       console.warn(`[FallbackSheet] Source ${intent.fallbackSourceId} not found or has no URL`);
-      await logAudit({ ...auditBase, success: false, errorMessage: "Fallback source not found", fallbackUsed: true, fallbackOutcome: "source_not_found" });
+      await logAudit({ ...auditBase, success: false, errorMessage: "Fallback source not found", fallbackUsed: true, fallbackOutcome: "failed" });
       return { ok: false, text: "", outcome: "error" };
     }
     if (fallbackSource.merchantId !== merchantId) {
       console.error(`[FallbackSheet] Cross-merchant access attempt: intent merchant=${merchantId} source merchant=${fallbackSource.merchantId}`);
-      await logAudit({ ...auditBase, success: false, errorMessage: "Fallback source belongs to different merchant", fallbackUsed: true, fallbackOutcome: "access_denied" });
+      await logAudit({ ...auditBase, success: false, errorMessage: "Fallback source belongs to different merchant", fallbackUsed: true, fallbackOutcome: "failed" });
       return { ok: false, text: "", outcome: "error" };
     }
     if (fallbackSource.sourceSubtype !== "google_sheet") {
       console.warn(`[FallbackSheet] Source ${fallbackSource.id} is not a google_sheet (subtype=${fallbackSource.sourceSubtype})`);
-      await logAudit({ ...auditBase, success: false, errorMessage: "Fallback source is not a Google Sheet", fallbackUsed: true, fallbackOutcome: "wrong_subtype" });
+      await logAudit({ ...auditBase, success: false, errorMessage: "Fallback source is not a Google Sheet", fallbackUsed: true, fallbackOutcome: "failed" });
       return { ok: false, text: "", outcome: "error" };
     }
 
@@ -538,7 +538,7 @@ export async function executeFallbackSheetLookup(opts: {
       const sheetResult = await fetchGoogleSheet(fallbackSource.url);
       if (!sheetResult.success || !sheetResult.content) {
         console.warn(`[FallbackSheet] Failed to fetch sheet: ${sheetResult.error}`);
-        await logAudit({ ...auditBase, success: false, errorMessage: `Sheet fetch failed: ${sheetResult.error}`, fallbackUsed: true, fallbackOutcome: "sheet_fetch_error" });
+        await logAudit({ ...auditBase, success: false, errorMessage: `Sheet fetch failed: ${sheetResult.error}`, fallbackUsed: true, fallbackOutcome: "failed" });
         return { ok: false, text: "", outcome: "error" };
       }
       sheetContent = sheetResult.content;
@@ -571,16 +571,16 @@ export async function executeFallbackSheetLookup(opts: {
 
     const answer = response.choices?.[0]?.message?.content?.trim();
     if (!answer) {
-      await logAudit({ ...auditBase, success: false, errorMessage: "GPT returned empty answer", fallbackUsed: true, fallbackOutcome: "gpt_empty" });
+      await logAudit({ ...auditBase, success: false, errorMessage: "GPT returned empty answer for fallback sheet", fallbackUsed: true, fallbackOutcome: "failed" });
       return { ok: false, text: "", outcome: "error" };
     }
 
     console.log(`[FallbackSheet] intent=${intent.intentKey} sheetSource=${fallbackSource.id} session=${sessionId} outcome=success`);
-    await logAudit({ ...auditBase, success: true, fallbackUsed: true, fallbackOutcome: "sheet_ok" });
+    await logAudit({ ...auditBase, success: true, fallbackUsed: true, fallbackOutcome: "success" });
     return { ok: true, text: answer, outcome: "success" };
   } catch (err) {
     console.error("[FallbackSheet] Error during fallback sheet lookup:", err);
-    await logAudit({ ...auditBase, success: false, errorMessage: String(err), fallbackUsed: true, fallbackOutcome: "exception" });
+    await logAudit({ ...auditBase, success: false, errorMessage: `Fallback exception: ${String(err)}`, fallbackUsed: true, fallbackOutcome: "failed" });
     return { ok: false, text: "", outcome: "error" };
   }
 }
