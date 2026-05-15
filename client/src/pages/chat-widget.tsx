@@ -200,6 +200,18 @@ function isDataEntryForm(msg: Message): msg is DataEntryFormMessage {
   return (msg as any).messageType === "dataEntryForm" && !!(msg as any).payload?.intentKey;
 }
 
+interface DataEntrySubmissionPayload {
+  intentName: string;
+  rows: Array<{ label: string; value: string }>;
+}
+type DataEntrySubmissionMessage = Message & {
+  messageType: "dataEntrySubmission";
+  payload: DataEntrySubmissionPayload;
+};
+function isDataEntrySubmission(msg: Message): msg is DataEntrySubmissionMessage {
+  return (msg as any).messageType === "dataEntrySubmission" && Array.isArray((msg as any).payload?.rows);
+}
+
 const prTicketI18n: Record<string, {
   headerTitle: string;
   statusPending: string;
@@ -3965,13 +3977,17 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   </div>
                 )}
                 <div
-                  className={`max-w-[80%] p-3 text-sm ${
-                    wIsCustomer
-                      ? "rounded-2xl rounded-br-sm text-white"
-                      : `rounded-2xl rounded-bl-sm ${applyEmbedStyles ? (widgetIsDark ? 'text-white' : 'text-gray-800') : 'bg-muted'}`
+                  className={`max-w-[80%] text-sm ${
+                    isDataEntrySubmission(msg)
+                      ? "p-0"
+                      : wIsCustomer
+                        ? "p-3 rounded-2xl rounded-br-sm text-white"
+                        : `p-3 rounded-2xl rounded-bl-sm ${applyEmbedStyles ? (widgetIsDark ? 'text-white' : 'text-gray-800') : 'bg-muted'}`
                   }`}
                   style={{
-                    ...(wIsCustomer
+                    ...(isDataEntrySubmission(msg)
+                      ? { backgroundColor: "transparent", border: "none" }
+                      : wIsCustomer
                     ? applyEmbedStyles
                       ? { 
                           backgroundColor: `${primaryColor}B3`,
@@ -4001,6 +4017,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                    !isPasswordRecoveryForm(msg) &&
                    !isPasswordRecoveryTicket(msg) &&
                    !isDataEntryForm(msg) &&
+                   !isDataEntrySubmission(msg) &&
                    !msg.mediaUrl && (() => {
                     const parsed = parseMessageContent(msg.content);
                     const hasButtons = parsed.some(p => p.type === "button");
@@ -4614,6 +4631,52 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                         onSubmit={handleDataEntrySubmit}
                         testIdPrefix="data-entry"
                       />
+                    );
+                  })()}
+                  {isDataEntrySubmission(msg) && (() => {
+                    const sub = (msg as DataEntrySubmissionMessage).payload;
+                    return (
+                      <div
+                        className="rounded-xl overflow-hidden"
+                        style={{
+                          backgroundColor: widgetIsDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.85)",
+                          border: `1px solid ${widgetIsDark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.10)"}`,
+                          maxWidth: "240px",
+                          minWidth: "160px",
+                        }}
+                        data-testid="card-data-entry-submission"
+                      >
+                        <div
+                          className="flex items-center gap-1.5 px-3 py-2"
+                          style={{ borderBottom: `1px solid ${widgetIsDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.07)"}` }}
+                        >
+                          <CheckCheck className="w-3 h-3 shrink-0" style={{ color: widgetIsDark ? "rgba(255,255,255,0.7)" : primaryColor }} />
+                          <span
+                            className="text-[11px] font-semibold truncate"
+                            style={{ color: widgetIsDark ? "rgba(255,255,255,0.9)" : "#111827" }}
+                          >
+                            {sub.intentName}
+                          </span>
+                        </div>
+                        <div className="px-3 py-2 space-y-1.5">
+                          {sub.rows.map((row, ri) => (
+                            <div key={ri} className="flex items-baseline justify-between gap-2">
+                              <span
+                                className="text-[10px] shrink-0"
+                                style={{ color: widgetIsDark ? "rgba(255,255,255,0.55)" : "#6b7280" }}
+                              >
+                                {row.label}
+                              </span>
+                              <span
+                                className="text-[11px] font-medium text-right break-all"
+                                style={{ color: widgetIsDark ? "rgba(255,255,255,0.9)" : "#111827" }}
+                              >
+                                {row.value}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     );
                   })()}
                   {(msg as any).messageType === "media" && (msg as any).payload && (

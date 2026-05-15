@@ -21690,8 +21690,16 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
         .map((f: any) => `${f.label || f.key}: ${fieldEntries[f.key]}`)
         .join("\n") || Object.entries(fieldEntries).map(([k, v]) => `${k}: ${v}`).join("\n");
 
-      await storage.createMessage({ sessionId: String(sessionId), from: "customer", content: fieldSummary });
-      broadcastToSession(String(sessionId), { type: "message", message: { from: "customer", content: fieldSummary } });
+      const submissionPayload = {
+        intentName: intent.name,
+        rows: (rawFields.length > 0
+          ? rawFields.filter((f: any) => fieldEntries[f.key] !== undefined).map((f: any) => ({ label: f.label || f.key, value: fieldEntries[f.key] }))
+          : Object.entries(fieldEntries).map(([k, v]) => ({ label: k, value: v }))
+        ),
+      };
+
+      await storage.createMessage({ sessionId: String(sessionId), from: "customer", content: fieldSummary, messageType: "dataEntrySubmission", payload: submissionPayload });
+      broadcastToSession(String(sessionId), { type: "message", message: { from: "customer", content: fieldSummary, messageType: "dataEntrySubmission", payload: submissionPayload } });
 
       // Execute the intent lookup against merchant's panel API
       const lookupRes = await executeIntentLookup({
