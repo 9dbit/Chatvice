@@ -70,6 +70,11 @@ async function seed() {
     .onConflictDoUpdate({
       target: gamingMerchants.merchantId,
       set: {
+        merchantName: db.excluded.merchantName,
+        brandName: db.excluded.brandName,
+        webhookSecret: db.excluded.webhookSecret,
+        apiKeyEncrypted: db.excluded.apiKeyEncrypted,
+        apiSecretEncrypted: db.excluded.apiSecretEncrypted,
         updatedAt: new Date(),
       },
     })

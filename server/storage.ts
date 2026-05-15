@@ -720,7 +720,6 @@ export interface IStorage {
   getGamingPlayerMappings(merchantId: string): Promise<GamingPlayerMapping[]>;
   getGamingPlayerMapping(id: number): Promise<GamingPlayerMapping | undefined>;
   getGamingPlayerMappingByUsername(merchantId: string, username: string): Promise<GamingPlayerMapping | undefined>;
-  getGamingPlayerMappingByPhone(merchantId: string, phoneNumber: string): Promise<GamingPlayerMapping | undefined>;
   createGamingPlayerMapping(data: InsertGamingPlayerMapping): Promise<GamingPlayerMapping>;
   updateGamingPlayerMapping(id: number, data: Partial<GamingPlayerMapping>): Promise<GamingPlayerMapping | undefined>;
   deleteGamingPlayerMapping(id: number): Promise<boolean>;
@@ -759,7 +758,6 @@ export interface IStorage {
 
   getGamingFailedEvent(id: number): Promise<GamingFailedEvent | undefined>;
   getGamingFailedEvents(merchantId: string, status?: string): Promise<GamingFailedEvent[]>;
-  getGamingFailedEventsCount(): Promise<number>;
   createGamingFailedEvent(data: InsertGamingFailedEvent): Promise<GamingFailedEvent>;
   updateGamingFailedEvent(id: number, data: Partial<GamingFailedEvent>): Promise<GamingFailedEvent | undefined>;
   deleteGamingFailedEvent(id: number): Promise<boolean>;
@@ -5135,11 +5133,6 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
-  async getGamingPlayerMappingByPhone(merchantId: string, phoneNumber: string): Promise<GamingPlayerMapping | undefined> {
-    const [row] = await db.select().from(gamingPlayerMappings).where(and(eq(gamingPlayerMappings.merchantId, merchantId), eq(gamingPlayerMappings.phoneNumber, phoneNumber))).limit(1);
-    return row;
-  }
-
   async createGamingPlayerMapping(data: InsertGamingPlayerMapping): Promise<GamingPlayerMapping> {
     const [row] = await db.insert(gamingPlayerMappings).values(data).returning();
     return row;
@@ -5319,13 +5312,6 @@ export class DatabaseStorage implements IStorage {
     const conditions = [eq(gamingFailedEvents.merchantId, merchantId)];
     if (status) conditions.push(eq(gamingFailedEvents.status, status));
     return db.select().from(gamingFailedEvents).where(and(...conditions)).orderBy(desc(gamingFailedEvents.createdAt));
-  }
-
-  async getGamingFailedEventsCount(): Promise<number> {
-    const [row] = await db.select({ count: count() }).from(gamingFailedEvents).where(
-      or(eq(gamingFailedEvents.status, "pending"), eq(gamingFailedEvents.status, "retrying"))
-    );
-    return Number(row?.count ?? 0);
   }
 
   async createGamingFailedEvent(data: InsertGamingFailedEvent): Promise<GamingFailedEvent> {
