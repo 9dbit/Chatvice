@@ -1529,31 +1529,31 @@ export function MarketplacePreviewSection() {
                 <button
                   key={product.productId}
                   type="button"
-                  className="flex items-center gap-3 p-2.5 rounded-xl hover-elevate text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary w-full"
+                  className="flex items-center gap-2 p-2 rounded-xl hover-elevate text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary w-full overflow-hidden"
                   onClick={() => setSelectedId(product.productId)}
                   data-testid={`tile-${product.productId}`}
                 >
                   <div
-                    className={`w-12 h-12 rounded-xl bg-gradient-to-br ${product.gradientFrom} ${product.gradientTo} flex items-center justify-center shrink-0 shadow-sm`}
+                    className={`w-10 h-10 rounded-xl bg-gradient-to-br ${product.gradientFrom} ${product.gradientTo} flex items-center justify-center shrink-0 shadow-sm`}
                   >
-                    <Icon className="w-6 h-6 text-white" />
+                    <Icon className="w-5 h-5 text-white" />
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     {product.kind === "booster" && product.valueText ? (
                       <>
-                        <p className="text-2xl font-bold text-foreground leading-none">
+                        <p className="text-lg font-bold text-foreground leading-none truncate">
                           {product.valueText}
                         </p>
-                        <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 line-clamp-2">
+                        <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 truncate">
                           {product.labelText}
                         </p>
                       </>
                     ) : (
                       <>
-                        <p className="text-sm font-semibold text-foreground leading-tight line-clamp-2">
+                        <p className="text-xs font-semibold text-foreground leading-tight line-clamp-2">
                           {product.name}
                         </p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">Add-on</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Add-on</p>
                       </>
                     )}
                   </div>
