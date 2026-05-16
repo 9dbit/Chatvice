@@ -8089,7 +8089,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
           }
         } catch (cdsErr) {
           console.error("[CustomLookup Signal] Error handling custom data lookup:", cdsErr);
-          const errMsg = "Maaf, sistem sedang sibuk. Silakan coba lagi sebentar.";
+          const errMsg = "Data tidak ditemukan. Silahkan periksa kembali data Anda, atau saya bantu hubungkan ke tim support.";
           await storage.createMessage({ sessionId, from: "chatvice", content: errMsg });
           broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: errMsg } });
         }

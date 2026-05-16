@@ -3943,17 +3943,22 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 const isFirstAppearance = allMessages.length > 0 && !initialMessagesShownRef.current;
                 if (isFirstAppearance) initialMessagesShownRef.current = true;
                 return (
-                <div className={`space-y-1 ${isFirstAppearance ? 'widget-messages-enter' : ''}`}>
+                <div className={`${isFirstAppearance ? 'widget-messages-enter' : ''}`}>
                 {allMessages.map((msg, index) => {
                 const wIsCustomer = msg.from === "user";
                 const wIsLastAgentMsg = !wIsCustomer && index === allMessages.length - 1;
                 const wMsgReactions = widgetReactions.filter((r) => r.messageId === msg.id);
+                const wPrevFrom = index > 0 ? allMessages[index - 1].from : null;
+                const wSameSenderAsPrev = wPrevFrom === msg.from;
                 return (
-            <div key={msg.id || index}>
+            <div key={msg.id || index} className={index === 0 ? "" : wSameSenderAsPrev ? "mt-0.5" : "mt-2"}>
               <div
                 className={`group flex gap-2 ${wIsCustomer ? "justify-end" : "justify-start"}`}
               >
                 {msg.from !== "user" && (
+                  wSameSenderAsPrev ? (
+                    <div className="w-7 shrink-0" />
+                  ) : (
                   <div
                     className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 overflow-hidden"
                     style={{ backgroundColor: `${primaryColor}20` }}
@@ -3975,6 +3980,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                       <Bot className="w-3.5 h-3.5" style={{ color: primaryColor }} />
                     )}
                   </div>
+                  )
                 )}
                 <div
                   className={`max-w-[80%] text-sm ${
@@ -4641,8 +4647,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                         style={{
                           backgroundColor: widgetIsDark ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.85)",
                           border: `1px solid ${widgetIsDark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.10)"}`,
-                          maxWidth: "240px",
-                          minWidth: "160px",
+                          maxWidth: "280px",
+                          minWidth: "180px",
                         }}
                         data-testid="card-data-entry-submission"
                       >
@@ -4662,13 +4668,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                           {sub.rows.map((row, ri) => (
                             <div key={ri} className="flex items-baseline justify-between gap-2">
                               <span
-                                className="text-[10px] shrink-0"
+                                className="text-[10px] shrink-0 min-w-0 max-w-[55%] truncate"
                                 style={{ color: widgetIsDark ? "rgba(255,255,255,0.55)" : "#6b7280" }}
+                                title={row.label}
                               >
                                 {row.label}
                               </span>
                               <span
-                                className="text-[11px] font-medium text-right break-all"
+                                className="text-[11px] font-medium text-right min-w-0 break-all"
                                 style={{ color: widgetIsDark ? "rgba(255,255,255,0.9)" : "#111827" }}
                               >
                                 {row.value}
