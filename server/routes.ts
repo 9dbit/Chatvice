@@ -31044,25 +31044,29 @@ Please create a comprehensive help center article that would be useful for custo
       if ("lookupMode" in data) {
         data.lookupMode = data.lookupMode === "sheet" ? "sheet" : "api";
       }
-      // Effective sheet-mode validation: compute effective post-patch state so that
-      // setting lookupMode:'sheet' without sending fallbackSourceId is still caught
-      // if the existing intent has no fallbackSourceId either.
+      // Compute effective post-patch state for sheet-mode enforcement.
       const effectiveLookupMode = "lookupMode" in data ? data.lookupMode : (intent.lookupMode ?? "api");
       const effectiveFallbackSourceId = "fallbackSourceId" in data ? data.fallbackSourceId : intent.fallbackSourceId;
+
+      // Must have some sheet source when in sheet mode
       if (effectiveLookupMode === "sheet" && !effectiveFallbackSourceId) {
         return res.status(400).json({ error: "A Google Sheet source must be selected when lookup mode is 'sheet'" });
       }
-      // Validate fallbackSourceId ownership, type, and active status when provided
-      if ("fallbackSourceId" in data) {
-        if (!data.fallbackSourceId) {
-          data.fallbackSourceId = null; // Allow clearing
-        } else {
-          const fbSrc = await storage.getSource(data.fallbackSourceId);
-          if (!fbSrc || fbSrc.merchantId !== merchantId || fbSrc.sourceSubtype !== "google_sheet" || fbSrc.isActive === false) {
-            return res.status(400).json({ error: "Invalid fallback source: must be an active Google Sheet source belonging to your account" });
-          }
-          data.fallbackSourceId = fbSrc.id;
+
+      // Validate fallbackSourceId ownership, type, and active status.
+      // Run validation if the field was explicitly provided in the patch —
+      // OR if effective mode is sheet and the source comes from the existing intent
+      // (so we catch stale/inactive sources even when only lookupMode is patched).
+      const sourceIdToValidate = "fallbackSourceId" in data ? data.fallbackSourceId : (effectiveLookupMode === "sheet" ? effectiveFallbackSourceId : null);
+      if (sourceIdToValidate) {
+        const fbSrc = await storage.getSource(sourceIdToValidate);
+        if (!fbSrc || fbSrc.merchantId !== merchantId || fbSrc.sourceSubtype !== "google_sheet" || fbSrc.isActive === false) {
+          return res.status(400).json({ error: "Invalid fallback source: must be an active Google Sheet source belonging to your account" });
         }
+        // Write back resolved id only when it came from the request body
+        if ("fallbackSourceId" in data) data.fallbackSourceId = fbSrc.id;
+      } else if ("fallbackSourceId" in data && !data.fallbackSourceId) {
+        data.fallbackSourceId = null; // Allow clearing when not in sheet mode
       }
       const updated = await storage.updateCustomDataIntent(req.params.id, data);
       res.json(updated);
