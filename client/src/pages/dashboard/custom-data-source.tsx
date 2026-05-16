@@ -763,27 +763,29 @@ export default function CustomDataSourcePage() {
                   data-testid="input-trigger-keywords"
                 />
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label>{t("dashboard.customDataSource.intent.method")}</Label>
-                  <Select value={editingIntent.httpMethod || "GET"} onValueChange={(v) => setEditingIntent({ ...editingIntent, httpMethod: v })}>
-                    <SelectTrigger data-testid="select-http-method"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="GET">GET</SelectItem>
-                      <SelectItem value="POST">POST</SelectItem>
-                    </SelectContent>
-                  </Select>
+              {(editingIntent.lookupMode ?? "api") !== "sheet" && (
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label>{t("dashboard.customDataSource.intent.method")}</Label>
+                    <Select value={editingIntent.httpMethod || "GET"} onValueChange={(v) => setEditingIntent({ ...editingIntent, httpMethod: v })}>
+                      <SelectTrigger data-testid="select-http-method"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="GET">GET</SelectItem>
+                        <SelectItem value="POST">POST</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-2">
+                    <Label>{t("dashboard.customDataSource.intent.endpoint")}</Label>
+                    <Input
+                      value={editingIntent.endpointPath || ""}
+                      onChange={(e) => setEditingIntent({ ...editingIntent, endpointPath: e.target.value })}
+                      placeholder={t("dashboard.customDataSource.intent.placeholder.endpointPath")}
+                      data-testid="input-endpoint-path"
+                    />
+                  </div>
                 </div>
-                <div className="col-span-2">
-                  <Label>{t("dashboard.customDataSource.intent.endpoint")}</Label>
-                  <Input
-                    value={editingIntent.endpointPath || ""}
-                    onChange={(e) => setEditingIntent({ ...editingIntent, endpointPath: e.target.value })}
-                    placeholder={t("dashboard.customDataSource.intent.placeholder.endpointPath")}
-                    data-testid="input-endpoint-path"
-                  />
-                </div>
-              </div>
+              )}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <Label>{t("dashboard.customDataSource.intent.requiredFields")}</Label>

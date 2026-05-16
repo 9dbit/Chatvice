@@ -1867,18 +1867,26 @@ IMPORTANT: NEVER display the signal tags to the customer.${extraInstr}`;
   let customDataSignals = "";
   try {
     const cdsSource = await storage.getCustomDataSource(merchantId);
-    if (cdsSource && cdsSource.isEnabled && cdsSource.baseUrl) {
-      const cdsIntents = (await storage.getCustomDataIntents(cdsSource.id)).filter(i => i.isEnabled);
+    if (cdsSource && cdsSource.isEnabled) {
+      const allCdsIntents = (await storage.getCustomDataIntents(cdsSource.id)).filter(i => i.isEnabled);
+      // Sheet-mode intents work without a panel baseUrl; API-mode intents require one.
+      const cdsIntents = allCdsIntents.filter(i =>
+        (i.lookupMode ?? "api") === "sheet" || !!cdsSource.baseUrl
+      );
       if (cdsIntents.length > 0) {
         const intentLines = cdsIntents.map(intent => {
+          const isSheetMode = (intent.lookupMode ?? "api") === "sheet";
           const fields: any[] = Array.isArray(intent.requiredFields) ? intent.requiredFields as any[] : [];
           const fieldList = fields.map((f: any) => `${f.key} (${f.label || f.key})${f.required ? "" : " [opsional]"}`).join(", ");
           const kw = (intent.triggerKeywords || "").split(",").map(s => s.trim()).filter(Boolean).slice(0, 8).join(", ");
-          return `- intent_key=${intent.intentKey} | nama="${intent.name}"${intent.description ? ` | deskripsi: ${intent.description}` : ""}\n  trigger keywords: ${kw || "(none)"}\n  required fields: ${fieldList || "(none)"}`;
+          const sourceNote = isSheetMode
+            ? "sumber: Google Sheet (bukan panel API — jangan sebut endpoint atau API)"
+            : "sumber: Panel API";
+          return `- intent_key=${intent.intentKey} | nama="${intent.name}"${intent.description ? ` | deskripsi: ${intent.description}` : ""}\n  trigger keywords: ${kw || "(none)"}\n  required fields: ${fieldList || "(none)"}\n  ${sourceNote}`;
         }).join("\n");
         customDataSignals = `
-PANEL DATA LOOKUP (REALTIME):
-Merchant ini terhubung dengan panel backend mereka via Custom Data Source. Anda BISA mengecek data realtime (status deposit/withdraw, turnover, IP login, dll) untuk customer. Ikuti aturan KETAT berikut:
+DATA LOOKUP (REALTIME):
+Merchant ini memiliki integrasi data realtime. Anda BISA mengecek data untuk customer (status deposit/withdraw, turnover, IP login, dll). Beberapa intent menggunakan Panel API, sebagian lain membaca dari Google Sheet — sistem akan menangani perbedaan ini secara otomatis. Ikuti aturan KETAT berikut:
 
 1. Identifikasi intent yang sesuai dengan pertanyaan customer dari daftar di bawah (cocokkan dengan trigger keywords).
 2. Begitu intent teridentifikasi, LANGSUNG emit signal berikut — JANGAN minta field satu per satu via chat:
