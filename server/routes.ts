@@ -644,6 +644,9 @@ async function triggerAutoEscalate(opts: {
     await storage.updateSession(sessionId, { mode: "HUMAN", needsSupervisorAttention: true });
     await storage.createMessage({ sessionId, from: "system", content: escalationText });
     broadcastFn(sessionId, { type: "message", message: { from: "system", content: escalationText } });
+    // Notify widget/supervisor clients that this session is now in HUMAN mode
+    broadcastFn(sessionId, { type: "escalated", sessionId, mode: "HUMAN" });
+    broadcastToMerchant(merchantId, { type: "session:escalated", sessionId, mode: "HUMAN" });
     await notifySupervisors(merchantId, sessionId, "manual");
     console.log(`[AutoEscalate] session=${sessionId} intent=${intentKey} escalated after 3 consecutive failures`);
   } catch (err) {
