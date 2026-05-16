@@ -571,6 +571,86 @@ export const wsClients = new Map<string, Set<WebSocket>>();
 // notifications (e.g. ticket:update) that aren't tied to a specific chat session.
 export const merchantWsClients = new Map<string, Set<WebSocket>>();
 
+// ── Intent-failure repetition tracker (in-memory, no schema change) ─────────
+// Maps sessionId → intentKey → consecutive-failure count.
+// Resets on success; lost on server restart (by design – out of scope).
+const intentFailCounts = new Map<string, Map<string, number>>();
+
+function incrementFailCount(sessionId: string, intentKey: string): number {
+  let bySession = intentFailCounts.get(sessionId);
+  if (!bySession) { bySession = new Map(); intentFailCounts.set(sessionId, bySession); }
+  const next = (bySession.get(intentKey) ?? 0) + 1;
+  bySession.set(intentKey, next);
+  return next;
+}
+
+function resetFailCount(sessionId: string, intentKey: string): void {
+  intentFailCounts.get(sessionId)?.set(intentKey, 0);
+}
+
+// Auto-escalates a session to HUMAN mode after repeated intent-lookup failures.
+// Generates a friendly escalation message in the agent's tone (with hardcoded fallback).
+async function triggerAutoEscalate(opts: {
+  sessionId: string;
+  merchantId: string;
+  intentKey: string;
+  intentName: string;
+  agentId?: string | null;
+  broadcastFn: (sessionId: string, data: any) => void;
+}): Promise<void> {
+  const { sessionId, merchantId, intentKey, intentName, agentId, broadcastFn } = opts;
+  try {
+    // Guard: don't double-escalate if session is already in HUMAN mode
+    const sess = await storage.getSession(sessionId);
+    if (!sess || sess.mode === "HUMAN") return;
+
+    // Fetch agent's system prompt for tone matching
+    let agentSystemPrompt = "";
+    if (agentId) {
+      const agent = await storage.getAgent(agentId);
+      if (agent?.systemPrompt) agentSystemPrompt = agent.systemPrompt;
+    }
+
+    // Generate a natural escalation sentence using GPT, falling back to a hardcoded string
+    let escalationText =
+      "Saya hubungkan Anda dengan tim support kami ya, mereka akan segera membantu bosku.";
+    try {
+      const sysCtx = agentSystemPrompt
+        ? `Kamu adalah asisten customer service dengan persona berikut:\n${agentSystemPrompt.slice(0, 600)}\n\n`
+        : "Kamu adalah asisten customer service yang ramah.\n\n";
+      const escalateResp = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        temperature: 0.4,
+        max_tokens: 80,
+        messages: [
+          {
+            role: "system",
+            content:
+              sysCtx +
+              `Customer sudah bertanya tentang "${intentName}" beberapa kali namun datanya tidak ditemukan di sistem. ` +
+              `Tulis SATU kalimat pendek yang menyampaikan bahwa kamu akan menghubungkan mereka ke tim support manusia. ` +
+              `Gunakan nada yang sama dengan persona di atas. Jangan pakai emoji. Maksimal 15 kata.`,
+          },
+          { role: "user", content: "(generate escalation sentence)" },
+        ],
+      });
+      const generated = escalateResp.choices?.[0]?.message?.content?.trim();
+      if (generated) escalationText = generated;
+    } catch (genErr) {
+      console.error("[AutoEscalate] GPT escalation message failed, using fallback:", genErr);
+    }
+
+    // Escalate session
+    await storage.updateSession(sessionId, { mode: "HUMAN", needsSupervisorAttention: true });
+    await storage.createMessage({ sessionId, from: "system", content: escalationText });
+    broadcastFn(sessionId, { type: "message", message: { from: "system", content: escalationText } });
+    await notifySupervisors(merchantId, sessionId, "manual");
+    console.log(`[AutoEscalate] session=${sessionId} intent=${intentKey} escalated after 3 consecutive failures`);
+  } catch (err) {
+    console.error("[AutoEscalate] Error during auto-escalation:", err);
+  }
+}
+
 export function broadcastToSessionExternal(sessionId: string, data: any) {
   const sessionClients = wsClients.get(sessionId);
   if (sessionClients) {
@@ -8030,6 +8110,8 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                     broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: finalText } });
                     console.log(`[CustomLookup] intent=${intentKey} outcome=${lookupRes.outcome} fallback=sheet:${fbRes.outcome} session=${sessionId}`);
                     lookupHandled = true;
+                    // Fallback sheet answered successfully — reset failure counter
+                    resetFailCount(sessionId, intentKey);
                   }
                 }
 
@@ -8081,6 +8163,24 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                   await storage.createMessage({ sessionId, from: "chatvice", content: finalText });
                   broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: finalText } });
                   console.log(`[CustomLookup] intent=${intentKey} status=${lookupRes.httpStatus} outcome=${lookupRes.outcome || "?"} session=${sessionId}`);
+
+                  // ── Repetition tracker: escalate after 3 consecutive failures ──
+                  if (lookupRes.outcome === "success") {
+                    resetFailCount(sessionId, intentKey);
+                  } else if (lookupRes.outcome === "not_found" || lookupRes.outcome === "error") {
+                    const failCount = incrementFailCount(sessionId, intentKey);
+                    if (failCount >= 3) {
+                      resetFailCount(sessionId, intentKey); // prevent duplicate escalation
+                      await triggerAutoEscalate({
+                        sessionId,
+                        merchantId: resolvedMerchantId,
+                        intentKey,
+                        intentName: intent.name,
+                        agentId: session?.agentId ?? null,
+                        broadcastFn: broadcastToSession,
+                      });
+                    }
+                  }
                 }
               } else {
                 console.log(`[CustomLookup] Intent not found or disabled: ${intentKey}`);
@@ -21729,6 +21829,8 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
           broadcastToSession(String(sessionId), { type: "message", message: { from: "chatvice", content: finalText } });
           console.log(`[CustomLookupSubmit] intent=${intentKey} outcome=${lookupRes.outcome} fallback=sheet:${fbRes.outcome} session=${sessionId}`);
           submitHandled = true;
+          // Fallback sheet answered successfully — reset failure counter
+          resetFailCount(String(sessionId), intentKey);
         }
       }
 
@@ -21745,6 +21847,25 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
         if (finalText) {
           await storage.createMessage({ sessionId: String(sessionId), from: "chatvice", content: finalText });
           broadcastToSession(String(sessionId), { type: "message", message: { from: "chatvice", content: finalText } });
+        }
+
+        // ── Repetition tracker: escalate after 3 consecutive failures ──
+        if (lookupRes.outcome === "success") {
+          resetFailCount(String(sessionId), intentKey);
+        } else if (lookupRes.outcome === "not_found" || lookupRes.outcome === "error") {
+          const failCount = incrementFailCount(String(sessionId), intentKey);
+          if (failCount >= 3) {
+            resetFailCount(String(sessionId), intentKey); // prevent duplicate escalation
+            const sessionForEscalate = await storage.getSession(String(sessionId));
+            await triggerAutoEscalate({
+              sessionId: String(sessionId),
+              merchantId: merchant.id,
+              intentKey,
+              intentName: intent.name,
+              agentId: sessionForEscalate?.agentId ?? null,
+              broadcastFn: broadcastToSession,
+            });
+          }
         }
       }
 
