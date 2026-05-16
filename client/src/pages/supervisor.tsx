@@ -60,6 +60,7 @@ import {
   Activity,
   Globe,
   X,
+  CheckCheck,
 } from "lucide-react";
 import type { Session, Message, Notification, ChatLog } from "@shared/schema";
 import { playIncomingChatSound, playChatReplySound, playAngrySound } from "@/lib/sounds";
@@ -73,6 +74,20 @@ import { useTheme } from "@/components/theme-provider";
 import { SiTelegram } from "react-icons/si";
 import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
+
+interface DataEntrySubmissionPayload {
+  intentName: string;
+  rows: Array<{ label: string; value: string }>;
+}
+type DataEntrySubmissionMessage = Message & {
+  messageType: "dataEntrySubmission";
+  payload: DataEntrySubmissionPayload;
+};
+function isDataEntrySubmission(msg: Message): msg is DataEntrySubmissionMessage {
+  const m = msg as Record<string, unknown>;
+  const payload = m.payload as Record<string, unknown> | null | undefined;
+  return m.messageType === "dataEntrySubmission" && Array.isArray(payload?.rows);
+}
 
 const CUSTOMER_AVATAR_COLORS = [
   "bg-rose-500", "bg-pink-500", "bg-fuchsia-500", "bg-purple-500",
@@ -956,15 +971,47 @@ export default function SupervisorPanel() {
                               )}
                               <div className="max-w-[70%]">
                                 <div
-                                  className={`p-3 ${
-                                    isCustomer
+                                  className={`${isDataEntrySubmission(msg) ? "" : "p-3"} ${
+                                    isDataEntrySubmission(msg)
+                                      ? ""
+                                      : isCustomer
                                       ? "bg-muted rounded-2xl rounded-br-sm"
                                       : msg.from === "supervisor"
                                       ? "bg-primary text-primary-foreground rounded-2xl rounded-bl-sm"
                                       : "bg-muted rounded-2xl rounded-bl-sm"
-                                  } ${isLastCustomerMsg && msgReactions.length === 0 ? "ring-1 ring-primary/30 shadow-[0_0_8px_rgba(99,102,241,0.3)]" : ""}`}
+                                  } ${isLastCustomerMsg && msgReactions.length === 0 && !isDataEntrySubmission(msg) ? "ring-1 ring-primary/30 shadow-[0_0_8px_rgba(99,102,241,0.3)]" : ""}`}
                                 >
-                                  <p className="text-sm whitespace-pre-wrap">{renderMessageWithLinks(msg.content)}</p>
+                                  {isDataEntrySubmission(msg) ? (() => {
+                                    const sub = msg.payload;
+                                    return (
+                                      <div
+                                        className="rounded-xl overflow-hidden border border-border"
+                                        style={{ maxWidth: "240px", minWidth: "160px" }}
+                                        data-testid="card-data-entry-submission"
+                                      >
+                                        <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border bg-muted/60">
+                                          <CheckCheck className="w-3 h-3 shrink-0 text-primary" />
+                                          <span className="text-[11px] font-semibold truncate">
+                                            {sub.intentName}
+                                          </span>
+                                        </div>
+                                        <div className="px-3 py-2 space-y-1.5 bg-background">
+                                          {sub.rows.map((row, ri) => (
+                                            <div key={ri} className="flex items-baseline justify-between gap-2">
+                                              <span className="text-[10px] shrink-0 text-muted-foreground">
+                                                {row.label}
+                                              </span>
+                                              <span className="text-[11px] font-medium text-right break-all">
+                                                {row.value}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    );
+                                  })() : (
+                                    <p className="text-sm whitespace-pre-wrap">{renderMessageWithLinks(msg.content)}</p>
+                                  )}
                                   <div
                                     className={`flex items-center gap-1 mt-1 ${
                                       msg.from === "supervisor" ? "text-primary-foreground/70" : "text-muted-foreground"
