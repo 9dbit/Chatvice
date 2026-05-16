@@ -36,7 +36,7 @@ import { db, pool } from "./db";
 import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } from "drizzle-orm";
 import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, blastCampaigns } from "@shared/schema";
 import crypto from "crypto";
-import { encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup, executeFallbackSheetLookup, buildPostmanCollection, buildHtmlDocs, DEFAULT_INTENTS, PRESET_INTENTS, PRESET_META, getCustomDataHealthSummary, checkOneSourceHealth, maskValue } from "./customConnector";
+import { encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup, executeFallbackSheetLookup, buildPostmanCollection, buildHtmlDocs, DEFAULT_INTENTS, PRESET_INTENTS, PRESET_META, getCustomDataHealthSummary, checkOneSourceHealth, maskValue, ConnectorResult } from "./customConnector";
 import { registerCustomDataPresetRoutes } from "./customDataPresetRoutes";
 import { registerGamingRoutes } from "./gamingRoutes";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -8089,41 +8089,53 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
                 let finalText = "";
                 let lookupHandled = false;
 
-                // ── Source mode: 'sheet' → skip panel API, go directly to sheet ──
-                if (intent.lookupMode === "sheet" && intent.fallbackSourceId) {
-                  const sheetRes = await executeFallbackSheetLookup({
-                    merchantId: resolvedMerchantId,
-                    intent,
-                    fields,
-                    customerMessage: message,
-                    sessionId,
-                    openai,
-                  });
-                  if (sheetRes.ok && sheetRes.text) {
-                    finalText = sheetRes.text;
-                    await storage.createMessage({ sessionId, from: "chatvice", content: finalText });
-                    broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: finalText } });
-                    console.log(`[CustomLookup] intent=${intentKey} mode=sheet outcome=${sheetRes.outcome} session=${sessionId}`);
-                    resetFailCount(sessionId, intentKey);
-                    lookupHandled = true;
-                  } else {
-                    // Sheet lookup failed — count as failure for auto-escalation
+                // ── Source mode: 'sheet' → skip panel API entirely ──
+                if (intent.lookupMode === "sheet") {
+                  if (!intent.fallbackSourceId) {
+                    // Misconfigured intent — sheet mode requires a sheet source.
+                    // Fail deterministically without touching the panel API.
                     const failCount = incrementFailCount(sessionId, intentKey);
                     const userFacingMsg = intent.fallbackMessage?.trim() || "Data tidak ditemukan. Silahkan periksa kembali data Anda, atau saya bantu hubungkan ke tim support.";
-                    finalText = userFacingMsg;
-                    await storage.createMessage({ sessionId, from: "chatvice", content: finalText });
-                    broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: finalText } });
-                    console.log(`[CustomLookup] intent=${intentKey} mode=sheet outcome=error session=${sessionId}`);
+                    await storage.createMessage({ sessionId, from: "chatvice", content: userFacingMsg });
+                    broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: userFacingMsg } });
+                    console.warn(`[CustomLookup] intent=${intentKey} mode=sheet no-fallbackSourceId — misconfigured, failing session=${sessionId}`);
                     if (failCount >= 3) {
                       resetFailCount(sessionId, intentKey);
                       await triggerAutoEscalate({ sessionId, merchantId: resolvedMerchantId, intentKey, intentName: intent.name, agentId: session?.agentId ?? null, broadcastFn: broadcastToSession });
                     }
-                    lookupHandled = true;
+                  } else {
+                    const sheetRes = await executeFallbackSheetLookup({
+                      merchantId: resolvedMerchantId,
+                      intent,
+                      fields,
+                      customerMessage: message,
+                      sessionId,
+                      openai,
+                    });
+                    if (sheetRes.ok && sheetRes.text) {
+                      finalText = sheetRes.text;
+                      await storage.createMessage({ sessionId, from: "chatvice", content: finalText });
+                      broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: finalText } });
+                      console.log(`[CustomLookup] intent=${intentKey} mode=sheet outcome=${sheetRes.outcome} session=${sessionId}`);
+                      resetFailCount(sessionId, intentKey);
+                    } else {
+                      const failCount = incrementFailCount(sessionId, intentKey);
+                      const userFacingMsg = intent.fallbackMessage?.trim() || "Data tidak ditemukan. Silahkan periksa kembali data Anda, atau saya bantu hubungkan ke tim support.";
+                      finalText = userFacingMsg;
+                      await storage.createMessage({ sessionId, from: "chatvice", content: finalText });
+                      broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: finalText } });
+                      console.log(`[CustomLookup] intent=${intentKey} mode=sheet outcome=error session=${sessionId}`);
+                      if (failCount >= 3) {
+                        resetFailCount(sessionId, intentKey);
+                        await triggerAutoEscalate({ sessionId, merchantId: resolvedMerchantId, intentKey, intentName: intent.name, agentId: session?.agentId ?? null, broadcastFn: broadcastToSession });
+                      }
+                    }
                   }
+                  lookupHandled = true;
                 }
 
                 // ── Source mode: 'api' (default) → call panel API ──
-                let lookupRes: any = null;
+                let lookupRes: ConnectorResult | null = null;
                 if (!lookupHandled) {
                   lookupRes = await executeIntentLookup({
                     source: cdsSource,
@@ -21848,41 +21860,54 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
       let finalText = "";
       let submitHandled = false;
 
-      // ── Source mode: 'sheet' → skip panel API, go directly to sheet ──
-      if (intent.lookupMode === "sheet" && intent.fallbackSourceId) {
-        const sheetRes = await executeFallbackSheetLookup({
-          merchantId: merchant.id,
-          intent,
-          fields: fieldEntries,
-          customerMessage: rawFields.map((f: any) => `${f.label || f.key}: ${fieldEntries[f.key] ?? ""}`).join(", "),
-          sessionId: String(sessionId),
-          openai,
-        });
-        if (sheetRes.ok && sheetRes.text) {
-          finalText = sheetRes.text;
-          await storage.createMessage({ sessionId: String(sessionId), from: "chatvice", content: finalText });
-          broadcastToSession(String(sessionId), { type: "message", message: { from: "chatvice", content: finalText } });
-          console.log(`[CustomLookupSubmit] intent=${intentKey} mode=sheet outcome=${sheetRes.outcome} session=${sessionId}`);
-          resetFailCount(String(sessionId), intentKey);
-          submitHandled = true;
-        } else {
+      // ── Source mode: 'sheet' → skip panel API entirely ──
+      if (intent.lookupMode === "sheet") {
+        if (!intent.fallbackSourceId) {
+          // Misconfigured intent — sheet mode requires a sheet source.
           const failCount = incrementFailCount(String(sessionId), intentKey);
           const userFacingMsg = intent.fallbackMessage?.trim() || "Data tidak ditemukan. Silahkan periksa kembali data Anda, atau saya bantu hubungkan ke tim support.";
-          finalText = userFacingMsg;
-          await storage.createMessage({ sessionId: String(sessionId), from: "chatvice", content: finalText });
-          broadcastToSession(String(sessionId), { type: "message", message: { from: "chatvice", content: finalText } });
-          console.log(`[CustomLookupSubmit] intent=${intentKey} mode=sheet outcome=error session=${sessionId}`);
+          await storage.createMessage({ sessionId: String(sessionId), from: "chatvice", content: userFacingMsg });
+          broadcastToSession(String(sessionId), { type: "message", message: { from: "chatvice", content: userFacingMsg } });
+          console.warn(`[CustomLookupSubmit] intent=${intentKey} mode=sheet no-fallbackSourceId — misconfigured, failing session=${sessionId}`);
           if (failCount >= 3) {
             resetFailCount(String(sessionId), intentKey);
             const sessionForEscalate = await storage.getSession(String(sessionId));
             await triggerAutoEscalate({ sessionId: String(sessionId), merchantId: merchant.id, intentKey, intentName: intent.name, agentId: sessionForEscalate?.agentId ?? null, broadcastFn: broadcastToSession });
           }
-          submitHandled = true;
+        } else {
+          const sheetRes = await executeFallbackSheetLookup({
+            merchantId: merchant.id,
+            intent,
+            fields: fieldEntries,
+            customerMessage: rawFields.map((f: any) => `${f.label || f.key}: ${fieldEntries[f.key] ?? ""}`).join(", "),
+            sessionId: String(sessionId),
+            openai,
+          });
+          if (sheetRes.ok && sheetRes.text) {
+            finalText = sheetRes.text;
+            await storage.createMessage({ sessionId: String(sessionId), from: "chatvice", content: finalText });
+            broadcastToSession(String(sessionId), { type: "message", message: { from: "chatvice", content: finalText } });
+            console.log(`[CustomLookupSubmit] intent=${intentKey} mode=sheet outcome=${sheetRes.outcome} session=${sessionId}`);
+            resetFailCount(String(sessionId), intentKey);
+          } else {
+            const failCount = incrementFailCount(String(sessionId), intentKey);
+            const userFacingMsg = intent.fallbackMessage?.trim() || "Data tidak ditemukan. Silahkan periksa kembali data Anda, atau saya bantu hubungkan ke tim support.";
+            finalText = userFacingMsg;
+            await storage.createMessage({ sessionId: String(sessionId), from: "chatvice", content: finalText });
+            broadcastToSession(String(sessionId), { type: "message", message: { from: "chatvice", content: finalText } });
+            console.log(`[CustomLookupSubmit] intent=${intentKey} mode=sheet outcome=error session=${sessionId}`);
+            if (failCount >= 3) {
+              resetFailCount(String(sessionId), intentKey);
+              const sessionForEscalate = await storage.getSession(String(sessionId));
+              await triggerAutoEscalate({ sessionId: String(sessionId), merchantId: merchant.id, intentKey, intentName: intent.name, agentId: sessionForEscalate?.agentId ?? null, broadcastFn: broadcastToSession });
+            }
+          }
         }
+        submitHandled = true;
       }
 
       // ── Source mode: 'api' (default) → call panel API ──
-      let lookupRes: any = null;
+      let lookupRes: ConnectorResult | null = null;
       if (!submitHandled) {
         lookupRes = await executeIntentLookup({
           source: cdsSource,
