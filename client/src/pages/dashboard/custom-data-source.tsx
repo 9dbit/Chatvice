@@ -1221,8 +1221,12 @@ export function ConnectWizard({
     testConn.mutate();
   };
 
-  // Derived gating flags
-  const canTest = baseUrl.trim().length > 0;
+  // Derived gating flags.
+  // canSave: a base URL must be entered before saving.
+  // canTest: connection can only be tested after the source is saved (created).
+  // canScaffold: intent scaffolding requires a successful test or an existing source (re-run).
+  const canSave = baseUrl.trim().length > 0;
+  const canTest = created && baseUrl.trim().length > 0;
   const canScaffold = testResult?.ok === true || isRerun;
 
   return (
@@ -1308,15 +1312,34 @@ export function ConnectWizard({
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Save button — always shown while not yet created or URL has changed */}
+            {(!created || (existingSource && ((existingSource.baseUrl || "") !== baseUrl || (existingSource.name || "") !== name))) && (
+              <Button
+                onClick={async () => {
+                  if (!canSave) {
+                    toast({ title: t("dashboard.customDataSource.wizard.baseUrlRequired"), variant: "destructive" });
+                    return;
+                  }
+                  await saveSource.mutateAsync();
+                }}
+                disabled={saveSource.isPending || !canSave}
+                data-testid="wizard-button-save"
+              >
+                {saveSource.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                {t("dashboard.customDataSource.wizard.saveButton") || "Simpan"}
+              </Button>
+            )}
+            {/* Test button — only available after the source is saved */}
             <Button
-              onClick={goSaveAndTest}
-              disabled={saveSource.isPending || testConn.isPending || !canTest}
+              variant={created ? "default" : "outline"}
+              onClick={() => { if (canTest) testConn.mutate(); }}
+              disabled={testConn.isPending || !canTest}
               data-testid="wizard-button-test"
             >
-              {(saveSource.isPending || testConn.isPending) && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-              {created ? t("dashboard.customDataSource.wizard.retestButton") : t("dashboard.customDataSource.wizard.testButton")}
+              {testConn.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+              {testResult ? t("dashboard.customDataSource.wizard.retestButton") : t("dashboard.customDataSource.wizard.testButton")}
             </Button>
-            {created && !testResult?.ok && (
+            {created && !testResult && (
               <span className="text-xs text-muted-foreground">{t("dashboard.customDataSource.wizard.savedHint")}</span>
             )}
           </div>
@@ -1386,91 +1409,108 @@ export function ConnectWizard({
         </CardContent>
       </Card>
 
-      {/* ── Section 4: Intent scaffolding from preset ── */}
-      {activePreset && (
-        <Card data-testid="wizard-section-intents" className={!canScaffold ? "opacity-50 pointer-events-none" : ""}>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-primary" />
-              {t("dashboard.customDataSource.wizard.step4Title")}
-              {!canScaffold && <Badge variant="secondary" className="text-xs font-normal ml-1">{t("dashboard.customDataSource.wizard.lockedTestHint") || "Tes koneksi dulu"}</Badge>}
-            </CardTitle>
-            <CardDescription className="text-xs">{t("dashboard.customDataSource.wizard.step4Desc")}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3" data-testid="wizard-step-4">
-            <div className="p-3 rounded-md border bg-muted/30 flex items-start justify-between gap-3 flex-wrap">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium flex items-center gap-2">
-                  <ClipboardList className="w-4 h-4 text-primary" /> {t("dashboard.customDataSource.wizard.checklistTitle")}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("dashboard.customDataSource.wizard.checklistDesc")}
-                </p>
+      {/* ── Section 4: Intent scaffolding from preset — always visible ── */}
+      <Card
+        data-testid="wizard-section-intents"
+        className={(!canScaffold || !activePreset) ? "opacity-50 pointer-events-none" : ""}
+      >
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-primary" />
+            {t("dashboard.customDataSource.wizard.step4Title")}
+            {!activePreset && (
+              <Badge variant="secondary" className="text-xs font-normal ml-1">
+                {t("dashboard.customDataSource.wizard.lockedNoPreset") || "Pilih template dulu"}
+              </Badge>
+            )}
+            {activePreset && !canScaffold && (
+              <Badge variant="secondary" className="text-xs font-normal ml-1">
+                {t("dashboard.customDataSource.wizard.lockedTestHint") || "Tes koneksi dulu"}
+              </Badge>
+            )}
+          </CardTitle>
+          <CardDescription className="text-xs">{t("dashboard.customDataSource.wizard.step4Desc")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3" data-testid="wizard-step-4">
+          {!activePreset ? (
+            <p className="text-sm text-muted-foreground">
+              {t("dashboard.customDataSource.wizard.noPresetSelected") || "Pilih salah satu template di atas untuk melihat daftar intent yang bisa ditambahkan."}
+            </p>
+          ) : (
+            <>
+              <div className="p-3 rounded-md border bg-muted/30 flex items-start justify-between gap-3 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium flex items-center gap-2">
+                    <ClipboardList className="w-4 h-4 text-primary" /> {t("dashboard.customDataSource.wizard.checklistTitle")}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t("dashboard.customDataSource.wizard.checklistDesc")}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" asChild data-testid="wizard-link-checklist">
+                  <Link href="/dashboard/custom-data-source/integration-checklist">
+                    {t("dashboard.customDataSource.wizard.openChecklist")} <ArrowRight className="w-4 h-4 ml-1" />
+                  </Link>
+                </Button>
               </div>
-              <Button variant="outline" size="sm" asChild data-testid="wizard-link-checklist">
-                <Link href="/dashboard/custom-data-source/integration-checklist">
-                  {t("dashboard.customDataSource.wizard.openChecklist")} <ArrowRight className="w-4 h-4 ml-1" />
-                </Link>
-              </Button>
-            </div>
-            {(() => {
-              const existingKeySet = new Set(existingIntentKeys);
-              const remaining = activePreset.intents.filter(it => !existingKeySet.has(it.intentKey));
-              if (remaining.length === 0) {
-                return <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.wizard.allAdded")}</p>;
-              }
-              return (
-                <>
-                  <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.wizard.addHint")}</p>
-                  <div className="space-y-2">
-                    {remaining.map((it) => {
-                      const done = scaffolded.has(it.intentKey);
-                      return (
-                        <div
-                          key={it.intentKey}
-                          className="p-3 rounded-md border flex items-start justify-between gap-3"
-                          data-testid={`wizard-preset-intent-${it.intentKey}`}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Badge variant="outline" className="font-mono">{it.intentKey}</Badge>
-                              <span className="font-medium text-sm">{it.name}</span>
-                            </div>
-                            {it.description && <p className="text-xs text-muted-foreground mt-1">{it.description}</p>}
-                            <p className="text-xs text-muted-foreground mt-1 font-mono">{it.httpMethod} {it.endpointPath}</p>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant={done ? "outline" : "default"}
-                            disabled={done || scaffoldIntent.isPending}
-                            onClick={() => scaffoldIntent.mutate(it.intentKey)}
-                            data-testid={`wizard-button-add-${it.intentKey}`}
+              {(() => {
+                const existingKeySet = new Set(existingIntentKeys);
+                const remaining = activePreset.intents.filter(it => !existingKeySet.has(it.intentKey));
+                if (remaining.length === 0) {
+                  return <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.wizard.allAdded")}</p>;
+                }
+                return (
+                  <>
+                    <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.wizard.addHint")}</p>
+                    <div className="space-y-2">
+                      {remaining.map((it) => {
+                        const done = scaffolded.has(it.intentKey);
+                        return (
+                          <div
+                            key={it.intentKey}
+                            className="p-3 rounded-md border flex items-start justify-between gap-3"
+                            data-testid={`wizard-preset-intent-${it.intentKey}`}
                           >
-                            {done
-                              ? <><CheckCircle2 className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.wizard.added")}</>
-                              : <><Plus className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.wizard.add")}</>}
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              );
-            })()}
-          </CardContent>
-        </Card>
-      )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant="outline" className="font-mono">{it.intentKey}</Badge>
+                                <span className="font-medium text-sm">{it.name}</span>
+                              </div>
+                              {it.description && <p className="text-xs text-muted-foreground mt-1">{it.description}</p>}
+                              <p className="text-xs text-muted-foreground mt-1 font-mono">{it.httpMethod} {it.endpointPath}</p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant={done ? "outline" : "default"}
+                              disabled={done || scaffoldIntent.isPending}
+                              onClick={() => scaffoldIntent.mutate(it.intentKey)}
+                              data-testid={`wizard-button-add-${it.intentKey}`}
+                            >
+                              {done
+                                ? <><CheckCircle2 className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.wizard.added")}</>
+                                : <><Plus className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.wizard.add")}</>}
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* ── Footer action ── */}
+      {/* ── Footer: Finish requires connection saved (created) for first-time setup ── */}
       <div className="flex items-center justify-end gap-2 pt-2">
         <Button
-          variant={created ? "default" : "outline"}
           onClick={finish}
-          disabled={saveSource.isPending || testConn.isPending}
+          disabled={(!isRerun && !created) || saveSource.isPending || testConn.isPending}
           data-testid="wizard-button-finish"
         >
           <CheckCircle2 className="w-4 h-4 mr-1" />
-          {created ? t("dashboard.customDataSource.wizard.finish") : t("dashboard.customDataSource.wizard.skipFinish") || "Lewati & Selesai"}
+          {t("dashboard.customDataSource.wizard.finish")}
         </Button>
       </div>
     </div>
