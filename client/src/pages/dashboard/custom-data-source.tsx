@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Key, RefreshCw, Plug, Plus, Trash2, Pencil, Download, FileText, CheckCircle2, AlertCircle, Loader2, Copy, ArrowLeft, ArrowRight, Sparkles, Wand2, ClipboardList, Activity, HeartPulse, Eye, FileSpreadsheet, TriangleAlert } from "lucide-react";
+import { Database, Key, RefreshCw, Plug, Plus, Trash2, Pencil, Download, FileText, CheckCircle2, AlertCircle, Loader2, Copy, ArrowRight, Wand2, ClipboardList, Activity, HeartPulse, Eye, FileSpreadsheet, TriangleAlert } from "lucide-react";
 import { Link } from "wouter";
 import { useLanguage } from "@/hooks/use-language";
 import { DataEntryFormCard, useDataEntryFormCard } from "@/components/data-entry-form-card";
@@ -1060,68 +1060,6 @@ interface PresetDef {
   intents: PresetIntentDef[];
 }
 
-interface TourStageDef {
-  id: string;
-  selectors: string[];
-  wizardStep: 1 | 2 | 3 | 4;
-  titleKey: string;
-  bodyKey: string;
-}
-
-const TOUR_STAGES: TourStageDef[] = [
-  {
-    id: "preset",
-    selectors: ["wizard-step-1"],
-    wizardStep: 1,
-    titleKey: "dashboard.customDataSource.tour.preset.title",
-    bodyKey: "dashboard.customDataSource.tour.preset.body",
-  },
-  {
-    id: "baseUrl",
-    selectors: ["wizard-input-base-url"],
-    wizardStep: 2,
-    titleKey: "dashboard.customDataSource.tour.baseUrl.title",
-    bodyKey: "dashboard.customDataSource.tour.baseUrl.body",
-  },
-  {
-    id: "test",
-    selectors: ["wizard-test-result-ok", "wizard-test-result-fail"],
-    wizardStep: 2,
-    titleKey: "dashboard.customDataSource.tour.test.title",
-    bodyKey: "dashboard.customDataSource.tour.test.body",
-  },
-  {
-    id: "apiKey",
-    selectors: ["wizard-text-api-key"],
-    wizardStep: 3,
-    titleKey: "dashboard.customDataSource.tour.apiKey.title",
-    bodyKey: "dashboard.customDataSource.tour.apiKey.body",
-  },
-  {
-    id: "intents",
-    selectors: ["wizard-step-4"],
-    wizardStep: 4,
-    titleKey: "dashboard.customDataSource.tour.intents.title",
-    bodyKey: "dashboard.customDataSource.tour.intents.body",
-  },
-];
-
-const tourStorageKey = () => {
-  try {
-    const mid = localStorage.getItem("merchantId") || "anon";
-    return `chatvice.tour.custom-data-wizard.v1.${mid}`;
-  } catch {
-    return "chatvice.tour.custom-data-wizard.v1.anon";
-  }
-};
-
-const findTourEl = (selectors: string[]): HTMLElement | null => {
-  for (const sel of selectors) {
-    const el = document.querySelector<HTMLElement>(`[data-testid="${sel}"]`);
-    if (el) return el;
-  }
-  return null;
-};
 
 function HealthBadge({ health, onRefresh, refreshing }: { health: HealthSummary; onRefresh: () => void; refreshing: boolean }) {
   const { t, language } = useLanguage();
@@ -1186,166 +1124,6 @@ function HealthBadge({ health, onRefresh, refreshing }: { health: HealthSummary;
   );
 }
 
-function WizardTour({
-  step,
-  testResultPresent,
-  apiKeyPresent,
-  presetCount,
-  onClose,
-}: {
-  step: 1 | 2 | 3 | 4;
-  testResultPresent: boolean;
-  apiKeyPresent: boolean;
-  presetCount: number;
-  onClose: () => void;
-}) {
-  const { t } = useLanguage();
-  const [tourIndex, setTourIndex] = useState(0);
-  const [rect, setRect] = useState<DOMRect | null>(null);
-  const highlightedRef = useRef<{ el: HTMLElement; prev: string } | null>(null);
-
-  // Auto-advance past stages whose wizardStep is now in the past.
-  useEffect(() => {
-    setTourIndex((i) => {
-      let n = i;
-      while (n < TOUR_STAGES.length && TOUR_STAGES[n].wizardStep < step) n++;
-      return n;
-    });
-  }, [step]);
-
-  const stage = tourIndex < TOUR_STAGES.length ? TOUR_STAGES[tourIndex] : null;
-  const gating =
-    !stage ||
-    (stage.wizardStep === step &&
-      (stage.id !== "test" || testResultPresent) &&
-      (stage.id !== "preset" || presetCount > 0) &&
-      (stage.id !== "apiKey" || apiKeyPresent));
-  const visible = !!stage && gating && stage.wizardStep === step;
-
-  // Locate target + position popover; highlight target with ring.
-  useEffect(() => {
-    if (!visible || !stage) {
-      setRect(null);
-      if (highlightedRef.current) {
-        highlightedRef.current.el.style.boxShadow = highlightedRef.current.prev;
-        highlightedRef.current = null;
-      }
-      return;
-    }
-    const el = findTourEl(stage.selectors);
-    if (!el) {
-      setRect(null);
-      return;
-    }
-    if (highlightedRef.current && highlightedRef.current.el !== el) {
-      highlightedRef.current.el.style.boxShadow = highlightedRef.current.prev;
-      highlightedRef.current = null;
-    }
-    if (!highlightedRef.current) {
-      highlightedRef.current = { el, prev: el.style.boxShadow };
-      el.style.boxShadow = "0 0 0 3px hsl(var(--primary) / 0.6)";
-      el.style.borderRadius = el.style.borderRadius || "6px";
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-
-    const update = () => setRect(el.getBoundingClientRect());
-    update();
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update, true);
-    return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update, true);
-    };
-  }, [visible, stage, testResultPresent, apiKeyPresent, presetCount]);
-
-  // Cleanup highlight on unmount.
-  useEffect(() => {
-    return () => {
-      if (highlightedRef.current) {
-        highlightedRef.current.el.style.boxShadow = highlightedRef.current.prev;
-        highlightedRef.current = null;
-      }
-    };
-  }, []);
-
-  if (!stage || !visible) return null;
-
-  const isLast = tourIndex >= TOUR_STAGES.length - 1;
-  const nextStage = !isLast ? TOUR_STAGES[tourIndex + 1] : null;
-  const nextEligible = !nextStage || nextStage.wizardStep <= step;
-  const advance = () => {
-    if (isLast) {
-      onClose();
-      return;
-    }
-    if (!nextEligible) return;
-    setTourIndex((i) => i + 1);
-  };
-
-  // Position the popover below the target, falling back to top of viewport.
-  const popoverWidth = 320;
-  let style: React.CSSProperties = {
-    position: "fixed",
-    zIndex: 1000,
-    width: popoverWidth,
-  };
-  if (rect) {
-    const margin = 12;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    let top = rect.bottom + margin;
-    if (top + 200 > vh) top = Math.max(margin, rect.top - 200 - margin);
-    let left = Math.min(
-      Math.max(margin, rect.left),
-      vw - popoverWidth - margin,
-    );
-    style.top = top;
-    style.left = left;
-  } else {
-    style.top = 80;
-    style.right = 24;
-  }
-
-  return (
-    <div
-      className="bg-popover text-popover-foreground border rounded-md shadow-lg p-4"
-      style={style}
-      data-testid={`tour-popover-${stage.id}`}
-    >
-      <div className="flex items-start gap-2 mb-2">
-        <Sparkles className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-        <div className="flex-1">
-          <div className="font-medium text-sm">{t(stage.titleKey)}</div>
-          <div className="text-xs text-muted-foreground mt-1">{t(stage.bodyKey)}</div>
-        </div>
-      </div>
-      <div className="flex items-center justify-between gap-2 mt-3">
-        <span className="text-xs text-muted-foreground">
-          {tourIndex + 1} / {TOUR_STAGES.length}
-        </span>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onClose}
-            data-testid="button-tour-skip"
-          >
-            {t("dashboard.customDataSource.tour.skip")}
-          </Button>
-          <Button
-            size="sm"
-            onClick={advance}
-            disabled={!isLast && !nextEligible}
-            data-testid="button-tour-next"
-          >
-            {isLast ? t("dashboard.customDataSource.tour.done") : t("dashboard.customDataSource.tour.next")}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function ConnectWizard({
   onApiKey,
   onFinish,
@@ -1362,7 +1140,6 @@ export function ConnectWizard({
   const { toast } = useToast();
   const { t } = useLanguage();
   const isRerun = !!existingSource;
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [presetId, setPresetId] = useState<string>("");
   const [name, setName] = useState(existingSource?.name || t("dashboard.customDataSource.wizard.defaultName"));
   const [baseUrl, setBaseUrl] = useState(existingSource?.baseUrl || "");
@@ -1370,18 +1147,6 @@ export function ConnectWizard({
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ ok: boolean; status: number; latencyMs: number; sample?: string; error?: string } | null>(null);
   const [scaffolded, setScaffolded] = useState<Set<string>>(new Set());
-  const [tourActive, setTourActive] = useState<boolean>(() => {
-    if (existingSource) return false;
-    try {
-      return localStorage.getItem(tourStorageKey()) !== "1";
-    } catch {
-      return true;
-    }
-  });
-  const closeTour = () => {
-    try { localStorage.setItem(tourStorageKey(), "1"); } catch {}
-    setTourActive(false);
-  };
 
   const { data: presets = [] } = useQuery<PresetDef[]>({
     queryKey: ["/api/merchant/custom-data-source/presets"],
@@ -1390,14 +1155,11 @@ export function ConnectWizard({
 
   const saveSource = useMutation({
     mutationFn: async () => {
-      // Step 4 will scaffold intents one-by-one, so we save with preset:"none"
-      // to skip the legacy auto-seed path.
       const body: Record<string, unknown> = {
         name: name || t("dashboard.customDataSource.wizard.defaultName"),
         baseUrl,
         preset: "none",
       };
-      // Only force-enable on first creation; preserve toggle state on re-run.
       if (!isRerun) body.isEnabled = true;
       const res = await apiRequest("PUT", "/api/merchant/custom-data-source", body);
       return res.json();
@@ -1405,10 +1167,6 @@ export function ConnectWizard({
     onSuccess: (data: any) => {
       setCreated(true);
       if (typeof data?.apiKey === "string") setApiKey(data.apiKey);
-      // NOTE: do NOT invalidate /api/merchant/custom-data-source here — that
-      // would refetch the source on the parent page and could cause UI
-      // transitions away from the wizard mid-flow. The parent invalidates
-      // both queries when the wizard finishes.
     },
     onError: (err: any) => toast({ title: t("dashboard.customDataSource.wizard.saveFailed"), description: err?.message, variant: "destructive" }),
   });
@@ -1453,7 +1211,6 @@ export function ConnectWizard({
       toast({ title: t("dashboard.customDataSource.wizard.baseUrlRequired"), variant: "destructive" });
       return;
     }
-    // On re-run, always save so edits to name/baseUrl persist before the test.
     const dirty = isRerun && (
       (existingSource?.baseUrl || "") !== baseUrl ||
       (existingSource?.name || "") !== name
@@ -1464,85 +1221,48 @@ export function ConnectWizard({
     testConn.mutate();
   };
 
+  // Derived gating flags
+  const canTest = baseUrl.trim().length > 0;
+  const canScaffold = testResult?.ok === true || isRerun;
+
   return (
-    <div className={inDialog ? "space-y-6" : "p-6 max-w-3xl mx-auto space-y-6"} data-testid="wizard-connect-panel">
-      {tourActive && (
-        <WizardTour
-          step={step}
-          testResultPresent={!!testResult}
-          apiKeyPresent={!!apiKey}
-          presetCount={presets.length}
-          onClose={closeTour}
-        />
-      )}
-      <div className="flex items-start justify-between gap-3">
+    <div className={inDialog ? "space-y-4" : "p-6 max-w-3xl mx-auto space-y-4"} data-testid="wizard-connect-panel">
+      {!inDialog && (
         <div>
-        <h1 className="text-2xl font-semibold flex items-center gap-2">
-          <Database className="w-6 h-6 text-primary" />
-          {t("dashboard.customDataSource.title")}
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {t("dashboard.customDataSource.subtitle")}
-        </p>
+          <h1 className="text-2xl font-semibold flex items-center gap-2">
+            <Database className="w-6 h-6 text-primary" />
+            {t("dashboard.customDataSource.title")}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {t("dashboard.customDataSource.subtitle")}
+          </p>
         </div>
-        {!tourActive && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setTourActive(true)}
-            data-testid="button-tour-restart"
-          >
-            <Sparkles className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.tour.show")}
-          </Button>
-        )}
-      </div>
+      )}
 
-      <div className="flex items-center gap-2" data-testid="wizard-stepper">
-        {[1, 2, 3, 4].map((n, i) => (
-          <div key={n} className="flex items-center gap-2 flex-1">
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium border ${
-              step === n ? "bg-primary text-primary-foreground border-primary" :
-              step > n ? "bg-emerald-500 text-white border-emerald-500" :
-              "bg-muted text-muted-foreground"
-            }`}>
-              {step > n ? <CheckCircle2 className="w-4 h-4" /> : n}
-            </div>
-            {i < 3 && <div className={`flex-1 h-px ${step > n ? "bg-emerald-500" : "bg-border"}`} />}
-          </div>
-        ))}
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Wand2 className="w-5 h-5 text-primary" />
-            {step === 1 && t("dashboard.customDataSource.wizard.step1Title")}
-            {step === 2 && t("dashboard.customDataSource.wizard.step2Title")}
-            {step === 3 && t("dashboard.customDataSource.wizard.step3Title")}
-            {step === 4 && t("dashboard.customDataSource.wizard.step4Title")}
-          </CardTitle>
-          <CardDescription>
-            {step === 1 && t("dashboard.customDataSource.wizard.step1Desc")}
-            {step === 2 && t("dashboard.customDataSource.wizard.step2Desc")}
-            {step === 3 && t("dashboard.customDataSource.wizard.step3Desc")}
-            {step === 4 && t("dashboard.customDataSource.wizard.step4Desc")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {step === 1 && (
+      {/* ── Section 1: Preset chooser (optional) ── */}
+      {presets.length > 0 && (
+        <Card data-testid="wizard-section-preset">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Wand2 className="w-4 h-4 text-primary" />
+              {t("dashboard.customDataSource.wizard.step1Title")}
+            </CardTitle>
+            <CardDescription className="text-xs">{t("dashboard.customDataSource.wizard.step1Desc")}</CardDescription>
+          </CardHeader>
+          <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3" data-testid="wizard-step-1">
               {presets.map(p => (
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => setPresetId(p.id)}
+                  onClick={() => setPresetId(presetId === p.id ? "" : p.id)}
                   className={`text-left p-4 rounded-md border hover-elevate active-elevate-2 ${
                     presetId === p.id ? "border-primary ring-1 ring-primary" : ""
                   }`}
                   data-testid={`button-preset-${p.id}`}
                 >
                   <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-primary" />
+                    <Wand2 className="w-4 h-4 text-primary" />
                     <span className="font-medium">{p.name}</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">{p.description}</p>
@@ -1552,132 +1272,156 @@ export function ConnectWizard({
                 </button>
               ))}
             </div>
-          )}
+          </CardContent>
+        </Card>
+      )}
 
-          {step === 2 && (
-            <div className="space-y-3" data-testid="wizard-step-2">
-              <div>
-                <Label>{t("dashboard.customDataSource.wizard.nameLabel")}</Label>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={t("dashboard.customDataSource.wizard.namePlaceholder")}
-                  data-testid="wizard-input-name"
-                />
+      {/* ── Section 2: Connection settings + test ── */}
+      <Card data-testid="wizard-section-connection">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Plug className="w-4 h-4 text-primary" />
+            {t("dashboard.customDataSource.wizard.step2Title")}
+          </CardTitle>
+          <CardDescription className="text-xs">{t("dashboard.customDataSource.wizard.step2Desc")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3" data-testid="wizard-step-2">
+          <div>
+            <Label>{t("dashboard.customDataSource.wizard.nameLabel")}</Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t("dashboard.customDataSource.wizard.namePlaceholder")}
+              data-testid="wizard-input-name"
+            />
+          </div>
+          <div>
+            <Label>{t("dashboard.customDataSource.wizard.baseUrlLabel")}</Label>
+            <Input
+              value={baseUrl}
+              onChange={(e) => { setBaseUrl(e.target.value); setTestResult(null); setCreated(false); setApiKey(null); }}
+              placeholder={t("dashboard.customDataSource.settings.placeholder.baseUrl")}
+              data-testid="wizard-input-base-url"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              {t("dashboard.customDataSource.wizard.baseUrlHint")}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              onClick={goSaveAndTest}
+              disabled={saveSource.isPending || testConn.isPending || !canTest}
+              data-testid="wizard-button-test"
+            >
+              {(saveSource.isPending || testConn.isPending) && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+              {created ? t("dashboard.customDataSource.wizard.retestButton") : t("dashboard.customDataSource.wizard.testButton")}
+            </Button>
+            {created && !testResult?.ok && (
+              <span className="text-xs text-muted-foreground">{t("dashboard.customDataSource.wizard.savedHint")}</span>
+            )}
+          </div>
+          {testResult && (
+            <div
+              data-testid={testResult.ok ? "wizard-test-result-ok" : "wizard-test-result-fail"}
+              className={`p-3 rounded-md border text-sm ${testResult.ok ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-amber-50 dark:bg-amber-950/30"}`}
+            >
+              <div className="flex items-center gap-2 font-medium">
+                {testResult.ok ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-amber-600" />}
+                {testResult.ok ? t("dashboard.customDataSource.wizard.success") : t("dashboard.customDataSource.wizard.failed")} • Status {testResult.status} • {testResult.latencyMs}ms
               </div>
-              <div>
-                <Label>{t("dashboard.customDataSource.wizard.baseUrlLabel")}</Label>
-                <Input
-                  value={baseUrl}
-                  onChange={(e) => { setBaseUrl(e.target.value); setTestResult(null); setCreated(false); setApiKey(null); }}
-                  placeholder={t("dashboard.customDataSource.settings.placeholder.baseUrl")}
-                  data-testid="wizard-input-base-url"
-                />
+              {testResult.sample && <pre className="text-xs mt-2 overflow-auto max-h-32">{testResult.sample}</pre>}
+              {testResult.error && <p className="text-xs mt-2 text-amber-700 dark:text-amber-300">{testResult.error}</p>}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Section 3: API Key ── */}
+      <Card data-testid="wizard-section-apikey" className={!created ? "opacity-50 pointer-events-none" : ""}>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Key className="w-4 h-4 text-primary" />
+            {t("dashboard.customDataSource.wizard.step3Title")}
+            {!created && <Badge variant="secondary" className="text-xs font-normal ml-1">{t("dashboard.customDataSource.wizard.lockedHint") || "Simpan koneksi dulu"}</Badge>}
+          </CardTitle>
+          <CardDescription className="text-xs">{t("dashboard.customDataSource.wizard.step3Desc")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3" data-testid="wizard-step-3">
+          <div className="p-3 rounded-md border bg-amber-50 dark:bg-amber-950/30 text-sm">
+            <div className="flex items-center gap-2 font-medium">
+              <AlertCircle className="w-4 h-4 text-amber-600" />
+              {t("dashboard.customDataSource.wizard.apiKeyWarning")}
+            </div>
+            <p className="text-xs mt-1 text-muted-foreground">
+              {t("dashboard.customDataSource.wizard.apiKeyHint")}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Input
+              value={apiKey || t("dashboard.customDataSource.wizard.apiKeyPlaceholder")}
+              readOnly
+              className="font-mono"
+              data-testid="wizard-text-api-key"
+            />
+            <Button
+              size="icon"
+              variant="outline"
+              disabled={!apiKey}
+              onClick={() => {
+                if (apiKey) {
+                  navigator.clipboard.writeText(apiKey);
+                  toast({ title: t("dashboard.customDataSource.wizard.apiKeyCopied") });
+                }
+              }}
+              data-testid="wizard-button-copy-key"
+            >
+              <Copy className="w-4 h-4" />
+            </Button>
+          </div>
+          {!apiKey && (
+            <p className="text-xs text-muted-foreground">
+              {t("dashboard.customDataSource.wizard.apiKeyMissing")}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Section 4: Intent scaffolding from preset ── */}
+      {activePreset && (
+        <Card data-testid="wizard-section-intents" className={!canScaffold ? "opacity-50 pointer-events-none" : ""}>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ClipboardList className="w-4 h-4 text-primary" />
+              {t("dashboard.customDataSource.wizard.step4Title")}
+              {!canScaffold && <Badge variant="secondary" className="text-xs font-normal ml-1">{t("dashboard.customDataSource.wizard.lockedTestHint") || "Tes koneksi dulu"}</Badge>}
+            </CardTitle>
+            <CardDescription className="text-xs">{t("dashboard.customDataSource.wizard.step4Desc")}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3" data-testid="wizard-step-4">
+            <div className="p-3 rounded-md border bg-muted/30 flex items-start justify-between gap-3 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <ClipboardList className="w-4 h-4 text-primary" /> {t("dashboard.customDataSource.wizard.checklistTitle")}
+                </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {t("dashboard.customDataSource.wizard.baseUrlHint")}
+                  {t("dashboard.customDataSource.wizard.checklistDesc")}
                 </p>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button
-                  onClick={goSaveAndTest}
-                  disabled={saveSource.isPending || testConn.isPending || !baseUrl.trim()}
-                  data-testid="wizard-button-test"
-                >
-                  {(saveSource.isPending || testConn.isPending) && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-                  {created ? t("dashboard.customDataSource.wizard.retestButton") : t("dashboard.customDataSource.wizard.testButton")}
-                </Button>
-                {created && !testResult?.ok && (
-                  <span className="text-xs text-muted-foreground">{t("dashboard.customDataSource.wizard.savedHint")}</span>
-                )}
-              </div>
-              {testResult && (
-                <div
-                  data-testid={testResult.ok ? "wizard-test-result-ok" : "wizard-test-result-fail"}
-                  className={`p-3 rounded-md border text-sm ${testResult.ok ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-amber-50 dark:bg-amber-950/30"}`}
-                >
-                  <div className="flex items-center gap-2 font-medium">
-                    {testResult.ok ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-amber-600" />}
-                    {testResult.ok ? t("dashboard.customDataSource.wizard.success") : t("dashboard.customDataSource.wizard.failed")} • Status {testResult.status} • {testResult.latencyMs}ms
-                  </div>
-                  {testResult.sample && <pre className="text-xs mt-2 overflow-auto max-h-32">{testResult.sample}</pre>}
-                  {testResult.error && <p className="text-xs mt-2 text-amber-700 dark:text-amber-300">{testResult.error}</p>}
-                </div>
-              )}
+              <Button variant="outline" size="sm" asChild data-testid="wizard-link-checklist">
+                <Link href="/dashboard/custom-data-source/integration-checklist">
+                  {t("dashboard.customDataSource.wizard.openChecklist")} <ArrowRight className="w-4 h-4 ml-1" />
+                </Link>
+              </Button>
             </div>
-          )}
-
-          {step === 3 && (
-            <div className="space-y-3" data-testid="wizard-step-3">
-              <div className="p-3 rounded-md border bg-amber-50 dark:bg-amber-950/30 text-sm">
-                <div className="flex items-center gap-2 font-medium">
-                  <AlertCircle className="w-4 h-4 text-amber-600" />
-                  {t("dashboard.customDataSource.wizard.apiKeyWarning")}
-                </div>
-                <p className="text-xs mt-1 text-muted-foreground">
-                  {t("dashboard.customDataSource.wizard.apiKeyHint")}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Input
-                  value={apiKey || t("dashboard.customDataSource.wizard.apiKeyPlaceholder")}
-                  readOnly
-                  className="font-mono"
-                  data-testid="wizard-text-api-key"
-                />
-                <Button
-                  size="icon"
-                  variant="outline"
-                  disabled={!apiKey}
-                  onClick={() => {
-                    if (apiKey) {
-                      navigator.clipboard.writeText(apiKey);
-                      toast({ title: t("dashboard.customDataSource.wizard.apiKeyCopied") });
-                    }
-                  }}
-                  data-testid="wizard-button-copy-key"
-                >
-                  <Copy className="w-4 h-4" />
-                </Button>
-              </div>
-              {!apiKey && (
-                <p className="text-xs text-muted-foreground">
-                  {t("dashboard.customDataSource.wizard.apiKeyMissing")}
-                </p>
-              )}
-            </div>
-          )}
-
-          {step === 4 && (() => {
-            const existingKeySet = new Set(existingIntentKeys);
-            const remaining = activePreset?.intents.filter(it => !existingKeySet.has(it.intentKey)) || [];
-            return (
-            <div className="space-y-3" data-testid="wizard-step-4">
-              <div className="p-3 rounded-md border bg-muted/30 flex items-start justify-between gap-3 flex-wrap">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium flex items-center gap-2">
-                    <ClipboardList className="w-4 h-4 text-primary" /> {t("dashboard.customDataSource.wizard.checklistTitle")}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t("dashboard.customDataSource.wizard.checklistDesc")}
-                  </p>
-                </div>
-                <Button variant="outline" size="sm" asChild data-testid="wizard-link-checklist">
-                  <Link href="/dashboard/custom-data-source/integration-checklist">
-                    {t("dashboard.customDataSource.wizard.openChecklist")} <ArrowRight className="w-4 h-4 ml-1" />
-                  </Link>
-                </Button>
-              </div>
-              {!activePreset || activePreset.intents.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.wizard.noPresetIntents")}</p>
-              ) : remaining.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {t("dashboard.customDataSource.wizard.allAdded")}
-                </p>
-              ) : (
+            {(() => {
+              const existingKeySet = new Set(existingIntentKeys);
+              const remaining = activePreset.intents.filter(it => !existingKeySet.has(it.intentKey));
+              if (remaining.length === 0) {
+                return <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.wizard.allAdded")}</p>;
+              }
+              return (
                 <>
-                  <p className="text-sm text-muted-foreground">
-                    {t("dashboard.customDataSource.wizard.addHint")}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.wizard.addHint")}</p>
                   <div className="space-y-2">
                     {remaining.map((it) => {
                       const done = scaffolded.has(it.intentKey);
@@ -1702,58 +1446,32 @@ export function ConnectWizard({
                             onClick={() => scaffoldIntent.mutate(it.intentKey)}
                             data-testid={`wizard-button-add-${it.intentKey}`}
                           >
-                            {done ? <><CheckCircle2 className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.wizard.added")}</> : <><Plus className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.wizard.add")}</>}
+                            {done
+                              ? <><CheckCircle2 className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.wizard.added")}</>
+                              : <><Plus className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.wizard.add")}</>}
                           </Button>
                         </div>
                       );
                     })}
                   </div>
                 </>
-              )}
-            </div>
-            );
-          })()}
-        </CardContent>
-      </Card>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      )}
 
-      <div className="flex items-center justify-between gap-2">
+      {/* ── Footer action ── */}
+      <div className="flex items-center justify-end gap-2 pt-2">
         <Button
-          variant="outline"
-          onClick={() => setStep((s) => (Math.max(1, s - 1) as 1 | 2 | 3 | 4))}
-          disabled={step === 1}
-          data-testid="wizard-button-back"
+          variant={created ? "default" : "outline"}
+          onClick={finish}
+          disabled={saveSource.isPending || testConn.isPending}
+          data-testid="wizard-button-finish"
         >
-          <ArrowLeft className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.wizard.back")}
+          <CheckCircle2 className="w-4 h-4 mr-1" />
+          {created ? t("dashboard.customDataSource.wizard.finish") : t("dashboard.customDataSource.wizard.skipFinish") || "Lewati & Selesai"}
         </Button>
-        {step < 4 ? (
-          <Button
-            onClick={async () => {
-              // On re-run, persist edits to name/baseUrl when leaving Step 2
-              // even if the user never clicked "Tes ulang koneksi".
-              if (step === 2 && isRerun) {
-                const dirty =
-                  (existingSource?.baseUrl || "") !== baseUrl ||
-                  (existingSource?.name || "") !== name;
-                if (dirty && baseUrl.trim()) {
-                  try { await saveSource.mutateAsync(); } catch { return; }
-                }
-              }
-              setStep((s) => (Math.min(4, s + 1) as 1 | 2 | 3 | 4));
-            }}
-            disabled={
-              (step === 1 && !presetId) ||
-              (step === 2 && !created) ||
-              saveSource.isPending
-            }
-            data-testid="wizard-button-next"
-          >
-            {t("dashboard.customDataSource.wizard.next")} <ArrowRight className="w-4 h-4 ml-1" />
-          </Button>
-        ) : (
-          <Button onClick={finish} data-testid="wizard-button-finish">
-            {t("dashboard.customDataSource.wizard.finish")} <CheckCircle2 className="w-4 h-4 ml-1" />
-          </Button>
-        )}
       </div>
     </div>
   );
