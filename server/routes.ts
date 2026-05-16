@@ -8086,22 +8086,60 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
               const cdsIntents = await storage.getCustomDataIntents(cdsSource.id);
               const intent = cdsIntents.find(i => i.intentKey.toLowerCase() === intentKey.toLowerCase() && i.isEnabled);
               if (intent) {
-                const lookupRes = await executeIntentLookup({
-                  source: cdsSource,
-                  intent,
-                  fields,
-                  merchantId: resolvedMerchantId,
-                  sessionId,
-                });
-
-                let finalText = lookupRes.text;
+                let finalText = "";
                 let lookupHandled = false;
+
+                // ── Source mode: 'sheet' → skip panel API, go directly to sheet ──
+                if (intent.lookupMode === "sheet" && intent.fallbackSourceId) {
+                  const sheetRes = await executeFallbackSheetLookup({
+                    merchantId: resolvedMerchantId,
+                    intent,
+                    fields,
+                    customerMessage: message,
+                    sessionId,
+                    openai,
+                  });
+                  if (sheetRes.ok && sheetRes.text) {
+                    finalText = sheetRes.text;
+                    await storage.createMessage({ sessionId, from: "chatvice", content: finalText });
+                    broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: finalText } });
+                    console.log(`[CustomLookup] intent=${intentKey} mode=sheet outcome=${sheetRes.outcome} session=${sessionId}`);
+                    resetFailCount(sessionId, intentKey);
+                    lookupHandled = true;
+                  } else {
+                    // Sheet lookup failed — count as failure for auto-escalation
+                    const failCount = incrementFailCount(sessionId, intentKey);
+                    const userFacingMsg = intent.fallbackMessage?.trim() || "Data tidak ditemukan. Silahkan periksa kembali data Anda, atau saya bantu hubungkan ke tim support.";
+                    finalText = userFacingMsg;
+                    await storage.createMessage({ sessionId, from: "chatvice", content: finalText });
+                    broadcastToSession(sessionId, { type: "message", message: { from: "chatvice", content: finalText } });
+                    console.log(`[CustomLookup] intent=${intentKey} mode=sheet outcome=error session=${sessionId}`);
+                    if (failCount >= 3) {
+                      resetFailCount(sessionId, intentKey);
+                      await triggerAutoEscalate({ sessionId, merchantId: resolvedMerchantId, intentKey, intentName: intent.name, agentId: session?.agentId ?? null, broadcastFn: broadcastToSession });
+                    }
+                    lookupHandled = true;
+                  }
+                }
+
+                // ── Source mode: 'api' (default) → call panel API ──
+                let lookupRes: any = null;
+                if (!lookupHandled) {
+                  lookupRes = await executeIntentLookup({
+                    source: cdsSource,
+                    intent,
+                    fields,
+                    merchantId: resolvedMerchantId,
+                    sessionId,
+                  });
+                  finalText = lookupRes.text;
+                }
 
                 // ── Google Sheet fallback on not_found or error ──
                 // When the intent has a fallbackSourceId, try fetching that
                 // Google Sheet and answering via GPT before falling through to
                 // the generic clarification flow.
-                if ((lookupRes.outcome === "not_found" || lookupRes.outcome === "error") && intent.fallbackSourceId) {
+                if (!lookupHandled && (lookupRes.outcome === "not_found" || lookupRes.outcome === "error") && intent.fallbackSourceId) {
                   const fbRes = await executeFallbackSheetLookup({
                     merchantId: resolvedMerchantId,
                     intent,
@@ -21807,20 +21845,57 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
       await storage.createMessage({ sessionId: String(sessionId), from: "customer", content: fieldSummary, messageType: "dataEntrySubmission", payload: submissionPayload });
       broadcastToSession(String(sessionId), { type: "message", message: { from: "customer", content: fieldSummary, messageType: "dataEntrySubmission", payload: submissionPayload } });
 
-      // Execute the intent lookup against merchant's panel API
-      const lookupRes = await executeIntentLookup({
-        source: cdsSource,
-        intent,
-        fields: fieldEntries,
-        merchantId: merchant.id,
-        sessionId: String(sessionId),
-      });
-
-      let finalText = lookupRes.text;
+      let finalText = "";
       let submitHandled = false;
 
+      // ── Source mode: 'sheet' → skip panel API, go directly to sheet ──
+      if (intent.lookupMode === "sheet" && intent.fallbackSourceId) {
+        const sheetRes = await executeFallbackSheetLookup({
+          merchantId: merchant.id,
+          intent,
+          fields: fieldEntries,
+          customerMessage: rawFields.map((f: any) => `${f.label || f.key}: ${fieldEntries[f.key] ?? ""}`).join(", "),
+          sessionId: String(sessionId),
+          openai,
+        });
+        if (sheetRes.ok && sheetRes.text) {
+          finalText = sheetRes.text;
+          await storage.createMessage({ sessionId: String(sessionId), from: "chatvice", content: finalText });
+          broadcastToSession(String(sessionId), { type: "message", message: { from: "chatvice", content: finalText } });
+          console.log(`[CustomLookupSubmit] intent=${intentKey} mode=sheet outcome=${sheetRes.outcome} session=${sessionId}`);
+          resetFailCount(String(sessionId), intentKey);
+          submitHandled = true;
+        } else {
+          const failCount = incrementFailCount(String(sessionId), intentKey);
+          const userFacingMsg = intent.fallbackMessage?.trim() || "Data tidak ditemukan. Silahkan periksa kembali data Anda, atau saya bantu hubungkan ke tim support.";
+          finalText = userFacingMsg;
+          await storage.createMessage({ sessionId: String(sessionId), from: "chatvice", content: finalText });
+          broadcastToSession(String(sessionId), { type: "message", message: { from: "chatvice", content: finalText } });
+          console.log(`[CustomLookupSubmit] intent=${intentKey} mode=sheet outcome=error session=${sessionId}`);
+          if (failCount >= 3) {
+            resetFailCount(String(sessionId), intentKey);
+            const sessionForEscalate = await storage.getSession(String(sessionId));
+            await triggerAutoEscalate({ sessionId: String(sessionId), merchantId: merchant.id, intentKey, intentName: intent.name, agentId: sessionForEscalate?.agentId ?? null, broadcastFn: broadcastToSession });
+          }
+          submitHandled = true;
+        }
+      }
+
+      // ── Source mode: 'api' (default) → call panel API ──
+      let lookupRes: any = null;
+      if (!submitHandled) {
+        lookupRes = await executeIntentLookup({
+          source: cdsSource,
+          intent,
+          fields: fieldEntries,
+          merchantId: merchant.id,
+          sessionId: String(sessionId),
+        });
+        finalText = lookupRes.text;
+      }
+
       // ── Google Sheet fallback on not_found or error (SHOW_FORM submit path) ──
-      if ((lookupRes.outcome === "not_found" || lookupRes.outcome === "error") && intent.fallbackSourceId) {
+      if (!submitHandled && (lookupRes.outcome === "not_found" || lookupRes.outcome === "error") && intent.fallbackSourceId) {
         const fbRes = await executeFallbackSheetLookup({
           merchantId: merchant.id,
           intent,
@@ -30881,8 +30956,13 @@ Please create a comprehensive help center article that would be useful for custo
       const merchantId = req.session!.merchantId!;
       const source = await storage.getCustomDataSource(merchantId);
       if (!source) return res.status(400).json({ error: "Buat custom data source terlebih dahulu" });
-      const { intentKey, name, description, triggerKeywords, httpMethod, endpointPath, requiredFields, responseTemplate, isEnabled, sortOrder, fallbackSourceId, fallbackMessage } = req.body;
+      const { intentKey, name, description, triggerKeywords, httpMethod, endpointPath, requiredFields, responseTemplate, isEnabled, sortOrder, fallbackSourceId, fallbackMessage, lookupMode } = req.body;
       if (!intentKey || !name) return res.status(400).json({ error: "intentKey and name required" });
+      // In sheet mode, fallbackSourceId is required (it is the primary sheet)
+      const resolvedLookupMode = lookupMode === "sheet" ? "sheet" : "api";
+      if (resolvedLookupMode === "sheet" && !fallbackSourceId) {
+        return res.status(400).json({ error: "A Google Sheet source must be selected when lookup mode is 'sheet'" });
+      }
 
       // Validate fallback source ownership and type before saving
       let resolvedFallbackId: string | null = null;
@@ -30906,6 +30986,7 @@ Please create a comprehensive help center article that would be useful for custo
         responseTemplate: responseTemplate || "",
         isEnabled: isEnabled !== false,
         sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
+        lookupMode: resolvedLookupMode,
         fallbackSourceId: resolvedFallbackId,
         fallbackMessage: typeof fallbackMessage === "string" && fallbackMessage.trim() ? fallbackMessage.trim() : null,
       });
@@ -30923,12 +31004,20 @@ Please create a comprehensive help center article that would be useful for custo
       const intent = await storage.getCustomDataIntent(req.params.id);
       if (!source || !intent || intent.sourceId !== source.id) return res.status(404).json({ error: "Not found" });
       const data: any = {};
-      const allowed = ["name", "description", "triggerKeywords", "httpMethod", "endpointPath", "requiredFields", "responseTemplate", "isEnabled", "sortOrder", "fallbackSourceId", "fallbackMessage"];
+      const allowed = ["name", "description", "triggerKeywords", "httpMethod", "endpointPath", "requiredFields", "responseTemplate", "isEnabled", "sortOrder", "fallbackSourceId", "fallbackMessage", "lookupMode"];
       for (const k of allowed) if (k in req.body) data[k] = req.body[k];
       if (data.httpMethod) data.httpMethod = String(data.httpMethod).toUpperCase();
       // Normalize fallbackMessage — store null when blank/whitespace
       if ("fallbackMessage" in data) {
         data.fallbackMessage = typeof data.fallbackMessage === "string" && data.fallbackMessage.trim() ? data.fallbackMessage.trim() : null;
+      }
+      // Normalize lookupMode
+      if ("lookupMode" in data) {
+        data.lookupMode = data.lookupMode === "sheet" ? "sheet" : "api";
+      }
+      // In sheet mode, fallbackSourceId is required
+      if (data.lookupMode === "sheet" && "fallbackSourceId" in data && !data.fallbackSourceId) {
+        return res.status(400).json({ error: "A Google Sheet source must be selected when lookup mode is 'sheet'" });
       }
       // Validate fallbackSourceId ownership and type when provided
       if ("fallbackSourceId" in data) {

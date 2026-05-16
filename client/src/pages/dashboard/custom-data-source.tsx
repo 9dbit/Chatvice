@@ -68,6 +68,7 @@ interface CustomDataIntent {
   responseTemplate: string;
   isEnabled: boolean;
   sortOrder: number;
+  lookupMode?: "api" | "sheet";
   fallbackSourceId?: string | null;
   fallbackMessage?: string | null;
 }
@@ -102,6 +103,9 @@ const blankIntent = (): Partial<CustomDataIntent> => ({
   responseTemplate: "",
   isEnabled: true,
   sortOrder: 0,
+  lookupMode: "api",
+  fallbackSourceId: null,
+  fallbackMessage: null,
 });
 
 export default function CustomDataSourcePage() {
@@ -529,6 +533,9 @@ export default function CustomDataSourcePage() {
                       <Badge variant="outline" className="font-mono">{i.intentKey}</Badge>
                       <span className="font-medium">{i.name}</span>
                       {!i.isEnabled && <Badge variant="secondary">{t("dashboard.customDataSource.intent.inactive")}</Badge>}
+                      {(i.lookupMode ?? "api") === "sheet" && (
+                        <Badge variant="secondary" className="text-xs">Google Sheet</Badge>
+                      )}
                     </div>
                     {i.description && <p className="text-sm text-muted-foreground mt-1">{i.description}</p>}
                     <p className="text-xs text-muted-foreground mt-2">
@@ -848,32 +855,88 @@ export default function CustomDataSourcePage() {
                   {t("dashboard.customDataSource.intent.responseTemplateEmptyHint")}
                 </p>
               </div>
-              <div className="pt-2 border-t space-y-1">
-                <Label className="flex items-center gap-1">
-                  Google Sheet Fallback
-                  <Badge variant="outline" className="text-xs font-normal ml-1">Optional</Badge>
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  When the primary lookup returns "not found" or an error, the AI will fetch this Google Sheet and answer using its data instead.
-                </p>
-                <Select
-                  value={editingIntent.fallbackSourceId || "none"}
-                  onValueChange={(v) => setEditingIntent({ ...editingIntent, fallbackSourceId: v === "none" ? null : v })}
-                >
-                  <SelectTrigger data-testid="select-fallback-source">
-                    <SelectValue placeholder="No fallback sheet" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No fallback (default)</SelectItem>
-                    {googleSheetSources.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name || s.url}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {googleSheetSources.length === 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    No Google Sheet sources found. Add one in Active Sources → Knowledge Base first.
-                  </p>
+              <div className="pt-2 border-t space-y-2">
+                <Label>Source Mode</Label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingIntent({ ...editingIntent, lookupMode: "api" })}
+                    className={`flex-1 rounded-md border px-3 py-2 text-sm text-left transition-colors ${(editingIntent.lookupMode ?? "api") === "api" ? "border-primary bg-primary/10 font-medium" : "border-border hover-elevate"}`}
+                    data-testid="button-mode-api"
+                  >
+                    <div className="font-medium">Panel API</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Call the custom data source API. Optional Google Sheet fallback on failure.</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingIntent({ ...editingIntent, lookupMode: "sheet" })}
+                    className={`flex-1 rounded-md border px-3 py-2 text-sm text-left transition-colors ${(editingIntent.lookupMode ?? "api") === "sheet" ? "border-primary bg-primary/10 font-medium" : "border-border hover-elevate"}`}
+                    data-testid="button-mode-sheet"
+                  >
+                    <div className="font-medium">Google Sheet</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Skip the API entirely — read directly from a Google Sheet.</div>
+                  </button>
+                </div>
+
+                {(editingIntent.lookupMode ?? "api") === "api" ? (
+                  <div className="space-y-1">
+                    <Label className="flex items-center gap-1 text-sm">
+                      Fallback Sheet
+                      <Badge variant="outline" className="text-xs font-normal ml-1">Optional</Badge>
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Used only when the API returns "not found" or an error. Leave blank to skip the sheet fallback.
+                    </p>
+                    <Select
+                      value={editingIntent.fallbackSourceId || "none"}
+                      onValueChange={(v) => setEditingIntent({ ...editingIntent, fallbackSourceId: v === "none" ? null : v })}
+                    >
+                      <SelectTrigger data-testid="select-fallback-source">
+                        <SelectValue placeholder="No fallback sheet" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No fallback (default)</SelectItem>
+                        {googleSheetSources.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.name || s.url}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {googleSheetSources.length === 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        No Google Sheet sources found. Add one in Knowledge Base → Active Sources first.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <Label className="flex items-center gap-1 text-sm">
+                      Primary Sheet Source
+                      <Badge variant="outline" className="text-xs font-normal ml-1 text-destructive border-destructive/40">Required</Badge>
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      The AI will fetch this Google Sheet and answer the customer query directly from its content.
+                    </p>
+                    {googleSheetSources.length === 0 ? (
+                      <p className="text-sm text-muted-foreground border rounded-md p-3">
+                        No active Google Sheet sources found. Add one in Knowledge Base → Active Sources first, then return here.
+                      </p>
+                    ) : (
+                      <Select
+                        value={editingIntent.fallbackSourceId || "none"}
+                        onValueChange={(v) => setEditingIntent({ ...editingIntent, fallbackSourceId: v === "none" ? null : v })}
+                      >
+                        <SelectTrigger data-testid="select-primary-sheet-source">
+                          <SelectValue placeholder="Select a Google Sheet source..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">— Select a sheet —</SelectItem>
+                          {googleSheetSources.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>{s.name || s.url}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
                 )}
               </div>
               <div className="pt-2 border-t space-y-1">
@@ -904,7 +967,14 @@ export default function CustomDataSourcePage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => { setIntentDialogOpen(false); setEditingIntent(null); }} data-testid="button-cancel-intent">{t("dashboard.customDataSource.intent.cancel")}</Button>
-            <Button onClick={() => editingIntent && saveIntent.mutate(editingIntent)} disabled={saveIntent.isPending} data-testid="button-save-intent">
+            <Button onClick={() => {
+              if (!editingIntent) return;
+              if ((editingIntent.lookupMode ?? "api") === "sheet" && !editingIntent.fallbackSourceId) {
+                toast({ title: "Google Sheet required", description: "Please select a Google Sheet source before saving in Sheet mode.", variant: "destructive" });
+                return;
+              }
+              saveIntent.mutate(editingIntent);
+            }} disabled={saveIntent.isPending} data-testid="button-save-intent">
               {saveIntent.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
               {t("dashboard.customDataSource.intent.save")}
             </Button>

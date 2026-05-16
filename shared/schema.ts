@@ -2818,9 +2818,13 @@ export const customDataIntents = pgTable("custom_data_intents", {
   responseTemplate: text("response_template").notNull().default(""),
   isEnabled: boolean("is_enabled").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
-  // Optional Google Sheet source to fall back to when the primary panel lookup
-  // returns not_found or error. When set, the sheet data is fetched and GPT
-  // answers the customer query from the sheet content instead.
+  // Determines whether this intent uses the panel API ('api', default) or a
+  // Google Sheet source directly ('sheet'). In 'sheet' mode, the panel API is
+  // skipped entirely and fallbackSourceId is treated as the primary sheet.
+  lookupMode: text("lookup_mode").notNull().default("api"),
+  // Optional Google Sheet source. In 'api' mode this is a fallback used only
+  // when the primary panel lookup returns not_found or error. In 'sheet' mode
+  // this becomes the primary (and only) data source for the intent.
   fallbackSourceId: varchar("fallback_source_id", { length: 32 }).references(() => sources.id, { onDelete: "set null" }),
   // Optional merchant-defined error message shown to the customer when both the
   // primary lookup and the Google Sheet fallback fail (or no fallback is set).
