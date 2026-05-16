@@ -69,6 +69,7 @@ interface CustomDataIntent {
   isEnabled: boolean;
   sortOrder: number;
   fallbackSourceId?: string | null;
+  fallbackMessage?: string | null;
 }
 
 interface GoogleSheetSource {
@@ -874,6 +875,22 @@ export default function CustomDataSourcePage() {
                     No Google Sheet sources found. Add one in Active Sources → Knowledge Base first.
                   </p>
                 )}
+              </div>
+              <div className="pt-2 border-t space-y-1">
+                <Label className="flex items-center gap-1">
+                  Custom error message
+                  <Badge variant="outline" className="text-xs font-normal ml-1">Optional</Badge>
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Shown to the customer when both the primary lookup and the Google Sheet fallback fail. Leave blank to use the default system message.
+                </p>
+                <Textarea
+                  rows={3}
+                  value={editingIntent.fallbackMessage || ""}
+                  onChange={(e) => setEditingIntent({ ...editingIntent, fallbackMessage: e.target.value || null })}
+                  placeholder="e.g. Sorry, we can't retrieve your data right now. Please contact support at support@example.com."
+                  data-testid="input-fallback-message"
+                />
               </div>
               <div className="flex items-center gap-2 pt-2 border-t">
                 <Switch

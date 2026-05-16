@@ -290,7 +290,7 @@ export async function executeIntentLookup(opts: {
 }): Promise<ConnectorResult> {
   const { merchantId, source, intent, fields, sessionId } = opts;
   const t0 = Date.now();
-  const userFacingError = "Maaf, sistem sedang sibuk. Silakan coba lagi sebentar atau hubungi admin.";
+  const userFacingError = intent.fallbackMessage?.trim() || "Maaf, sistem sedang sibuk. Silakan coba lagi sebentar atau hubungi admin.";
 
   // Server-side validation: every required field for this intent must be present
   // and non-empty BEFORE we dispatch to the merchant's panel API. The AI is

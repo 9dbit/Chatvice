@@ -2822,6 +2822,10 @@ export const customDataIntents = pgTable("custom_data_intents", {
   // returns not_found or error. When set, the sheet data is fetched and GPT
   // answers the customer query from the sheet content instead.
   fallbackSourceId: varchar("fallback_source_id", { length: 32 }).references(() => sources.id, { onDelete: "set null" }),
+  // Optional merchant-defined error message shown to the customer when both the
+  // primary lookup and the Google Sheet fallback fail (or no fallback is set).
+  // When null the system falls back to the hardcoded generic error string.
+  fallbackMessage: text("fallback_message"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({

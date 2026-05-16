@@ -30750,7 +30750,7 @@ Please create a comprehensive help center article that would be useful for custo
       const merchantId = req.session!.merchantId!;
       const source = await storage.getCustomDataSource(merchantId);
       if (!source) return res.status(400).json({ error: "Buat custom data source terlebih dahulu" });
-      const { intentKey, name, description, triggerKeywords, httpMethod, endpointPath, requiredFields, responseTemplate, isEnabled, sortOrder, fallbackSourceId } = req.body;
+      const { intentKey, name, description, triggerKeywords, httpMethod, endpointPath, requiredFields, responseTemplate, isEnabled, sortOrder, fallbackSourceId, fallbackMessage } = req.body;
       if (!intentKey || !name) return res.status(400).json({ error: "intentKey and name required" });
 
       // Validate fallback source ownership and type before saving
@@ -30776,6 +30776,7 @@ Please create a comprehensive help center article that would be useful for custo
         isEnabled: isEnabled !== false,
         sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
         fallbackSourceId: resolvedFallbackId,
+        fallbackMessage: typeof fallbackMessage === "string" && fallbackMessage.trim() ? fallbackMessage.trim() : null,
       });
       res.json(intent);
     } catch (err) {
@@ -30791,9 +30792,13 @@ Please create a comprehensive help center article that would be useful for custo
       const intent = await storage.getCustomDataIntent(req.params.id);
       if (!source || !intent || intent.sourceId !== source.id) return res.status(404).json({ error: "Not found" });
       const data: any = {};
-      const allowed = ["name", "description", "triggerKeywords", "httpMethod", "endpointPath", "requiredFields", "responseTemplate", "isEnabled", "sortOrder", "fallbackSourceId"];
+      const allowed = ["name", "description", "triggerKeywords", "httpMethod", "endpointPath", "requiredFields", "responseTemplate", "isEnabled", "sortOrder", "fallbackSourceId", "fallbackMessage"];
       for (const k of allowed) if (k in req.body) data[k] = req.body[k];
       if (data.httpMethod) data.httpMethod = String(data.httpMethod).toUpperCase();
+      // Normalize fallbackMessage — store null when blank/whitespace
+      if ("fallbackMessage" in data) {
+        data.fallbackMessage = typeof data.fallbackMessage === "string" && data.fallbackMessage.trim() ? data.fallbackMessage.trim() : null;
+      }
       // Validate fallbackSourceId ownership and type when provided
       if ("fallbackSourceId" in data) {
         if (!data.fallbackSourceId) {
