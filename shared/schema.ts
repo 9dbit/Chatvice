@@ -582,7 +582,7 @@ export const agents = pgTable("agents", {
   followUpMessage: text("follow_up_message").default("Apakah ada yang bisa saya bantu lagi?"),
   followUpSuggestions: jsonb("follow_up_suggestions").default([]), // Array of up to 3 suggestion buttons
   followUpIntervalMinutes: integer("follow_up_interval_minutes").default(5), // 5, 15, 30, 60, 120, 360, 720, 1440 minutes
-  returnToAiMessage: text("return_to_ai_message").default("Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?"),
+  returnToAiMessage: text("return_to_ai_message").default("Percakapan telah dikembalikan ke team support. Ada yang bisa saya bantu lagi bosku?"),
   isActive: boolean("is_active").default(true),
   supervisorId: varchar("supervisor_id", { length: 32 }),
   // Per-agent widget settings

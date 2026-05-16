@@ -10189,7 +10189,7 @@ Rules:
         return res.status(404).json({ error: "Session not found" });
       }
 
-      const DEFAULT_RETURN_MSG = "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?";
+      const DEFAULT_RETURN_MSG = "Percakapan telah dikembalikan ke team support. Ada yang bisa saya bantu lagi bosku?";
       let returnMsg = DEFAULT_RETURN_MSG;
       if (session.agentId) {
         const agent = await storage.getAgent(session.agentId);
@@ -10235,7 +10235,7 @@ Rules:
         return res.status(404).json({ error: "Session not found" });
       }
 
-      const DEFAULT_RETURN_MSG = "Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?";
+      const DEFAULT_RETURN_MSG = "Percakapan telah dikembalikan ke team support. Ada yang bisa saya bantu lagi bosku?";
       let returnMsg = DEFAULT_RETURN_MSG;
       if (session.agentId) {
         const agent = await storage.getAgent(session.agentId);

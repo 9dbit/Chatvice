@@ -60,6 +60,11 @@ pool.query(\`
     ) THEN
       ALTER TABLE custom_data_audit_log ADD COLUMN fallback_outcome text;
     END IF;
+
+    -- migrate agents still holding the old return-to-bot default message
+    UPDATE agents
+      SET return_to_ai_message = 'Percakapan telah dikembalikan ke team support. Ada yang bisa saya bantu lagi bosku?'
+    WHERE return_to_ai_message = 'Percakapan telah dikembalikan ke Agen. Ada yang bisa saya bantu?';
   END
   \$\$;
 \`).then(() => { console.log('[post-merge] SQL migrations applied'); pool.end(); })

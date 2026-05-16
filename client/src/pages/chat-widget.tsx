@@ -3067,7 +3067,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           {isCheckingSession || (!hasSubmittedName && !serverMessages?.length && !merchantConfig) ? (
             <div className="flex-1 min-h-0 flex flex-col p-5 gap-4 overflow-y-auto">
               <div className="w-full h-44 rounded-xl animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }} />
-              <div className="space-y-3 px-1">
+              <div className="space-y-1.5 px-1">
                 <div className="h-5 w-24 rounded animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }} />
                 <div className="h-10 w-full rounded-lg animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }} />
                 <div className="h-5 w-32 rounded animate-pulse mt-3" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }} />
@@ -3338,7 +3338,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           style={frostedBodyStyle}
         >
           <div className="w-full h-40 rounded-md animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }} />
-          <div className="space-y-3 px-1">
+          <div className="space-y-1.5 px-1">
             <div className="h-5 w-24 rounded animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }} />
             <div className="h-10 w-full rounded-md animate-pulse" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }} />
             <div className="h-5 w-32 rounded animate-pulse mt-4" style={{ backgroundColor: widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)' }} />
@@ -3943,7 +3943,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 const isFirstAppearance = allMessages.length > 0 && !initialMessagesShownRef.current;
                 if (isFirstAppearance) initialMessagesShownRef.current = true;
                 return (
-                <div className={`space-y-2 ${isFirstAppearance ? 'widget-messages-enter' : ''}`}>
+                <div className={`space-y-1 ${isFirstAppearance ? 'widget-messages-enter' : ''}`}>
                 {allMessages.map((msg, index) => {
                 const wIsCustomer = msg.from === "user";
                 const wIsLastAgentMsg = !wIsCustomer && index === allMessages.length - 1;
