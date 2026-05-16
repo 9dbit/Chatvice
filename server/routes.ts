@@ -21734,8 +21734,12 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
 
       if (!submitHandled) {
         if (lookupRes.outcome === "not_found") {
-          const fieldNames = rawFields.map((f: any) => f.label || f.key).join(", ") || "data yang dimasukkan";
-          finalText = `Maaf, datanya belum ketemu untuk ${intent.name.toLowerCase()}. Boleh dicek ulang ${fieldNames}-nya, mungkin ada yang kurang tepat. Kalau sudah yakin benar, saya bantu hubungkan ke tim support ya.`;
+          if (intent.fallbackMessage) {
+            finalText = intent.fallbackMessage;
+          } else {
+            const fieldNames = rawFields.map((f: any) => f.label || f.key).join(", ") || "data yang dimasukkan";
+            finalText = `Maaf, datanya belum ketemu untuk ${intent.name.toLowerCase()}. Boleh dicek ulang ${fieldNames}-nya, mungkin ada yang kurang tepat. Kalau sudah yakin benar, saya bantu hubungkan ke tim support ya.`;
+          }
         }
 
         if (finalText) {
