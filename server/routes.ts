@@ -585,7 +585,10 @@ function incrementFailCount(sessionId: string, intentKey: string): number {
 }
 
 function resetFailCount(sessionId: string, intentKey: string): void {
-  intentFailCounts.get(sessionId)?.set(intentKey, 0);
+  const bySession = intentFailCounts.get(sessionId);
+  if (!bySession) return;
+  bySession.delete(intentKey);
+  if (bySession.size === 0) intentFailCounts.delete(sessionId);
 }
 
 // Auto-escalates a session to HUMAN mode after repeated intent-lookup failures.
