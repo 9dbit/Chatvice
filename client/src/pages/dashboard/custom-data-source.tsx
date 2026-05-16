@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Key, RefreshCw, Plug, Plus, Trash2, Pencil, Download, FileText, CheckCircle2, AlertCircle, Loader2, Copy, ArrowLeft, ArrowRight, Sparkles, Wand2, ClipboardList, Activity, HeartPulse, Eye } from "lucide-react";
+import { Database, Key, RefreshCw, Plug, Plus, Trash2, Pencil, Download, FileText, CheckCircle2, AlertCircle, Loader2, Copy, ArrowLeft, ArrowRight, Sparkles, Wand2, ClipboardList, Activity, HeartPulse, Eye, FileSpreadsheet, TriangleAlert } from "lucide-react";
 import { Link } from "wouter";
 import { useLanguage } from "@/hooks/use-language";
 import { DataEntryFormCard, useDataEntryFormCard } from "@/components/data-entry-form-card";
@@ -524,8 +524,16 @@ export default function CustomDataSourcePage() {
               </CardContent>
             </Card>
           )}
+          {(() => {
+            const sheetMap = new Map(googleSheetSources.map((s) => [s.id, s.name]));
+            return (
           <div className="grid grid-cols-1 gap-3">
-            {intents.map((i) => (
+            {intents.map((i) => {
+              const isSheetMode = (i.lookupMode ?? "api") === "sheet";
+              const hasFallback = !isSheetMode && !!i.fallbackSourceId;
+              const sheetName = i.fallbackSourceId ? sheetMap.get(i.fallbackSourceId) : undefined;
+              const sheetMissing = !!i.fallbackSourceId && sheetName === undefined;
+              return (
               <Card key={i.id} data-testid={`card-intent-${i.id}`}>
                 <CardContent className="p-4 flex items-start justify-between gap-3 flex-wrap">
                   <div className="flex-1 min-w-[240px]">
@@ -533,14 +541,45 @@ export default function CustomDataSourcePage() {
                       <Badge variant="outline" className="font-mono">{i.intentKey}</Badge>
                       <span className="font-medium">{i.name}</span>
                       {!i.isEnabled && <Badge variant="secondary">{t("dashboard.customDataSource.intent.inactive")}</Badge>}
-                      {(i.lookupMode ?? "api") === "sheet" && (
+                      {isSheetMode && (
                         <Badge variant="secondary" className="text-xs">Google Sheet</Badge>
                       )}
                     </div>
                     {i.description && <p className="text-sm text-muted-foreground mt-1">{i.description}</p>}
-                    <p className="text-xs text-muted-foreground mt-2">
-                      <span className="font-mono">{i.httpMethod} {i.endpointPath}</span>
-                    </p>
+                    {isSheetMode ? (
+                      sheetMissing ? (
+                        <div className="flex items-center gap-1 mt-2" data-testid={`text-sheet-missing-${i.id}`}>
+                          <Badge variant="secondary" className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                            <TriangleAlert className="w-3 h-3 shrink-0" />
+                            {t("dashboard.customDataSource.intent.sheetMissing")}
+                          </Badge>
+                        </div>
+                      ) : sheetName ? (
+                        <p className="flex items-center gap-1 text-xs text-muted-foreground mt-2" data-testid={`text-sheet-name-${i.id}`}>
+                          <FileSpreadsheet className="w-3 h-3 shrink-0" />
+                          {t("dashboard.customDataSource.intent.sheetLabel")}: <span className="font-medium text-foreground">{sheetName}</span>
+                        </p>
+                      ) : null
+                    ) : (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        <span className="font-mono">{i.httpMethod} {i.endpointPath}</span>
+                      </p>
+                    )}
+                    {hasFallback && (
+                      sheetMissing ? (
+                        <div className="flex items-center gap-1 mt-1" data-testid={`text-fallback-missing-${i.id}`}>
+                          <Badge variant="secondary" className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                            <TriangleAlert className="w-3 h-3 shrink-0" />
+                            {t("dashboard.customDataSource.intent.fallbackSheetMissing")}
+                          </Badge>
+                        </div>
+                      ) : sheetName ? (
+                        <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1" data-testid={`text-fallback-name-${i.id}`}>
+                          <FileSpreadsheet className="w-3 h-3 shrink-0" />
+                          {t("dashboard.customDataSource.intent.fallbackLabel")}: <span className="font-medium text-foreground">{sheetName}</span>
+                        </p>
+                      ) : null
+                    )}
                     {i.triggerKeywords && (
                       <p className="text-xs mt-1"><span className="text-muted-foreground">{t("dashboard.customDataSource.triggers")}:</span> {i.triggerKeywords}</p>
                     )}
@@ -572,8 +611,11 @@ export default function CustomDataSourcePage() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            );
+            })}
           </div>
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="audit" className="mt-4">
