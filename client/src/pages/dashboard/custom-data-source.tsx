@@ -921,20 +921,30 @@ export default function CustomDataSourcePage() {
                         No active Google Sheet sources found. Add one in Knowledge Base → Active Sources first, then return here.
                       </p>
                     ) : (
-                      <Select
-                        value={editingIntent.fallbackSourceId || "none"}
-                        onValueChange={(v) => setEditingIntent({ ...editingIntent, fallbackSourceId: v === "none" ? null : v })}
-                      >
-                        <SelectTrigger data-testid="select-primary-sheet-source">
-                          <SelectValue placeholder="Select a Google Sheet source..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">— Select a sheet —</SelectItem>
-                          {googleSheetSources.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>{s.name || s.url}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <>
+                        <Select
+                          value={editingIntent.fallbackSourceId || "none"}
+                          onValueChange={(v) => setEditingIntent({ ...editingIntent, fallbackSourceId: v === "none" ? null : v })}
+                        >
+                          <SelectTrigger
+                            data-testid="select-primary-sheet-source"
+                            className={!editingIntent.fallbackSourceId ? "border-destructive/60" : ""}
+                          >
+                            <SelectValue placeholder="Select a Google Sheet source..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">— Select a sheet —</SelectItem>
+                            {googleSheetSources.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>{s.name || s.url}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {!editingIntent.fallbackSourceId && (
+                          <p className="text-xs text-destructive mt-1" data-testid="error-sheet-required">
+                            A Google Sheet source is required in this mode.
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
