@@ -21975,7 +21975,11 @@ Do not use brackets, special formatting, or mention that you're an AI.`;
         }
       }
 
-      console.log(`[CustomLookupSubmit] intent=${intentKey} status=${lookupRes.httpStatus} outcome=${lookupRes.outcome || "?"} session=${sessionId}`);
+      // Log only when the panel API was called (lookupRes is non-null); sheet mode
+      // already logged inside its own branch above.
+      if (lookupRes !== null) {
+        console.log(`[CustomLookupSubmit] intent=${intentKey} status=${lookupRes.httpStatus} outcome=${lookupRes.outcome || "?"} session=${sessionId}`);
+      }
       return res.json({ ok: true });
     } catch (err) {
       console.error("[custom-lookup-submit] Error:", err);
@@ -30993,7 +30997,7 @@ Please create a comprehensive help center article that would be useful for custo
       let resolvedFallbackId: string | null = null;
       if (fallbackSourceId) {
         const fbSrc = await storage.getSource(fallbackSourceId);
-        if (!fbSrc || fbSrc.merchantId !== merchantId || fbSrc.sourceSubtype !== "google_sheet") {
+        if (!fbSrc || fbSrc.merchantId !== merchantId || fbSrc.sourceSubtype !== "google_sheet" || fbSrc.isActive === false) {
           return res.status(400).json({ error: "Invalid fallback source: must be an active Google Sheet source belonging to your account" });
         }
         resolvedFallbackId = fbSrc.id;
@@ -31040,17 +31044,21 @@ Please create a comprehensive help center article that would be useful for custo
       if ("lookupMode" in data) {
         data.lookupMode = data.lookupMode === "sheet" ? "sheet" : "api";
       }
-      // In sheet mode, fallbackSourceId is required
-      if (data.lookupMode === "sheet" && "fallbackSourceId" in data && !data.fallbackSourceId) {
+      // Effective sheet-mode validation: compute effective post-patch state so that
+      // setting lookupMode:'sheet' without sending fallbackSourceId is still caught
+      // if the existing intent has no fallbackSourceId either.
+      const effectiveLookupMode = "lookupMode" in data ? data.lookupMode : (intent.lookupMode ?? "api");
+      const effectiveFallbackSourceId = "fallbackSourceId" in data ? data.fallbackSourceId : intent.fallbackSourceId;
+      if (effectiveLookupMode === "sheet" && !effectiveFallbackSourceId) {
         return res.status(400).json({ error: "A Google Sheet source must be selected when lookup mode is 'sheet'" });
       }
-      // Validate fallbackSourceId ownership and type when provided
+      // Validate fallbackSourceId ownership, type, and active status when provided
       if ("fallbackSourceId" in data) {
         if (!data.fallbackSourceId) {
           data.fallbackSourceId = null; // Allow clearing
         } else {
           const fbSrc = await storage.getSource(data.fallbackSourceId);
-          if (!fbSrc || fbSrc.merchantId !== merchantId || fbSrc.sourceSubtype !== "google_sheet") {
+          if (!fbSrc || fbSrc.merchantId !== merchantId || fbSrc.sourceSubtype !== "google_sheet" || fbSrc.isActive === false) {
             return res.status(400).json({ error: "Invalid fallback source: must be an active Google Sheet source belonging to your account" });
           }
           data.fallbackSourceId = fbSrc.id;
