@@ -1201,24 +1201,19 @@ export function ConnectWizard({
     onError: (err: any) => toast({ title: t("dashboard.customDataSource.wizard.addIntentFailed"), description: err?.message, variant: "destructive" }),
   });
 
-  const finish = () => {
+  // Re-run dirty check: true when the merchant edited name/baseUrl but hasn't saved yet.
+  const isRerunDirty = isRerun && (
+    (existingSource?.baseUrl || "") !== baseUrl ||
+    (existingSource?.name || "") !== name
+  );
+
+  const finish = async () => {
+    // Persist unsaved re-run edits before closing so changes aren't lost.
+    if (isRerunDirty && baseUrl.trim()) {
+      try { await saveSource.mutateAsync(); } catch { return; }
+    }
     if (apiKey) onApiKey(apiKey);
     onFinish();
-  };
-
-  const goSaveAndTest = async () => {
-    if (!baseUrl.trim()) {
-      toast({ title: t("dashboard.customDataSource.wizard.baseUrlRequired"), variant: "destructive" });
-      return;
-    }
-    const dirty = isRerun && (
-      (existingSource?.baseUrl || "") !== baseUrl ||
-      (existingSource?.name || "") !== name
-    );
-    if (!created || dirty) {
-      await saveSource.mutateAsync();
-    }
-    testConn.mutate();
   };
 
   // Derived gating flags.
