@@ -799,6 +799,15 @@
       "transactionAdded": "Transaksi ditambahkan",
       "sourceUpdatedDesc": "Sumber telah diperbarui.",
       "sourceDeletedDesc": "Sumber telah dihapus.",
+      "linkToggled": "Sumber diperbarui",
+      "linkToggledDesc": "Status sumber aktif telah diubah.",
+      "linkToggleFailed": "Pembaruan gagal",
+      "conflictPopup": {
+        "title": "Custom Data Source Sedang Aktif",
+        "desc": "Mengaktifkan sumber ini akan menonaktifkan Custom Data Source agar tidak terjadi duplikasi data pada prompt AI.",
+        "confirm": "Aktifkan Sumber & Nonaktifkan CDS",
+        "cancel": "Batal"
+      },
       "updateRequested": "Pembaruan diminta",
       "updateRequestedDesc": "Pembaruan konten telah diminta.",
       "fetchedSuccessfully": "Berhasil diambil",
@@ -2349,7 +2358,17 @@
         "todo1Pre": "Implementasikan handler ",
         "todo1Post": " di panel."
       },
-      "postmanLabel": "Postman"
+      "postmanLabel": "Postman",
+      "conflictPopup": {
+        "title": "Konflik Sumber Data",
+        "desc": "Custom Data Source dan Active Sources keduanya menyuntikkan data ke prompt AI. Menggunakan keduanya bersamaan dapat menyebabkan jawaban ganda atau bertentangan.",
+        "alsoDisable": "Nonaktifkan Active Sources saya sekaligus",
+        "confirm": "Aktifkan Custom Data Source",
+        "cancel": "Batal",
+        "setupFirst": "Selesaikan setup terlebih dahulu",
+        "noSourceYet": "Atur koneksi terlebih dahulu sebelum mengelola intent.",
+        "noAuditYet": "Belum ada panggilan. Selesaikan setup dan aktifkan koneksi terlebih dahulu."
+      }
     },
     "checklist": {
       "title": "Checklist Integrasi Panel",

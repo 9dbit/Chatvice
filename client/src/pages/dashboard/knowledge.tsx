@@ -409,6 +409,9 @@ export default function KnowledgePage() {
   const [isTransactionTemplateOpen, setIsTransactionTemplateOpen] = useState(false);
   const [transactionTemplateUrl, setTransactionTemplateUrl] = useState("");
 
+  // Active Source / CDS conflict popup state
+  const [linkConflictPendingId, setLinkConflictPendingId] = useState<string | null>(null);
+
   // Password Recovery state
   const [prSheetUrl, setPrSheetUrl] = useState("");
   const [prWriteBackUrl, setPrWriteBackUrl] = useState("");
@@ -870,6 +873,12 @@ export default function KnowledgePage() {
     refetchInterval: 5000,
   });
 
+  // CDS source query (to detect conflict)
+  const { data: cdsSource } = useQuery<{ isEnabled: boolean } | null>({
+    queryKey: ["/api/merchant/custom-data-source"],
+    enabled: !!merchantId,
+  });
+
   // Password Recovery config query — scoped to the selected agent
   const prConfigUrl = selectedAgentId
     ? `/api/merchant/password-recovery-config?agentId=${selectedAgentId}`
@@ -1184,6 +1193,43 @@ export default function KnowledgePage() {
       toast({ title: t("dashboard.knowledge.updateFailed"), description: error.message || "Could not update source. Please try again.", variant: "destructive" });
     },
   });
+
+  const toggleLinkMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      return apiRequest("PATCH", `/api/knowledge/links/${id}`, { isActive });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links", merchantId] });
+      toast({ title: t("dashboard.knowledge.linkToggled"), description: t("dashboard.knowledge.linkToggledDesc") });
+    },
+    onError: () => {
+      toast({ title: t("dashboard.knowledge.linkToggleFailed"), variant: "destructive" });
+    },
+  });
+
+  const disableCdsMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("PUT", "/api/merchant/custom-data-source", { isEnabled: false });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-source"] });
+    },
+  });
+
+  const handleLinkToggle = (linkId: string, newValue: boolean) => {
+    if (newValue && cdsSource?.isEnabled) {
+      setLinkConflictPendingId(linkId);
+      return;
+    }
+    toggleLinkMutation.mutate({ id: linkId, isActive: newValue });
+  };
+
+  const confirmLinkConflict = () => {
+    if (!linkConflictPendingId) return;
+    toggleLinkMutation.mutate({ id: linkConflictPendingId, isActive: true });
+    disableCdsMutation.mutate();
+    setLinkConflictPendingId(null);
+  };
 
   const deleteSourceMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -2531,6 +2577,25 @@ export default function KnowledgePage() {
           </CardContent>
         </Card>
 
+        {/* Link toggle conflict dialog */}
+        <Dialog open={!!linkConflictPendingId} onOpenChange={(open) => { if (!open) setLinkConflictPendingId(null); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t("dashboard.knowledge.conflictPopup.title")}</DialogTitle>
+              <DialogDescription>{t("dashboard.knowledge.conflictPopup.desc")}</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setLinkConflictPendingId(null)} data-testid="button-link-conflict-cancel">
+                {t("dashboard.knowledge.conflictPopup.cancel")}
+              </Button>
+              <Button onClick={confirmLinkConflict} disabled={toggleLinkMutation.isPending || disableCdsMutation.isPending} data-testid="button-link-conflict-confirm">
+                {(toggleLinkMutation.isPending || disableCdsMutation.isPending) ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+                {t("dashboard.knowledge.conflictPopup.confirm")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Crawled Links List */}
         <Card>
           <CardHeader className="pb-3">
@@ -2559,10 +2624,16 @@ export default function KnowledgePage() {
                   return (
                     <div
                       key={link.id}
-                      className="flex items-center justify-between p-3 rounded-lg border bg-card hover-elevate"
+                      className={`flex items-center justify-between p-3 rounded-lg border bg-card hover-elevate transition-opacity${!link.isActive ? " opacity-60" : ""}`}
                       data-testid={`crawled-link-${link.id}`}
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <Switch
+                          checked={!!link.isActive}
+                          onCheckedChange={(v) => handleLinkToggle(link.id, v)}
+                          disabled={toggleLinkMutation.isPending}
+                          data-testid={`switch-link-${link.id}`}
+                        />
                         <div className="flex-shrink-0 relative">
                           {isSyncing ? (
                             <RefreshCw className="w-4 h-4 text-primary animate-spin" />
@@ -2595,7 +2666,7 @@ export default function KnowledgePage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => recrawlMutation.mutate(link.id)}
-                          disabled={isSyncing || recrawlMutation.isPending}
+                          disabled={isSyncing || recrawlMutation.isPending || !link.isActive}
                           data-testid={`button-recrawl-${link.id}`}
                           className="text-xs"
                         >

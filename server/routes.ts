@@ -8998,6 +8998,24 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     }
   });
 
+  app.patch("/api/knowledge/links/:linkId", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const link = await storage.getCrawledLink(req.params.linkId);
+      if (!link || link.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Link not found" });
+      }
+      const { isActive } = req.body;
+      if (typeof isActive !== "boolean") {
+        return res.status(400).json({ error: "isActive must be a boolean" });
+      }
+      const updated = await storage.updateCrawledLink(req.params.linkId, { isActive });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.delete("/api/knowledge/links/:linkId", requireMerchant, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;

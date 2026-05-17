@@ -117,6 +117,8 @@ export default function CustomDataSourcePage() {
   const [newPlainKey, setNewPlainKey] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState<boolean | null>(null);
   const [wizardDialogOpen, setWizardDialogOpen] = useState(false);
+  const [cdsConflictOpen, setCdsConflictOpen] = useState(false);
+  const [cdsAlsoDisable, setCdsAlsoDisable] = useState(true);
   const [intentDialogOpen, setIntentDialogOpen] = useState(false);
   const [editingIntent, setEditingIntent] = useState<Partial<CustomDataIntent> | null>(null);
   const [testResult, setTestResult] = useState<{ ok: boolean; status: number; latencyMs: number; sample?: string; error?: string } | null>(null);
@@ -132,6 +134,13 @@ export default function CustomDataSourcePage() {
   const { data: googleSheetSources = [] } = useQuery<GoogleSheetSource[]>({
     queryKey: ["/api/merchant/sources/google-sheets"],
   });
+
+  // Active crawled links (for conflict detection) — uses same query key as knowledge.tsx to share cache
+  const { data: crawledLinks = [] } = useQuery<{ id: string; isActive: boolean }[]>({
+    queryKey: ["/api/knowledge/links", source?.merchantId],
+    enabled: !!source?.merchantId,
+  });
+  const hasActiveLinks = crawledLinks.some((l) => l.isActive);
   const { data: audit = [] } = useQuery<AuditRow[]>({
     queryKey: ["/api/merchant/custom-data-source/audit"],
   });
@@ -240,6 +249,35 @@ export default function CustomDataSourcePage() {
     },
   });
 
+  const disableActiveSourcesMutation = useMutation({
+    mutationFn: async () => {
+      await Promise.all(
+        crawledLinks.filter((l) => l.isActive).map((l) =>
+          apiRequest("PATCH", `/api/knowledge/links/${l.id}`, { isActive: false })
+        )
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links"] });
+    },
+  });
+
+  const handleEnableToggle = (newValue: boolean) => {
+    if (newValue && (googleSheetSources.length > 0 || hasActiveLinks)) {
+      setCdsConflictOpen(true);
+      return;
+    }
+    setForm({ ...form, isEnabled: newValue });
+  };
+
+  const confirmCdsEnable = async () => {
+    if (cdsAlsoDisable) {
+      await disableActiveSourcesMutation.mutateAsync();
+    }
+    setForm({ ...form, isEnabled: true });
+    setCdsConflictOpen(false);
+  };
+
   const copy = (val: string) => {
     navigator.clipboard.writeText(val);
     toast({ title: t("dashboard.customDataSource.apiKey.copied") });
@@ -266,19 +304,6 @@ export default function CustomDataSourcePage() {
       <div className="p-6 flex items-center justify-center min-h-[300px]">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
-    );
-  }
-
-  if (wizardOpen) {
-    return (
-      <ConnectWizard
-        onApiKey={(key) => { setNewPlainKey(key); setShowKeyDialog(true); }}
-        onFinish={() => {
-          setWizardOpen(false);
-          queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-source"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-intents"] });
-        }}
-      />
     );
   }
 
@@ -338,6 +363,33 @@ export default function CustomDataSourcePage() {
         </div>
       </div>
 
+      {/* CDS enable conflict dialog */}
+      <Dialog open={cdsConflictOpen} onOpenChange={(open) => { if (!open) setCdsConflictOpen(false); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("dashboard.customDataSource.conflictPopup.title")}</DialogTitle>
+            <DialogDescription>{t("dashboard.customDataSource.conflictPopup.desc")}</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-3 py-2">
+            <Switch
+              checked={cdsAlsoDisable}
+              onCheckedChange={setCdsAlsoDisable}
+              data-testid="switch-cds-also-disable"
+            />
+            <span className="text-sm">{t("dashboard.customDataSource.conflictPopup.alsoDisable")}</span>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCdsConflictOpen(false)} data-testid="button-cds-conflict-cancel">
+              {t("dashboard.customDataSource.conflictPopup.cancel")}
+            </Button>
+            <Button onClick={confirmCdsEnable} disabled={disableActiveSourcesMutation.isPending} data-testid="button-cds-conflict-confirm">
+              {disableActiveSourcesMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+              {t("dashboard.customDataSource.conflictPopup.confirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={wizardDialogOpen} onOpenChange={setWizardDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="sr-only">
@@ -381,7 +433,7 @@ export default function CustomDataSourcePage() {
                 </div>
                 <Switch
                   checked={!!merged.isEnabled}
-                  onCheckedChange={(v) => setForm({ ...form, isEnabled: v })}
+                  onCheckedChange={handleEnableToggle}
                   data-testid="switch-enabled"
                 />
               </div>

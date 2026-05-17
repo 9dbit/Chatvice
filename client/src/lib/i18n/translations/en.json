@@ -799,6 +799,15 @@
       "transactionAdded": "Transaction added",
       "sourceUpdatedDesc": "Source has been updated.",
       "sourceDeletedDesc": "Source has been deleted.",
+      "linkToggled": "Source updated",
+      "linkToggledDesc": "Active source status has been changed.",
+      "linkToggleFailed": "Update failed",
+      "conflictPopup": {
+        "title": "Custom Data Source Is Active",
+        "desc": "Enabling this source will deactivate Custom Data Source to avoid duplicate data injection into the AI prompt.",
+        "confirm": "Enable Source & Deactivate CDS",
+        "cancel": "Cancel"
+      },
       "updateRequested": "Update requested",
       "updateRequestedDesc": "Content update has been requested.",
       "fetchedSuccessfully": "Fetched successfully",
@@ -2349,7 +2358,17 @@
         "todo1Pre": "Implement handler ",
         "todo1Post": " on the panel."
       },
-      "postmanLabel": "Postman"
+      "postmanLabel": "Postman",
+      "conflictPopup": {
+        "title": "Data Source Conflict",
+        "desc": "Custom Data Source and Active Sources both inject data into the AI prompt. Using both at the same time can cause duplicate or contradictory answers.",
+        "alsoDisable": "Also disable my Active Sources",
+        "confirm": "Enable Custom Data Source",
+        "cancel": "Cancel",
+        "setupFirst": "Complete setup first",
+        "noSourceYet": "Set up the connection before managing intents.",
+        "noAuditYet": "No calls recorded. Complete setup and enable the connection first."
+      }
     },
     "checklist": {
       "title": "Panel Integration Checklist",
