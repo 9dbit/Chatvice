@@ -129,6 +129,9 @@ export interface AnalyticsData {
   aiResolutionRate: number;
   dailyMessageCounts: { date: string; count: number }[];
   avgResponseTime: number;
+  supervisorsOnline: number;
+  prevWeekAiResolutionRate: number | null;
+  prevWeekAvgResponseTime: number | null;
 }
 
 export interface IStorage {
@@ -1242,6 +1245,64 @@ export class DatabaseStorage implements IStorage {
       avgResponseTime = Math.round((aiResponses.reduce((a, b) => a + b, 0) / aiResponses.length) * 10) / 10;
     }
 
+    // Supervisors online (lastSeen within last 5 minutes)
+    const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000);
+    const onlineRows = await db.select({ c: count() }).from(supervisors)
+      .where(and(eq(supervisors.merchantId, merchantId), gte(supervisors.lastSeen, fiveMinAgo)));
+    const supervisorsOnline = Number(onlineRows[0]?.c ?? 0);
+
+    // Previous-week windows for trend comparison (days 7-14 ago vs days 0-7 ago)
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const fourteenDaysAgo = new Date(now);
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+    const thisWeekSessions = merchantSessions.filter(s => {
+      const c = s.createdAt ? new Date(s.createdAt) : null;
+      return c && c >= sevenDaysAgo;
+    });
+    const prevWeekSessions = merchantSessions.filter(s => {
+      const c = s.createdAt ? new Date(s.createdAt) : null;
+      return c && c >= fourteenDaysAgo && c < sevenDaysAgo;
+    });
+
+    let prevWeekAiResolutionRate: number | null = null;
+    if (prevWeekSessions.length > 0) {
+      const prevAi = prevWeekSessions.filter(s => s.mode === "AI").length;
+      prevWeekAiResolutionRate = Math.round((prevAi / prevWeekSessions.length) * 100);
+    }
+
+    // Prev-week avg response time
+    const prevWeekSessionIds = new Set(prevWeekSessions.map(s => s.id));
+    let prevWeekAvgResponseTime: number | null = null;
+    const prevResponses: number[] = [];
+    for (const [sessionId, sessionMsgs] of Array.from(messagesBySession.entries())) {
+      if (!prevWeekSessionIds.has(sessionId)) continue;
+      const sorted = [...sessionMsgs].sort((a, b) => {
+        const at = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const bt = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return at - bt;
+      });
+      for (let i = 0; i < sorted.length; i++) {
+        if (sorted[i].from === "customer") {
+          for (let j = i + 1; j < sorted.length; j++) {
+            if (sorted[j].from === "chatvice") {
+              const ct = sorted[i].timestamp ? new Date(sorted[i].timestamp!).getTime() : 0;
+              const at = sorted[j].timestamp ? new Date(sorted[j].timestamp!).getTime() : 0;
+              if (ct && at) {
+                const rt = (at - ct) / 1000;
+                if (rt > 0 && rt < 300) prevResponses.push(rt);
+              }
+              break;
+            }
+          }
+        }
+      }
+    }
+    if (prevResponses.length > 0) {
+      prevWeekAvgResponseTime = Math.round((prevResponses.reduce((a, b) => a + b, 0) / prevResponses.length) * 10) / 10;
+    }
+
     return {
       totalSessions: merchantSessions.length,
       activeSessions: activeSessions.length,
@@ -1252,6 +1313,9 @@ export class DatabaseStorage implements IStorage {
       aiResolutionRate,
       dailyMessageCounts,
       avgResponseTime,
+      supervisorsOnline,
+      prevWeekAiResolutionRate,
+      prevWeekAvgResponseTime,
     };
   }
 

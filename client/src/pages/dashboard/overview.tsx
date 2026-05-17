@@ -10,8 +10,9 @@ import {
   MessageSquare, Users, Clock, TrendingUp, TrendingDown, Bot, HeadphonesIcon,
   Activity, BarChart3, Zap, Target, ThumbsUp, UserCheck, MessageCircle,
   AlertCircle, Code, Copy, Check, ChevronRight, FileCode, ExternalLink,
-  Minus, Crown, Star, Rocket, LayoutDashboard, Sparkles
+  Minus, Crown, Star, Rocket, LayoutDashboard, Sparkles, Info
 } from "lucide-react";
+import { Tooltip as UITooltip, TooltipContent as UITooltipContent, TooltipTrigger as UITooltipTrigger } from "@/components/ui/tooltip";
 import { apiRequest } from "@/lib/queryClient";
 import { GettingStartedChecklist } from "@/components/dashboard/getting-started-checklist";
 import { UsageUpsellBanner } from "@/components/dashboard/usage-upsell-banner";
@@ -35,6 +36,29 @@ interface AnalyticsData {
   aiResolutionRate: number;
   dailyMessageCounts: { date: string; count: number }[];
   avgResponseTime: number;
+  supervisorsOnline: number;
+  prevWeekAiResolutionRate: number | null;
+  prevWeekAvgResponseTime: number | null;
+}
+
+function InfoTip({ text }: { text: string }) {
+  return (
+    <UITooltip>
+      <UITooltipTrigger asChild>
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center text-muted-foreground/40 hover:text-muted-foreground/80 transition-colors"
+        >
+          <Info className="w-3 h-3" />
+        </button>
+      </UITooltipTrigger>
+      <UITooltipContent side="top" className="max-w-[240px] text-xs leading-relaxed">
+        {text}
+      </UITooltipContent>
+    </UITooltip>
+  );
 }
 
 function getPlanLabel(planId?: string | null) {
@@ -192,12 +216,14 @@ export default function DashboardOverview() {
     ? (todayCount > 0 ? 100 : null)
     : Math.round(((todayCount - yesterdayCount) / yesterdayCount) * 100);
 
-  const aiResolutionTrend = stats?.aiResolutionRate != null
-    ? (stats.aiResolutionRate >= 70 ? Math.round((stats.aiResolutionRate - 70) / 10) : -(Math.round((70 - stats.aiResolutionRate) / 10)))
+  // Real week-over-week trends (null when no prior period data exists)
+  const aiResolutionTrend = (stats?.aiResolutionRate != null && stats?.prevWeekAiResolutionRate != null && stats.prevWeekAiResolutionRate > 0)
+    ? Math.round(((stats.aiResolutionRate - stats.prevWeekAiResolutionRate) / stats.prevWeekAiResolutionRate) * 100)
     : null;
 
-  const avgResponseTrend = stats?.avgResponseTime != null
-    ? (stats.avgResponseTime <= 3 ? 8 : stats.avgResponseTime <= 6 ? 0 : -12)
+  // For response time: lower is better, so positive trend = improvement
+  const avgResponseTrend = (stats?.avgResponseTime != null && stats?.prevWeekAvgResponseTime != null && stats.prevWeekAvgResponseTime > 0)
+    ? Math.round(((stats.prevWeekAvgResponseTime - stats.avgResponseTime) / stats.prevWeekAvgResponseTime) * 100)
     : null;
 
   const statCards = [
@@ -205,11 +231,12 @@ export default function DashboardOverview() {
       title: t("dashboard.overview.activeSessions"),
       value: stats?.activeSessions ?? 0,
       icon: Users,
-      description: `${stats?.totalSessions ?? 0} ${t("dashboard.overview.toast.activeInLast24hDesc")}`,
+      description: `${stats?.totalSessions ?? 0} total sessions`,
       trend: null as number | null,
       trendLabel: "",
       accentClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
       metric: "sessions",
+      info: "Sessions with activity in the last 24 hours. The smaller number shows total sessions ever recorded.",
     },
     {
       title: t("dashboard.overview.messagesDay"),
@@ -220,6 +247,7 @@ export default function DashboardOverview() {
       trendLabel: t("dashboard.overview.trendVsYesterday"),
       accentClass: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
       metric: "messages",
+      info: "Total messages sent today (since midnight) by customers and the chatbot. Trend compares to yesterday's count.",
     },
     {
       title: t("dashboard.overview.aiResolution"),
@@ -227,9 +255,10 @@ export default function DashboardOverview() {
       icon: Bot,
       description: `${stats?.aiSessions ?? 0} AI / ${stats?.humanSessions ?? 0} ${t("dashboard.overview.humanLabel")}`,
       trend: aiResolutionTrend,
-      trendLabel: t("dashboard.overview.trendVsTarget"),
+      trendLabel: aiResolutionTrend !== null ? "vs. previous 7 days" : "",
       accentClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
       metric: "ai-resolution",
+      info: "Percentage of all sessions fully handled by AI without escalation to a human supervisor. Trend compares the current 7-day window vs. the previous 7 days.",
     },
     {
       title: t("dashboard.overview.avgResponse"),
@@ -237,9 +266,10 @@ export default function DashboardOverview() {
       icon: Clock,
       description: t("dashboard.overview.aiResponseLatency"),
       trend: avgResponseTrend,
-      trendLabel: t("dashboard.overview.trendResponseSpeed"),
+      trendLabel: avgResponseTrend !== null ? "improvement vs. previous 7 days" : "",
       accentClass: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
       metric: "response-time",
+      info: "Average seconds from customer message to AI reply. Positive trend means faster responses than the previous 7-day period. Only valid AI responses under 5 minutes are counted.",
     },
   ];
 
@@ -252,9 +282,8 @@ export default function DashboardOverview() {
 
   const queuedSessions = sessions?.filter(s => s.status === "waiting" || s.status === "escalated") || [];
   const activeChats = activeSessions.filter(s => s.status === "active");
-  const satisfactionRate = stats?.aiResolutionRate
-    ? Math.min(95, Math.round(stats.aiResolutionRate * 0.8 + 20))
-    : 0;
+  // Real: show AI resolution rate directly (it IS the satisfaction proxy — no derived formula)
+  const satisfactionRate = stats?.aiResolutionRate ?? 0;
 
   const displayName = merchant?.companyName || merchant?.username || "Dashboard";
   const planId = merchant?.subscriptionPlanId || "free";
@@ -415,8 +444,9 @@ export default function DashboardOverview() {
             }}
           >
             <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2 p-4 sm:p-5 sm:pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground truncate">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground truncate flex items-center gap-1">
                 {stat.title}
+                <InfoTip text={stat.info} />
               </CardTitle>
               <div className="flex items-center gap-1.5">
                 <div className={`w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 ${stat.accentClass}`}>
@@ -478,7 +508,10 @@ export default function DashboardOverview() {
               <div className="rounded-lg p-4 bg-muted/40 border border-border/50">
                 <div className="flex items-center gap-2 mb-2">
                   <Users className="w-3.5 h-3.5 text-blue-500" />
-                  <span className="text-xs text-muted-foreground font-medium">{t("dashboard.overview.visitors")}</span>
+                  <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                    {t("dashboard.overview.visitors")}
+                    <InfoTip text="Sessions with activity in the last 5 minutes. Reflects visitors currently on your site with the widget open." />
+                  </span>
                 </div>
                 <p className="text-3xl font-bold" data-testid="text-realtime-visitors">
                   {isLoading ? <Skeleton className="h-8 w-12 inline-block" /> : activeSessions.length}
@@ -490,7 +523,10 @@ export default function DashboardOverview() {
               <div className="rounded-lg p-4 bg-muted/40 border border-border/50">
                 <div className="flex items-center gap-2 mb-2">
                   <MessageCircle className="w-3.5 h-3.5 text-violet-500" />
-                  <span className="text-xs text-muted-foreground font-medium">{t("dashboard.overview.chats")}</span>
+                  <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                    {t("dashboard.overview.chats")}
+                    <InfoTip text="Active chat sessions in the last 5 minutes with status 'active'. Does not include queued or waiting sessions." />
+                  </span>
                 </div>
                 <p className="text-3xl font-bold" data-testid="text-realtime-chats">
                   {isLoading ? <Skeleton className="h-8 w-12 inline-block" /> : activeChats.length}
@@ -509,12 +545,15 @@ export default function DashboardOverview() {
             <div className="rounded-lg p-4 bg-muted/40 border border-border/50">
               <div className="flex items-center gap-2 mb-3">
                 <Bot className="w-3.5 h-3.5 text-orange-500" />
-                <span className="text-xs text-muted-foreground font-medium">{t("dashboard.overview.agents")}</span>
+                <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                  {t("dashboard.overview.agents")}
+                  <InfoTip text="Supervisors active in the last 5 minutes (Logged In), chats they are currently handling (Chatting), and sessions waiting for a human reply (Queued)." />
+                </span>
               </div>
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div>
                   <p className="text-2xl font-bold" data-testid="text-agents-logged-in">
-                    {isLoading ? <Skeleton className="h-7 w-8 inline-block" /> : (stats?.activeSessions ? Math.min(stats.activeSessions, 5) : 1)}
+                    {isLoading ? <Skeleton className="h-7 w-8 inline-block" /> : (stats?.supervisorsOnline ?? 0)}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">{t("dashboard.overview.loggedIn")}</p>
                 </div>
@@ -538,7 +577,10 @@ export default function DashboardOverview() {
         {/* Last 7 Days Section */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">{t("dashboard.overview.last7Days")}</CardTitle>
+            <CardTitle className="text-sm font-semibold flex items-center gap-1">
+              {t("dashboard.overview.last7Days")}
+              <InfoTip text="Message activity over the past 7 days. Trend badge compares the recent half of the period to the earlier half." />
+            </CardTitle>
             <CardDescription className="text-xs mt-1 flex items-center gap-1">
               {t("dashboard.overview.dailyMessageVolume")}
               {msgTrend !== null && <TrendBadge pct={msgTrend} />}
@@ -579,17 +621,26 @@ export default function DashboardOverview() {
             <div className="grid grid-cols-3 gap-2">
               <div className="rounded-lg p-3 bg-muted/40 border border-border/50 text-center">
                 <AlertCircle className="w-3 h-3 mx-auto mb-1 text-amber-500" />
-                <p className="text-[10px] text-muted-foreground mb-1">{t("dashboard.overview.queuedLabel")}</p>
+                <p className="text-[10px] text-muted-foreground mb-1 flex items-center justify-center gap-0.5">
+                  {t("dashboard.overview.queuedLabel")}
+                  <InfoTip text="Sessions currently waiting (status: waiting or escalated). These need supervisor attention." />
+                </p>
                 <p className="text-xl font-bold" data-testid="text-queued-visitors">{queuedSessions.length}</p>
               </div>
               <div className="rounded-lg p-3 bg-muted/40 border border-border/50 text-center">
                 <Target className="w-3 h-3 mx-auto mb-1 text-blue-500" />
-                <p className="text-[10px] text-muted-foreground mb-1">{t("dashboard.overview.goals")}</p>
+                <p className="text-[10px] text-muted-foreground mb-1 flex items-center justify-center gap-0.5">
+                  {t("dashboard.overview.goals")}
+                  <InfoTip text="Total sessions handled end-to-end by AI (all-time). Each session counted once." />
+                </p>
                 <p className="text-xl font-bold" data-testid="text-goals">{stats?.aiSessions || 0}</p>
               </div>
               <div className="rounded-lg p-3 bg-muted/40 border border-border/50 text-center">
                 <ThumbsUp className="w-3 h-3 mx-auto mb-1 text-emerald-500" />
-                <p className="text-[10px] text-muted-foreground mb-1">{t("dashboard.overview.satisfaction")}</p>
+                <p className="text-[10px] text-muted-foreground mb-1 flex items-center justify-center gap-0.5">
+                  {t("dashboard.overview.satisfaction")}
+                  <InfoTip text="Equals AI Resolution Rate — the percentage of sessions the AI handled without human escalation. A reliable proxy for automated service quality." />
+                </p>
                 <p className="text-xl font-bold" data-testid="text-satisfaction">
                   {satisfactionRate}<span className="text-xs font-normal">%</span>
                 </p>
@@ -607,6 +658,7 @@ export default function DashboardOverview() {
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-primary" />
               {t("dashboard.overview.messagesThisWeekCard")}
+              <InfoTip text="Total messages per day for the last 7 days. Counts all messages sent by customers and the AI chatbot." />
             </CardTitle>
             <CardDescription>{t("dashboard.overview.dailyMessageVolume")}</CardDescription>
           </CardHeader>
@@ -667,6 +719,7 @@ export default function DashboardOverview() {
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-primary" />
               {t("dashboard.overview.performanceMetrics")}
+              <InfoTip text="Breakdown of sessions handled by AI vs. escalated to human supervisors. Percentages are based on all-time session history. The trend badge on AI Handled compares this week vs. the previous 7-day window." />
             </CardTitle>
             <CardDescription>{t("dashboard.overview.aiVsHuman")}</CardDescription>
           </CardHeader>

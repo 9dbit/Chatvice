@@ -34,7 +34,7 @@ import { staticBlogMetaMap } from "@shared/static-blog-meta";
 import { buildOnboardingKnowledgeForGuide, buildOnboardingKnowledgePublic, buildOnboardingWorkflowGuidance } from "@shared/onboarding-content";
 import { db, pool } from "./db";
 import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } from "drizzle-orm";
-import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, blastCampaigns } from "@shared/schema";
+import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, blastCampaigns, supervisors } from "@shared/schema";
 import crypto from "crypto";
 import { encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup, executeFallbackSheetLookup, buildPostmanCollection, buildHtmlDocs, DEFAULT_INTENTS, PRESET_INTENTS, PRESET_META, getCustomDataHealthSummary, checkOneSourceHealth, maskValue, ConnectorResult } from "./customConnector";
 import { registerCustomDataPresetRoutes } from "./customDataPresetRoutes";
@@ -192,6 +192,8 @@ function requireSupervisor(req: Request, res: Response, next: NextFunction) {
   if (!req.session?.userId || req.session.userType !== "supervisor") {
     return res.status(401).json({ error: "Unauthorized" });
   }
+  // Fire-and-forget: keep lastSeen fresh so merchant dashboard can show online supervisors
+  db.update(supervisors).set({ lastSeen: new Date() }).where(eq(supervisors.id, req.session.userId)).catch(() => {});
   next();
 }
 
