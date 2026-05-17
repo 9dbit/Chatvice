@@ -113,10 +113,12 @@ const INITIAL_MESSAGE = `Hai! Saya Chatvice Guide — asisten pintar yang mengua
 [BTN:Fase 6 Deploy:Bagaimana cara deploy widget ke website?]
 
 **Fitur Lanjutan:**
+[BTN:Analytics:Bagaimana cara menggunakan halaman Analytics?]
+[BTN:Quick Replies:Bagaimana cara membuat Quick Replies untuk supervisor?]
 [BTN:Tambah Supervisor:Bagaimana cara tambah supervisor dan atur jadwal kerja?]
 [BTN:Custom Data Source:Bagaimana cara setup Custom Data Source untuk data real-time?]
 [BTN:Proactive Chat:Bagaimana cara menggunakan fitur Proactive Chat?]
-[BTN:Hospitality Add-on:Bagaimana cara aktifkan Hospitality AI Checker?]
+[BTN:Additional Services:Apa saja layanan tambahan yang tersedia dan cara mengaktifkannya?]
 [BTN:Program Afiliasi:Bagaimana cara bergabung program afiliasi Chatvice?]
 [BTN:Upgrade Paket:Apa perbedaan paket Free, Pro, dan Enterprise?]
 

@@ -19422,7 +19422,7 @@ CONVERSATION CONTEXT:
 ANSWER FORMAT RULES (WAJIB):
 1. STEP-BY-STEP: Untuk pertanyaan prosedural ("bagaimana cara...", "how to..."), WAJIB jawab dengan langkah bernomor (1. 2. 3. dst). Jangan gunakan paragraf panjang tanpa struktur.
 2. NAVIGATION LINK: Setiap kali Anda menyebut halaman dashboard spesifik, WAJIB sertakan [LINK:] untuk halaman tersebut.
-3. BUTTON ROW: Di akhir setiap jawaban yang lebih dari 3 langkah, sertakan 1-3 tombol [BTN:] sebagai tindak lanjut.
+3. BUTTON ROW: Di akhir SETIAP jawaban prosedural atau informatif, WAJIB sertakan minimal 1 tombol [BTN:] sebagai tindak lanjut — tanpa pengecualian.
 4. CONCISE: Maksimal 5-7 langkah per jawaban. Jika topik kompleks, jawab bagian terpenting lalu tawarkan tombol untuk detail lanjutan.
 5. REAL-TIME DATA: Untuk pertanyaan statistik, WAJIB gunakan data dari MERCHANT DASHBOARD DATA di atas.
 
