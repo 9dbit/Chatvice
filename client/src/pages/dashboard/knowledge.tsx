@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, ChevronRight, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock, Upload, CheckCircle2, Type, Table2, Zap, Pencil, Link2, Unlink, Power, Brain } from "lucide-react";
+import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, ChevronRight, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock, Upload, CheckCircle2, Type, Table2, Zap, Pencil, Link2, Unlink, Power, Brain, TriangleAlert } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, rectSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -2618,6 +2618,25 @@ export default function KnowledgePage() {
               Websites synced to your AI knowledge base. Auto-refreshed every 60 minutes. Google Sheets sync every 1 minute.
             </CardDescription>
           </CardHeader>
+          {cdsSource?.isEnabled && (
+            <div className="flex items-start gap-3 mx-6 mb-3 p-3 rounded-md border border-yellow-400/60 bg-yellow-50/70 dark:bg-yellow-950/30 dark:border-yellow-500/40" data-testid="banner-active-sources-cds-conflict">
+              <TriangleAlert className="w-4 h-4 shrink-0 mt-0.5 text-yellow-600 dark:text-yellow-400" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">{t("dashboard.knowledge.conflictBanner.title")}</p>
+                <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-0.5">{t("dashboard.knowledge.conflictBanner.desc")}</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 border-yellow-400/60 text-yellow-800 dark:text-yellow-200"
+                onClick={() => disableCdsMutation.mutate()}
+                disabled={disableCdsMutation.isPending}
+                data-testid="button-active-sources-resolve-conflict"
+              >
+                {disableCdsMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : t("dashboard.knowledge.conflictBanner.resolve")}
+              </Button>
+            </div>
+          )}
           <CardContent>
             {linksLoading ? (
               <Skeleton className="h-24 w-full" />

@@ -808,6 +808,11 @@
         "confirm": "Enable Source & Deactivate CDS",
         "cancel": "Cancel"
       },
+      "conflictBanner": {
+        "title": "Custom Data Source is also active",
+        "desc": "Using Active Sources and Custom Data Source simultaneously may cause duplicate or contradictory AI answers.",
+        "resolve": "Resolve: Disable CDS"
+      },
       "updateRequested": "Update requested",
       "updateRequestedDesc": "Content update has been requested.",
       "fetchedSuccessfully": "Fetched successfully",
@@ -2368,6 +2373,11 @@
         "setupFirst": "Complete setup first",
         "noSourceYet": "Set up the connection before managing intents.",
         "noAuditYet": "No calls recorded. Complete setup and enable the connection first."
+      },
+      "conflictBanner": {
+        "title": "Active Sources are also enabled",
+        "desc": "Using Custom Data Source and Active Sources simultaneously may cause duplicate or contradictory AI answers.",
+        "resolve": "Resolve: Disable Active Sources"
       }
     },
     "checklist": {

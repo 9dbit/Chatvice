@@ -808,6 +808,11 @@
         "confirm": "Aktifkan Sumber & Nonaktifkan CDS",
         "cancel": "Batal"
       },
+      "conflictBanner": {
+        "title": "Custom Data Source juga aktif",
+        "desc": "Menggunakan Active Sources dan Custom Data Source secara bersamaan dapat menyebabkan jawaban AI yang duplikat atau bertentangan.",
+        "resolve": "Selesaikan: Nonaktifkan CDS"
+      },
       "updateRequested": "Pembaruan diminta",
       "updateRequestedDesc": "Pembaruan konten telah diminta.",
       "fetchedSuccessfully": "Berhasil diambil",
@@ -2368,6 +2373,11 @@
         "setupFirst": "Selesaikan setup terlebih dahulu",
         "noSourceYet": "Atur koneksi terlebih dahulu sebelum mengelola intent.",
         "noAuditYet": "Belum ada panggilan. Selesaikan setup dan aktifkan koneksi terlebih dahulu."
+      },
+      "conflictBanner": {
+        "title": "Active Sources juga aktif",
+        "desc": "Menggunakan Custom Data Source dan Active Sources secara bersamaan dapat menyebabkan jawaban AI yang duplikat atau bertentangan.",
+        "resolve": "Selesaikan: Nonaktifkan Active Sources"
       }
     },
     "checklist": {

@@ -135,6 +135,12 @@ export default function CustomDataSourcePage() {
     queryKey: ["/api/merchant/sources/google-sheets"],
   });
 
+  // Crawled links query (for conflict detection with Active Sources)
+  const { data: crawledLinks = [] } = useQuery<{ id: string; isActive: boolean }[]>({
+    queryKey: ["/api/knowledge/links"],
+  });
+  const hasActiveCrawledLinks = crawledLinks.some((l) => l.isActive === true);
+
   // Full sources list (for conflict detection and disabling enabled Google Sheet sources)
   const { data: allSources = [] } = useQuery<{ id: string; isActive?: boolean; sourceSubtype?: string }[]>({
     queryKey: ["/api/sources"],
@@ -263,6 +269,21 @@ export default function CustomDataSourcePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
     },
+  });
+
+  // Disable active crawled links (Active Sources) to resolve CDS conflict
+  const disableCrawledLinksMutation = useMutation({
+    mutationFn: async () => {
+      await Promise.all(
+        crawledLinks
+          .filter((l) => l.isActive === true)
+          .map((l) => apiRequest("PATCH", `/api/knowledge/links/${l.id}`, { isActive: false }))
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links"] });
+    },
+    onError: () => toast({ title: t("dashboard.customDataSource.wizard.saveFailed"), variant: "destructive" }),
   });
 
   // Persist CDS isEnabled=true to the backend (atomic, independent of form unsaved state)
@@ -441,6 +462,25 @@ export default function CustomDataSourcePage() {
         </TabsList>
 
         <TabsContent value="settings" className="space-y-4 mt-4">
+          {source?.isEnabled && hasActiveCrawledLinks && (
+            <div className="flex items-start gap-3 p-3 rounded-md border border-yellow-400/60 bg-yellow-50/70 dark:bg-yellow-950/30 dark:border-yellow-500/40" data-testid="banner-cds-active-sources-conflict">
+              <TriangleAlert className="w-4 h-4 shrink-0 mt-0.5 text-yellow-600 dark:text-yellow-400" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">{t("dashboard.customDataSource.conflictBanner.title")}</p>
+                <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-0.5">{t("dashboard.customDataSource.conflictBanner.desc")}</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 border-yellow-400/60 text-yellow-800 dark:text-yellow-200"
+                onClick={() => disableCrawledLinksMutation.mutate()}
+                disabled={disableCrawledLinksMutation.isPending}
+                data-testid="button-cds-resolve-conflict"
+              >
+                {disableCrawledLinksMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : t("dashboard.customDataSource.conflictBanner.resolve")}
+              </Button>
+            </div>
+          )}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Plug className="w-5 h-5" /> {t("dashboard.customDataSource.connectionTitle")}</CardTitle>
