@@ -2221,9 +2221,11 @@
       "quickStart": {
         "title": "Quick Start",
         "desc": "Tambahkan set intent siap pakai dari template untuk mulai lebih cepat.",
-        "add": "Tambah Intent",
+        "add": "Tambah Intents",
         "added": "Ditambahkan"
       },
+      "noSourceYetIntents": "Siapkan koneksi Anda di tab Pengaturan terlebih dahulu.",
+      "noAuditYet": "Belum ada panggilan yang tercatat.",
       "connectionTitle": "Koneksi Panel API",
       "connectionDesc": "Endpoint, autentikasi, dan kontrol cache/rate limit.",
       "intentsHeading": "Intent yang dideteksi AI",

@@ -9,11 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Key, RefreshCw, Plug, Plus, Trash2, Pencil, Download, FileText, CheckCircle2, AlertCircle, Loader2, Copy, Wand2, ClipboardList, Activity, HeartPulse, Eye, FileSpreadsheet, TriangleAlert } from "lucide-react";
+import { Database, Key, RefreshCw, Plug, Plus, Trash2, Pencil, Download, FileText, CheckCircle2, AlertCircle, Loader2, Copy, Wand2, ClipboardList, Activity, HeartPulse, Eye, FileSpreadsheet, TriangleAlert, ChevronDown } from "lucide-react";
 import { Link } from "wouter";
 import { useLanguage } from "@/hooks/use-language";
 import { DataEntryFormCard, useDataEntryFormCard } from "@/components/data-entry-form-card";
@@ -117,6 +118,7 @@ export default function CustomDataSourcePage() {
   const [newPlainKey, setNewPlainKey] = useState<string | null>(null);
   const [presetId, setPresetId] = useState<string>("");
   const [scaffolded, setScaffolded] = useState<Set<string>>(new Set());
+  const [quickStartOpen, setQuickStartOpen] = useState(true);
   const [cdsConflictOpen, setCdsConflictOpen] = useState(false);
   const [cdsAlsoDisable, setCdsAlsoDisable] = useState(true);
   const [intentDialogOpen, setIntentDialogOpen] = useState(false);
@@ -612,81 +614,92 @@ export default function CustomDataSourcePage() {
             <Card>
               <CardContent className="p-8 flex flex-col items-center text-center gap-3">
                 <Database className="w-10 h-10 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.conflictPopup.noSourceYet")}</p>
+                <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.noSourceYetIntents")}</p>
               </CardContent>
             </Card>
           )}
           {source && intents.length === 0 && presets.length > 0 && (
-            <Card data-testid="card-quick-start">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Wand2 className="w-4 h-4 text-primary" />
-                  {t("dashboard.customDataSource.quickStart.title")}
-                </CardTitle>
-                <CardDescription className="text-xs">{t("dashboard.customDataSource.quickStart.desc")}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3" data-testid="quick-start-presets">
-                  {presets.map(p => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setPresetId(presetId === p.id ? "" : p.id)}
-                      className={`text-left p-4 rounded-md border hover-elevate active-elevate-2 ${presetId === p.id ? "border-primary ring-1 ring-primary" : ""}`}
-                      data-testid={`button-preset-${p.id}`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Wand2 className="w-4 h-4 text-primary" />
-                        <span className="font-medium">{p.name}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-2">{p.description}</p>
-                      <p className="text-xs mt-3">
-                        <Badge variant="secondary">{t("dashboard.customDataSource.wizard.intentExamples").replace("{n}", String(p.intents.length))}</Badge>
-                      </p>
-                    </button>
-                  ))}
-                </div>
-                {presetId && (() => {
-                  const activePreset = presets.find(p => p.id === presetId);
-                  if (!activePreset) return null;
-                  const existingKeySet = new Set(intents.map(i => i.intentKey));
-                  const remaining = activePreset.intents.filter(it => !existingKeySet.has(it.intentKey));
-                  if (remaining.length === 0) {
-                    return <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.wizard.allAdded")}</p>;
-                  }
-                  return (
-                    <div className="space-y-2">
-                      {remaining.map((it) => {
-                        const done = scaffolded.has(it.intentKey);
-                        return (
-                          <div key={it.intentKey} className="p-3 rounded-md border flex items-start justify-between gap-3" data-testid={`quick-start-intent-${it.intentKey}`}>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Badge variant="outline" className="font-mono">{it.intentKey}</Badge>
-                                <span className="font-medium text-sm">{it.name}</span>
-                              </div>
-                              {it.description && <p className="text-xs text-muted-foreground mt-1">{it.description}</p>}
-                              <p className="text-xs text-muted-foreground mt-1 font-mono">{it.httpMethod} {it.endpointPath}</p>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant={done ? "outline" : "default"}
-                              disabled={done || scaffoldIntent.isPending}
-                              onClick={() => scaffoldIntent.mutate(it.intentKey)}
-                              data-testid={`quick-start-add-${it.intentKey}`}
-                            >
-                              {done
-                                ? <><CheckCircle2 className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.quickStart.added")}</>
-                                : <><Plus className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.quickStart.add")}</>}
-                            </Button>
-                          </div>
-                        );
-                      })}
+            <Collapsible open={quickStartOpen} onOpenChange={setQuickStartOpen} data-testid="card-quick-start">
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <Wand2 className="w-4 h-4 text-primary" />
+                      <CardTitle className="text-base">{t("dashboard.customDataSource.quickStart.title")}</CardTitle>
                     </div>
-                  );
-                })()}
-              </CardContent>
-            </Card>
+                    <CollapsibleTrigger asChild>
+                      <Button size="icon" variant="ghost" data-testid="button-quick-start-toggle">
+                        <ChevronDown className={`w-4 h-4 transition-transform ${quickStartOpen ? "rotate-180" : ""}`} />
+                      </Button>
+                    </CollapsibleTrigger>
+                  </div>
+                  <CardDescription className="text-xs">{t("dashboard.customDataSource.quickStart.desc")}</CardDescription>
+                </CardHeader>
+                <CollapsibleContent>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3" data-testid="quick-start-presets">
+                      {presets.map(p => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setPresetId(presetId === p.id ? "" : p.id)}
+                          className={`text-left p-4 rounded-md border hover-elevate active-elevate-2 ${presetId === p.id ? "border-primary ring-1 ring-primary" : ""}`}
+                          data-testid={`button-preset-${p.id}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Wand2 className="w-4 h-4 text-primary" />
+                            <span className="font-medium">{p.name}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">{p.description}</p>
+                          <p className="text-xs mt-3">
+                            <Badge variant="secondary">{t("dashboard.customDataSource.wizard.intentExamples").replace("{n}", String(p.intents.length))}</Badge>
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                    {presetId && (() => {
+                      const activePreset = presets.find(p => p.id === presetId);
+                      if (!activePreset) return null;
+                      const existingKeySet = new Set(intents.map(i => i.intentKey));
+                      const remaining = activePreset.intents.filter(it => !existingKeySet.has(it.intentKey));
+                      if (remaining.length === 0) {
+                        return <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.wizard.allAdded")}</p>;
+                      }
+                      return (
+                        <div className="space-y-2">
+                          {remaining.map((it) => {
+                            const done = scaffolded.has(it.intentKey);
+                            return (
+                              <div key={it.intentKey} className="p-3 rounded-md border flex items-start justify-between gap-3" data-testid={`quick-start-intent-${it.intentKey}`}>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Badge variant="outline" className="font-mono">{it.intentKey}</Badge>
+                                    <span className="font-medium text-sm">{it.name}</span>
+                                  </div>
+                                  {it.description && <p className="text-xs text-muted-foreground mt-1">{it.description}</p>}
+                                  <p className="text-xs text-muted-foreground mt-1 font-mono">{it.httpMethod} {it.endpointPath}</p>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant={done ? "outline" : "default"}
+                                  disabled={done || scaffoldIntent.isPending}
+                                  onClick={() => scaffoldIntent.mutate(it.intentKey)}
+                                  data-testid={`quick-start-add-${it.intentKey}`}
+                                >
+                                  {done
+                                    ? <><CheckCircle2 className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.quickStart.added")}</>
+                                    : <><Plus className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.quickStart.add")}</>}
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           )}
           {(() => {
             const sheetMap = new Map(googleSheetSources.map((s) => [s.id, s.name]));
@@ -787,7 +800,7 @@ export default function CustomDataSourcePage() {
             <Card>
               <CardContent className="p-8 flex flex-col items-center text-center gap-3">
                 <Activity className="w-10 h-10 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.conflictPopup.noAuditYet")}</p>
+                <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.noAuditYet")}</p>
               </CardContent>
             </Card>
           ) : (
