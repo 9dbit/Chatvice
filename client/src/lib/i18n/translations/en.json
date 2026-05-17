@@ -2218,6 +2218,12 @@
       "specApi": "API Spec",
       "setupWizard": "Setup wizard",
       "setupWizardDesc": "Reconfigure the panel API with a step-by-step guide.",
+      "quickStart": {
+        "title": "Quick Start",
+        "desc": "Add a set of pre-built intents from a template to get started fast.",
+        "add": "Add Intent",
+        "added": "Added"
+      },
       "connectionTitle": "Panel API Connection",
       "connectionDesc": "Endpoint, authentication, cache and rate-limit controls.",
       "intentsHeading": "Intents detected by AI",

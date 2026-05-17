@@ -2218,6 +2218,12 @@
       "specApi": "Spec API",
       "setupWizard": "Wizard penyiapan",
       "setupWizardDesc": "Konfigurasi ulang panel API dengan panduan langkah demi langkah.",
+      "quickStart": {
+        "title": "Quick Start",
+        "desc": "Tambahkan set intent siap pakai dari template untuk mulai lebih cepat.",
+        "add": "Tambah Intent",
+        "added": "Ditambahkan"
+      },
       "connectionTitle": "Koneksi Panel API",
       "connectionDesc": "Endpoint, autentikasi, dan kontrol cache/rate limit.",
       "intentsHeading": "Intent yang dideteksi AI",

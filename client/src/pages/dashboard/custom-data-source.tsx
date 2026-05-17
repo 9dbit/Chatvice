@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Key, RefreshCw, Plug, Plus, Trash2, Pencil, Download, FileText, CheckCircle2, AlertCircle, Loader2, Copy, ArrowRight, Wand2, ClipboardList, Activity, HeartPulse, Eye, FileSpreadsheet, TriangleAlert } from "lucide-react";
+import { Database, Key, RefreshCw, Plug, Plus, Trash2, Pencil, Download, FileText, CheckCircle2, AlertCircle, Loader2, Copy, Wand2, ClipboardList, Activity, HeartPulse, Eye, FileSpreadsheet, TriangleAlert } from "lucide-react";
 import { Link } from "wouter";
 import { useLanguage } from "@/hooks/use-language";
 import { DataEntryFormCard, useDataEntryFormCard } from "@/components/data-entry-form-card";
@@ -115,8 +115,8 @@ export default function CustomDataSourcePage() {
   const dateLocale = localeMap[language] || "en-US";
   const [showKeyDialog, setShowKeyDialog] = useState(false);
   const [newPlainKey, setNewPlainKey] = useState<string | null>(null);
-  const [wizardOpen, setWizardOpen] = useState<boolean | null>(null);
-  const [wizardDialogOpen, setWizardDialogOpen] = useState(false);
+  const [presetId, setPresetId] = useState<string>("");
+  const [scaffolded, setScaffolded] = useState<Set<string>>(new Set());
   const [cdsConflictOpen, setCdsConflictOpen] = useState(false);
   const [cdsAlsoDisable, setCdsAlsoDisable] = useState(true);
   const [intentDialogOpen, setIntentDialogOpen] = useState(false);
@@ -156,6 +156,9 @@ export default function CustomDataSourcePage() {
     queryKey: ["/api/merchant/custom-data-source/health"],
     enabled: !!source,
     refetchInterval: 30_000,
+  });
+  const { data: presets = [] } = useQuery<PresetDef[]>({
+    queryKey: ["/api/merchant/custom-data-source/presets"],
   });
   const refreshHealth = useMutation({
     mutationFn: async () => {
@@ -257,6 +260,18 @@ export default function CustomDataSourcePage() {
     },
   });
 
+  const scaffoldIntent = useMutation({
+    mutationFn: async (intentKey: string) => {
+      const res = await apiRequest("POST", "/api/merchant/custom-data-intents/from-preset", { preset: presetId, intentKey });
+      return { intentKey, body: await res.json() };
+    },
+    onSuccess: ({ intentKey }) => {
+      setScaffolded(prev => new Set(prev).add(intentKey));
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-intents"] });
+    },
+    onError: (err: any) => toast({ title: t("dashboard.customDataSource.wizard.addIntentFailed"), description: err?.message, variant: "destructive" }),
+  });
+
   // Disable only Google Sheet Active Sources when user confirms CDS enable
   const disableActiveSourcesMutation = useMutation({
     mutationFn: async () => {
@@ -334,14 +349,7 @@ export default function CustomDataSourcePage() {
     setIntentDialogOpen(true);
   };
 
-  // Decide once after the initial load whether to open the wizard. Subsequent
-  // source-query refetches (triggered by the wizard's own save) must NOT flip
-  // this back, otherwise Steps 3 & 4 would unmount.
-  useEffect(() => {
-    if (!srcLoading && wizardOpen === null) setWizardOpen(!source);
-  }, [srcLoading, source, wizardOpen]);
-
-  if (srcLoading || wizardOpen === null) {
+  if (srcLoading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[300px]">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -394,14 +402,6 @@ export default function CustomDataSourcePage() {
               <FileText className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.specApi")}
             </a>
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setWizardDialogOpen(true)}
-            data-testid="button-open-wizard"
-          >
-            <Wand2 className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.setupWizard")}
-          </Button>
         </div>
       </div>
 
@@ -429,28 +429,6 @@ export default function CustomDataSourcePage() {
               {t("dashboard.customDataSource.conflictPopup.confirm")}
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={wizardDialogOpen} onOpenChange={setWizardDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="sr-only">
-            <DialogTitle>{t("dashboard.customDataSource.setupWizard")}</DialogTitle>
-            <DialogDescription>{t("dashboard.customDataSource.setupWizardDesc")}</DialogDescription>
-          </DialogHeader>
-          {wizardDialogOpen && (
-            <ConnectWizard
-              existingSource={source || null}
-              existingIntentKeys={intents.map(i => i.intentKey)}
-              inDialog
-              onApiKey={(key) => { setNewPlainKey(key); setShowKeyDialog(true); }}
-              onFinish={() => {
-                setWizardDialogOpen(false);
-                queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-source"] });
-                queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-intents"] });
-              }}
-            />
-          )}
         </DialogContent>
       </Dialog>
 
@@ -635,9 +613,78 @@ export default function CustomDataSourcePage() {
               <CardContent className="p-8 flex flex-col items-center text-center gap-3">
                 <Database className="w-10 h-10 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.conflictPopup.noSourceYet")}</p>
-                <Button size="sm" onClick={() => setWizardDialogOpen(true)} data-testid="button-intent-setup-wizard">
-                  <Wand2 className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.setupWizard")}
-                </Button>
+              </CardContent>
+            </Card>
+          )}
+          {source && intents.length === 0 && presets.length > 0 && (
+            <Card data-testid="card-quick-start">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Wand2 className="w-4 h-4 text-primary" />
+                  {t("dashboard.customDataSource.quickStart.title")}
+                </CardTitle>
+                <CardDescription className="text-xs">{t("dashboard.customDataSource.quickStart.desc")}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3" data-testid="quick-start-presets">
+                  {presets.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setPresetId(presetId === p.id ? "" : p.id)}
+                      className={`text-left p-4 rounded-md border hover-elevate active-elevate-2 ${presetId === p.id ? "border-primary ring-1 ring-primary" : ""}`}
+                      data-testid={`button-preset-${p.id}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Wand2 className="w-4 h-4 text-primary" />
+                        <span className="font-medium">{p.name}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">{p.description}</p>
+                      <p className="text-xs mt-3">
+                        <Badge variant="secondary">{t("dashboard.customDataSource.wizard.intentExamples").replace("{n}", String(p.intents.length))}</Badge>
+                      </p>
+                    </button>
+                  ))}
+                </div>
+                {presetId && (() => {
+                  const activePreset = presets.find(p => p.id === presetId);
+                  if (!activePreset) return null;
+                  const existingKeySet = new Set(intents.map(i => i.intentKey));
+                  const remaining = activePreset.intents.filter(it => !existingKeySet.has(it.intentKey));
+                  if (remaining.length === 0) {
+                    return <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.wizard.allAdded")}</p>;
+                  }
+                  return (
+                    <div className="space-y-2">
+                      {remaining.map((it) => {
+                        const done = scaffolded.has(it.intentKey);
+                        return (
+                          <div key={it.intentKey} className="p-3 rounded-md border flex items-start justify-between gap-3" data-testid={`quick-start-intent-${it.intentKey}`}>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant="outline" className="font-mono">{it.intentKey}</Badge>
+                                <span className="font-medium text-sm">{it.name}</span>
+                              </div>
+                              {it.description && <p className="text-xs text-muted-foreground mt-1">{it.description}</p>}
+                              <p className="text-xs text-muted-foreground mt-1 font-mono">{it.httpMethod} {it.endpointPath}</p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant={done ? "outline" : "default"}
+                              disabled={done || scaffoldIntent.isPending}
+                              onClick={() => scaffoldIntent.mutate(it.intentKey)}
+                              data-testid={`quick-start-add-${it.intentKey}`}
+                            >
+                              {done
+                                ? <><CheckCircle2 className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.quickStart.added")}</>
+                                : <><Plus className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.quickStart.add")}</>}
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           )}
@@ -741,9 +788,6 @@ export default function CustomDataSourcePage() {
               <CardContent className="p-8 flex flex-col items-center text-center gap-3">
                 <Activity className="w-10 h-10 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.conflictPopup.noAuditYet")}</p>
-                <Button size="sm" onClick={() => setWizardDialogOpen(true)} data-testid="button-audit-setup-wizard">
-                  <Wand2 className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.setupWizard")}
-                </Button>
               </CardContent>
             </Card>
           ) : (
@@ -1168,12 +1212,6 @@ export default function CustomDataSourcePage() {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Connect Panel Wizard — first-run setup for non-technical merchants.
-// Shown when no custom data source exists yet. After completion the parent
-// page re-renders into the full Settings/Intents/Audit dashboard automatically.
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface PresetIntentDef {
   intentKey: string;
   name: string;
@@ -1253,390 +1291,4 @@ function HealthBadge({ health, onRefresh, refreshing }: { health: HealthSummary;
   );
 }
 
-export function ConnectWizard({
-  onApiKey,
-  onFinish,
-  existingSource = null,
-  existingIntentKeys = [],
-  inDialog = false,
-}: {
-  onApiKey: (key: string) => void;
-  onFinish: () => void;
-  existingSource?: CustomDataSource | null;
-  existingIntentKeys?: string[];
-  inDialog?: boolean;
-}) {
-  const { toast } = useToast();
-  const { t } = useLanguage();
-  const isRerun = !!existingSource;
-  const [presetId, setPresetId] = useState<string>("");
-  const [name, setName] = useState(existingSource?.name || t("dashboard.customDataSource.wizard.defaultName"));
-  const [baseUrl, setBaseUrl] = useState(existingSource?.baseUrl || "");
-  const [created, setCreated] = useState(isRerun);
-  const [apiKey, setApiKey] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<{ ok: boolean; status: number; latencyMs: number; sample?: string; error?: string } | null>(null);
-  const [scaffolded, setScaffolded] = useState<Set<string>>(new Set());
-
-  const { data: presets = [] } = useQuery<PresetDef[]>({
-    queryKey: ["/api/merchant/custom-data-source/presets"],
-  });
-  const activePreset = presets.find(p => p.id === presetId);
-
-  const saveSource = useMutation({
-    mutationFn: async () => {
-      const body: Record<string, unknown> = {
-        name: name || t("dashboard.customDataSource.wizard.defaultName"),
-        baseUrl,
-        preset: "none",
-      };
-      if (!isRerun) body.isEnabled = true;
-      const res = await apiRequest("PUT", "/api/merchant/custom-data-source", body);
-      return res.json();
-    },
-    onSuccess: (data: any) => {
-      setCreated(true);
-      if (typeof data?.apiKey === "string") setApiKey(data.apiKey);
-    },
-    onError: (err: any) => toast({ title: t("dashboard.customDataSource.wizard.saveFailed"), description: err?.message, variant: "destructive" }),
-  });
-
-  const testConn = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/merchant/custom-data-source/test", {});
-      return res.json();
-    },
-    onSuccess: (data) => {
-      setTestResult(data);
-      toast({
-        title: data.ok ? t("dashboard.customDataSource.wizard.connSuccess") : t("dashboard.customDataSource.wizard.connFailed"),
-        description: data.ok ? `Status ${data.status} • ${data.latencyMs}ms` : (data.error || `Status ${data.status}`),
-        variant: data.ok ? "default" : "destructive",
-      });
-    },
-  });
-
-  const scaffoldIntent = useMutation({
-    mutationFn: async (intentKey: string) => {
-      const res = await apiRequest("POST", "/api/merchant/custom-data-intents/from-preset", {
-        preset: presetId,
-        intentKey,
-      });
-      return { intentKey, body: await res.json() };
-    },
-    onSuccess: ({ intentKey }) => {
-      setScaffolded(prev => new Set(prev).add(intentKey));
-      queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-intents"] });
-    },
-    onError: (err: any) => toast({ title: t("dashboard.customDataSource.wizard.addIntentFailed"), description: err?.message, variant: "destructive" }),
-  });
-
-  // Re-run dirty check: true when the merchant edited name/baseUrl but hasn't saved yet.
-  const isRerunDirty = isRerun && (
-    (existingSource?.baseUrl || "") !== baseUrl ||
-    (existingSource?.name || "") !== name
-  );
-
-  const finish = async () => {
-    // Persist unsaved re-run edits before closing so changes aren't lost.
-    if (isRerunDirty && baseUrl.trim()) {
-      try { await saveSource.mutateAsync(); } catch { return; }
-    }
-    if (apiKey) onApiKey(apiKey);
-    onFinish();
-  };
-
-  // Derived gating flags.
-  // canSave: a base URL must be entered before saving.
-  // canTest: connection can only be tested after the source is saved (created).
-  // canScaffold: intent scaffolding requires a successful test or an existing source (re-run).
-  const canSave = baseUrl.trim().length > 0;
-  const canTest = created && baseUrl.trim().length > 0;
-  const canScaffold = testResult?.ok === true || isRerun;
-
-  return (
-    <div className={inDialog ? "space-y-4" : "p-6 max-w-3xl mx-auto space-y-4"} data-testid="wizard-connect-panel">
-      {!inDialog && (
-        <div>
-          <h1 className="text-2xl font-semibold flex items-center gap-2">
-            <Database className="w-6 h-6 text-primary" />
-            {t("dashboard.customDataSource.title")}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t("dashboard.customDataSource.subtitle")}
-          </p>
-        </div>
-      )}
-
-      {/* ── Section 1: Preset chooser (optional) ── */}
-      {presets.length > 0 && (
-        <Card data-testid="wizard-section-preset">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Wand2 className="w-4 h-4 text-primary" />
-              {t("dashboard.customDataSource.wizard.step1Title")}
-            </CardTitle>
-            <CardDescription className="text-xs">{t("dashboard.customDataSource.wizard.step1Desc")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3" data-testid="wizard-step-1">
-              {presets.map(p => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setPresetId(presetId === p.id ? "" : p.id)}
-                  className={`text-left p-4 rounded-md border hover-elevate active-elevate-2 ${
-                    presetId === p.id ? "border-primary ring-1 ring-primary" : ""
-                  }`}
-                  data-testid={`button-preset-${p.id}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <Wand2 className="w-4 h-4 text-primary" />
-                    <span className="font-medium">{p.name}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">{p.description}</p>
-                  <p className="text-xs mt-3">
-                    <Badge variant="secondary">{t("dashboard.customDataSource.wizard.intentExamples").replace("{n}", String(p.intents.length))}</Badge>
-                  </p>
-                </button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Section 2: Connection settings + test ── */}
-      <Card data-testid="wizard-section-connection">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Plug className="w-4 h-4 text-primary" />
-            {t("dashboard.customDataSource.wizard.step2Title")}
-          </CardTitle>
-          <CardDescription className="text-xs">{t("dashboard.customDataSource.wizard.step2Desc")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3" data-testid="wizard-step-2">
-          <div>
-            <Label>{t("dashboard.customDataSource.wizard.nameLabel")}</Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t("dashboard.customDataSource.wizard.namePlaceholder")}
-              data-testid="wizard-input-name"
-            />
-          </div>
-          <div>
-            <Label>{t("dashboard.customDataSource.wizard.baseUrlLabel")}</Label>
-            <Input
-              value={baseUrl}
-              onChange={(e) => { setBaseUrl(e.target.value); setTestResult(null); setCreated(false); setApiKey(null); }}
-              placeholder={t("dashboard.customDataSource.settings.placeholder.baseUrl")}
-              data-testid="wizard-input-base-url"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              {t("dashboard.customDataSource.wizard.baseUrlHint")}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Save button — always shown while not yet created or URL has changed */}
-            {(!created || (existingSource && ((existingSource.baseUrl || "") !== baseUrl || (existingSource.name || "") !== name))) && (
-              <Button
-                onClick={async () => {
-                  if (!canSave) {
-                    toast({ title: t("dashboard.customDataSource.wizard.baseUrlRequired"), variant: "destructive" });
-                    return;
-                  }
-                  await saveSource.mutateAsync();
-                }}
-                disabled={saveSource.isPending || !canSave}
-                data-testid="wizard-button-save"
-              >
-                {saveSource.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-                {t("dashboard.customDataSource.wizard.saveButton") || "Simpan"}
-              </Button>
-            )}
-            {/* Test button — only available after the source is saved */}
-            <Button
-              variant={created ? "default" : "outline"}
-              onClick={() => { if (canTest) testConn.mutate(); }}
-              disabled={testConn.isPending || !canTest}
-              data-testid="wizard-button-test"
-            >
-              {testConn.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-              {testResult ? t("dashboard.customDataSource.wizard.retestButton") : t("dashboard.customDataSource.wizard.testButton")}
-            </Button>
-            {created && !testResult && (
-              <span className="text-xs text-muted-foreground">{t("dashboard.customDataSource.wizard.savedHint")}</span>
-            )}
-          </div>
-          {testResult && (
-            <div
-              data-testid={testResult.ok ? "wizard-test-result-ok" : "wizard-test-result-fail"}
-              className={`p-3 rounded-md border text-sm ${testResult.ok ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-amber-50 dark:bg-amber-950/30"}`}
-            >
-              <div className="flex items-center gap-2 font-medium">
-                {testResult.ok ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-amber-600" />}
-                {testResult.ok ? t("dashboard.customDataSource.wizard.success") : t("dashboard.customDataSource.wizard.failed")} • Status {testResult.status} • {testResult.latencyMs}ms
-              </div>
-              {testResult.sample && <pre className="text-xs mt-2 overflow-auto max-h-32">{testResult.sample}</pre>}
-              {testResult.error && <p className="text-xs mt-2 text-amber-700 dark:text-amber-300">{testResult.error}</p>}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── Section 3: API Key ── */}
-      <Card data-testid="wizard-section-apikey" className={!created ? "opacity-50 pointer-events-none" : ""}>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Key className="w-4 h-4 text-primary" />
-            {t("dashboard.customDataSource.wizard.step3Title")}
-            {!created && <Badge variant="secondary" className="text-xs font-normal ml-1">{t("dashboard.customDataSource.wizard.lockedHint") || "Simpan koneksi dulu"}</Badge>}
-          </CardTitle>
-          <CardDescription className="text-xs">{t("dashboard.customDataSource.wizard.step3Desc")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3" data-testid="wizard-step-3">
-          <div className="p-3 rounded-md border bg-amber-50 dark:bg-amber-950/30 text-sm">
-            <div className="flex items-center gap-2 font-medium">
-              <AlertCircle className="w-4 h-4 text-amber-600" />
-              {t("dashboard.customDataSource.wizard.apiKeyWarning")}
-            </div>
-            <p className="text-xs mt-1 text-muted-foreground">
-              {t("dashboard.customDataSource.wizard.apiKeyHint")}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Input
-              value={apiKey || t("dashboard.customDataSource.wizard.apiKeyPlaceholder")}
-              readOnly
-              className="font-mono"
-              data-testid="wizard-text-api-key"
-            />
-            <Button
-              size="icon"
-              variant="outline"
-              disabled={!apiKey}
-              onClick={() => {
-                if (apiKey) {
-                  navigator.clipboard.writeText(apiKey);
-                  toast({ title: t("dashboard.customDataSource.wizard.apiKeyCopied") });
-                }
-              }}
-              data-testid="wizard-button-copy-key"
-            >
-              <Copy className="w-4 h-4" />
-            </Button>
-          </div>
-          {!apiKey && (
-            <p className="text-xs text-muted-foreground">
-              {t("dashboard.customDataSource.wizard.apiKeyMissing")}
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── Section 4: Intent scaffolding from preset — always visible ── */}
-      <Card
-        data-testid="wizard-section-intents"
-        className={(!canScaffold || !activePreset) ? "opacity-50 pointer-events-none" : ""}
-      >
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <ClipboardList className="w-4 h-4 text-primary" />
-            {t("dashboard.customDataSource.wizard.step4Title")}
-            {!activePreset && (
-              <Badge variant="secondary" className="text-xs font-normal ml-1">
-                {t("dashboard.customDataSource.wizard.lockedNoPreset") || "Pilih template dulu"}
-              </Badge>
-            )}
-            {activePreset && !canScaffold && (
-              <Badge variant="secondary" className="text-xs font-normal ml-1">
-                {t("dashboard.customDataSource.wizard.lockedTestHint") || "Tes koneksi dulu"}
-              </Badge>
-            )}
-          </CardTitle>
-          <CardDescription className="text-xs">{t("dashboard.customDataSource.wizard.step4Desc")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3" data-testid="wizard-step-4">
-          {!activePreset ? (
-            <p className="text-sm text-muted-foreground">
-              {t("dashboard.customDataSource.wizard.noPresetSelected") || "Pilih salah satu template di atas untuk melihat daftar intent yang bisa ditambahkan."}
-            </p>
-          ) : (
-            <>
-              <div className="p-3 rounded-md border bg-muted/30 flex items-start justify-between gap-3 flex-wrap">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium flex items-center gap-2">
-                    <ClipboardList className="w-4 h-4 text-primary" /> {t("dashboard.customDataSource.wizard.checklistTitle")}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t("dashboard.customDataSource.wizard.checklistDesc")}
-                  </p>
-                </div>
-                <Button variant="outline" size="sm" asChild data-testid="wizard-link-checklist">
-                  <Link href="/dashboard/custom-data-source/integration-checklist">
-                    {t("dashboard.customDataSource.wizard.openChecklist")} <ArrowRight className="w-4 h-4 ml-1" />
-                  </Link>
-                </Button>
-              </div>
-              {(() => {
-                const existingKeySet = new Set(existingIntentKeys);
-                const remaining = activePreset.intents.filter(it => !existingKeySet.has(it.intentKey));
-                if (remaining.length === 0) {
-                  return <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.wizard.allAdded")}</p>;
-                }
-                return (
-                  <>
-                    <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.wizard.addHint")}</p>
-                    <div className="space-y-2">
-                      {remaining.map((it) => {
-                        const done = scaffolded.has(it.intentKey);
-                        return (
-                          <div
-                            key={it.intentKey}
-                            className="p-3 rounded-md border flex items-start justify-between gap-3"
-                            data-testid={`wizard-preset-intent-${it.intentKey}`}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Badge variant="outline" className="font-mono">{it.intentKey}</Badge>
-                                <span className="font-medium text-sm">{it.name}</span>
-                              </div>
-                              {it.description && <p className="text-xs text-muted-foreground mt-1">{it.description}</p>}
-                              <p className="text-xs text-muted-foreground mt-1 font-mono">{it.httpMethod} {it.endpointPath}</p>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant={done ? "outline" : "default"}
-                              disabled={done || scaffoldIntent.isPending}
-                              onClick={() => scaffoldIntent.mutate(it.intentKey)}
-                              data-testid={`wizard-button-add-${it.intentKey}`}
-                            >
-                              {done
-                                ? <><CheckCircle2 className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.wizard.added")}</>
-                                : <><Plus className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.wizard.add")}</>}
-                            </Button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                );
-              })()}
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── Footer: Finish requires connection saved (created) for first-time setup ── */}
-      <div className="flex items-center justify-end gap-2 pt-2">
-        <Button
-          onClick={finish}
-          disabled={(!isRerun && !created) || saveSource.isPending || testConn.isPending}
-          data-testid="wizard-button-finish"
-        >
-          <CheckCircle2 className="w-4 h-4 mr-1" />
-          {t("dashboard.customDataSource.wizard.finish")}
-        </Button>
-      </div>
-    </div>
-  );
-}
+// ConnectWizard removed — setup is now done directly in the Settings tab.
