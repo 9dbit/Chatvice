@@ -2221,8 +2221,7 @@
       "quickStart": {
         "title": "Quick Start",
         "desc": "Add a set of pre-built intents from a template to get started fast.",
-        "add": "Add Intents",
-        "added": "Added"
+        "add": "Add Intents"
       },
       "noSourceYetIntents": "Set up your connection in the Settings tab first.",
       "noAuditYet": "No calls recorded yet.",
