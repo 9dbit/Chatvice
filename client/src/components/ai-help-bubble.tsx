@@ -430,7 +430,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
     } catch {
       // Simple string param - use as main param based on action type
       if (actionType === 'navigate') {
-        window.location.href = `/dashboard${actionParams}`;
+        window.location.href = actionParams.startsWith('/dashboard') ? actionParams : `/dashboard${actionParams}`;
         return;
       } else if (actionType === 'add_trigger') {
         params = { keyword: actionParams };
@@ -844,10 +844,13 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
                             if (part.type === "link") {
                               const isExternal = part.url?.startsWith("http");
                               const isDashboardLink = part.url?.startsWith("/") && !part.url?.startsWith("http");
+                              const resolvedHref = isDashboardLink
+                                ? (part.url?.startsWith("/dashboard") ? part.url : `/dashboard${part.url}`)
+                                : part.url;
                               return (
                                 <a
                                   key={partIndex}
-                                  href={isDashboardLink ? `/dashboard${part.url}` : part.url}
+                                  href={resolvedHref}
                                   target={isExternal ? "_blank" : "_self"}
                                   rel={isExternal ? "noopener noreferrer" : undefined}
                                   className="inline-flex items-center gap-1 text-purple-600 dark:text-fuchsia-400 hover:underline font-medium"
