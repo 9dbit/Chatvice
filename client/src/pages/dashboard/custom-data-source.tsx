@@ -116,8 +116,6 @@ export default function CustomDataSourcePage() {
   const dateLocale = localeMap[language] || "en-US";
   const [showKeyDialog, setShowKeyDialog] = useState(false);
   const [newPlainKey, setNewPlainKey] = useState<string | null>(null);
-  const [presetId, setPresetId] = useState<string>("");
-  const [scaffolded, setScaffolded] = useState<Set<string>>(new Set());
   const [quickStartOpen, setQuickStartOpen] = useState(true);
   const [cdsConflictOpen, setCdsConflictOpen] = useState(false);
   const [cdsAlsoDisable, setCdsAlsoDisable] = useState(true);
@@ -263,16 +261,33 @@ export default function CustomDataSourcePage() {
   });
 
   const scaffoldIntent = useMutation({
-    mutationFn: async (intentKey: string) => {
-      const res = await apiRequest("POST", "/api/merchant/custom-data-intents/from-preset", { preset: presetId, intentKey });
+    mutationFn: async ({ preset, intentKey }: { preset: string; intentKey: string }) => {
+      const res = await apiRequest("POST", "/api/merchant/custom-data-intents/from-preset", { preset, intentKey });
       return { intentKey, body: await res.json() };
     },
-    onSuccess: ({ intentKey }) => {
-      setScaffolded(prev => new Set(prev).add(intentKey));
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-intents"] });
     },
     onError: (err: any) => toast({ title: t("dashboard.customDataSource.wizard.addIntentFailed"), description: err?.message, variant: "destructive" }),
   });
+
+  const [scaffoldingPresetId, setScaffoldingPresetId] = useState<string | null>(null);
+
+  async function scaffoldAllFromPreset(preset: PresetDef) {
+    const existingKeySet = new Set(intents.map(i => i.intentKey));
+    const remaining = preset.intents.filter(it => !existingKeySet.has(it.intentKey));
+    if (remaining.length === 0) return;
+    setScaffoldingPresetId(preset.id);
+    try {
+      for (const it of remaining) {
+        await scaffoldIntent.mutateAsync({ preset: preset.id, intentKey: it.intentKey });
+      }
+    } catch {
+      // error already toasted by scaffoldIntent.onError
+    } finally {
+      setScaffoldingPresetId(null);
+    }
+  }
 
   // Disable only Google Sheet Active Sources when user confirms CDS enable
   const disableActiveSourcesMutation = useMutation({
@@ -636,66 +651,36 @@ export default function CustomDataSourcePage() {
                   <CardDescription className="text-xs">{t("dashboard.customDataSource.quickStart.desc")}</CardDescription>
                 </CardHeader>
                 <CollapsibleContent>
-                  <CardContent className="space-y-3">
+                  <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3" data-testid="quick-start-presets">
-                      {presets.map(p => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => setPresetId(presetId === p.id ? "" : p.id)}
-                          className={`text-left p-4 rounded-md border hover-elevate active-elevate-2 ${presetId === p.id ? "border-primary ring-1 ring-primary" : ""}`}
-                          data-testid={`button-preset-${p.id}`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <Wand2 className="w-4 h-4 text-primary" />
-                            <span className="font-medium">{p.name}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-2">{p.description}</p>
-                          <p className="text-xs mt-3">
-                            <Badge variant="secondary">{t("dashboard.customDataSource.wizard.intentExamples").replace("{n}", String(p.intents.length))}</Badge>
-                          </p>
-                        </button>
-                      ))}
-                    </div>
-                    {presetId && (() => {
-                      const activePreset = presets.find(p => p.id === presetId);
-                      if (!activePreset) return null;
-                      const existingKeySet = new Set(intents.map(i => i.intentKey));
-                      const remaining = activePreset.intents.filter(it => !existingKeySet.has(it.intentKey));
-                      if (remaining.length === 0) {
-                        return <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.wizard.allAdded")}</p>;
-                      }
-                      return (
-                        <div className="space-y-2">
-                          {remaining.map((it) => {
-                            const done = scaffolded.has(it.intentKey);
-                            return (
-                              <div key={it.intentKey} className="p-3 rounded-md border flex items-start justify-between gap-3" data-testid={`quick-start-intent-${it.intentKey}`}>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <Badge variant="outline" className="font-mono">{it.intentKey}</Badge>
-                                    <span className="font-medium text-sm">{it.name}</span>
-                                  </div>
-                                  {it.description && <p className="text-xs text-muted-foreground mt-1">{it.description}</p>}
-                                  <p className="text-xs text-muted-foreground mt-1 font-mono">{it.httpMethod} {it.endpointPath}</p>
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant={done ? "outline" : "default"}
-                                  disabled={done || scaffoldIntent.isPending}
-                                  onClick={() => scaffoldIntent.mutate(it.intentKey)}
-                                  data-testid={`quick-start-add-${it.intentKey}`}
-                                >
-                                  {done
-                                    ? <><CheckCircle2 className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.quickStart.added")}</>
-                                    : <><Plus className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.quickStart.add")}</>}
-                                </Button>
+                      {presets.map(p => {
+                        const isLoading = scaffoldingPresetId === p.id;
+                        return (
+                          <div key={p.id} className="flex flex-col p-4 rounded-md border gap-3" data-testid={`card-preset-${p.id}`}>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <Wand2 className="w-4 h-4 text-primary" />
+                                <span className="font-medium">{p.name}</span>
                               </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })()}
+                              <p className="text-xs text-muted-foreground mt-2">{p.description}</p>
+                              <p className="text-xs mt-3">
+                                <Badge variant="secondary">{t("dashboard.customDataSource.wizard.intentExamples").replace("{n}", String(p.intents.length))}</Badge>
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => scaffoldAllFromPreset(p)}
+                              disabled={isLoading || scaffoldingPresetId !== null}
+                              data-testid={`button-preset-${p.id}`}
+                            >
+                              {isLoading
+                                ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> {t("dashboard.customDataSource.quickStart.add")}</>
+                                : <><Plus className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.quickStart.add")}</>}
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </CardContent>
                 </CollapsibleContent>
               </Card>
