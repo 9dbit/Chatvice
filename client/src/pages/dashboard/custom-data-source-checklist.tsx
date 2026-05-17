@@ -452,7 +452,7 @@ export default function CustomDataSourceChecklistPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto" data-testid="page-cds-checklist">
+    <div className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto overflow-x-hidden" data-testid="page-cds-checklist">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="space-y-1">
           <Button variant="ghost" size="sm" asChild className="-ml-2">
@@ -580,10 +580,10 @@ export default function CustomDataSourceChecklistPage() {
                     data-testid={`accordion-intent-${intent.intentKey}`}
                   >
                     <AccordionTrigger className="hover:no-underline">
-                      <div className="flex items-center justify-between gap-3 flex-1 pr-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <Badge variant="outline" className="font-mono shrink-0">{intent.intentKey}</Badge>
-                          <span className="text-sm font-medium truncate text-left">{intent.name}</span>
+                      <div className="flex items-start gap-2 flex-wrap flex-1 pr-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <Badge variant="outline" className="font-mono shrink-0 text-xs">{intent.intentKey}</Badge>
+                          <span className="text-sm font-medium text-left break-words min-w-0">{intent.name}</span>
                         </div>
                         <StatusBadge
                           status={status}
