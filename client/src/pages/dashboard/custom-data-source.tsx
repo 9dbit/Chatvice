@@ -143,13 +143,6 @@ export default function CustomDataSourcePage() {
     (s) => s.sourceSubtype === "google_sheet" && (s.isActive !== false)
   );
 
-  // Active crawled links (for conflict detection) — uses same query key as knowledge.tsx to share cache
-  const { data: crawledLinks = [] } = useQuery<{ id: string; isActive: boolean }[]>({
-    queryKey: ["/api/knowledge/links", source?.merchantId],
-    enabled: !!source?.merchantId,
-  });
-  const hasActiveLinks = crawledLinks.some((l) => l.isActive);
-  const hasConflict = enabledGoogleSheetSources.length > 0 || hasActiveLinks;
   const { data: audit = [] } = useQuery<AuditRow[]>({
     queryKey: ["/api/merchant/custom-data-source/audit"],
   });
@@ -258,29 +251,35 @@ export default function CustomDataSourcePage() {
     },
   });
 
+  // Disable only Google Sheet Active Sources when user confirms CDS enable
   const disableActiveSourcesMutation = useMutation({
     mutationFn: async () => {
-      // Disable enabled Google Sheet sources via PUT /api/sources/:id
       await Promise.all(
         enabledGoogleSheetSources.map((s) =>
           apiRequest("PUT", `/api/sources/${s.id}`, { isActive: false })
         )
       );
-      // Also disable active crawled links
-      await Promise.all(
-        crawledLinks.filter((l) => l.isActive).map((l) =>
-          apiRequest("PATCH", `/api/knowledge/links/${l.id}`, { isActive: false })
-        )
-      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links", source?.merchantId] });
     },
   });
 
+  // Persist CDS isEnabled=true to the backend (atomic, independent of form unsaved state)
+  const enableCdsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("PUT", "/api/merchant/custom-data-source", { isEnabled: true });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-source"] });
+    },
+    onError: () => toast({ title: t("dashboard.customDataSource.wizard.saveFailed"), variant: "destructive" }),
+  });
+
   const handleEnableToggle = (newValue: boolean) => {
-    if (newValue && hasConflict) {
+    // Only check Google Sheet Active Sources for conflict
+    if (newValue && enabledGoogleSheetSources.length > 0) {
       setCdsConflictOpen(true);
       return;
     }
@@ -288,11 +287,16 @@ export default function CustomDataSourcePage() {
   };
 
   const confirmCdsEnable = async () => {
-    if (cdsAlsoDisable) {
-      await disableActiveSourcesMutation.mutateAsync();
+    try {
+      if (cdsAlsoDisable) {
+        await disableActiveSourcesMutation.mutateAsync();
+      }
+      // Persist CDS enabled state to backend immediately (not just local form)
+      await enableCdsMutation.mutateAsync();
+      setCdsConflictOpen(false);
+    } catch {
+      // errors handled in individual mutations
     }
-    setForm({ ...form, isEnabled: true });
-    setCdsConflictOpen(false);
   };
 
   const copy = (val: string) => {
@@ -399,8 +403,8 @@ export default function CustomDataSourcePage() {
             <Button variant="outline" onClick={() => setCdsConflictOpen(false)} data-testid="button-cds-conflict-cancel">
               {t("dashboard.customDataSource.conflictPopup.cancel")}
             </Button>
-            <Button onClick={confirmCdsEnable} disabled={disableActiveSourcesMutation.isPending} data-testid="button-cds-conflict-confirm">
-              {disableActiveSourcesMutation.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+            <Button onClick={confirmCdsEnable} disabled={disableActiveSourcesMutation.isPending || enableCdsMutation.isPending} data-testid="button-cds-conflict-confirm">
+              {(disableActiveSourcesMutation.isPending || enableCdsMutation.isPending) ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
               {t("dashboard.customDataSource.conflictPopup.confirm")}
             </Button>
           </DialogFooter>
