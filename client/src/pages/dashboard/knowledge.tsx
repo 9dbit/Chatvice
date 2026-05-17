@@ -409,8 +409,7 @@ export default function KnowledgePage() {
   const [isTransactionTemplateOpen, setIsTransactionTemplateOpen] = useState(false);
   const [transactionTemplateUrl, setTransactionTemplateUrl] = useState("");
 
-  // Active Source / CDS conflict popup state
-  const [linkConflictPendingId, setLinkConflictPendingId] = useState<string | null>(null);
+  // Google Sheet source / CDS conflict popup state
   const [sourceConflictPendingId, setSourceConflictPendingId] = useState<string | null>(null);
 
   // Password Recovery state
@@ -1218,18 +1217,7 @@ export default function KnowledgePage() {
   });
 
   const handleLinkToggle = (linkId: string, newValue: boolean) => {
-    if (newValue && cdsSource?.isEnabled) {
-      setLinkConflictPendingId(linkId);
-      return;
-    }
     toggleLinkMutation.mutate({ id: linkId, isActive: newValue });
-  };
-
-  const confirmLinkConflict = () => {
-    if (!linkConflictPendingId) return;
-    toggleLinkMutation.mutate({ id: linkConflictPendingId, isActive: true });
-    disableCdsMutation.mutate();
-    setLinkConflictPendingId(null);
   };
 
   // Intercept Google Sheet source toggle when CDS is enabled
@@ -2607,25 +2595,6 @@ export default function KnowledgePage() {
               </Button>
               <Button onClick={confirmSourceConflict} disabled={toggleSourceMutation.isPending || disableCdsMutation.isPending} data-testid="button-source-conflict-confirm">
                 {(toggleSourceMutation.isPending || disableCdsMutation.isPending) ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
-                {t("dashboard.knowledge.conflictPopup.confirm")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Link toggle conflict dialog */}
-        <Dialog open={!!linkConflictPendingId} onOpenChange={(open) => { if (!open) setLinkConflictPendingId(null); }}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("dashboard.knowledge.conflictPopup.title")}</DialogTitle>
-              <DialogDescription>{t("dashboard.knowledge.conflictPopup.desc")}</DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setLinkConflictPendingId(null)} data-testid="button-link-conflict-cancel">
-                {t("dashboard.knowledge.conflictPopup.cancel")}
-              </Button>
-              <Button onClick={confirmLinkConflict} disabled={toggleLinkMutation.isPending || disableCdsMutation.isPending} data-testid="button-link-conflict-confirm">
-                {(toggleLinkMutation.isPending || disableCdsMutation.isPending) ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
                 {t("dashboard.knowledge.conflictPopup.confirm")}
               </Button>
             </DialogFooter>
