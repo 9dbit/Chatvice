@@ -1229,11 +1229,17 @@ export default function KnowledgePage() {
     toggleSourceMutation.mutate({ id: sourceId, isActive: checked });
   };
 
-  const confirmSourceConflict = () => {
+  const confirmSourceConflict = async () => {
     if (!sourceConflictPendingId) return;
-    toggleSourceMutation.mutate({ id: sourceConflictPendingId, isActive: true });
-    disableCdsMutation.mutate();
+    const pendingId = sourceConflictPendingId;
     setSourceConflictPendingId(null);
+    try {
+      // Disable CDS first, then enable source — ensures mutual exclusivity even on partial failure
+      await disableCdsMutation.mutateAsync();
+      toggleSourceMutation.mutate({ id: pendingId, isActive: true });
+    } catch {
+      toast({ title: t("dashboard.knowledge.linkToggleFailed"), variant: "destructive" });
+    }
   };
 
   const deleteSourceMutation = useMutation({
