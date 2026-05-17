@@ -17817,8 +17817,9 @@ Rules:
       } else {
         res.status(500).json({ success: false, message: "Refresh failed — check server logs" });
       }
-    } catch (error: any) {
-      console.error("[guide-refresh] Manual refresh error:", error.message);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      console.error("[guide-refresh] Manual refresh error:", errMsg);
       res.status(500).json({ error: "Server error during refresh" });
     }
   });

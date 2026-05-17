@@ -91,8 +91,9 @@ ${staticKnowledge}`,
       preview: generatedContent.slice(0, 200),
       timestamp,
     };
-  } catch (error: any) {
-    console.error("[guide-refresh] Error refreshing guide knowledge:", error.message);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error("[guide-refresh] Error refreshing guide knowledge:", errMsg);
 
     // Fall back to static knowledge on error
     try {
@@ -105,8 +106,9 @@ ${staticKnowledge}`,
         preview: staticKnowledge.slice(0, 200),
         timestamp,
       };
-    } catch (fallbackError: any) {
-      console.error("[guide-refresh] Fallback to static knowledge also failed:", fallbackError.message);
+    } catch (fallbackError: unknown) {
+      const fallbackMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+      console.error("[guide-refresh] Fallback to static knowledge also failed:", fallbackMsg);
       return {
         success: false,
         preview: "",
