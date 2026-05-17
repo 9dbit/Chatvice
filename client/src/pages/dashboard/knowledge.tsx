@@ -2654,10 +2654,11 @@ export default function KnowledgePage() {
                   return (
                     <div
                       key={link.id}
-                      className={`flex items-center justify-between p-3 rounded-lg border bg-card hover-elevate transition-opacity${!link.isActive ? " opacity-60" : ""}`}
+                      className={`flex flex-col gap-2 p-3 rounded-lg border bg-card hover-elevate transition-opacity${!link.isActive ? " opacity-60" : ""}`}
                       data-testid={`crawled-link-${link.id}`}
                     >
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                      {/* Top row: toggle + status dot + URL */}
+                      <div className="flex items-center gap-3 min-w-0">
                         <Switch
                           checked={!!link.isActive}
                           onCheckedChange={(v) => handleLinkToggle(link.id, v)}
@@ -2678,55 +2679,56 @@ export default function KnowledgePage() {
                             <div className="w-3 h-3 bg-muted-foreground rounded-full" />
                           )}
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium truncate">{link.url}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Clock className="w-3 h-3" />
-                            <span>
-                              {lastSync 
-                                ? `Last sync: ${formatDate(lastSync)}`
-                                : `Added: ${formatDate(link.crawledAt)}`
-                              }
-                            </span>
-                          </div>
-                        </div>
+                        <p className="text-sm font-medium truncate min-w-0 flex-1">{link.url}</p>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => recrawlMutation.mutate(link.id)}
-                          disabled={isSyncing || recrawlMutation.isPending || !link.isActive}
-                          data-testid={`button-recrawl-${link.id}`}
-                          className="text-xs"
-                        >
-                          {isSyncing ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <>
-                              <RefreshCw className="w-3 h-3 mr-1" />
-                              Update
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          asChild
-                        >
-                          <a href={link.url} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteLinkMutation.mutate(link.id)}
-                          disabled={deleteLinkMutation.isPending}
-                          data-testid={`button-delete-link-${link.id}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                      {/* Bottom row: date + action buttons */}
+                      <div className="flex items-center justify-between gap-2 pl-1">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground min-w-0">
+                          <Clock className="w-3 h-3 shrink-0" />
+                          <span className="truncate">
+                            {lastSync
+                              ? `Last sync: ${formatDate(lastSync)}`
+                              : `Added: ${formatDate(link.crawledAt)}`
+                            }
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => recrawlMutation.mutate(link.id)}
+                            disabled={isSyncing || recrawlMutation.isPending || !link.isActive}
+                            data-testid={`button-recrawl-${link.id}`}
+                            className="text-xs"
+                          >
+                            {isSyncing ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <>
+                                <RefreshCw className="w-3 h-3 mr-1" />
+                                Update
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            asChild
+                          >
+                            <a href={link.url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteLinkMutation.mutate(link.id)}
+                            disabled={deleteLinkMutation.isPending}
+                            data-testid={`button-delete-link-${link.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   );

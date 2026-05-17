@@ -580,11 +580,9 @@ export default function CustomDataSourceChecklistPage() {
                     data-testid={`accordion-intent-${intent.intentKey}`}
                   >
                     <AccordionTrigger className="hover:no-underline">
-                      <div className="flex items-start gap-2 flex-wrap flex-1 pr-2">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <Badge variant="outline" className="font-mono shrink-0 text-xs">{intent.intentKey}</Badge>
-                          <span className="text-sm font-medium text-left break-words min-w-0">{intent.name}</span>
-                        </div>
+                      <div className="flex items-center gap-2 flex-wrap flex-1 pr-2 min-w-0">
+                        <Badge variant="outline" className="font-mono shrink-0 text-xs">{intent.intentKey}</Badge>
+                        <span className="text-sm font-medium text-left truncate min-w-0 flex-1">{intent.name}</span>
                         <StatusBadge
                           status={status}
                           labels={{
