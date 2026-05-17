@@ -3399,10 +3399,22 @@ export default function KnowledgePage() {
                   const countdown = isGoogleSheet ? getCountdown(source.lastSyncedAt) : 0;
                   const countdownProgress = isGoogleSheet ? ((SYNC_INTERVAL_SECONDS - countdown) / SYNC_INTERVAL_SECONDS) * 100 : 0;
 
+                  const sheetEditUrl = (() => {
+                    if (!source.url) return "#";
+                    try {
+                      const u = new URL(source.url);
+                      const parts = u.pathname.replace(/\/+$/, "").split("/");
+                      if (!parts.includes("edit")) parts.push("edit");
+                      u.pathname = parts.join("/");
+                      u.search = "";
+                      return u.toString();
+                    } catch { return source.url; }
+                  })();
+
                   return isGoogleSheet ? (
                     <div
                       key={source.id}
-                      className={`rounded-lg overflow-hidden relative ${!(source.isActive ?? true) ? "opacity-60" : ""}`}
+                      className="rounded-lg overflow-hidden relative"
                       style={{ backgroundColor: "#27272a" }}
                       data-testid={`source-card-${source.id}`}
                     >
@@ -3484,11 +3496,12 @@ export default function KnowledgePage() {
                           </Button>
                           <Button
                             variant="ghost"
-                            size="icon"
+                            size="sm"
                             asChild
                           >
-                            <a href={source.url || "#"} target="_blank" rel="noopener noreferrer" style={{ color: "#a1a1aa" }}>
-                              <ExternalLink className="w-4 h-4" />
+                            <a href={sheetEditUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#a1a1aa" }} title="Edit in Google Sheets">
+                              <ExternalLink className="w-3 h-3 mr-1" />
+                              Edit Sheet
                             </a>
                           </Button>
                           <Button
