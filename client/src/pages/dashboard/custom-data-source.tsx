@@ -135,12 +135,21 @@ export default function CustomDataSourcePage() {
     queryKey: ["/api/merchant/sources/google-sheets"],
   });
 
+  // Full sources list (for conflict detection and disabling enabled Google Sheet sources)
+  const { data: allSources = [] } = useQuery<{ id: string; isActive?: boolean; sourceSubtype?: string }[]>({
+    queryKey: ["/api/sources"],
+  });
+  const enabledGoogleSheetSources = allSources.filter(
+    (s) => s.sourceSubtype === "google_sheet" && (s.isActive !== false)
+  );
+
   // Active crawled links (for conflict detection) — uses same query key as knowledge.tsx to share cache
   const { data: crawledLinks = [] } = useQuery<{ id: string; isActive: boolean }[]>({
     queryKey: ["/api/knowledge/links", source?.merchantId],
     enabled: !!source?.merchantId,
   });
   const hasActiveLinks = crawledLinks.some((l) => l.isActive);
+  const hasConflict = enabledGoogleSheetSources.length > 0 || hasActiveLinks;
   const { data: audit = [] } = useQuery<AuditRow[]>({
     queryKey: ["/api/merchant/custom-data-source/audit"],
   });
@@ -251,6 +260,13 @@ export default function CustomDataSourcePage() {
 
   const disableActiveSourcesMutation = useMutation({
     mutationFn: async () => {
+      // Disable enabled Google Sheet sources via PUT /api/sources/:id
+      await Promise.all(
+        enabledGoogleSheetSources.map((s) =>
+          apiRequest("PUT", `/api/sources/${s.id}`, { isActive: false })
+        )
+      );
+      // Also disable active crawled links
       await Promise.all(
         crawledLinks.filter((l) => l.isActive).map((l) =>
           apiRequest("PATCH", `/api/knowledge/links/${l.id}`, { isActive: false })
@@ -258,12 +274,13 @@ export default function CustomDataSourcePage() {
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sources"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/knowledge/links", source?.merchantId] });
     },
   });
 
   const handleEnableToggle = (newValue: boolean) => {
-    if (newValue && (googleSheetSources.length > 0 || hasActiveLinks)) {
+    if (newValue && hasConflict) {
       setCdsConflictOpen(true);
       return;
     }
@@ -571,8 +588,12 @@ export default function CustomDataSourcePage() {
           </div>
           {!source && (
             <Card>
-              <CardContent className="p-6 text-sm text-muted-foreground">
-                {t("dashboard.customDataSource.saveFirst")}
+              <CardContent className="p-8 flex flex-col items-center text-center gap-3">
+                <Database className="w-10 h-10 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.conflictPopup.noSourceYet")}</p>
+                <Button size="sm" onClick={() => setWizardDialogOpen(true)} data-testid="button-intent-setup-wizard">
+                  <Wand2 className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.setupWizard")}
+                </Button>
               </CardContent>
             </Card>
           )}
@@ -671,6 +692,17 @@ export default function CustomDataSourcePage() {
         </TabsContent>
 
         <TabsContent value="audit" className="mt-4">
+          {!source ? (
+            <Card>
+              <CardContent className="p-8 flex flex-col items-center text-center gap-3">
+                <Activity className="w-10 h-10 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">{t("dashboard.customDataSource.conflictPopup.noAuditYet")}</p>
+                <Button size="sm" onClick={() => setWizardDialogOpen(true)} data-testid="button-audit-setup-wizard">
+                  <Wand2 className="w-4 h-4 mr-1" /> {t("dashboard.customDataSource.setupWizard")}
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
           <Card>
             <CardHeader>
               <CardTitle>{t("dashboard.customDataSource.auditTitle")}</CardTitle>
@@ -752,6 +784,7 @@ export default function CustomDataSourcePage() {
               </Table>
             </CardContent>
           </Card>
+          )}
         </TabsContent>
       </Tabs>
 

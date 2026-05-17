@@ -411,6 +411,7 @@ export default function KnowledgePage() {
 
   // Active Source / CDS conflict popup state
   const [linkConflictPendingId, setLinkConflictPendingId] = useState<string | null>(null);
+  const [sourceConflictPendingId, setSourceConflictPendingId] = useState<string | null>(null);
 
   // Password Recovery state
   const [prSheetUrl, setPrSheetUrl] = useState("");
@@ -1229,6 +1230,22 @@ export default function KnowledgePage() {
     toggleLinkMutation.mutate({ id: linkConflictPendingId, isActive: true });
     disableCdsMutation.mutate();
     setLinkConflictPendingId(null);
+  };
+
+  // Intercept Google Sheet source toggle when CDS is enabled
+  const handleSourceToggle = (sourceId: string, checked: boolean) => {
+    if (checked && cdsSource?.isEnabled) {
+      setSourceConflictPendingId(sourceId);
+      return;
+    }
+    toggleSourceMutation.mutate({ id: sourceId, isActive: checked });
+  };
+
+  const confirmSourceConflict = () => {
+    if (!sourceConflictPendingId) return;
+    toggleSourceMutation.mutate({ id: sourceConflictPendingId, isActive: true });
+    disableCdsMutation.mutate();
+    setSourceConflictPendingId(null);
   };
 
   const deleteSourceMutation = useMutation({
@@ -2577,6 +2594,25 @@ export default function KnowledgePage() {
           </CardContent>
         </Card>
 
+        {/* Google Sheet source toggle conflict dialog */}
+        <Dialog open={!!sourceConflictPendingId} onOpenChange={(open) => { if (!open) setSourceConflictPendingId(null); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t("dashboard.knowledge.conflictPopup.title")}</DialogTitle>
+              <DialogDescription>{t("dashboard.knowledge.conflictPopup.desc")}</DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSourceConflictPendingId(null)} data-testid="button-source-conflict-cancel">
+                {t("dashboard.knowledge.conflictPopup.cancel")}
+              </Button>
+              <Button onClick={confirmSourceConflict} disabled={toggleSourceMutation.isPending || disableCdsMutation.isPending} data-testid="button-source-conflict-confirm">
+                {(toggleSourceMutation.isPending || disableCdsMutation.isPending) ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+                {t("dashboard.knowledge.conflictPopup.confirm")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Link toggle conflict dialog */}
         <Dialog open={!!linkConflictPendingId} onOpenChange={(open) => { if (!open) setLinkConflictPendingId(null); }}>
           <DialogContent>
@@ -3400,7 +3436,7 @@ export default function KnowledgePage() {
                           <div className="flex items-center gap-1 shrink-0">
                             <Switch
                               checked={source.isActive ?? true}
-                              onCheckedChange={(checked) => toggleSourceMutation.mutate({ id: source.id, isActive: checked })}
+                              onCheckedChange={(checked) => handleSourceToggle(source.id, checked)}
                               data-testid={`switch-source-${source.id}`}
                             />
                           </div>
@@ -3531,7 +3567,7 @@ export default function KnowledgePage() {
                       <div className="flex items-center gap-2">
                         <Switch
                           checked={source.isActive ?? true}
-                          onCheckedChange={(checked) => toggleSourceMutation.mutate({ id: source.id, isActive: checked })}
+                          onCheckedChange={(checked) => handleSourceToggle(source.id, checked)}
                           data-testid={`switch-source-${source.id}`}
                         />
                         <Label className="text-xs text-muted-foreground">
