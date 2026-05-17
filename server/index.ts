@@ -14,6 +14,7 @@ import { extractFAQContent } from './crawler';
 import { processKnowledgeBase } from './embeddings';
 import { fetchGoogleSheet } from './fileParser';
 import { generateDailyBlogPosts, seedBlogPostsFromStaticData } from './blog-generator';
+import { scheduleGuideKnowledgeRefresh } from './guideKnowledgeRefresher';
 import { seedMasterAdminFromEnv } from './seedMasterAdmin';
 
 process.on('uncaughtException', (err) => {
@@ -977,6 +978,7 @@ function startBackgroundSync(): void {
   setTimeout(() => seedBlogPostsFromStaticData().catch(err => console.error("[blog-gen] Seed error:", err)), 8000);
   scheduleDailyBlogGeneration();
   scheduleDailyTokenUsageMaintenance();
+  scheduleGuideKnowledgeRefresh();
 
   // Custom Data Source connector — health monitor (every 60s).
   // Pings every enabled merchant's panel API and alerts when error rate spikes.

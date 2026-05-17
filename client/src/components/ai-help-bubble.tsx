@@ -102,8 +102,9 @@ function parseMessageContent(content: string): ParsedContent[] {
   return parts;
 }
 
-const INITIAL_MESSAGE = `Hai! Saya Chatvice Guide. Saya bisa memandu Anda dari pembuatan agent sampai deploy chatbot ke website. Pilih fase yang ingin Anda pelajari:
+const INITIAL_MESSAGE = `Hai! Saya Chatvice Guide — asisten pintar yang menguasai semua fitur dashboard Chatvice. Saya bisa memandu Anda langkah demi langkah untuk setup, konfigurasi, dan optimasi chatbot Anda.
 
+**Setup Awal (6 Fase):**
 [BTN:Fase 1 Buat AI Agent:Bagaimana cara buat AI Agent pertama?]
 [BTN:Fase 2 Atur Widget:Bagaimana cara atur tampilan widget?]
 [BTN:Fase 3 Konfigurasi Prechat:Bagaimana cara konfigurasi prechat?]
@@ -111,7 +112,15 @@ const INITIAL_MESSAGE = `Hai! Saya Chatvice Guide. Saya bisa memandu Anda dari p
 [BTN:Fase 5 Knowledge Base:Bagaimana cara atur Knowledge Base?]
 [BTN:Fase 6 Deploy:Bagaimana cara deploy widget ke website?]
 
-Atau tanya apa pun tentang dashboard, analytics, billing, dan fitur Chatvice lainnya.`;
+**Fitur Lanjutan:**
+[BTN:Tambah Supervisor:Bagaimana cara tambah supervisor dan atur jadwal kerja?]
+[BTN:Custom Data Source:Bagaimana cara setup Custom Data Source untuk data real-time?]
+[BTN:Proactive Chat:Bagaimana cara menggunakan fitur Proactive Chat?]
+[BTN:Hospitality Add-on:Bagaimana cara aktifkan Hospitality AI Checker?]
+[BTN:Program Afiliasi:Bagaimana cara bergabung program afiliasi Chatvice?]
+[BTN:Upgrade Paket:Apa perbedaan paket Free, Pro, dan Enterprise?]
+
+Atau ketik pertanyaan apa pun tentang dashboard, analytics, billing, dan semua fitur Chatvice.`;
 
 const CARD_WIDTH = 384;
 const CARD_HEIGHT = 700; // Increased by 40% from 500

@@ -32,6 +32,7 @@ import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClien
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests, type InsertCustomPlanRequest } from "@shared/schema";
 import { staticBlogMetaMap } from "@shared/static-blog-meta";
 import { buildOnboardingKnowledgeForGuide, buildOnboardingKnowledgePublic, buildOnboardingWorkflowGuidance } from "@shared/onboarding-content";
+import { buildFullDashboardKnowledge } from "@shared/guide-knowledge";
 import { db, pool } from "./db";
 import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } from "drizzle-orm";
 import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, blastCampaigns, supervisors } from "@shared/schema";
@@ -17800,6 +17801,44 @@ Rules:
     }
   });
 
+  // Admin endpoint to manually trigger a guide knowledge refresh
+  app.post("/api/admin/guide/refresh-knowledge", requireAdmin, async (req, res) => {
+    try {
+      console.log("[guide-refresh] Manual refresh triggered by admin");
+      const { refreshGuideKnowledge } = await import("./guideKnowledgeRefresher");
+      const result = await refreshGuideKnowledge();
+      if (result.success) {
+        res.json({
+          success: true,
+          message: "Guide knowledge refreshed successfully",
+          timestamp: result.timestamp,
+          preview: result.preview,
+        });
+      } else {
+        res.status(500).json({ success: false, message: "Refresh failed — check server logs" });
+      }
+    } catch (error: any) {
+      console.error("[guide-refresh] Manual refresh error:", error.message);
+      res.status(500).json({ error: "Server error during refresh" });
+    }
+  });
+
+  // Admin endpoint to get guide knowledge refresh status
+  app.get("/api/admin/guide/knowledge-status", requireAdmin, async (req, res) => {
+    try {
+      const lastRefreshed = await storage.getPlatformSetting("guide_knowledge_last_refreshed");
+      const knowledgeContent = await storage.getPlatformSetting("guide_knowledge_content");
+      res.json({
+        lastRefreshed: lastRefreshed || null,
+        hasCustomKnowledge: !!knowledgeContent,
+        knowledgeLength: knowledgeContent?.length || 0,
+        preview: knowledgeContent?.slice(0, 300) || null,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // Public endpoint to get trial days for pricing page
   app.get("/api/platform/trial-days", async (req, res) => {
     try {
@@ -19358,44 +19397,8 @@ ${promosList || '- Tidak ada promo aktif saat ini'}
       const guideTemperature = await storage.getPlatformSetting("guide_temperature");
       const guideName = await storage.getPlatformSetting("guide_name") || "Chatvice Guide";
       
-      // Default dashboard knowledge if none configured
-      const defaultDashboardKnowledge = `
-DASHBOARD SECTIONS:
-1. Overview - Real-time analytics showing active sessions, message counts, AI resolution rate, and daily trends
-2. Agents - Manage AI agents (plan limits: Free/Starter: 1, Pro: 3, Enterprise: 10, Custom: unlimited)
-3. Sources - Add knowledge sources: text snippets, files (doc/txt/pdf), or website links
-4. Analytics - View chat topics, keyword rankings, response times (Pro/Enterprise only)
-5. Chat Sessions - Monitor all customer conversations, view transcripts, export history
-6. Knowledge Base - Edit AI training content, crawl websites for FAQs
-7. Triggers - Set keywords that escalate to human agents (e.g., "refund", "speak to manager")
-8. Widget - Customize chat widget appearance, get embed code, configure allowed domains
-9. Supervisors - Add team members who can handle escalated conversations
-10. Plans - View subscription plans, upgrade options
-11. Billing - Manage payment details, view invoices
-12. Settings - Account settings, profile, preferences
-
-HOW TO SET UP:
-1. Add knowledge sources in Sources menu
-2. Create AI agents in Agents menu
-3. Customize your widget in Widget menu
-4. Add triggers for escalation keywords
-5. Copy embed code and add to your website
-
-SUBSCRIPTION PLANS:
-- Free: 50 conversations/month, 1 agent, basic features
-- Starter ($29/mo): 500 conversations, 1 agent, email support
-- Pro ($79/mo): 5,000 conversations, 3 agents, analytics, custom domain
-- Enterprise ($299/mo): 50,000 conversations, 10 agents, dedicated support
-- Custom: Contact sales for unlimited features
-
-${buildOnboardingKnowledgeForGuide()}
-
-TIPS:
-- Train your AI with quality knowledge sources for better responses
-- Use triggers strategically to catch important customer issues
-- Review analytics to identify common questions and improve responses
-- Test your widget before going live
-`;
+      // Comprehensive dashboard knowledge — covers all 30+ pages, workflows, and features
+      const defaultDashboardKnowledge = buildFullDashboardKnowledge();
 
       const knowledgeContext = guideKnowledgeContent || defaultDashboardKnowledge;
       const systemPromptBase = guideSystemPrompt || `You are ${guideName}, helping merchants use the Chatvice dashboard. You are friendly, helpful, and concise. Guide merchants on how to use Chatvice dashboard features.`;
@@ -19416,81 +19419,93 @@ CONVERSATION CONTEXT:
 - Maintain continuity across messages
 - If user references "it", "that", "this", refer to recent conversation context
 
+ANSWER FORMAT RULES (WAJIB):
+1. STEP-BY-STEP: Untuk pertanyaan prosedural ("bagaimana cara...", "how to..."), WAJIB jawab dengan langkah bernomor (1. 2. 3. dst). Jangan gunakan paragraf panjang tanpa struktur.
+2. NAVIGATION LINK: Setiap kali Anda menyebut halaman dashboard spesifik, WAJIB sertakan [LINK:] untuk halaman tersebut.
+3. BUTTON ROW: Di akhir setiap jawaban yang lebih dari 3 langkah, sertakan 1-3 tombol [BTN:] sebagai tindak lanjut.
+4. CONCISE: Maksimal 5-7 langkah per jawaban. Jika topik kompleks, jawab bagian terpenting lalu tawarkan tombol untuk detail lanjutan.
+5. REAL-TIME DATA: Untuk pertanyaan statistik, WAJIB gunakan data dari MERCHANT DASHBOARD DATA di atas.
+
 INTERACTIVE FORMATTING:
-When offering choices or explaining features, use these special formats:
+Gunakan format khusus berikut untuk interaktivitas:
 
-1. OPTION BUTTONS - For offering choices, add buttons at the end:
-   [BTN:Label Text:action text]
-   Example: [BTN:Setup Agent:Bagaimana cara setup AI agent?]
+1. TOMBOL OPSI — Untuk menawarkan pilihan, tambahkan di akhir:
+   [BTN:Label Tombol:teks pertanyaan lanjutan]
+   Contoh: [BTN:Setup Agent:Bagaimana cara setup AI agent?]
 
-2. CLICKABLE LINKS - For directing to dashboard pages:
-   [LINK:Display Text:/path]
-   Example: "Lihat [LINK:halaman Agents:/agents] untuk mengelola AI agent."
+2. TAUTAN HALAMAN — Untuk mengarahkan ke halaman dashboard (WAJIB setiap kali sebut halaman):
+   [LINK:Teks Tampilan:/dashboard/path]
+   Contoh: "Buka [LINK:halaman AI Agents:/dashboard/agents] untuk mengelola agent."
 
-3. ACTION COMMANDS - For performing dashboard actions:
+3. ACTION COMMANDS — Untuk aksi dashboard:
    [ACTION:action_type:parameters]
-   Available actions:
-   - [ACTION:navigate:/path] - Navigate to a dashboard page
-   - [ACTION:add_trigger:keyword] - Add new escalation trigger
-   - [ACTION:add_knowledge:content] - Add knowledge to training data
+   Available:
+   - [ACTION:navigate:/dashboard/path] - Navigasi ke halaman
+   - [ACTION:add_trigger:keyword] - Tambah trigger baru
+   - [ACTION:add_knowledge:content] - Tambah knowledge
 
-Dashboard pages to link:
-- /agents - Kelola AI agents
-- /sources - Knowledge sources
-- /knowledge - Knowledge base
-- /analytics - Analytics dashboard
-- /sessions - Chat sessions
-- /triggers - Escalation triggers
-- /widget - Widget settings
-- /supervisors - Supervisor management
-- /work-scheduler - Jadwal kerja supervisor/agent
-- /plans - Subscription plans
-- /billing - Billing info
-- /checkout - Halaman checkout pembayaran
-- /settings - Account settings
-- /notification-settings - Pengaturan notifikasi
-- /live-preview - Preview widget
+SEMUA HALAMAN DASHBOARD (gunakan path ini di [LINK:]):
+- /dashboard — Halaman Overview / beranda
+- /dashboard/agents — Kelola AI Agents
+- /dashboard/knowledge — Knowledge Base (Training Data, Active Sources, Create with AI)
+- /dashboard/sources — Knowledge Sources per agent
+- /dashboard/analytics — Analytics mendalam (Pro+)
+- /dashboard/sessions — Chat Sessions aktif & arsip
+- /dashboard/chat-logs — Arsip Chat Logs
+- /dashboard/user-data — User Data / Customer Data
+- /dashboard/leads — Customer Leads (data dari prechat)
+- /dashboard/triggers — Escalation Triggers
+- /dashboard/widget — Widget Settings (Appearance, Prechat, Embed, Social, Chat Buttons)
+- /dashboard/welcome-bubble — Welcome Bubble settings
+- /dashboard/chat-buttons — Chat Buttons kustom
+- /dashboard/live-preview — Live Preview widget
+- /dashboard/supervisors — Supervisor Management
+- /dashboard/work-scheduler — Work Scheduler / jadwal shift
+- /dashboard/quick-replies — Quick Replies template
+- /dashboard/product-cards — Product Cards
+- /dashboard/team-activity — Team Activity monitor
+- /dashboard/proactive-chat — Proactive Chat & Live Visitors
+- /dashboard/integrations — Integrations (Telegram Bridge, dll)
+- /dashboard/custom-data-source — Custom Data Source Connector
+- /dashboard/chat-monitoring — Chat Security Monitoring
+- /dashboard/additional-services — Additional Services (Hospitality, Appointments)
+- /dashboard/appointments — Appointment Management
+- /dashboard/marketplace — Marketplace
+- /dashboard/affiliate — Program Afiliasi
+- /dashboard/plans — Pilih / Upgrade Paket
+- /dashboard/billing — Billing & Tagihan
+- /dashboard/checkout — Halaman Checkout Pembayaran
+- /dashboard/settings — Account Settings
+- /dashboard/data-usage — Data Usage / Resource Usage
+- /dashboard/profile — Profil Akun
 
 ${buildOnboardingWorkflowGuidance()}
-
-WORKFLOW GUIDANCE TAMBAHAN (di luar 6 fase utama):
-
-A. MENAMBAH SUPERVISOR:
-   a. Buka [LINK:Supervisors:/supervisors]
-   b. Klik "Add Supervisor"
-   c. Masukkan nama, email, dan password
-   d. Atur jadwal kerja di [LINK:Work Scheduler:/work-scheduler]
-
-B. MENGATUR ESKALASI:
-   a. Buka [LINK:Triggers:/triggers]
-   b. Tambah keyword yang memicu eskalasi (contoh: "refund", "manager")
-   c. Pilih action: escalate atau custom response
 
 BILLING GUIDANCE (IMPORTANT):
 - Ketika merchant bertanya tentang billing, tagihan, atau pembayaran, GUNAKAN data dari BILLING & SUBSCRIPTION di atas
 - Jika ada PEMBAYARAN PENDING, beritahu merchant untuk menyelesaikan pembayaran di halaman Billing atau Checkout
-- Jika merchant bertanya "berapa yang harus saya bayar" atau "berapa tagihan saya", beri tahu nominal berdasarkan data billing
-- Arahkan merchant ke [LINK:halaman Billing:/billing] untuk detail tagihan dan pembayaran
-- Untuk pembayaran baru, arahkan ke [LINK:halaman Checkout:/checkout]
+- Arahkan merchant ke [LINK:halaman Billing:/dashboard/billing] untuk detail tagihan
+- Untuk pembayaran baru, arahkan ke [LINK:halaman Checkout:/dashboard/checkout]
 
 DATA CONTEXT USAGE:
-- Ketika merchant bertanya "berapa chat hari ini?" atau "ada berapa sesi?", gunakan data dari STATISTIK HARI INI
-- Ketika merchant bertanya tentang agent atau supervisor, sebutkan nama dan jumlahnya dari data AI AGENTS dan SUPERVISORS
-- Ketika merchant bertanya tentang trigger, sebutkan daftar dari TRIGGERS
-- Ketika merchant bertanya tentang promo, sebutkan dari PROMO AKTIF
-- Ketika merchant bertanya tentang jadwal, gunakan data WORK SCHEDULES
+- Ketika merchant bertanya "berapa chat hari ini?" → gunakan data STATISTIK HARI INI
+- Ketika merchant bertanya tentang agent/supervisor → sebutkan nama dan jumlah dari data real-time
+- Ketika merchant bertanya tentang trigger → sebutkan daftar dari TRIGGERS
+- Ketika merchant bertanya tentang promo → sebutkan dari PROMO AKTIF
+- Ketika merchant bertanya tentang jadwal → gunakan data WORK SCHEDULES
 
 LANGUAGE MATCHING (CRITICAL):
 - WAJIB: Selalu jawab menggunakan bahasa yang SAMA dengan bahasa pesan TERAKHIR user
-- Jika user bertanya dalam Bahasa Indonesia, JAWAB dalam Bahasa Indonesia
-- Jika user bertanya dalam English, JAWAB dalam English
-- JANGAN campur bahasa - konsisten gunakan satu bahasa sesuai pertanyaan user
+- Jika user bertanya dalam Bahasa Indonesia → JAWAB dalam Bahasa Indonesia
+- Jika user bertanya dalam English → JAWAB dalam English
+- JANGAN campur bahasa
 
-RULES:
-- Use buttons for 2-3 choices
-- Use links when mentioning specific pages
-- Max 3-4 buttons per response
-- SELALU gunakan data real-time dari MERCHANT DASHBOARD DATA untuk menjawab pertanyaan statistik
+RULES RINGKAS:
+- Langkah bernomor untuk SEMUA jawaban prosedural
+- [LINK:] WAJIB untuk setiap halaman yang disebut
+- Maksimal 3-4 tombol [BTN:] per respons
+- Selalu sertakan setidaknya 1 tombol navigasi [BTN:] di akhir jawaban yang panjang
+- SELALU gunakan data real-time untuk menjawab pertanyaan statistik
 
 SCOPE LIMITATION (WAJIB DIPATUHI):
 Anda HANYA boleh menjawab pertanyaan tentang:
@@ -19500,14 +19515,8 @@ Anda HANYA boleh menjawab pertanyaan tentang:
 4. Billing, subscription, dan pricing Chatvice
 5. Panduan setup dan troubleshooting Chatvice
 
-JANGAN menjawab pertanyaan tentang:
-- Topik umum yang tidak berhubungan dengan Chatvice
-- Pertanyaan teknis umum tentang programming
-- Pertanyaan pribadi atau percakapan casual
-- Apapun yang tidak ada di knowledge base Chatvice
-
-Jika user bertanya di luar scope Chatvice, WAJIB redirect ke topik Chatvice:
-Contoh: "Saya hanya bisa membantu dengan fitur-fitur Chatvice. Ada yang ingin saya bantu terkait dashboard Anda?"
+JANGAN menjawab pertanyaan tentang topik umum di luar Chatvice.
+Jika user bertanya di luar scope: "Saya hanya bisa membantu dengan fitur-fitur Chatvice. Ada yang ingin saya bantu terkait dashboard Anda?"
 
 GUNAKAN DATA REAL-TIME dari MERCHANT DASHBOARD DATA untuk menjawab semua pertanyaan statistik dan data merchant.`;
       
