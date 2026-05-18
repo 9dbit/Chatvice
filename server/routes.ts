@@ -32,7 +32,7 @@ import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClien
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests, type InsertCustomPlanRequest } from "@shared/schema";
 import { staticBlogMetaMap } from "@shared/static-blog-meta";
 import { buildOnboardingKnowledgeForGuide, buildOnboardingKnowledgePublic, buildOnboardingWorkflowGuidance } from "@shared/onboarding-content";
-import { buildFullDashboardKnowledge, buildSupervisorPanelKnowledge } from "@shared/guide-knowledge";
+import { buildFullDashboardKnowledge, buildSupervisorPanelKnowledge, buildFullDashboardKnowledgeEn, buildSupervisorPanelKnowledgeEn, detectEnglishFromContext } from "@shared/guide-knowledge";
 import { db, pool } from "./db";
 import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } from "drizzle-orm";
 import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, blastCampaigns, supervisors } from "@shared/schema";
@@ -19399,9 +19399,17 @@ ${promosList || '- Tidak ada promo aktif saat ini'}
       const guideName = await storage.getPlatformSetting("guide_name") || "Chatvice Guide";
       
       // Comprehensive dashboard knowledge — covers all 30+ pages, workflows, and features
-      const defaultDashboardKnowledge = buildFullDashboardKnowledge();
+      const isEnglish = detectEnglishFromContext(question, conversationHistory);
+      const defaultDashboardKnowledge = isEnglish
+        ? buildFullDashboardKnowledgeEn()
+        : buildFullDashboardKnowledge();
 
-      const knowledgeContext = guideKnowledgeContent || defaultDashboardKnowledge;
+      // For custom knowledge content, prefer the English variant when English is detected.
+      // This prevents Indonesian custom content from overriding English-speaking users.
+      const guideKnowledgeContentEn = isEnglish
+        ? await storage.getPlatformSetting("guide_knowledge_content_en")
+        : null;
+      const knowledgeContext = guideKnowledgeContentEn || (isEnglish ? null : guideKnowledgeContent) || defaultDashboardKnowledge;
       const systemPromptBase = guideSystemPrompt || `You are ${guideName}, helping merchants use the Chatvice dashboard. You are friendly, helpful, and concise. Guide merchants on how to use Chatvice dashboard features.`;
       const temperature = guideTemperature ? parseFloat(guideTemperature) : 0.7;
       
@@ -19596,7 +19604,10 @@ ${quickRepliesList || '- Belum ada quick reply'}
       const guideName = await storage.getPlatformSetting("guide_name") || "Chatvice Guide";
       const temperature = guideTemperature ? parseFloat(guideTemperature) : 0.7;
 
-      const supervisorKnowledge = buildSupervisorPanelKnowledge();
+      const isSupervisorEnglish = detectEnglishFromContext(question, conversationHistory);
+      const supervisorKnowledge = isSupervisorEnglish
+        ? buildSupervisorPanelKnowledgeEn()
+        : buildSupervisorPanelKnowledge();
 
       const systemPrompt = `You are ${guideName}, a helpful assistant for Chatvice supervisors. You answer questions about the Supervisor Panel — handling escalated chats, using quick replies, setting up Telegram notifications, monitoring team activity, and other supervisor workflows.
 
