@@ -32,7 +32,7 @@ import { sendVerificationEmail, sendPasswordResetEmail, getUncachableResendClien
 import { subscriptionPlans, type SubscriptionPlanId, type Merchant, type GatewayStats, cryptoPaymentConfirmations, bankTransferConfirmations, customPlanRequests, type InsertCustomPlanRequest } from "@shared/schema";
 import { staticBlogMetaMap } from "@shared/static-blog-meta";
 import { buildOnboardingKnowledgeForGuide, buildOnboardingKnowledgePublic, buildOnboardingWorkflowGuidance } from "@shared/onboarding-content";
-import { buildFullDashboardKnowledge } from "@shared/guide-knowledge";
+import { buildFullDashboardKnowledge, buildSupervisorPanelKnowledge } from "@shared/guide-knowledge";
 import { db, pool } from "./db";
 import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } from "drizzle-orm";
 import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, blastCampaigns, supervisors } from "@shared/schema";
@@ -19550,6 +19550,115 @@ GUNAKAN DATA REAL-TIME dari MERCHANT DASHBOARD DATA untuk menjawab semua pertany
     } catch (error) {
       console.error("Help ask error:", error);
       res.json({ answer: "I apologize, but I'm having trouble responding right now. Please try again later or contact support at support@chatvice.com." });
+    }
+  });
+
+  // Chatvice Guide for Supervisor Panel
+  app.post("/api/help/supervisor-ask", requireSupervisor, async (req, res) => {
+    try {
+      const { question, conversationHistory } = req.body;
+      const supervisorId = req.session?.userId;
+
+      let supervisorContext = "";
+      if (supervisorId) {
+        const supervisor = await storage.getSupervisor(supervisorId);
+        if (supervisor) {
+          const merchantId = supervisor.merchantId;
+          const merchant = await storage.getMerchant(merchantId);
+
+          // Count escalated / active sessions for this supervisor
+          const allSessions = await storage.getSessionsByMerchant(merchantId);
+          const escalatedSessions = allSessions.filter((s) => s.status === "escalated" || s.escalatedAt !== null);
+          const humanSessions = allSessions.filter((s) => s.status === "human" && s.supervisorId === supervisorId);
+
+          // Fetch quick replies for this merchant
+          const quickReplies = await storage.getQuickReplies(merchantId);
+          const quickRepliesList = quickReplies.slice(0, 10).map((qr) => `- "${qr.title}": ${qr.content}`).join('\n');
+
+          supervisorContext = `
+===== SUPERVISOR CONTEXT (REAL-TIME) =====
+Nama Supervisor: ${supervisor.name}
+Email: ${supervisor.email}
+Telegram Chat ID: ${supervisor.telegramChatId ? "Sudah terhubung" : "Belum setup"}
+Merchant: ${merchant?.companyName || merchant?.name || `ID ${merchantId}`}
+
+📊 STATISTIK SAAT INI:
+- Chat Dieskalasi (menunggu): ${escalatedSessions.length}
+- Chat Sedang Ditangani oleh Anda: ${humanSessions.length}
+
+⚡ QUICK REPLIES TERSEDIA (${quickReplies.length} total):
+${quickRepliesList || '- Belum ada quick reply'}
+==========================================`;
+        }
+      }
+
+      const guideTemperature = await storage.getPlatformSetting("guide_temperature");
+      const guideName = await storage.getPlatformSetting("guide_name") || "Chatvice Guide";
+      const temperature = guideTemperature ? parseFloat(guideTemperature) : 0.7;
+
+      const supervisorKnowledge = buildSupervisorPanelKnowledge();
+
+      const systemPrompt = `You are ${guideName}, a helpful assistant for Chatvice supervisors. You answer questions about the Supervisor Panel — handling escalated chats, using quick replies, setting up Telegram notifications, monitoring team activity, and other supervisor workflows.
+
+${supervisorContext}
+
+KNOWLEDGE BASE:
+${supervisorKnowledge}
+
+CONVERSATION CONTEXT:
+- You have memory of the conversation history
+- Maintain continuity across messages
+
+ANSWER FORMAT RULES:
+1. STEP-BY-STEP: For procedural questions, always use numbered steps.
+2. CONCISE: Max 5–7 steps per answer.
+3. BUTTON ROW: At the end of every answer include at least 1 [BTN:] follow-up button.
+4. REAL-TIME DATA: Use supervisor context data above for questions about their own stats.
+
+INTERACTIVE FORMATTING:
+[BTN:Label:follow-up question text]
+[LINK:Display Text:/path]
+
+LANGUAGE MATCHING (CRITICAL):
+- Always reply in the SAME language as the user's last message.
+
+SCOPE LIMITATION:
+You ONLY answer questions about:
+1. Using the Supervisor Panel and its features
+2. Handling escalated chats and workflows
+3. Setting up Telegram notifications
+4. Quick replies, team activity, visitor info
+5. Chat security monitoring alerts
+6. General Chatvice supervisor best practices
+
+If asked about merchant dashboard features (billing, plans, knowledge base setup, etc.): "Fitur tersebut ada di Merchant Dashboard. Saya hanya bisa membantu dengan fitur Supervisor Panel. Ada yang bisa saya bantu terkait panel supervisor?"`;
+
+      const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: systemPrompt },
+      ];
+
+      if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+        const recentHistory = conversationHistory.slice(-10);
+        for (const msg of recentHistory) {
+          if (msg.role === "user" || msg.role === "assistant") {
+            messages.push({ role: msg.role, content: msg.content });
+          }
+        }
+      }
+
+      messages.push({ role: "user", content: question });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages,
+        max_tokens: 600,
+        temperature,
+      });
+
+      res.json({ answer: response.choices[0].message.content || "I'm here to help you with the Supervisor Panel! What would you like to know?" });
+    } catch (error) {
+      console.error("Supervisor help ask error:", error);
+      res.json({ answer: "Maaf, saya mengalami kendala. Silakan coba lagi." });
     }
   });
 

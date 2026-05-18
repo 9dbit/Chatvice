@@ -4,6 +4,207 @@
  * Covers all 30+ dashboard pages, major workflows, plan limits, and feature details.
  */
 
+export function buildSupervisorPanelKnowledge(): string {
+  return `
+===================================================================
+CHATVICE SUPERVISOR PANEL — PANDUAN LENGKAP
+===================================================================
+
+TENTANG SUPERVISOR PANEL:
+Supervisor Panel adalah antarmuka khusus untuk tim support manusia yang menangani eskalasi dari AI chatbot. Supervisors mengakses panel ini di URL: /supervisor (berbeda dari merchant dashboard).
+
+===================================================================
+AUTENTIKASI & LOGIN SUPERVISOR
+===================================================================
+
+CARA LOGIN:
+1. Buka halaman /supervisor (bukan /dashboard — itu untuk merchant)
+2. Masukkan email dan password yang diberikan oleh merchant Anda
+3. Klik "Login"
+4. Jika lupa password, hubungi merchant/admin untuk reset
+
+PERBEDAAN AKUN:
+- Akun Supervisor: dibuat oleh merchant, login di /supervisor
+- Akun Merchant: pemilik bisnis, login di /dashboard
+- Jangan mencampurkan kredensial kedua akun ini
+
+===================================================================
+MENANGANI CHAT YANG DIESKALASI
+===================================================================
+
+ALUR ESKALASI:
+1. AI chatbot mendeteksi keyword atau kondisi tertentu → eskalasi otomatis
+2. Atau customer meminta berbicara dengan manusia → eskalasi manual
+3. Chat masuk ke antrian supervisor dengan status "Escalated"
+4. Notifikasi muncul di panel supervisor (suara + badge)
+5. Supervisor klik "Take Over" untuk mengambil alih percakapan
+6. Status berubah ke "Human" — AI tidak lagi merespons sesi ini
+
+CARA HANDLE ESKALASI:
+1. Lihat daftar chat di sidebar kiri panel supervisor
+2. Chat dengan label "Escalated" atau badge merah = butuh perhatian segera
+3. Klik chat tersebut untuk membuka percakapan
+4. Baca riwayat percakapan untuk konteks
+5. Klik tombol "Take Over" di header chat
+6. Mulai balas pesan customer secara langsung
+7. Setelah selesai, klik tombol selesai/close session
+
+TIPS HANDLING ESKALASI:
+- Baca seluruh riwayat percakapan sebelum merespons
+- Gunakan Quick Replies untuk respons cepat
+- Cek Info Panel (tombol "i") untuk data visitor (IP, lokasi, device, halaman)
+- Untuk pertanyaan teknis, escalate ke senior atau tutup dengan informasi yang tepat
+
+STATUS CHAT:
+- AI: Ditangani otomatis oleh AI agent
+- ESCALATED: Menunggu supervisor (belum diambil alih)
+- HUMAN: Sedang ditangani oleh supervisor
+- CLOSED: Percakapan selesai/ditutup
+
+===================================================================
+QUICK REPLIES (TEMPLATE RESPONS CEPAT)
+===================================================================
+
+APA ITU QUICK REPLIES:
+Template pesan yang sudah dibuat merchant agar supervisor bisa merespons lebih cepat tanpa mengetik ulang.
+
+CARA MENGGUNAKAN QUICK REPLIES SAAT CHAT:
+1. Buka percakapan yang sedang ditangani
+2. Di area input pesan, klik ikon Quick Reply (biasanya ikon petir/flash)
+3. Pilih template dari daftar
+4. Edit jika perlu, lalu kirim
+5. Atau ketik "/" di input untuk memunculkan Quick Reply suggestions
+
+CONTOH QUICK REPLIES UMUM:
+- "Terima kasih telah menghubungi kami. Mohon tunggu sebentar, saya akan membantu Anda."
+- "Permintaan Anda sedang kami proses, estimasi [X] hari kerja."
+- "Mohon maaf atas ketidaknyamanannya. Boleh saya tahu nomor order/transaksi Anda?"
+
+CATATAN: Quick Replies dibuat oleh merchant di Dashboard → Quick Replies. Supervisor tidak bisa membuat/mengedit template dari panel supervisor.
+
+===================================================================
+NOTIFIKASI TELEGRAM
+===================================================================
+
+APA ITU TELEGRAM BRIDGE:
+Fitur yang memungkinkan supervisor menerima notifikasi dan membalas chat customer langsung dari aplikasi Telegram.
+
+CARA SETUP TELEGRAM NOTIFICATIONS:
+1. Buka halaman Notifications di Supervisor Panel (menu sidebar)
+2. Cari bagian "Telegram Notifications"
+3. Masukkan Telegram Chat ID Anda
+   - Cara cari Telegram Chat ID: chat dengan bot @userinfobot di Telegram → bot akan kirim Chat ID Anda
+4. Klik Simpan
+5. Pastikan merchant sudah mengaktifkan Telegram Bridge di Dashboard → Integrations
+
+CARA KERJA SETELAH SETUP:
+- Saat ada chat yang dieskalasi, bot Telegram merchant akan DM ke Anda
+- Pesan berisi: nama customer, konteks singkat, dan beberapa pesan terakhir
+- Customer juga memforward pesan ke Telegram Anda saat session sudah HUMAN
+- Anda bisa REPLY langsung dari Telegram → pesan terkirim ke customer di widget
+
+TROUBLESHOOTING TELEGRAM:
+- Tidak terima notifikasi? Pastikan merchant sudah aktifkan "Enable Supervisor Telegram Replies" di Dashboard → Integrations
+- Chat ID salah? Cek kembali dengan chat @userinfobot di Telegram
+- Bot tidak merespons? Hubungi merchant untuk verifikasi webhook sudah terdaftar
+
+===================================================================
+TEAM ACTIVITY & MONITORING
+===================================================================
+
+HALAMAN TEAM ACTIVITY:
+Menampilkan aktivitas real-time seluruh tim supervisor:
+- Siapa yang sedang online/offline
+- Jumlah chat aktif per supervisor
+- Status handle setiap supervisor
+
+CARA AKSES:
+- Klik menu "Team Activity" di sidebar Supervisor Panel
+
+INFORMASI YANG TERSEDIA:
+- Nama supervisor + status online (titik hijau = online)
+- Jumlah chat yang sedang ditangani
+- Waktu mulai shift / last seen
+
+===================================================================
+VISITOR INFO PANEL
+===================================================================
+
+INFO PANEL DI CHAT:
+Saat menangani percakapan, Anda bisa lihat informasi detail tentang customer:
+- Klik tombol "Info" (ikon "i") di header percakapan
+- Panel terbuka di sisi kanan
+
+INFORMASI YANG TERSEDIA:
+- Alamat IP customer (dengan tombol copy)
+- Negara dan kota (dengan bendera negara)
+- Device: OS, browser, dan user agent lengkap
+- Halaman yang sedang dibuka customer
+- Sumber traffic (referrer URL atau "Direct / Unknown")
+
+KEGUNAAN INFO PANEL:
+- Verifikasi lokasi customer untuk layanan berbasis wilayah
+- Cek device untuk troubleshooting masalah teknis
+- Lihat halaman customer untuk konteks pertanyaan
+
+===================================================================
+PROACTIVE CHAT (SAPA PENGUNJUNG LEBIH DULU)
+===================================================================
+
+LIVE VISITORS:
+Jika merchant mengaktifkan fitur Proactive Chat, Anda bisa lihat pengunjung yang sedang di website secara real-time.
+
+CARA GUNAKAN:
+1. Buka tab "Live Visitors" di Supervisor Panel
+2. Lihat daftar pengunjung aktif (dengan info halaman, lokasi, device)
+3. Klik pengunjung yang ingin Anda sapa
+4. Ketik pesan awal → kirim
+5. Widget di browser pengunjung otomatis terbuka dengan pesan Anda
+
+TIPS PROACTIVE CHAT:
+- Sapa pengunjung yang sudah lama di halaman pricing/checkout
+- Gunakan pesan yang personal dan tidak terasa seperti spam
+- Jangan spam banyak pengunjung sekaligus
+
+===================================================================
+CHAT SECURITY MONITORING ALERTS
+===================================================================
+
+APA ITU SECURITY MONITORING:
+AI (Gemini 2.5 Flash) memantau percakapan supervisor untuk mendeteksi aktivitas mencurigakan seperti:
+- Percobaan manipulasi harga atau kebijakan di luar SOP
+- Sharing informasi sensitif yang tidak semestinya
+- Pola percakapan yang tidak wajar
+
+ALERT YANG MUNGKIN MUNCUL:
+- Low/Medium/High sensitivity tergantung konfigurasi merchant
+- Alert real-time muncul jika ada pola mencurigakan terdeteksi
+
+CATATAN: Konfigurasi monitoring dilakukan oleh merchant di Dashboard → Chat Monitoring. Supervisor tidak mengubah konfigurasi ini, hanya perlu menyadari bahwa percakapan dipantau untuk keamanan.
+
+===================================================================
+TIPS & BEST PRACTICES SUPERVISOR
+===================================================================
+
+PRODUKTIVITAS:
+1. Selalu aktifkan notifikasi suara agar tidak ketinggalan eskalasi baru
+2. Setup Telegram Bridge untuk terima notifikasi di mana saja
+3. Gunakan Quick Replies untuk mempercepat respons
+4. Cek Info Panel untuk konteks customer sebelum merespons
+5. Tutup sesi yang sudah selesai agar antrian tetap bersih
+
+WAKTU RESPONS:
+- Target respons pertama: < 2 menit setelah eskalasi
+- Customer yang sudah menunggu lama akan terlihat dengan tanda waktu di daftar chat
+- Jika tidak bisa handle, koordinasi dengan supervisor lain via Team Activity
+
+KOMUNIKASI DENGAN MERCHANT:
+- Jika ada pola pertanyaan yang sering dieskalasi → sarankan merchant update Knowledge Base AI
+- Jika Quick Replies tidak cukup → minta merchant tambahkan template baru di Dashboard
+- Jika butuh perubahan trigger → hubungi merchant untuk update di Dashboard → Triggers
+`;
+}
+
 export function buildFullDashboardKnowledge(): string {
   return `
 ===================================================================

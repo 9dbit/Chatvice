@@ -152,6 +152,7 @@ function safeSetItem(key: string, value: string): void {
 
 interface AIHelpBubbleProps {
   publicMode?: boolean;
+  supervisorMode?: boolean;
 }
 
 const PUBLIC_INITIAL_MESSAGE = `Hai! Saya Chatvice Guide. Saya bisa membantu Anda mengenal platform customer service AI kami:
@@ -166,8 +167,25 @@ const PUBLIC_INITIAL_MESSAGE = `Hai! Saya Chatvice Guide. Saya bisa membantu And
 [BTN:Cara Mulai:Bagaimana alur onboarding Chatvice?]
 [BTN:Fitur Utama:Apa saja fitur utama Chatvice?]`;
 
-export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
-  const storageKeySuffix = publicMode ? "-public" : "-dashboard";
+const SUPERVISOR_INITIAL_MESSAGE = `Hai! Saya Chatvice Guide — asisten untuk Supervisor Panel. Saya bisa membantu Anda dengan:
+
+**Menangani Chat:**
+[BTN:Cara Handle Eskalasi:Bagaimana cara menangani chat yang dieskalasi?]
+[BTN:Status Chat:Apa perbedaan status AI, Escalated, dan Human?]
+[BTN:Quick Replies:Bagaimana cara menggunakan Quick Replies saat chat?]
+
+**Notifikasi & Integrasi:**
+[BTN:Setup Telegram:Bagaimana cara setup notifikasi Telegram?]
+[BTN:Proactive Chat:Bagaimana cara menyapa pengunjung lebih dulu?]
+
+**Lainnya:**
+[BTN:Info Visitor:Bagaimana cara lihat info detail customer?]
+[BTN:Team Activity:Bagaimana cara memantau aktivitas tim?]
+
+Atau ketik pertanyaan apa pun tentang Supervisor Panel.`;
+
+export function AIHelpBubble({ publicMode = false, supervisorMode = false }: AIHelpBubbleProps) {
+  const storageKeySuffix = publicMode ? "-public" : supervisorMode ? "-supervisor" : "-dashboard";
   const STORAGE_KEY = `chatvice-guide-position${storageKeySuffix}`;
   const HIDDEN_KEY = `chatvice-guide-hidden${storageKeySuffix}`;
   const WELCOME_KEY = `chatvice-guide${WELCOME_BUBBLE_DISMISSED_KEY_SUFFIX}${storageKeySuffix}`;
@@ -185,7 +203,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
   
   // Always use fallback defaults when settings are missing or failed to load
   // This ensures the widget always works even if API is unavailable
-  const defaultWelcomeMessage = publicMode ? PUBLIC_INITIAL_MESSAGE : INITIAL_MESSAGE;
+  const defaultWelcomeMessage = publicMode ? PUBLIC_INITIAL_MESSAGE : supervisorMode ? SUPERVISOR_INITIAL_MESSAGE : INITIAL_MESSAGE;
   
   const isEnabled = hasSettings ? platformSettings?.guide_enabled !== "false" : true;
   const guideName = platformSettings?.guide_name || "Chatvice Guide";
@@ -383,7 +401,7 @@ export function AIHelpBubble({ publicMode = false }: AIHelpBubbleProps) {
 
   const askMutation = useMutation({
     mutationFn: async ({ question, conversationHistory }: { question: string; conversationHistory: Message[] }) => {
-      const endpoint = publicMode ? "/api/help/public-ask" : "/api/help/ask";
+      const endpoint = publicMode ? "/api/help/public-ask" : supervisorMode ? "/api/help/supervisor-ask" : "/api/help/ask";
       const response = await apiRequest("POST", endpoint, { question, conversationHistory });
       return response.json();
     },

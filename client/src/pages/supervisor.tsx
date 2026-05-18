@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { AIHelpBubble } from "@/components/ai-help-bubble";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, Redirect, Link } from "wouter";
 import { apiRequest, queryClient, getQueryFn } from "@/lib/queryClient";
@@ -1714,6 +1715,7 @@ export default function SupervisorPanel() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AIHelpBubble supervisorMode />
     </SidebarProvider>
   );
 }
