@@ -102,7 +102,13 @@ function parseMessageContent(content: string): ParsedContent[] {
   return parts;
 }
 
-const INITIAL_MESSAGE = `Hai! Saya Chatvice Guide — asisten pintar yang menguasai semua fitur dashboard Chatvice. Saya bisa memandu Anda langkah demi langkah untuk setup, konfigurasi, dan optimasi chatbot Anda.
+function isIndonesianBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const lang = (navigator.language || "").toLowerCase();
+  return lang === "id" || lang.startsWith("id-");
+}
+
+const INITIAL_MESSAGE_ID = `Hai! Saya Chatvice Guide — asisten pintar yang menguasai semua fitur dashboard Chatvice. Saya bisa memandu Anda langkah demi langkah untuk setup, konfigurasi, dan optimasi chatbot Anda.
 
 **Setup Awal (6 Fase):**
 [BTN:Fase 1 Buat AI Agent:Bagaimana cara buat AI Agent pertama?]
@@ -123,6 +129,30 @@ const INITIAL_MESSAGE = `Hai! Saya Chatvice Guide — asisten pintar yang mengua
 [BTN:Upgrade Paket:Apa perbedaan paket Free, Pro, dan Enterprise?]
 
 Atau ketik pertanyaan apa pun tentang dashboard, analytics, billing, dan semua fitur Chatvice.`;
+
+const INITIAL_MESSAGE_EN = `Hi! I'm Chatvice Guide — your smart assistant for everything in the Chatvice dashboard. I can walk you through setup, configuration, and optimising your chatbot step by step.
+
+**Initial Setup (6 Phases):**
+[BTN:Phase 1 – Create AI Agent:How do I create my first AI Agent?]
+[BTN:Phase 2 – Widget Appearance:How do I customise the widget design?]
+[BTN:Phase 3 – Prechat Config:How do I configure the prechat form?]
+[BTN:Phase 4 – Register Domain:How do I register my website domain?]
+[BTN:Phase 5 – Knowledge Base:How do I set up the Knowledge Base?]
+[BTN:Phase 6 – Deploy Widget:How do I embed the widget on my website?]
+
+**Advanced Features:**
+[BTN:Analytics:How do I use the Analytics page?]
+[BTN:Quick Replies:How do I create Quick Replies for supervisors?]
+[BTN:Add Supervisor:How do I add supervisors and set work schedules?]
+[BTN:Custom Data Source:How do I connect a real-time Custom Data Source?]
+[BTN:Proactive Chat:How do I use the Proactive Chat feature?]
+[BTN:Additional Services:What add-on services are available and how do I activate them?]
+[BTN:Affiliate Program:How do I join the Chatvice affiliate program?]
+[BTN:Upgrade Plan:What's the difference between Free, Pro, and Enterprise?]
+
+Or type any question about the dashboard, analytics, billing, or any Chatvice feature.`;
+
+const INITIAL_MESSAGE = isIndonesianBrowser() ? INITIAL_MESSAGE_ID : INITIAL_MESSAGE_EN;
 
 const CARD_WIDTH = 384;
 const CARD_HEIGHT = 700; // Increased by 40% from 500
@@ -155,7 +185,7 @@ interface AIHelpBubbleProps {
   supervisorMode?: boolean;
 }
 
-const PUBLIC_INITIAL_MESSAGE = `Hai! Saya Chatvice Guide. Saya bisa membantu Anda mengenal platform customer service AI kami:
+const PUBLIC_INITIAL_MESSAGE_ID = `Hai! Saya Chatvice Guide. Saya bisa membantu Anda mengenal platform customer service AI kami:
 
 - Apa itu Chatvice?
 - Fitur utama
@@ -167,7 +197,21 @@ const PUBLIC_INITIAL_MESSAGE = `Hai! Saya Chatvice Guide. Saya bisa membantu And
 [BTN:Cara Mulai:Bagaimana alur onboarding Chatvice?]
 [BTN:Fitur Utama:Apa saja fitur utama Chatvice?]`;
 
-const SUPERVISOR_INITIAL_MESSAGE = `Hai! Saya Chatvice Guide — asisten untuk Supervisor Panel. Saya bisa membantu Anda dengan:
+const PUBLIC_INITIAL_MESSAGE_EN = `Hi! I'm Chatvice Guide. I can help you get to know our AI customer service platform:
+
+- What is Chatvice?
+- Key features
+- Pricing plans
+- 6-phase onboarding flow (from creating an agent to going live)
+- How to integrate with your website
+
+[BTN:View Pricing:How much do Chatvice plans cost?]
+[BTN:Get Started:What is the Chatvice onboarding flow?]
+[BTN:Key Features:What are the main features of Chatvice?]`;
+
+const PUBLIC_INITIAL_MESSAGE = isIndonesianBrowser() ? PUBLIC_INITIAL_MESSAGE_ID : PUBLIC_INITIAL_MESSAGE_EN;
+
+const SUPERVISOR_INITIAL_MESSAGE_ID = `Hai! Saya Chatvice Guide — asisten untuk Supervisor Panel. Saya bisa membantu Anda dengan:
 
 **Menangani Chat:**
 [BTN:Cara Handle Eskalasi:Bagaimana cara menangani chat yang dieskalasi?]
@@ -183,6 +227,25 @@ const SUPERVISOR_INITIAL_MESSAGE = `Hai! Saya Chatvice Guide — asisten untuk S
 [BTN:Team Activity:Bagaimana cara memantau aktivitas tim?]
 
 Atau ketik pertanyaan apa pun tentang Supervisor Panel.`;
+
+const SUPERVISOR_INITIAL_MESSAGE_EN = `Hi! I'm Chatvice Guide — your assistant for the Supervisor Panel. I can help you with:
+
+**Handling Chats:**
+[BTN:Handle Escalations:How do I handle an escalated chat?]
+[BTN:Chat Statuses:What's the difference between AI, Escalated, and Human status?]
+[BTN:Quick Replies:How do I use Quick Replies while chatting?]
+
+**Notifications & Integrations:**
+[BTN:Telegram Setup:How do I set up Telegram notifications?]
+[BTN:Proactive Chat:How do I greet visitors before they start chatting?]
+
+**Other:**
+[BTN:Visitor Info:How do I view detailed customer information?]
+[BTN:Team Activity:How do I monitor team activity?]
+
+Or type any question about the Supervisor Panel.`;
+
+const SUPERVISOR_INITIAL_MESSAGE = isIndonesianBrowser() ? SUPERVISOR_INITIAL_MESSAGE_ID : SUPERVISOR_INITIAL_MESSAGE_EN;
 
 export function AIHelpBubble({ publicMode = false, supervisorMode = false }: AIHelpBubbleProps) {
   const storageKeySuffix = publicMode ? "-public" : supervisorMode ? "-supervisor" : "-dashboard";
