@@ -4194,6 +4194,8 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
   const [promoImageUrl, setPromoImageUrl] = useState("");
   const [promoImageEnabled, setPromoImageEnabled] = useState(false);
   const [iconUploadProgress, setIconUploadProgress] = useState<number | null>(null);
+  const [agentIconUploadProgress, setAgentIconUploadProgress] = useState<number | null>(null);
+  const [agentIconUrl, setAgentIconUrl] = useState("");
   const [promoUploadProgress, setPromoUploadProgress] = useState<number | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [previewMessages, setPreviewMessages] = useState<{ role: string; content: string }[]>([]);
@@ -4243,6 +4245,9 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
         if (settings.guide_promo_image_url) {
           setPromoImageUrl(settings.guide_promo_image_url);
         }
+        if (settings.guide_agent_icon_url !== undefined) {
+          setAgentIconUrl(settings.guide_agent_icon_url || "");
+        }
         setHasLoadedInitialContent(true);
       }
     }
@@ -4270,6 +4275,7 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
           guide_knowledge_content: knowledgeContent,
           guide_promo_image_enabled: String(promoImageEnabled),
           guide_promo_image_url: promoImageUrl,
+          guide_agent_icon_url: agentIconUrl,
         },
       });
     },
@@ -4324,7 +4330,7 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [guideSettings, promoImageEnabled, promoImageUrl, hasLoadedInitialContent]);
+  }, [guideSettings, promoImageEnabled, promoImageUrl, agentIconUrl, hasLoadedInitialContent]);
 
   // Fetch sources
   const { data: sourcesData, refetch: refetchSources } = useQuery({
@@ -4725,6 +4731,111 @@ function ChatviceGuideTab({ toast }: { toast: any }) {
                         onClick={() => setGuideSettings(prev => ({ ...prev, buttonIconUrl: "", buttonIconWidth: 0, buttonIconHeight: 0 }))}
                         className="text-destructive hover:text-destructive"
                         data-testid="button-remove-icon"
+                      >
+                        <Trash className="w-3 h-3 mr-1" />
+                        Remove Icon
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="p-3 border rounded-lg space-y-3">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                <p className="font-medium text-sm">Agent Icon</p>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">Upload a custom avatar displayed in the chat window header and next to AI messages. Recommended: square image, 64x64px or larger.</p>
+
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="agent-icon-url" className="text-xs">Image URL or Upload</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      id="agent-icon-url"
+                      value={agentIconUrl}
+                      onChange={(e) => setAgentIconUrl(e.target.value)}
+                      placeholder="https://example.com/avatar.png or upload below"
+                      className="flex-1"
+                      data-testid="input-guide-agent-icon-url"
+                    />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="agent-icon-upload"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const formData = new FormData();
+                          formData.append("file", file);
+                          formData.append("type", "guide_agent_icon");
+                          const xhr = new XMLHttpRequest();
+                          xhr.upload.addEventListener('progress', (event) => {
+                            if (event.lengthComputable) {
+                              setAgentIconUploadProgress(Math.round((event.loaded / event.total) * 100));
+                            }
+                          });
+                          xhr.addEventListener('load', () => {
+                            setAgentIconUploadProgress(null);
+                            if (xhr.status === 200) {
+                              const data = JSON.parse(xhr.responseText);
+                              setAgentIconUrl(data.url);
+                            } else {
+                              toast({ title: "Upload Failed", description: "Failed to upload agent icon image", variant: "destructive" });
+                            }
+                          });
+                          xhr.addEventListener('error', () => {
+                            setAgentIconUploadProgress(null);
+                            toast({ title: "Upload Failed", description: "Failed to upload agent icon image", variant: "destructive" });
+                          });
+                          xhr.open('POST', '/api/admin/brand-upload');
+                          xhr.withCredentials = true;
+                          xhr.send(formData);
+                        }
+                        e.target.value = '';
+                      }}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById('agent-icon-upload')?.click()}
+                      disabled={agentIconUploadProgress !== null}
+                      data-testid="button-upload-agent-icon"
+                    >
+                      <Upload className="w-4 h-4 mr-1" />
+                      {agentIconUploadProgress !== null ? `${agentIconUploadProgress}%` : 'Upload'}
+                    </Button>
+                  </div>
+                  {agentIconUploadProgress !== null && (
+                    <div className="mt-2">
+                      <Progress value={agentIconUploadProgress} className="h-2" />
+                    </div>
+                  )}
+                </div>
+
+                {agentIconUrl && (
+                  <div className="flex items-start gap-4 p-3 bg-muted/30 rounded-lg">
+                    <div className="flex-shrink-0">
+                      <p className="text-xs text-muted-foreground mb-2">Preview:</p>
+                      <img
+                        src={agentIconUrl}
+                        alt="Agent icon preview"
+                        className="w-12 h-12 object-cover rounded-full border border-border"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    </div>
+                    <div className="flex-1 space-y-2 pt-1">
+                      <p className="text-xs text-muted-foreground">This image will replace the Bot icon in the chat header and message bubbles.</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setAgentIconUrl("")}
+                        className="text-destructive hover:text-destructive"
+                        data-testid="button-remove-agent-icon"
                       >
                         <Trash className="w-3 h-3 mr-1" />
                         Remove Icon

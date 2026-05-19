@@ -22,6 +22,7 @@ interface PlatformSettings {
   guide_button_icon_height?: string;
   guide_promo_image_enabled?: string;
   guide_promo_image_url?: string;
+  guide_agent_icon_url?: string;
 }
 
 interface Message {
@@ -281,6 +282,7 @@ export function AIHelpBubble({ publicMode = false, supervisorMode = false }: AIH
   const buttonIconHeight = parseInt(platformSettings?.guide_button_icon_height || "0") || 0;
   const promoImageEnabled = platformSettings?.guide_promo_image_enabled === "true";
   const promoImageUrl = platformSettings?.guide_promo_image_url || "";
+  const agentIconUrl = platformSettings?.guide_agent_icon_url || "";
   
   // Determine if widget should be shown - always show with defaults if API fails
   const shouldShow = settingsReady && isEnabled && (publicMode ? showOnLanding : showOnDashboard);
@@ -819,10 +821,14 @@ export function AIHelpBubble({ publicMode = false, supervisorMode = false }: AIH
           <div className="p-2.5 sm:p-3 flex flex-row items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <div 
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: `${widgetColor}30` }}
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
+                style={{ backgroundColor: agentIconUrl ? "transparent" : `${widgetColor}30` }}
               >
-                <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: widgetColor }} />
+                {agentIconUrl ? (
+                  <img src={agentIconUrl} alt={guideName} className="w-full h-full object-cover rounded-full" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                ) : (
+                  <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4" style={{ color: widgetColor }} />
+                )}
               </div>
               <span className="font-semibold text-xs sm:text-sm truncate">{guideName}</span>
             </div>
@@ -860,8 +866,12 @@ export function AIHelpBubble({ publicMode = false, supervisorMode = false }: AIH
       <Card className="w-[320px] sm:w-80 md:w-96 max-w-[calc(100vw-16px)] shadow-xl border border-border overflow-hidden">
         <CardHeader className="p-3 sm:p-4 flex flex-row items-center justify-between space-y-0 gap-2" style={{ backgroundColor: widgetColor }}>
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-              <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
+              {agentIconUrl ? (
+                <img src={agentIconUrl} alt={guideName} className="w-full h-full object-cover rounded-full" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+              ) : (
+                <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              )}
             </div>
             <div className="min-w-0">
               <CardTitle className="text-sm sm:text-base truncate text-white">{guideName}</CardTitle>
@@ -902,8 +912,12 @@ export function AIHelpBubble({ publicMode = false, supervisorMode = false }: AIH
                     className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}
                   >
                     {msg.role === "assistant" && (
-                      <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">
-                        <Bot className="w-4 h-4 text-white" />
+                      <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0 overflow-hidden">
+                        {agentIconUrl ? (
+                          <img src={agentIconUrl} alt={guideName} className="w-full h-full object-cover rounded-full" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        ) : (
+                          <Bot className="w-4 h-4 text-white" />
+                        )}
                       </div>
                     )}
                     <div 
