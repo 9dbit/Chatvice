@@ -128,38 +128,44 @@ export default function CustomDataSourcePage() {
   const { data: source, isLoading: srcLoading } = useQuery<CustomDataSource | null>({
     queryKey: ["/api/merchant/custom-data-source"],
   });
-  const { data: intents = [] } = useQuery<CustomDataIntent[]>({
+  const { data: _intents } = useQuery<CustomDataIntent[]>({
     queryKey: ["/api/merchant/custom-data-intents"],
   });
-  const { data: googleSheetSources = [] } = useQuery<GoogleSheetSource[]>({
+  const intents = _intents ?? [];
+  const { data: _googleSheetSources } = useQuery<GoogleSheetSource[]>({
     queryKey: ["/api/merchant/sources/google-sheets"],
   });
+  const googleSheetSources = _googleSheetSources ?? [];
 
   // Crawled links query (for conflict detection with Active Sources)
-  const { data: crawledLinks = [] } = useQuery<{ id: string; isActive: boolean }[]>({
+  const { data: _crawledLinks } = useQuery<{ id: string; isActive: boolean }[]>({
     queryKey: ["/api/knowledge/links"],
   });
+  const crawledLinks = _crawledLinks ?? [];
   const hasActiveCrawledLinks = crawledLinks.some((l) => l.isActive === true);
 
   // Full sources list (for conflict detection and disabling enabled Google Sheet sources)
-  const { data: allSources = [] } = useQuery<{ id: string; isActive?: boolean; sourceSubtype?: string }[]>({
+  const { data: _allSources } = useQuery<{ id: string; isActive?: boolean; sourceSubtype?: string }[]>({
     queryKey: ["/api/sources"],
   });
+  const allSources = _allSources ?? [];
   const enabledGoogleSheetSources = allSources.filter(
     (s) => s.sourceSubtype === "google_sheet" && (s.isActive !== false)
   );
 
-  const { data: audit = [] } = useQuery<AuditRow[]>({
+  const { data: _audit } = useQuery<AuditRow[]>({
     queryKey: ["/api/merchant/custom-data-source/audit"],
   });
+  const audit = _audit ?? [];
   const { data: health } = useQuery<HealthSummary | null>({
     queryKey: ["/api/merchant/custom-data-source/health"],
     enabled: !!source,
     refetchInterval: 30_000,
   });
-  const { data: presets = [] } = useQuery<PresetDef[]>({
+  const { data: _presets } = useQuery<PresetDef[]>({
     queryKey: ["/api/merchant/custom-data-source/presets"],
   });
+  const presets = _presets ?? [];
   const refreshHealth = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/merchant/custom-data-source/health/refresh");

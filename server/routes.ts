@@ -2462,6 +2462,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     store: new PgSession({
       pool,
       tableName: "session",
+      createTableIfMissing: true,
       ttl: SESSION_TTL_SECONDS,
       pruneSessionInterval: 60 * 60, // prune expired sessions every hour
     }),
