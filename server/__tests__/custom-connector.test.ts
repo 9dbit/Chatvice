@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { validateBaseUrl, renderTemplate, summarizeForCustomer, encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup } from "../customConnector";
+import { validateBaseUrl, summarizeForCustomer, encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup } from "../customConnector";
 import type { CustomDataSource, CustomDataIntent } from "@shared/schema";
 
 vi.mock("../storage", () => ({
@@ -67,19 +67,7 @@ describe("validateBaseUrl", () => {
   });
 });
 
-describe("renderTemplate / summarizeForCustomer", () => {
-  it("substitutes simple keys", () => {
-    expect(renderTemplate("Hi {name}", { name: "Andi" })).toBe("Hi Andi");
-  });
-  it("falls back when key missing", () => {
-    expect(renderTemplate("Hi {name}", {})).toContain("tidak diketahui");
-  });
-  it("never emits raw JSON when template is empty", () => {
-    const out = renderTemplate("", { status: "OK", amount: 50000 });
-    expect(out).not.toContain("{\"");
-    expect(out).toContain("Status: OK");
-    expect(out).toContain("Amount: 50000");
-  });
+describe("summarizeForCustomer", () => {
   it("summarizes arrays", () => {
     const out = summarizeForCustomer([{ a: 1 }, { a: 2 }]);
     expect(out).toContain("1.");

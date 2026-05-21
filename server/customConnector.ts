@@ -202,24 +202,6 @@ function getPath(obj: any, path: string): any {
   return cur;
 }
 
-// Replace {field} placeholders in a template with values, handling missing
-// gracefully ("(tidak diketahui)").
-export function renderTemplate(template: string, data: any, fallback = "(tidak diketahui)"): string {
-  if (!template) {
-    // No merchant template configured — produce a friendly key:value summary
-    // from the response object instead of dumping raw JSON to the customer.
-    return summarizeForCustomer(data);
-  }
-  return template.replace(/\{([\w\.]+)\}/g, (_m, key) => {
-    const v = getPath(data, key);
-    if (v === undefined || v === null || v === "") return fallback;
-    if (typeof v === "object") {
-      try { return JSON.stringify(v); } catch { return fallback; }
-    }
-    return String(v);
-  });
-}
-
 // Convert a panel JSON response into plain Indonesian "key: value" lines so
 // customers never see raw JSON.
 export function summarizeForCustomer(data: any): string {
