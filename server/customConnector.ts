@@ -599,7 +599,6 @@ export const DEFAULT_INTENTS: Array<PresetIntent> = [
     requiredFields: [
       { key: "username", label: "Username", type: "text", required: true },
       { key: "amount", label: "Nominal Deposit", type: "number", required: true },
-      { key: "bank_account", label: "Bank Account Terdaftar", type: "text", required: true },
       { key: "method", label: "Metode Transfer (bank/qris/va/dana/ovo/gopay/linkaja)", type: "text", required: true },
     ],
     responseTemplate: "Status deposit untuk username {username}: {status}. Nominal: {amount}. {message}",
@@ -616,8 +615,6 @@ export const DEFAULT_INTENTS: Array<PresetIntent> = [
     requiredFields: [
       { key: "username", label: "Username", type: "text", required: true },
       { key: "amount", label: "Nominal WD", type: "number", required: true },
-      { key: "bank_name", label: "Nama Bank Tujuan", type: "text", required: true },
-      { key: "account_number", label: "Nomor Rekening Tujuan", type: "text", required: true },
     ],
     responseTemplate: "Status withdraw untuk username {username}: {status}. Nominal: {amount}. {message}",
     isEnabled: true,
