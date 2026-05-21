@@ -31144,7 +31144,7 @@ Please create a comprehensive help center article that would be useful for custo
       const merchantId = req.session!.merchantId!;
       const source = await storage.getCustomDataSource(merchantId);
       if (!source) return res.status(400).json({ error: "Buat custom data source terlebih dahulu" });
-      const { intentKey, name, description, triggerKeywords, httpMethod, endpointPath, requiredFields, responseTemplate, isEnabled, sortOrder, fallbackSourceId, fallbackMessage, lookupMode } = req.body;
+      const { intentKey, name, description, triggerKeywords, httpMethod, endpointPath, requiredFields, isEnabled, sortOrder, fallbackSourceId, fallbackMessage, lookupMode } = req.body;
       if (!intentKey || !name) return res.status(400).json({ error: "intentKey and name required" });
       // In sheet mode, fallbackSourceId is required (it is the primary sheet)
       const resolvedLookupMode = lookupMode === "sheet" ? "sheet" : "api";
@@ -31171,7 +31171,6 @@ Please create a comprehensive help center article that would be useful for custo
         httpMethod: (httpMethod || "GET").toUpperCase(),
         endpointPath: endpointPath || "",
         requiredFields: Array.isArray(requiredFields) ? requiredFields : [],
-        responseTemplate: "",
         isEnabled: isEnabled !== false,
         sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
         lookupMode: resolvedLookupMode,
@@ -31194,7 +31193,6 @@ Please create a comprehensive help center article that would be useful for custo
       const data: any = {};
       const allowed = ["name", "description", "triggerKeywords", "httpMethod", "endpointPath", "requiredFields", "isEnabled", "sortOrder", "fallbackSourceId", "fallbackMessage", "lookupMode"];
       for (const k of allowed) if (k in req.body) data[k] = req.body[k];
-      data.responseTemplate = "";
       if (data.httpMethod) data.httpMethod = String(data.httpMethod).toUpperCase();
       // Normalize fallbackMessage — store null when blank/whitespace
       if ("fallbackMessage" in data) {

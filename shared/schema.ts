@@ -2813,9 +2813,6 @@ export const customDataIntents = pgTable("custom_data_intents", {
   endpointPath: text("endpoint_path").notNull().default(""),
   // JSON array of required field definitions — see comment above.
   requiredFields: jsonb("required_fields").notNull().default([]),
-  // Natural-language template used to format API response into the chat reply.
-  // Supports {jsonpath} placeholders, e.g. "Status depo Anda: {status}, jumlah: {amount}".
-  responseTemplate: text("response_template").notNull().default(""),
   isEnabled: boolean("is_enabled").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
   // Determines whether this intent uses the panel API ('api', default) or a

@@ -31,7 +31,6 @@ interface IntentRow {
   httpMethod: string;
   endpointPath: string;
   requiredFields: RequiredField[];
-  responseTemplate: string;
   isEnabled: boolean;
 }
 
@@ -648,13 +647,6 @@ export default function CustomDataSourceChecklistPage() {
                                   </span>
                                 ))
                               ) : <span className="text-muted-foreground">{cp("todo3Empty")}</span>}
-                            </span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <Circle className="w-3 h-3 mt-1 shrink-0 text-muted-foreground" />
-                            <span>
-                              {cp("todo4Pre")}
-                              <span className="font-mono break-all">{intent.responseTemplate || cp("todo4Empty")}</span>
                             </span>
                           </li>
                           <li className="flex items-start gap-2">

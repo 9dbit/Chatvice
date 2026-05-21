@@ -348,7 +348,7 @@ export async function executeIntentLookup(opts: {
   const ttl = (source.cacheTtlSec || 30) * 1000;
   const cached = responseCache.get(ckey);
   if (cached && Date.now() - cached.at < ttl) {
-    const text = renderTemplate(intent.responseTemplate || "", cached.body);
+    const text = summarizeForCustomer(cached.body);
     return { ok: true, text, httpStatus: cached.status, latencyMs: 0, rawData: cached.body };
   }
 
@@ -445,7 +445,7 @@ export async function executeIntentLookup(opts: {
     responseCache.forEach((v, k) => { if (v.at < cutoff) responseCache.delete(k); });
   }
 
-  const text = renderTemplate(intent.responseTemplate || "", json);
+  const text = summarizeForCustomer(json);
   return { ok: true, text, httpStatus, latencyMs, rawData: json, outcome: "success" };
 }
 

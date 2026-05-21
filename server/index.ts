@@ -235,16 +235,6 @@ app.use((req, res, next) => {
 
   await seedMasterAdminFromEnv();
 
-  // One-time backfill: clear any legacy response_template values left in existing
-  // intent rows. The field was removed from the UI in task #459; the server now
-  // always writes "" on create/update, and this ensures pre-existing rows are
-  // also cleared so summarizeForCustomer() is always used instead.
-  try {
-    await db.execute(sql`UPDATE custom_data_intents SET response_template = '' WHERE response_template IS NOT NULL AND response_template <> ''`);
-  } catch (err) {
-    console.warn("[Bootstrap] response_template backfill skipped:", err);
-  }
-
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

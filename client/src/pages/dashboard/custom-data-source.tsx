@@ -66,7 +66,6 @@ interface CustomDataIntent {
   httpMethod: string;
   endpointPath: string;
   requiredFields: RequiredField[];
-  responseTemplate: string;
   isEnabled: boolean;
   sortOrder: number;
   lookupMode?: "api" | "sheet";
@@ -101,7 +100,6 @@ const blankIntent = (): Partial<CustomDataIntent> => ({
   httpMethod: "GET",
   endpointPath: "",
   requiredFields: [],
-  responseTemplate: "",
   isEnabled: true,
   sortOrder: 0,
   lookupMode: "api",

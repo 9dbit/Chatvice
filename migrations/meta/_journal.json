@@ -8,6 +8,13 @@
       "when": 1777618172214,
       "tag": "0000_pale_ser_duncan",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1779387037606,
+      "tag": "0004_drop_response_template",
+      "breakpoints": true
     }
   ]
 }
