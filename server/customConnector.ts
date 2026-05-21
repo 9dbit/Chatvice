@@ -190,18 +190,6 @@ function cacheKey(intentId: string, fields: Record<string, string>): string {
   return `${intentId}|${sorted}`;
 }
 
-// Walk a JSON value with a dot-path like "data.status" or "amount".
-function getPath(obj: any, path: string): any {
-  if (!obj || !path) return undefined;
-  const parts = path.split(".");
-  let cur: any = obj;
-  for (const p of parts) {
-    if (cur == null) return undefined;
-    cur = cur[p];
-  }
-  return cur;
-}
-
 // Convert a panel JSON response into plain Indonesian "key: value" lines so
 // customers never see raw JSON.
 export function summarizeForCustomer(data: any): string {
