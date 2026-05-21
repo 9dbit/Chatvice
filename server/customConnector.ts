@@ -221,7 +221,7 @@ export function renderTemplate(template: string, data: any, fallback = "(tidak d
 }
 
 // Convert a panel JSON response into plain Indonesian "key: value" lines so
-// customers never see raw JSON when a merchant forgot to set responseTemplate.
+// customers never see raw JSON.
 export function summarizeForCustomer(data: any): string {
   if (data === null || data === undefined) return "(tidak ada data)";
   if (typeof data !== "object") return String(data);
@@ -601,7 +601,6 @@ export const DEFAULT_INTENTS: Array<PresetIntent> = [
       { key: "amount", label: "Nominal Deposit", type: "number", required: true },
       { key: "method", label: "Metode Transfer (bank/qris/va/dana/ovo/gopay/linkaja)", type: "text", required: true },
     ],
-    responseTemplate: "Status deposit untuk username {username}: {status}. Nominal: {amount}. {message}",
     isEnabled: true,
     sortOrder: 1,
   },
@@ -616,7 +615,6 @@ export const DEFAULT_INTENTS: Array<PresetIntent> = [
       { key: "username", label: "Username", type: "text", required: true },
       { key: "amount", label: "Nominal WD", type: "number", required: true },
     ],
-    responseTemplate: "Status withdraw untuk username {username}: {status}. Nominal: {amount}. {message}",
     isEnabled: true,
     sortOrder: 2,
   },
@@ -631,7 +629,6 @@ export const DEFAULT_INTENTS: Array<PresetIntent> = [
       { key: "username", label: "Username", type: "text", required: true },
       { key: "last_deposit_amount", label: "Nominal Depo Terakhir (verifikasi)", type: "number", required: true },
     ],
-    responseTemplate: "Progress turnover {username}: {progress} dari target {target}. Sisa: {remaining}.",
     isEnabled: true,
     sortOrder: 3,
   },
@@ -646,7 +643,6 @@ export const DEFAULT_INTENTS: Array<PresetIntent> = [
       { key: "username", label: "Username", type: "text", required: true },
       { key: "last_deposit_amount", label: "Nominal Depo Terakhir (verifikasi)", type: "number", required: true },
     ],
-    responseTemplate: "Login terakhir untuk {username}: IP {ip} pada {timestamp} dari {location}.",
     isEnabled: true,
     sortOrder: 4,
   },
@@ -665,7 +661,6 @@ const FINANSIAL_INTENTS: Array<PresetIntent> = [
       { key: "account_number", label: "Nomor Rekening", type: "text", required: true },
       { key: "id_number", label: "No. KTP / ID Verifikasi", type: "text", required: true },
     ],
-    responseTemplate: "Saldo rekening {account_number}: Rp {balance}. Terakhir update {updated_at}.",
     isEnabled: true,
     sortOrder: 1,
   },
@@ -680,7 +675,6 @@ const FINANSIAL_INTENTS: Array<PresetIntent> = [
       { key: "account_number", label: "Nomor Rekening", type: "text", required: true },
       { key: "id_number", label: "No. KTP / ID Verifikasi", type: "text", required: true },
     ],
-    responseTemplate: "5 transaksi terakhir rekening {account_number}: {transactions}.",
     isEnabled: true,
     sortOrder: 2,
   },
@@ -695,7 +689,6 @@ const FINANSIAL_INTENTS: Array<PresetIntent> = [
       { key: "reference_id", label: "Nomor Referensi Transfer", type: "text", required: true },
       { key: "amount", label: "Nominal Transfer", type: "number", required: true },
     ],
-    responseTemplate: "Transfer ref {reference_id} sebesar Rp {amount}: status {status}. {message}",
     isEnabled: true,
     sortOrder: 3,
   },
@@ -710,7 +703,6 @@ const FINANSIAL_INTENTS: Array<PresetIntent> = [
       { key: "card_number_last4", label: "4 Digit Terakhir Kartu", type: "text", required: true },
       { key: "id_number", label: "No. KTP / ID Verifikasi", type: "text", required: true },
     ],
-    responseTemplate: "Tagihan kartu …{card_number_last4}: Rp {total_bill}. Minimum: Rp {minimum_payment}. Jatuh tempo {due_date}.",
     isEnabled: true,
     sortOrder: 4,
   },
@@ -729,7 +721,6 @@ const ECOMMERCE_INTENTS: Array<PresetIntent> = [
       { key: "order_id", label: "Nomor Pesanan", type: "text", required: true },
       { key: "email", label: "Email Pemesan", type: "text", required: true },
     ],
-    responseTemplate: "Pesanan {order_id}: status {status}. Estimasi tiba {eta}. Kurir: {courier} ({tracking_number}).",
     isEnabled: true,
     sortOrder: 1,
   },
@@ -743,7 +734,6 @@ const ECOMMERCE_INTENTS: Array<PresetIntent> = [
     requiredFields: [
       { key: "tracking_number", label: "Nomor Resi", type: "text", required: true },
     ],
-    responseTemplate: "Resi {tracking_number}: {status}. Posisi terakhir {last_location} pada {last_update}.",
     isEnabled: true,
     sortOrder: 2,
   },
@@ -757,7 +747,6 @@ const ECOMMERCE_INTENTS: Array<PresetIntent> = [
     requiredFields: [
       { key: "sku", label: "Kode SKU / Produk", type: "text", required: true },
     ],
-    responseTemplate: "Stok {sku} ({product_name}): {stock} unit. Harga Rp {price}.",
     isEnabled: true,
     sortOrder: 3,
   },
@@ -772,7 +761,6 @@ const ECOMMERCE_INTENTS: Array<PresetIntent> = [
       { key: "return_id", label: "Nomor Retur", type: "text", required: true },
       { key: "order_id", label: "Nomor Pesanan Asal", type: "text", required: true },
     ],
-    responseTemplate: "Retur {return_id} dari pesanan {order_id}: status {status}. {message}",
     isEnabled: true,
     sortOrder: 4,
   },
@@ -786,7 +774,6 @@ const ECOMMERCE_INTENTS: Array<PresetIntent> = [
     requiredFields: [
       { key: "code", label: "Kode Voucher", type: "text", required: true },
     ],
-    responseTemplate: "Voucher {code}: {status}. Diskon {discount}. Berlaku sampai {expires_at}.",
     isEnabled: true,
     sortOrder: 5,
   },
@@ -976,8 +963,8 @@ export function buildHtmlDocs(opts: {
       <pre><code>curl -X ${method} '${escapeHtml(exampleUrl)}' \\
   -H '${escapeHtml(source.headerAuthName)}: YOUR_API_KEY'${method !== "GET" ? ` \\\n  -H 'Content-Type: application/json' \\\n  -d '${escapeHtml(JSON.stringify(exampleFields))}'` : ""}</code></pre>
       <h4>Expected Response (JSON)</h4>
-      <p>Return any JSON object. The AI will format the answer using the response template configured in the dashboard:</p>
-      <pre><code>${escapeHtml(intent.responseTemplate || "{ ... }")}</code></pre>
+      <p>Return any JSON object. The AI will automatically format the response into readable key-value lines for the customer.</p>
+      <pre><code>{ ... }</code></pre>
     </section>`;
   }).join("\n");
 

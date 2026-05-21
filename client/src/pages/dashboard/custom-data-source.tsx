@@ -1062,20 +1062,6 @@ export default function CustomDataSourcePage() {
                   ))}
                 </div>
               </div>
-              <div>
-                <Label>{t("dashboard.customDataSource.intent.responseTemplate")}</Label>
-                <Textarea
-                  rows={4}
-                  value={editingIntent.responseTemplate || ""}
-                  onChange={(e) => setEditingIntent({ ...editingIntent, responseTemplate: e.target.value })}
-                  placeholder={t("dashboard.customDataSource.intent.placeholder.responseTemplate")}
-                  className="font-mono text-sm"
-                  data-testid="input-response-template"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("dashboard.customDataSource.intent.responseTemplateEmptyHint")}
-                </p>
-              </div>
               <div className="pt-2 border-t space-y-2">
                 <Label>Source Mode</Label>
                 <div className="flex gap-2">

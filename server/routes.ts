@@ -31171,7 +31171,7 @@ Please create a comprehensive help center article that would be useful for custo
         httpMethod: (httpMethod || "GET").toUpperCase(),
         endpointPath: endpointPath || "",
         requiredFields: Array.isArray(requiredFields) ? requiredFields : [],
-        responseTemplate: responseTemplate || "",
+        responseTemplate: "",
         isEnabled: isEnabled !== false,
         sortOrder: typeof sortOrder === "number" ? sortOrder : 0,
         lookupMode: resolvedLookupMode,
@@ -31192,8 +31192,9 @@ Please create a comprehensive help center article that would be useful for custo
       const intent = await storage.getCustomDataIntent(req.params.id);
       if (!source || !intent || intent.sourceId !== source.id) return res.status(404).json({ error: "Not found" });
       const data: any = {};
-      const allowed = ["name", "description", "triggerKeywords", "httpMethod", "endpointPath", "requiredFields", "responseTemplate", "isEnabled", "sortOrder", "fallbackSourceId", "fallbackMessage", "lookupMode"];
+      const allowed = ["name", "description", "triggerKeywords", "httpMethod", "endpointPath", "requiredFields", "isEnabled", "sortOrder", "fallbackSourceId", "fallbackMessage", "lookupMode"];
       for (const k of allowed) if (k in req.body) data[k] = req.body[k];
+      data.responseTemplate = "";
       if (data.httpMethod) data.httpMethod = String(data.httpMethod).toUpperCase();
       // Normalize fallbackMessage — store null when blank/whitespace
       if ("fallbackMessage" in data) {
