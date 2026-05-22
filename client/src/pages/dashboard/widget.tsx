@@ -88,6 +88,7 @@ export default function WidgetPage() {
   const { toast } = useToast();
   const [showDomainLimitDialog, setShowDomainLimitDialog] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [dismissedHeadlessBadge, setDismissedHeadlessBadge] = useState(false);
 
   const { data: merchantProfile } = useQuery<{ widgetSlug?: string }>({
     queryKey: ["/api/merchant", merchantId],
@@ -493,6 +494,13 @@ export default function WidgetPage() {
       });
     }
   }, [merchant]);
+
+  // Reset dismissed badge state whenever hideLauncher is toggled back on
+  useEffect(() => {
+    if (config.hideLauncher) {
+      setDismissedHeadlessBadge(false);
+    }
+  }, [config.hideLauncher]);
 
   // Auto-open the live widget preview when headless mode (hideLauncher) is on,
   // so merchants can see the chat window even though the launcher bubble is hidden.
@@ -1025,6 +1033,38 @@ async function handleLogin() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <DomainLimitDialog open={showDomainLimitDialog} onClose={() => setShowDomainLimitDialog(false)} />
+
+      {/* Headless mode active badge — fixed at the corner where the launcher would normally appear */}
+      {config.hideLauncher && !dismissedHeadlessBadge && (
+        <div
+          className={cn(
+            "fixed bottom-6 z-[9999] flex items-center gap-2 rounded-full border border-border/60 bg-background/95 px-3 py-2 shadow-lg backdrop-blur-sm text-xs",
+            config.bubblePosition === "left" ? "left-6" : "right-6"
+          )}
+          data-testid="badge-headless-mode-active"
+        >
+          <EyeOff className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          <span className="text-muted-foreground whitespace-nowrap">Headless mode — no launcher shown</span>
+          <button
+            onClick={() => {
+              const chatvice = (window as any).chatvice;
+              if (chatvice?.open) chatvice.open();
+            }}
+            className="ml-1 text-primary font-medium hover:underline whitespace-nowrap"
+            data-testid="button-headless-open-chat"
+          >
+            Open chat
+          </button>
+          <button
+            onClick={() => setDismissedHeadlessBadge(true)}
+            className="ml-0.5 text-muted-foreground hover:text-foreground"
+            aria-label="Dismiss"
+            data-testid="button-headless-badge-dismiss"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
