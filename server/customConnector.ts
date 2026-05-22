@@ -497,22 +497,30 @@ export async function executeFallbackSheetLookup(opts: {
       return { ok: false, text: "", outcome: "error" };
     }
 
-    // Prefer DB-cached content (synced by the background scheduler) to avoid
-    // a live HTTP round-trip on every fallback activation.  Fall back to a
-    // live fetch only when the cache is empty or stale (no content stored).
+    // Always live-fetch the Google Sheet so transaction data is never stale.
+    // The background scheduler syncs every 10 s but a transaction may have
+    // been recorded AFTER the last sync, causing a false "not found" on the
+    // first lookup.  We update the DB cache as a side effect so subsequent
+    // background syncs see fresh content too.
     let sheetContent: string;
-    if (fallbackSource.content && fallbackSource.content.trim().length > 20) {
-      sheetContent = fallbackSource.content;
-      console.log(`[FallbackSheet] Using cached content for source=${fallbackSource.id} (${sheetContent.length} chars)`);
-    } else {
-      const sheetResult = await fetchGoogleSheet(fallbackSource.url);
-      if (!sheetResult.success || !sheetResult.content) {
-        console.warn(`[FallbackSheet] Failed to fetch sheet: ${sheetResult.error}`);
+    const sheetResult = await fetchGoogleSheet(fallbackSource.url);
+    if (!sheetResult.success || !sheetResult.content) {
+      // Live fetch failed — fall back to DB-cached content if available.
+      if (fallbackSource.content && fallbackSource.content.trim().length > 20) {
+        sheetContent = fallbackSource.content;
+        console.warn(`[FallbackSheet] Live fetch failed (${sheetResult.error}), using stale cache for source=${fallbackSource.id}`);
+      } else {
+        console.warn(`[FallbackSheet] Failed to fetch sheet and no cache available: ${sheetResult.error}`);
         await logAudit({ ...auditBase, success: false, errorMessage: `Sheet fetch failed: ${sheetResult.error}`, fallbackUsed: true, fallbackOutcome: "failed" });
         return { ok: false, text: "", outcome: "error" };
       }
+    } else {
       sheetContent = sheetResult.content;
       console.log(`[FallbackSheet] Live-fetched sheet for source=${fallbackSource.id} (${sheetContent.length} chars)`);
+      // Update DB cache as a side effect so the background sync stays current.
+      storage.updateSource(fallbackSource.id, { content: sheetContent, lastFetched: new Date() }).catch(err =>
+        console.warn(`[FallbackSheet] Cache update failed for source=${fallbackSource.id}:`, err)
+      );
     }
 
     // Build a concise field summary so GPT knows what the customer submitted
