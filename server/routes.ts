@@ -17952,6 +17952,54 @@ Rules:
   var isMaximized = false;
   var widgetTheme = "light";
 
+  // ─── Color palettes — single source of truth for all widget chrome colors ───
+  // CHROME_PALETTE: always-dark overlay UI (eye toggle, hidden label).
+  // These elements are always rendered dark regardless of the widget theme.
+  var CHROME_PALETTE = {
+    bg:         "rgba(30,30,30,0.8)",
+    bgStrong:   "rgba(30,30,30,0.85)",
+    border:     "rgba(255,255,255,0.15)",
+    iconStroke: "rgba(255,255,255,0.8)",
+    text:       "rgba(255,255,255,0.7)"
+  };
+  // DARK_PALETTE / LIGHT_PALETTE: theme-conditional colors for the welcome
+  // bubble, minimized/hidden states, and the widget panel chrome.
+  var DARK_PALETTE = {
+    bubbleBg:        "rgba(20,20,20,0.6)",
+    bubbleBgRestored:"rgba(20,20,20,0.6)",
+    bubbleBorder:    "rgba(128,128,128,0.22)",
+    panelBorder:     "rgba(128,128,128,0.18)",
+    titleColor:      "rgba(255,255,255,0.95)",
+    messageColor:    "rgba(255,255,255,0.7)",
+    btnColor:        "rgba(255,255,255,0.6)",
+    socialBorder:    "rgba(128,128,128,0.18)",
+    minBg:           "rgba(30,30,30,0.85)",
+    minBorder:       "rgba(255,255,255,0.15)",
+    minTextColor:    "rgba(255,255,255,0.9)",
+    hiddenBg:        "rgba(30,30,30,0.85)",
+    hiddenTextColor: "rgba(255,255,255,0.7)",
+    shadowOpacity:   "0.3",
+    panelBgR: 10, panelBgG: 10, panelBgB: 10
+  };
+  var LIGHT_PALETTE = {
+    bubbleBg:        "rgba(255,255,255,0.92)",
+    bubbleBgRestored:"rgba(255,255,255,0.4)",
+    bubbleBorder:    "rgba(0,0,0,0.08)",
+    panelBorder:     "rgba(0,0,0,0.08)",
+    titleColor:      "#111827",
+    messageColor:    "#6b7280",
+    btnColor:        "#999",
+    socialBorder:    "#eee",
+    minBg:           "rgba(255,255,255,0.85)",
+    minBorder:       "rgba(0,0,0,0.1)",
+    minTextColor:    "#1a1a1a",
+    hiddenBg:        "rgba(255,255,255,0.85)",
+    hiddenTextColor: "#666",
+    shadowOpacity:   "0.2",
+    panelBgR: 255, panelBgG: 255, panelBgB: 255
+  };
+  // ─────────────────────────────────────────────────────────────────────────────
+
   // Read hideLauncher from own script tag URL param — overrides dashboard setting
   // Allows merchants to embed two scripts: one with icon, one without, on the same site
   var scriptHideLauncherParam = false;
@@ -18104,8 +18152,8 @@ Rules:
   // Hidden label (shown when icon is hidden via eye toggle)
   var hiddenLabel = document.createElement("div");
   hiddenLabel.id = "chatvice-hidden-label";
-  hiddenLabel.style.cssText = "display:none;position:fixed;bottom:20px;right:20px;padding:8px 12px;background:rgba(30,30,30,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.15);border-radius:8px;cursor:pointer;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;";
-  hiddenLabel.innerHTML = '<div style="display:flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg><span style="color:rgba(255,255,255,0.7);font-size:11px;">Click to show</span></div>';
+  hiddenLabel.style.cssText = "display:none;position:fixed;bottom:20px;right:20px;padding:8px 12px;background:" + CHROME_PALETTE.bgStrong + ";backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid " + CHROME_PALETTE.border + ";border-radius:8px;cursor:pointer;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;";
+  hiddenLabel.innerHTML = '<div style="display:flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + CHROME_PALETTE.text + '" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg><span style="color:' + CHROME_PALETTE.text + ';font-size:11px;">Click to show</span></div>';
   
   var isIconHidden = false;
   var hasCustomIcon = false;
@@ -18119,10 +18167,10 @@ Rules:
     
     // Position eye toggle above the button
     var eyeBottom = offset + buttonHeight + 10;
-    eyeToggleBtn.style.cssText = "position:fixed;bottom:" + eyeBottom + "px;" + posStyle + "z-index:99990;cursor:pointer;padding:6px;background:rgba(30,30,30,0.8);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.15);border-radius:50%;display:" + (hasCustomIcon && !isIconHidden ? "flex" : "none") + ";align-items:center;justify-content:center;";
+    eyeToggleBtn.style.cssText = "position:fixed;bottom:" + eyeBottom + "px;" + posStyle + "z-index:99990;cursor:pointer;padding:6px;background:" + CHROME_PALETTE.bg + ";backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid " + CHROME_PALETTE.border + ";border-radius:50%;display:" + (hasCustomIcon && !isIconHidden ? "flex" : "none") + ";align-items:center;justify-content:center;";
     
     // Position hidden label
-    hiddenLabel.style.cssText = "position:fixed;bottom:" + offset + "px;" + posStyle + "padding:8px 12px;background:rgba(30,30,30,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.15);border-radius:8px;cursor:pointer;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:" + (isIconHidden ? "block" : "none") + ";";
+    hiddenLabel.style.cssText = "position:fixed;bottom:" + offset + "px;" + posStyle + "padding:8px 12px;background:" + CHROME_PALETTE.bgStrong + ";backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid " + CHROME_PALETTE.border + ";border-radius:8px;cursor:pointer;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:" + (isIconHidden ? "block" : "none") + ";";
   }
   
   function toggleIconVisibility() {
@@ -18144,7 +18192,7 @@ Rules:
   }
   
   // Eye toggle click handler
-  eyeToggleBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+  eyeToggleBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="' + CHROME_PALETTE.iconStroke + '" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
   eyeToggleBtn.onclick = function(e) {
     e.stopPropagation();
     toggleIconVisibility();
@@ -18382,11 +18430,12 @@ Rules:
     var bgB = parseInt(hex.substring(4,6), 16) || 255;
     
     var isDark = widgetTheme === "dark";
-    if (isDark && !pnl) { bgR = 10; bgG = 10; bgB = 10; bgOpacity = 0.85; }
+    var pal = isDark ? DARK_PALETTE : LIGHT_PALETTE;
+    if (isDark && !pnl) { bgR = pal.panelBgR; bgG = pal.panelBgG; bgB = pal.panelBgB; bgOpacity = 0.85; }
     
     var frostedBg = "background:rgba(" + bgR + "," + bgG + "," + bgB + "," + bgOpacity + ");backdrop-filter:blur(" + blurPx + "px);-webkit-backdrop-filter:blur(" + blurPx + "px);";
-    var borderStyle = borderOn ? "border:" + borderW + "px solid " + (isDark ? "rgba(128,128,128,0.18)" : "rgba(0,0,0,0.08)") + ";" : "border:none;";
-    var shadow = isDark ? "0.3" : "0.2";
+    var borderStyle = borderOn ? "border:" + borderW + "px solid " + pal.panelBorder + ";" : "border:none;";
+    var shadow = pal.shadowOpacity;
     
     if (currentIsMobile) {
       var mobileMargin = 12;
@@ -18513,14 +18562,15 @@ Rules:
       welcomeBubble = null;
     }
     
-    // Theme-aware colors - sync with widget theme (darker for dark mode)
+    // Theme-aware colors — sourced from DARK_PALETTE / LIGHT_PALETTE
     var isDark = widgetTheme === "dark";
-    var bubbleBg = isDark ? "rgba(20,20,20,0.6)" : "rgba(255,255,255,0.92)";
-    var bubbleBorder = isDark ? "rgba(128,128,128,0.22)" : "rgba(0,0,0,0.08)";
-    var titleColor = isDark ? "rgba(255,255,255,0.95)" : "#111827";
-    var messageColor = isDark ? "rgba(255,255,255,0.7)" : "#6b7280";
-    var btnColor = isDark ? "rgba(255,255,255,0.6)" : "#999";
-    var borderColor = isDark ? "rgba(128,128,128,0.18)" : "#eee";
+    var pal = isDark ? DARK_PALETTE : LIGHT_PALETTE;
+    var bubbleBg = pal.bubbleBg;
+    var bubbleBorder = pal.bubbleBorder;
+    var titleColor = pal.titleColor;
+    var messageColor = pal.messageColor;
+    var btnColor = pal.btnColor;
+    var borderColor = pal.socialBorder;
     
     welcomeBubble = document.createElement("div");
     welcomeBubble.id = "chatvice-welcome-bubble";
@@ -18537,9 +18587,9 @@ Rules:
     var contentHtml = "";
     
     // Minimized state container (frosted glass with theme sync) - hidden by default
-    var minBg = isDark ? "rgba(30,30,30,0.85)" : "rgba(255,255,255,0.85)";
-    var minBorder = isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)";
-    var minTextColor = isDark ? "rgba(255,255,255,0.9)" : "#1a1a1a";
+    var minBg = pal.minBg;
+    var minBorder = pal.minBorder;
+    var minTextColor = pal.minTextColor;
     contentHtml += '<div id="chatvice-minimized-state" style="display:none;padding:10px 14px;background:' + minBg + ';backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid ' + minBorder + ';border-radius:8px;cursor:pointer;">';
     contentHtml += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">';
     contentHtml += '<span style="color:' + minTextColor + ';font-size:' + headlineFontSize + 'px;font-weight:500;">' + (config.headline || "Need help?") + '</span>';
@@ -18548,8 +18598,8 @@ Rules:
     contentHtml += '</div>';
     
     // Hidden state label (when eye is clicked to hide) - with theme sync
-    var hiddenBg = isDark ? "rgba(30,30,30,0.85)" : "rgba(255,255,255,0.85)";
-    var hiddenTextColor = isDark ? "rgba(255,255,255,0.7)" : "#666";
+    var hiddenBg = pal.hiddenBg;
+    var hiddenTextColor = pal.hiddenTextColor;
     contentHtml += '<div id="chatvice-bubble-hidden-label" style="display:none;padding:8px 12px;background:' + hiddenBg + ';backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid ' + minBorder + ';border-radius:8px;cursor:pointer;">';
     contentHtml += '<div style="display:flex;align-items:center;gap:6px;">';
     contentHtml += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + hiddenTextColor + '" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
@@ -18703,8 +18753,8 @@ Rules:
       if (minimizedState) minimizedState.style.display = "none";
       if (hiddenLabel) hiddenLabel.style.display = "none";
       // Theme-aware frosted glass background (darker for dark mode)
-      var isDark = widgetTheme === "dark";
-      welcomeBubble.style.background = isDark ? "rgba(20,20,20,0.6)" : "rgba(255,255,255,0.4)";
+      var pal = (widgetTheme === "dark") ? DARK_PALETTE : LIGHT_PALETTE;
+      welcomeBubble.style.background = pal.bubbleBgRestored;
       welcomeBubble.style.backdropFilter = "blur(24px)";
       welcomeBubble.style.webkitBackdropFilter = "blur(24px)";
       welcomeBubble.style.boxShadow = "0 4px 20px rgba(0,0,0,0.15)";
