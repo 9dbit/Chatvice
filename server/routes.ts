@@ -17951,7 +17951,24 @@ Rules:
   var isOpen = false;
   var isMaximized = false;
   var widgetTheme = "light";
-  
+
+  // Read hideLauncher from own script tag URL param — overrides dashboard setting
+  // Allows merchants to embed two scripts: one with icon, one without, on the same site
+  var scriptHideLauncherParam = false;
+  (function() {
+    try {
+      var selfScript = document.currentScript ||
+        document.querySelector('script[src*="chatvice.js"][src*="merchant=${merchantId}"]');
+      if (selfScript && selfScript.src) {
+        var urlParts = selfScript.src.split('?');
+        if (urlParts.length > 1) {
+          var params = new URLSearchParams(urlParts[1]);
+          if (params.get('hideLauncher') === 'true') scriptHideLauncherParam = true;
+        }
+      }
+    } catch(e) {}
+  })();
+
   // Cleanup existing widget for same merchant (allows re-initialization)
   var existingIframe = document.getElementById("chatvice-widget-frame");
   var existingButton = document.getElementById("chatvice-widget-button");
@@ -18221,7 +18238,7 @@ Rules:
     if (ws) wsSettings = ws;
     widgetTheme = config.widgetTheme || "light";
     chatWorkflow = config.chatWorkflow || "click_to_open";
-    hideLauncher = config.hideLauncher === true;
+    hideLauncher = scriptHideLauncherParam || config.hideLauncher === true;
     proactiveDingEnabled = config.proactiveChatDingEnabled === true;
     configLoaded = true;
     // In headless mode, keep the launcher permanently hidden

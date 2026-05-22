@@ -880,11 +880,15 @@ export default function WidgetPage() {
   // Cache-busting version - updates when page loads to ensure latest script
   const cacheVersion = Math.floor(Date.now() / 1000);
   
-  // Simple embed code - easy to copy and paste (with cache-busting)
+  // Embed code — with floating icon (normal)
   const widgetEmbedCode = `<!-- Chatvice Chat Widget -->
 <script src="${baseUrl}/api/widget/chatvice.js?merchant=${merchantId}&v=${cacheVersion}" async></script>`;
 
-  // Onclick attribute to add to merchant's existing button — shown when "Hide floating button" is on
+  // Embed code — without floating icon (merchant uses their own button)
+  const widgetEmbedCodeNoLauncher = `<!-- Chatvice Chat Widget (tanpa floating icon) -->
+<script src="${baseUrl}/api/widget/chatvice.js?merchant=${merchantId}&hideLauncher=true&v=${cacheVersion}" async></script>`;
+
+  // Onclick attribute to add to merchant's existing button
   const customButtonOnclick = `onclick="window.chatvice.open()"`;
 
   const widgetPath = widgetSlug || merchantId;
@@ -2849,68 +2853,101 @@ async function handleLogin() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <pre className="bg-muted p-4 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap break-all">
-                  {embedType === "widget" ? widgetEmbedCode : iframeEmbedCode}
-                </pre>
-                <Button
-                  size="sm"
-                  className="mt-2 chatvice-gradient-btn text-white border-0 min-w-[120px]"
-                  onClick={() => handleCopy(
-                    embedType === "widget" ? widgetEmbedCode : iframeEmbedCode,
-                    embedType === "widget" ? "Widget code" : "iFrame code"
-                  )}
-                  data-testid="button-copy-embed"
-                >
-                  {copied === (embedType === "widget" ? "Widget code" : "iFrame code") ? (
-                    <>
-                      <Check className="w-4 h-4 mr-1" />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4 mr-1" />
-                      Copy Code
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              {embedType === "widget" && config.hideLauncher && (
-                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-md bg-primary/15 flex items-center justify-center">
-                      <Code className="w-4 h-4 text-primary" />
+              {embedType === "widget" ? (
+                <div className="space-y-4">
+                  {/* Option 1: With floating icon */}
+                  <div className="rounded-lg border p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center">
+                        <MessageSquare className="w-4 h-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">Dengan Floating Icon</p>
+                        <p className="text-xs text-muted-foreground">Tampilkan tombol chat Chatvice di pojok website Anda.</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">Tambahkan ke tombol Anda</p>
+                    <pre className="bg-muted p-3 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap break-all">
+                      {widgetEmbedCode}
+                    </pre>
+                    <Button
+                      size="sm"
+                      className="chatvice-gradient-btn text-white border-0 min-w-[120px]"
+                      onClick={() => handleCopy(widgetEmbedCode, "Widget code")}
+                      data-testid="button-copy-embed"
+                    >
+                      {copied === "Widget code" ? (
+                        <><Check className="w-4 h-4 mr-1" />Copied</>
+                      ) : (
+                        <><Copy className="w-4 h-4 mr-1" />Copy Code</>
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* Option 2: Without floating icon — merchant uses their own button */}
+                  <div className="rounded-lg border p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center">
+                        <Code className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">Tanpa Floating Icon</p>
+                        <p className="text-xs text-muted-foreground">Gunakan tombol Anda sendiri — floating icon Chatvice tidak akan muncul.</p>
+                      </div>
+                    </div>
+                    <pre className="bg-muted p-3 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap break-all">
+                      {widgetEmbedCodeNoLauncher}
+                    </pre>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-w-[120px]"
+                      onClick={() => handleCopy(widgetEmbedCodeNoLauncher, "Widget code no launcher")}
+                      data-testid="button-copy-embed-no-launcher"
+                    >
+                      {copied === "Widget code no launcher" ? (
+                        <><Check className="w-4 h-4 mr-1" />Copied</>
+                      ) : (
+                        <><Copy className="w-4 h-4 mr-1" />Copy Code</>
+                      )}
+                    </Button>
+                    <div className="pt-1 border-t space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Tambahkan ke tombol Anda:</p>
+                      <pre className="bg-muted p-2 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap break-all">
+                        {customButtonOnclick}
+                      </pre>
                       <p className="text-xs text-muted-foreground">
-                        Copy atribut ini dan tempelkan langsung ke tombol chat yang sudah ada di website Anda.
+                        Contoh: <code className="bg-muted px-1 rounded">&lt;button {customButtonOnclick}&gt;Chat&lt;/button&gt;</code>
                       </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCopy(customButtonOnclick, "Custom button code")}
+                        data-testid="button-copy-custom-button-embed"
+                      >
+                        {copied === "Custom button code" ? (
+                          <><Check className="w-4 h-4 mr-1" />Copied</>
+                        ) : (
+                          <><Copy className="w-4 h-4 mr-1" />Copy Atribut</>
+                        )}
+                      </Button>
                     </div>
                   </div>
-                  <pre className="bg-muted p-3 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap break-all">
-                    {customButtonOnclick}
+                </div>
+              ) : (
+                <div>
+                  <pre className="bg-muted p-4 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap break-all">
+                    {iframeEmbedCode}
                   </pre>
-                  <p className="text-xs text-muted-foreground">
-                    Contoh: <code className="bg-muted px-1 rounded">&lt;button {customButtonOnclick}&gt;Chat&lt;/button&gt;</code>
-                  </p>
                   <Button
                     size="sm"
-                    variant="outline"
-                    onClick={() => handleCopy(customButtonOnclick, "Custom button code")}
-                    data-testid="button-copy-custom-button-embed"
+                    className="mt-2 chatvice-gradient-btn text-white border-0 min-w-[120px]"
+                    onClick={() => handleCopy(iframeEmbedCode, "iFrame code")}
+                    data-testid="button-copy-embed"
                   >
-                    {copied === "Custom button code" ? (
-                      <>
-                        <Check className="w-4 h-4 mr-1" />
-                        Copied
-                      </>
+                    {copied === "iFrame code" ? (
+                      <><Check className="w-4 h-4 mr-1" />Copied</>
                     ) : (
-                      <>
-                        <Copy className="w-4 h-4 mr-1" />
-                        Copy Atribut
-                      </>
+                      <><Copy className="w-4 h-4 mr-1" />Copy Code</>
                     )}
                   </Button>
                 </div>
