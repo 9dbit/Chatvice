@@ -134,7 +134,7 @@ export default function WidgetPage() {
   const handleRefreshWidget = () => {
     setWidgetKey(prev => prev + 1);
   };
-  
+
   const [config, setConfig] = useState({
     iconUrl: "",
     iconVisible: true,
@@ -493,6 +493,25 @@ export default function WidgetPage() {
       });
     }
   }, [merchant]);
+
+  // Auto-open the live widget preview when headless mode (hideLauncher) is on,
+  // so merchants can see the chat window even though the launcher bubble is hidden.
+  useEffect(() => {
+    if (!config.hideLauncher) return;
+
+    let attempts = 0;
+    const interval = setInterval(() => {
+      const chatvice = (window as any).chatvice;
+      if (chatvice?.open && !chatvice.isOpen?.()) {
+        chatvice.open();
+        clearInterval(interval);
+      } else if (++attempts > 40) {
+        clearInterval(interval);
+      }
+    }, 250);
+
+    return () => clearInterval(interval);
+  }, [config.hideLauncher, widgetKey]);
 
   const handleAgentPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1921,6 +1940,20 @@ async function handleLogin() {
                           data-testid="switch-hide-launcher"
                         />
                       </div>
+
+                      {config.hideLauncher && (
+                        <div
+                          className="flex items-start gap-3 p-3 rounded-md border bg-muted/40"
+                          data-testid="banner-headless-preview"
+                        >
+                          <Eye className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            <span className="font-medium text-foreground">Preview mode — </span>
+                            the chat window is opened automatically below so you can see how it looks. On your website, trigger it with{" "}
+                            <code className="bg-muted px-1 rounded text-[11px]">window.chatvice.open()</code>.
+                          </p>
+                        </div>
+                      )}
 
                       <div className="flex items-center justify-between gap-4">
                         <div className="space-y-0.5 flex-1">
