@@ -744,7 +744,7 @@ export const agentWidgetSettingsSchema = z.object({
   widgetTheme: z.enum(["light", "dark"]).optional(),
   bubblePosition: z.enum(["left", "right"]).optional(),
   widgetWelcomeMessage: z.string().max(500, "Welcome message too long").optional(),
-  photoUrl: z.string().max(500000, "Photo data too large").optional(),
+  photoUrl: z.string().max(5000000, "Photo data too large").optional(),
   name: z.string().min(1, "Name is required").max(100, "Name too long").optional(),
 });
 export type AgentWidgetSettings = z.infer<typeof agentWidgetSettingsSchema>;

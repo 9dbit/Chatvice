@@ -1,4 +1,5 @@
 import { useLanguage } from "@/hooks/use-language";
+import { convertToWebP } from "@/lib/imageUtils";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -489,57 +490,40 @@ export default function WidgetPage() {
     }
   }, [merchant]);
 
-  const handleAgentPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAgentPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    if (file.size > 2 * 1024 * 1024) {
-      toast({
-        title: t("common.fileTooLarge"),
-        description: t("dashboard.widget.imageTooLarge"),
-        variant: "destructive",
-      });
+    if (!file.type.startsWith("image/")) {
+      toast({ title: t("common.invalidFileType"), description: t("dashboard.widget.invalidFileType"), variant: "destructive" });
       return;
     }
-    
     setIsUploading(true);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setConfig({ ...config, agentPhotoUrl: reader.result as string });
+    try {
+      const webp = await convertToWebP(file, 256, 256, 0.85);
+      setConfig({ ...config, agentPhotoUrl: webp });
+    } catch {
+      toast({ title: t("common.uploadFailed"), description: t("common.tryAgain"), variant: "destructive" });
+    } finally {
       setIsUploading(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
-  const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    if (file.size > 2 * 1024 * 1024) {
-      toast({
-        title: t("common.fileTooLarge"),
-        description: t("dashboard.widget.imageTooLarge"),
-        variant: "destructive",
-      });
+    if (!file.type.startsWith("image/")) {
+      toast({ title: t("common.invalidFileType"), description: t("dashboard.widget.invalidFileType"), variant: "destructive" });
       return;
     }
-    
-    if (!file.type.match(/^image\/(png|gif|jpeg|jpg|svg\+xml|webp)$/)) {
-      toast({
-        title: t("common.invalidFileType"),
-        description: t("dashboard.widget.invalidFileType"),
-        variant: "destructive",
-      });
-      return;
-    }
-    
     setIsUploadingIcon(true);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setConfig({ ...config, iconUrl: reader.result as string });
+    try {
+      const webp = await convertToWebP(file, 128, 128, 0.85);
+      setConfig({ ...config, iconUrl: webp });
+    } catch {
+      toast({ title: t("common.uploadFailed"), description: t("common.tryAgain"), variant: "destructive" });
+    } finally {
       setIsUploadingIcon(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleFlipImage = async (direction: "horizontal" | "vertical") => {
@@ -649,13 +633,13 @@ export default function WidgetPage() {
     }
     
     setUploadingSocialIcon(platform);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const key = `socialCustom${platform.charAt(0).toUpperCase() + platform.slice(1)}` as keyof typeof socialConfig;
-      setSocialConfig({ ...socialConfig, [key]: reader.result as string });
-      setUploadingSocialIcon(null);
-    };
-    reader.readAsDataURL(file);
+    convertToWebP(file, 64, 64, 0.85)
+      .then((webp) => {
+        const key = `socialCustom${platform.charAt(0).toUpperCase() + platform.slice(1)}` as keyof typeof socialConfig;
+        setSocialConfig({ ...socialConfig, [key]: webp });
+      })
+      .catch(() => toast({ title: t("common.uploadFailed"), description: t("common.tryAgain"), variant: "destructive" }))
+      .finally(() => setUploadingSocialIcon(null));
   };
   
   const handleRemoveSocialIcon = (platform: string) => {

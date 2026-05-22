@@ -1,4 +1,5 @@
 import { useLanguage } from "@/hooks/use-language";
+import { convertToWebP } from "@/lib/imageUtils";
 import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -142,31 +143,19 @@ export default function AgentsPage() {
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      toast({
-        title: t("common.fileTooLarge"),
-        description: t("common.fileSizeLimit"),
-        variant: "destructive",
-      });
+    if (!file.type.startsWith("image/")) {
+      toast({ title: t("common.invalidFileType"), description: t("common.fileReadFailed"), variant: "destructive" });
       return;
     }
-
     setUploadingPhoto(true);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPhotoUrl(reader.result as string);
+    try {
+      const webp = await convertToWebP(file, 256, 256, 0.85);
+      setPhotoUrl(webp);
+    } catch {
+      toast({ title: t("common.uploadFailed"), description: t("common.fileReadFailed"), variant: "destructive" });
+    } finally {
       setUploadingPhoto(false);
-    };
-    reader.onerror = () => {
-      toast({
-        title: t("common.uploadFailed"),
-        description: t("common.fileReadFailed"),
-        variant: "destructive",
-      });
-      setUploadingPhoto(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const createMutation = useMutation({
