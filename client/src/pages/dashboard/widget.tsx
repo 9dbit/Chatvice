@@ -884,12 +884,8 @@ export default function WidgetPage() {
   const widgetEmbedCode = `<!-- Chatvice Chat Widget -->
 <script src="${baseUrl}/api/widget/chatvice.js?merchant=${merchantId}&v=${cacheVersion}" async></script>`;
 
-  // Custom button example — shown when "Hide floating button" is on
-  const customButtonEmbedCode = `<!-- Load Chatvice (no floating button) -->
-<script src="${baseUrl}/api/widget/chatvice.js?merchant=${merchantId}&v=${cacheVersion}" async></script>
-
-<!-- Your custom chat button -->
-<button onclick="window.chatvice.open()">Chat with Us</button>`;
+  // Onclick attribute to add to merchant's existing button — shown when "Hide floating button" is on
+  const customButtonOnclick = `onclick="window.chatvice.open()"`;
 
   const widgetPath = widgetSlug || merchantId;
 
@@ -2887,19 +2883,22 @@ async function handleLogin() {
                       <Code className="w-4 h-4 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium">Custom button example</p>
+                      <p className="text-sm font-medium">Tambahkan ke tombol Anda</p>
                       <p className="text-xs text-muted-foreground">
-                        Since floating button is hidden, use this snippet to wire your own button.
+                        Copy atribut ini dan tempelkan langsung ke tombol chat yang sudah ada di website Anda.
                       </p>
                     </div>
                   </div>
                   <pre className="bg-muted p-3 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap break-all">
-                    {customButtonEmbedCode}
+                    {customButtonOnclick}
                   </pre>
+                  <p className="text-xs text-muted-foreground">
+                    Contoh: <code className="bg-muted px-1 rounded">&lt;button {customButtonOnclick}&gt;Chat&lt;/button&gt;</code>
+                  </p>
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleCopy(customButtonEmbedCode, "Custom button code")}
+                    onClick={() => handleCopy(customButtonOnclick, "Custom button code")}
                     data-testid="button-copy-custom-button-embed"
                   >
                     {copied === "Custom button code" ? (
@@ -2910,7 +2909,7 @@ async function handleLogin() {
                     ) : (
                       <>
                         <Copy className="w-4 h-4 mr-1" />
-                        Copy Example
+                        Copy Atribut
                       </>
                     )}
                   </Button>
