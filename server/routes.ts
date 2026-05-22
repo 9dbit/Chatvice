@@ -18038,6 +18038,12 @@ Rules:
       ? "position:fixed;bottom:" + widgetOffset + "px;left:0;right:" + widgetOffset + "px;width:calc(100vw - " + widgetOffset + "px);height:calc(100vh - " + widgetOffset + "px);max-height:calc(100vh - " + widgetOffset + "px);max-width:calc(100vw - " + widgetOffset + "px);border:none;z-index:100000;background:transparent;"
       : "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:" + pW + "px;height:" + pH + "px;border:none;z-index:100000;background:transparent;";
     iframe.style.cssText = iframePosStyle + "display:" + (isOpen ? "block" : "none") + ";";
+    // In headless mode keep launcher permanently hidden regardless of icon/visibility logic above
+    if (hideLauncher) {
+      button.style.display = "none";
+      eyeToggleBtn.style.display = "none";
+      hiddenLabel.style.display = "none";
+    }
   }
   
   // Initial styles - HIDDEN until config is loaded (no default icon shown)
