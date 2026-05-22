@@ -6461,6 +6461,31 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
     }
   });
 
+  app.get("/api/agent-photo/:agentId", async (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Cache-Control", "public, max-age=3600");
+    try {
+      const agent = await storage.getAgent(req.params.agentId);
+      if (!agent) return res.status(404).json({ error: "Not found" });
+      const photo = agent.photoUrl || "";
+      if (photo.startsWith('data:image')) {
+        const match = photo.match(/^data:(image\/[^;]+);base64,(.+)$/);
+        if (match) {
+          const buffer = Buffer.from(match[2], 'base64');
+          res.setHeader("Content-Type", match[1]);
+          res.setHeader("Content-Length", buffer.length);
+          return res.send(buffer);
+        }
+      }
+      if (photo.startsWith('/') || photo.startsWith('http')) {
+        return res.redirect(photo);
+      }
+      res.status(404).json({ error: "Photo not found" });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   app.get("/api/merchant/banner/:merchantId", async (req, res) => {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Cache-Control", "public, max-age=3600");
@@ -6627,7 +6652,10 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         agentName: agentSettings.name || merchant.agentName || "Chatvice",
         agentPhotoUrl: (() => {
           const photo = agentSettings.photoUrl || merchant.agentPhotoUrl || "";
-          if (photo.startsWith('data:image')) return `/api/merchant/photo/${merchant.id}`;
+          if (photo.startsWith('data:image')) {
+            if (merchant.activeAgentId) return `/api/agent-photo/${merchant.activeAgentId}`;
+            return `/api/merchant/photo/${merchant.id}`;
+          }
           return photo;
         })(),
         widgetTheme: agentSettings.widgetTheme || merchant.widgetTheme || "light",
@@ -18034,8 +18062,9 @@ Rules:
     var wsD = getWS();
     var pW = wsD && wsD.panel ? wsD.panel.widthPx : 380;
     var pH = wsD && wsD.panel ? wsD.panel.heightPx : 660;
-    var iframePosStyle = isMobile 
-      ? "position:fixed;bottom:" + widgetOffset + "px;left:0;right:" + widgetOffset + "px;width:calc(100vw - " + widgetOffset + "px);height:calc(100vh - " + widgetOffset + "px);max-height:calc(100vh - " + widgetOffset + "px);max-width:calc(100vw - " + widgetOffset + "px);border:none;z-index:100000;background:transparent;"
+    var isMobileNow = window.innerWidth <= 480;
+    var iframePosStyle = isMobileNow 
+      ? "position:fixed;bottom:0;left:0;right:0;width:100vw;height:100vh;max-height:100vh;max-width:100vw;border:none;z-index:100000;background:transparent;"
       : "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:" + pW + "px;height:" + pH + "px;border:none;z-index:100000;background:transparent;";
     iframe.style.cssText = iframePosStyle + "display:" + (isOpen ? "block" : "none") + ";";
     // In headless mode keep launcher permanently hidden regardless of icon/visibility logic above
