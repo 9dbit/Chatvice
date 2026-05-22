@@ -18678,6 +18678,7 @@ Rules:
   }
   
   function showWelcomeBubble() {
+    if (hideLauncher) return;
     if (welcomeBubble && !welcomeBubbleVisible && !isOpen) {
       welcomeBubble.style.display = "block";
       welcomeBubbleVisible = true;
@@ -18694,6 +18695,8 @@ Rules:
   
   // Fetch welcome bubble settings and merchant config
   function initWelcomeBubble() {
+    // In headless mode the launcher and all its decorations stay hidden
+    if (hideLauncher) return;
     // Prevent multiple initializations
     if (bubbleInitialized) return;
     
