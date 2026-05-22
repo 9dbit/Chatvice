@@ -18368,7 +18368,7 @@ Rules:
     if (isDark && !pnl) { bgR = 10; bgG = 10; bgB = 10; bgOpacity = 0.85; }
     
     var frostedBg = "background:rgba(" + bgR + "," + bgG + "," + bgB + "," + bgOpacity + ");backdrop-filter:blur(" + blurPx + "px);-webkit-backdrop-filter:blur(" + blurPx + "px);";
-    var borderStyle = borderOn ? "border:" + borderW + "px solid " + (isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)") + ";" : "border:none;";
+    var borderStyle = borderOn ? "border:" + borderW + "px solid " + (isDark ? "rgba(128,128,128,0.18)" : "rgba(0,0,0,0.08)") + ";" : "border:none;";
     var shadow = isDark ? "0.3" : "0.2";
     
     if (currentIsMobile) {

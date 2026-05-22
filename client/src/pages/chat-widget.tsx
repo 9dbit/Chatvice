@@ -2517,7 +2517,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           : `rgba(${panelRgb.r}, ${panelRgb.g}, ${panelRgb.b}, ${panelOpacity})`,
         borderRadius: isDirectAccess ? '0' : widgetBorderRadius,
         border: isDirectAccess ? 'none' : (borderEnabled 
-          ? `${borderThickness}px solid ${widgetIsDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`
+          ? `${borderThickness}px solid ${widgetIsDark ? 'rgba(128,128,128,0.18)' : 'rgba(0,0,0,0.08)'}`
           : 'none'),
         boxShadow: isDirectAccess ? 'none' : `0 8px 32px rgba(0,0,0,${widgetIsDark ? 0.4 : 0.12})`,
         overflow: 'hidden',
