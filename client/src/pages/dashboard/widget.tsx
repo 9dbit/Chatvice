@@ -157,6 +157,7 @@ export default function WidgetPage() {
     agentPhotoUrl: "",
     widgetTheme: "light" as "light" | "dark",
     bubblePosition: "right" as "left" | "right",
+    hideLauncher: false,
     allowedDomains: "",
   });
 
@@ -404,6 +405,7 @@ export default function WidgetPage() {
     widgetWelcomeMessage: string;
     photoUrl: string;
     name: string;
+    hideLauncher: boolean;
   };
 
   const { data: agentWidgetSettings, refetch: refetchAgentSettings } = useQuery<WidgetSettings>({
@@ -435,6 +437,7 @@ export default function WidgetPage() {
         agentPhotoUrl: agentWidgetSettings.photoUrl || "",
         widgetTheme: (agentWidgetSettings.widgetTheme as "light" | "dark") || "light",
         bubblePosition: (agentWidgetSettings.bubblePosition as "left" | "right") || "right",
+        hideLauncher: agentWidgetSettings.hideLauncher ?? false,
         allowedDomains: (merchant as any).allowedDomains || "",
       });
     } else if (merchant && !merchant.activeAgentId) {
@@ -460,6 +463,7 @@ export default function WidgetPage() {
         agentPhotoUrl: merchant.agentPhotoUrl || "",
         widgetTheme: (merchant.widgetTheme as "light" | "dark") || "light",
         bubblePosition: (merchant.bubblePosition as "left" | "right") || "right",
+        hideLauncher: false,
         allowedDomains: (merchant as any).allowedDomains || "",
       });
     }
@@ -730,6 +734,7 @@ export default function WidgetPage() {
           widgetWelcomeMessage: config.welcomeMessage,
           photoUrl: config.agentPhotoUrl,
           name: config.agentName,
+          hideLauncher: config.hideLauncher,
         });
       } else {
         // Save remaining merchant config when no active agent
@@ -851,6 +856,13 @@ export default function WidgetPage() {
   // Simple embed code - easy to copy and paste (with cache-busting)
   const widgetEmbedCode = `<!-- Chatvice Chat Widget -->
 <script src="${baseUrl}/api/widget/chatvice.js?merchant=${merchantId}&v=${cacheVersion}" async></script>`;
+
+  // Custom button example — shown when "Hide floating button" is on
+  const customButtonEmbedCode = `<!-- Load Chatvice (no floating button) -->
+<script src="${baseUrl}/api/widget/chatvice.js?merchant=${merchantId}&v=${cacheVersion}" async></script>
+
+<!-- Your custom chat button -->
+<button onclick="window.chatvice.open()">Chat with Us</button>`;
 
   const widgetPath = widgetSlug || merchantId;
 
@@ -1898,6 +1910,20 @@ async function handleLogin() {
 
                       <div className="flex items-center justify-between gap-4">
                         <div className="space-y-0.5 flex-1">
+                          <Label>Hide floating button</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Use your own chat button. The Chatvice launcher won't appear — call <code className="bg-muted px-1 rounded text-[11px]">window.chatvice.open()</code> from your button instead.
+                          </p>
+                        </div>
+                        <Switch
+                          checked={config.hideLauncher}
+                          onCheckedChange={(v) => setConfig({ ...config, hideLauncher: v })}
+                          data-testid="switch-hide-launcher"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-0.5 flex-1">
                           <Label>{t("dashboard.widget.proactiveChat")}</Label>
                           <p className="text-xs text-muted-foreground">
                             Configure AI proactive greetings, greeting delay timer, ding sound, and welcome message templates.
@@ -2780,6 +2806,44 @@ async function handleLogin() {
                   )}
                 </Button>
               </div>
+
+              {embedType === "widget" && config.hideLauncher && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-md bg-primary/15 flex items-center justify-center">
+                      <Code className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Custom button example</p>
+                      <p className="text-xs text-muted-foreground">
+                        Since floating button is hidden, use this snippet to wire your own button.
+                      </p>
+                    </div>
+                  </div>
+                  <pre className="bg-muted p-3 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap break-all">
+                    {customButtonEmbedCode}
+                  </pre>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleCopy(customButtonEmbedCode, "Custom button code")}
+                    data-testid="button-copy-custom-button-embed"
+                  >
+                    {copied === "Custom button code" ? (
+                      <>
+                        <Check className="w-4 h-4 mr-1" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 mr-1" />
+                        Copy Example
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
               <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                 <Globe className="w-4 h-4" />
                 <span>{t("dashboard.widget.yourWidgetUrl")}</span>

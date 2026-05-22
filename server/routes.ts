@@ -6575,7 +6575,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       }
       
       // Check if there's an active agent with widget settings
-      let agentSettings: { primaryColor?: string; widgetWelcomeMessage?: string; name?: string; photoUrl?: string; widgetTheme?: string; bubblePosition?: string } = {};
+      let agentSettings: { primaryColor?: string; widgetWelcomeMessage?: string; name?: string; photoUrl?: string; widgetTheme?: string; bubblePosition?: string; hideLauncher?: boolean } = {};
       if (merchant.activeAgentId) {
         const agent = await storage.getAgent(merchant.activeAgentId);
         if (agent) {
@@ -6586,6 +6586,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
             photoUrl: agent.photoUrl || undefined,
             widgetTheme: agent.widgetTheme || undefined,
             bubblePosition: agent.bubblePosition || undefined,
+            hideLauncher: agent.hideLauncher ?? false,
           };
         }
       }
@@ -6647,6 +6648,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         // visitor tracking WS (proactive_chat event) rather than the React auto-open flow.
         // proactiveChatEnabled controls whether AI greeting is scheduled for tracked visitors.
         chatWorkflow: "click_to_open",
+        hideLauncher: agentSettings.hideLauncher ?? false,
         proactiveChatEnabled: merchant.proactiveChatEnabled ?? false,
         proactiveChatDingEnabled: merchant.proactiveChatDingEnabled ?? false,
         proactiveChatGreetingDelay: merchant.proactiveChatGreetingDelay ?? 8,
@@ -18175,6 +18177,7 @@ Rules:
   // Fetch merchant config and apply custom styles with retry
   var configLoaded = false;
   var chatWorkflow = "click_to_open";
+  var hideLauncher = false;
   var proactiveDingEnabled = false;
   var JS_CACHE_KEY = "chatvice_js_cfg_" + merchantId;
 
@@ -18183,8 +18186,15 @@ Rules:
     if (ws) wsSettings = ws;
     widgetTheme = config.widgetTheme || "light";
     chatWorkflow = config.chatWorkflow || "click_to_open";
+    hideLauncher = config.hideLauncher === true;
     proactiveDingEnabled = config.proactiveChatDingEnabled === true;
     configLoaded = true;
+    // In headless mode, keep the launcher permanently hidden
+    if (hideLauncher) {
+      button.style.display = "none";
+      eyeToggleBtn.style.display = "none";
+      hiddenLabel.style.display = "none";
+    }
     if (!isOpen) {
       var encColor = encodeURIComponent(config.primaryColor || '#6b5dfc');
       var encTheme = encodeURIComponent(config.widgetTheme || 'light');
@@ -18379,9 +18389,12 @@ Rules:
   
   function closeWidget() {
     iframe.style.display = "none";
-    button.style.display = "flex";
-    if (hasCustomIcon && !isIconHidden) {
-      eyeToggleBtn.style.display = "flex";
+    // In headless mode the launcher button stays hidden permanently
+    if (!hideLauncher) {
+      button.style.display = "flex";
+      if (hasCustomIcon && !isIconHidden) {
+        eyeToggleBtn.style.display = "flex";
+      }
     }
     isOpen = false;
   }
@@ -19970,7 +19983,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       }
       
       const validatedData = agentWidgetSettingsSchema.parse(req.body);
-      const { primaryColor, widgetTheme, bubblePosition, widgetWelcomeMessage, photoUrl, name } = validatedData;
+      const { primaryColor, widgetTheme, bubblePosition, widgetWelcomeMessage, photoUrl, name, hideLauncher } = validatedData;
       
       const updateData: Record<string, any> = {};
       if (primaryColor !== undefined) updateData.primaryColor = primaryColor;
@@ -19979,6 +19992,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       if (widgetWelcomeMessage !== undefined) updateData.widgetWelcomeMessage = widgetWelcomeMessage;
       if (photoUrl !== undefined) updateData.photoUrl = photoUrl;
       if (name !== undefined) updateData.name = name;
+      if (hideLauncher !== undefined) updateData.hideLauncher = hideLauncher;
       
       const updated = await storage.updateAgent(req.params.id, updateData);
       
@@ -20020,6 +20034,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         widgetWelcomeMessage: agent.widgetWelcomeMessage || "Hi! How can I help you today?",
         photoUrl: agent.photoUrl || "",
         name: agent.name,
+        hideLauncher: agent.hideLauncher ?? false,
       });
     } catch (error) {
       res.status(500).json({ error: "Server error" });

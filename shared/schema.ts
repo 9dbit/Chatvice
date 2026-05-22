@@ -590,6 +590,7 @@ export const agents = pgTable("agents", {
   widgetTheme: text("widget_theme").default("light"),
   bubblePosition: text("bubble_position").default("right"),
   widgetWelcomeMessage: text("widget_welcome_message").default("Hi! How can I help you today?"),
+  hideLauncher: boolean("hide_launcher").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -746,6 +747,7 @@ export const agentWidgetSettingsSchema = z.object({
   widgetWelcomeMessage: z.string().max(500, "Welcome message too long").optional(),
   photoUrl: z.string().max(5000000, "Photo data too large").optional(),
   name: z.string().min(1, "Name is required").max(100, "Name too long").optional(),
+  hideLauncher: z.boolean().optional(),
 });
 export type AgentWidgetSettings = z.infer<typeof agentWidgetSettingsSchema>;
 
