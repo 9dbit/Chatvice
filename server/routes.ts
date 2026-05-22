@@ -18516,11 +18516,11 @@ Rules:
     // Theme-aware colors - sync with widget theme (darker for dark mode)
     var isDark = widgetTheme === "dark";
     var bubbleBg = isDark ? "rgba(20,20,20,0.6)" : "rgba(255,255,255,0.92)";
-    var bubbleBorder = isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.08)";
+    var bubbleBorder = isDark ? "rgba(128,128,128,0.22)" : "rgba(0,0,0,0.08)";
     var titleColor = isDark ? "rgba(255,255,255,0.95)" : "#111827";
     var messageColor = isDark ? "rgba(255,255,255,0.7)" : "#6b7280";
     var btnColor = isDark ? "rgba(255,255,255,0.6)" : "#999";
-    var borderColor = isDark ? "rgba(255,255,255,0.1)" : "#eee";
+    var borderColor = isDark ? "rgba(128,128,128,0.18)" : "#eee";
     
     welcomeBubble = document.createElement("div");
     welcomeBubble.id = "chatvice-welcome-bubble";
