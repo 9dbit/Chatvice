@@ -18296,9 +18296,16 @@ Rules:
     if (ws) wsSettings = ws;
     widgetTheme = config.widgetTheme || "light";
     chatWorkflow = config.chatWorkflow || "click_to_open";
-    // URL param (hideLauncher=true) forces hide on all devices
-    hideLauncherDesktop = scriptHideLauncherParam || config.hideLauncherDesktop === true || config.hideLauncher === true;
-    hideLauncherMobile  = scriptHideLauncherParam || config.hideLauncherMobile  === true || config.hideLauncher === true;
+    // URL param (hideLauncher=true) forces hide on all devices.
+    // Legacy config.hideLauncher is used ONLY when the new per-device fields have
+    // not yet been explicitly set (both are undefined/null = agent was saved before
+    // this feature existed).  Once the merchant saves the new toggles the save
+    // endpoint clears hideLauncher=false so this branch will no longer fire.
+    var legacyHide = config.hideLauncher === true &&
+                     config.hideLauncherDesktop == null &&
+                     config.hideLauncherMobile == null;
+    hideLauncherDesktop = scriptHideLauncherParam || config.hideLauncherDesktop === true || legacyHide;
+    hideLauncherMobile  = scriptHideLauncherParam || config.hideLauncherMobile  === true || legacyHide;
     proactiveDingEnabled = config.proactiveChatDingEnabled === true;
     configLoaded = true;
     // In headless mode, keep the launcher permanently hidden for this viewport
@@ -20128,6 +20135,11 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       if (hideLauncher !== undefined) updateData.hideLauncher = hideLauncher;
       if (hideLauncherDesktop !== undefined) updateData.hideLauncherDesktop = hideLauncherDesktop;
       if (hideLauncherMobile !== undefined) updateData.hideLauncherMobile = hideLauncherMobile;
+      // When merchant explicitly saves the new per-device toggles, retire the
+      // legacy hideLauncher flag so it no longer shadows the new controls.
+      if (hideLauncherDesktop !== undefined || hideLauncherMobile !== undefined) {
+        updateData.hideLauncher = false;
+      }
       
       const updated = await storage.updateAgent(req.params.id, updateData);
       
@@ -20170,6 +20182,8 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         photoUrl: agent.photoUrl || "",
         name: agent.name,
         hideLauncher: agent.hideLauncher ?? false,
+        hideLauncherDesktop: agent.hideLauncherDesktop ?? false,
+        hideLauncherMobile: agent.hideLauncherMobile ?? false,
       });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
