@@ -158,7 +158,8 @@ export default function WidgetPage() {
     agentPhotoUrl: "",
     widgetTheme: "light" as "light" | "dark",
     bubblePosition: "right" as "left" | "right",
-    hideLauncher: false,
+    hideLauncherDesktop: false,
+    hideLauncherMobile: false,
     allowedDomains: "",
   });
 
@@ -407,6 +408,8 @@ export default function WidgetPage() {
     photoUrl: string;
     name: string;
     hideLauncher: boolean;
+    hideLauncherDesktop: boolean;
+    hideLauncherMobile: boolean;
   };
 
   const { data: agentWidgetSettings, refetch: refetchAgentSettings } = useQuery<WidgetSettings>({
@@ -438,7 +441,9 @@ export default function WidgetPage() {
         agentPhotoUrl: agentWidgetSettings.photoUrl || "",
         widgetTheme: (agentWidgetSettings.widgetTheme as "light" | "dark") || "light",
         bubblePosition: (agentWidgetSettings.bubblePosition as "left" | "right") || "right",
-        hideLauncher: agentWidgetSettings.hideLauncher ?? false,
+        // Backward-compat: if old hideLauncher was on but new fields aren't set, pre-populate both
+        hideLauncherDesktop: agentWidgetSettings.hideLauncherDesktop ?? (agentWidgetSettings.hideLauncher ? true : false),
+        hideLauncherMobile: agentWidgetSettings.hideLauncherMobile ?? (agentWidgetSettings.hideLauncher ? true : false),
         allowedDomains: (merchant as any).allowedDomains || "",
       });
     } else if (merchant && !merchant.activeAgentId) {
@@ -464,7 +469,8 @@ export default function WidgetPage() {
         agentPhotoUrl: merchant.agentPhotoUrl || "",
         widgetTheme: (merchant.widgetTheme as "light" | "dark") || "light",
         bubblePosition: (merchant.bubblePosition as "left" | "right") || "right",
-        hideLauncher: false,
+        hideLauncherDesktop: false,
+        hideLauncherMobile: false,
         allowedDomains: (merchant as any).allowedDomains || "",
       });
     }
@@ -495,17 +501,22 @@ export default function WidgetPage() {
     }
   }, [merchant]);
 
-  // Reset dismissed badge state whenever hideLauncher is toggled back on
+  // Derived: both desktop AND mobile hidden = fully headless (no launcher anywhere)
+  const isFullyHeadless = config.hideLauncherDesktop && config.hideLauncherMobile;
+  // At least one hidden = show headless badge hint
+  const isAnyHeadless = config.hideLauncherDesktop || config.hideLauncherMobile;
+
+  // Reset dismissed badge state whenever any launcher toggle is re-enabled
   useEffect(() => {
-    if (config.hideLauncher) {
+    if (isAnyHeadless) {
       setDismissedHeadlessBadge(false);
     }
-  }, [config.hideLauncher]);
+  }, [isAnyHeadless]);
 
-  // Auto-open the live widget preview when headless mode (hideLauncher) is on,
+  // Auto-open the live widget preview when fully headless mode is on,
   // so merchants can see the chat window even though the launcher bubble is hidden.
   useEffect(() => {
-    if (!config.hideLauncher) return;
+    if (!isFullyHeadless) return;
 
     let attempts = 0;
     const interval = setInterval(() => {
@@ -519,7 +530,7 @@ export default function WidgetPage() {
     }, 250);
 
     return () => clearInterval(interval);
-  }, [config.hideLauncher, widgetKey]);
+  }, [isFullyHeadless, widgetKey]);
 
   const handleAgentPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -761,7 +772,8 @@ export default function WidgetPage() {
           widgetWelcomeMessage: config.welcomeMessage,
           photoUrl: config.agentPhotoUrl,
           name: config.agentName,
-          hideLauncher: config.hideLauncher,
+          hideLauncherDesktop: config.hideLauncherDesktop,
+          hideLauncherMobile: config.hideLauncherMobile,
         });
       } else {
         // Save remaining merchant config when no active agent
@@ -1035,7 +1047,7 @@ async function handleLogin() {
       <DomainLimitDialog open={showDomainLimitDialog} onClose={() => setShowDomainLimitDialog(false)} />
 
       {/* Headless mode active badge — fixed at the corner where the launcher would normally appear */}
-      {config.hideLauncher && !dismissedHeadlessBadge && (
+      {isAnyHeadless && !dismissedHeadlessBadge && (
         <div
           className={cn(
             "fixed bottom-6 z-[9999] flex items-center gap-2 rounded-full border border-border/60 bg-background/95 px-3 py-2 shadow-lg backdrop-blur-sm text-xs",
@@ -1967,21 +1979,38 @@ async function handleLogin() {
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="space-y-0.5 flex-1">
-                          <Label>Hide floating button</Label>
-                          <p className="text-xs text-muted-foreground">
-                            Use your own chat button. The Chatvice launcher won't appear — call <code className="bg-muted px-1 rounded text-[11px]">window.chatvice.open()</code> from your button instead.
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-sm font-medium">Tombol Chat (Floating Icon)</Label>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Sembunyikan floating icon Chatvice dan gunakan tombol sendiri. Panggil <code className="bg-muted px-1 rounded text-[11px]">window.chatvice.open()</code> dari tombol Anda.
                           </p>
                         </div>
-                        <Switch
-                          checked={config.hideLauncher}
-                          onCheckedChange={(v) => setConfig({ ...config, hideLauncher: v })}
-                          data-testid="switch-hide-launcher"
-                        />
+                        <div className="flex items-center justify-between gap-4 pl-1">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Monitor className="w-4 h-4 text-muted-foreground" />
+                            <span>Sembunyikan di Desktop</span>
+                          </div>
+                          <Switch
+                            checked={config.hideLauncherDesktop}
+                            onCheckedChange={(v) => setConfig({ ...config, hideLauncherDesktop: v })}
+                            data-testid="switch-hide-launcher-desktop"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between gap-4 pl-1">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Smartphone className="w-4 h-4 text-muted-foreground" />
+                            <span>Sembunyikan di Mobile</span>
+                          </div>
+                          <Switch
+                            checked={config.hideLauncherMobile}
+                            onCheckedChange={(v) => setConfig({ ...config, hideLauncherMobile: v })}
+                            data-testid="switch-hide-launcher-mobile"
+                          />
+                        </div>
                       </div>
 
-                      {config.hideLauncher && (
+                      {isAnyHeadless && (
                         <div
                           className="flex items-start gap-3 p-3 rounded-md border bg-muted/40"
                           data-testid="banner-headless-preview"
@@ -1989,7 +2018,9 @@ async function handleLogin() {
                           <Eye className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
                           <p className="text-xs text-muted-foreground leading-relaxed">
                             <span className="font-medium text-foreground">Preview mode — </span>
-                            the chat window is opened automatically below so you can see how it looks. On your website, trigger it with{" "}
+                            {isFullyHeadless
+                              ? "chat window dibuka otomatis di bawah. Di website Anda, trigger dengan "
+                              : "floating icon tersembunyi di " + (config.hideLauncherDesktop ? "desktop" : "mobile") + ". Trigger dengan "}
                             <code className="bg-muted px-1 rounded text-[11px]">window.chatvice.open()</code>.
                           </p>
                         </div>

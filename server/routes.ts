@@ -6600,7 +6600,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       }
       
       // Check if there's an active agent with widget settings
-      let agentSettings: { primaryColor?: string; widgetWelcomeMessage?: string; name?: string; photoUrl?: string; widgetTheme?: string; bubblePosition?: string; hideLauncher?: boolean } = {};
+      let agentSettings: { primaryColor?: string; widgetWelcomeMessage?: string; name?: string; photoUrl?: string; widgetTheme?: string; bubblePosition?: string; hideLauncher?: boolean; hideLauncherDesktop?: boolean; hideLauncherMobile?: boolean } = {};
       if (merchant.activeAgentId) {
         const agent = await storage.getAgent(merchant.activeAgentId);
         if (agent) {
@@ -6612,6 +6612,8 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
             widgetTheme: agent.widgetTheme || undefined,
             bubblePosition: agent.bubblePosition || undefined,
             hideLauncher: agent.hideLauncher ?? false,
+            hideLauncherDesktop: agent.hideLauncherDesktop ?? false,
+            hideLauncherMobile: agent.hideLauncherMobile ?? false,
           };
         }
       }
@@ -6677,6 +6679,8 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         // proactiveChatEnabled controls whether AI greeting is scheduled for tracked visitors.
         chatWorkflow: "click_to_open",
         hideLauncher: agentSettings.hideLauncher ?? false,
+        hideLauncherDesktop: agentSettings.hideLauncherDesktop ?? false,
+        hideLauncherMobile: agentSettings.hideLauncherMobile ?? false,
         proactiveChatEnabled: merchant.proactiveChatEnabled ?? false,
         proactiveChatDingEnabled: merchant.proactiveChatDingEnabled ?? false,
         proactiveChatGreetingDelay: merchant.proactiveChatGreetingDelay ?? 8,
@@ -18277,20 +18281,28 @@ Rules:
   // Fetch merchant config and apply custom styles with retry
   var configLoaded = false;
   var chatWorkflow = "click_to_open";
-  var hideLauncher = false;
+  var hideLauncherDesktop = false;
+  var hideLauncherMobile = false;
   var proactiveDingEnabled = false;
   var JS_CACHE_KEY = "chatvice_js_cfg_" + merchantId;
+
+  // Returns true if the launcher should be hidden for the current viewport
+  function isHideLauncher() {
+    return window.innerWidth <= 480 ? hideLauncherMobile : hideLauncherDesktop;
+  }
 
   // Apply a config object (from cache or network) to the launcher button and state.
   function applyConfig(config, ws) {
     if (ws) wsSettings = ws;
     widgetTheme = config.widgetTheme || "light";
     chatWorkflow = config.chatWorkflow || "click_to_open";
-    hideLauncher = scriptHideLauncherParam || config.hideLauncher === true;
+    // URL param (hideLauncher=true) forces hide on all devices
+    hideLauncherDesktop = scriptHideLauncherParam || config.hideLauncherDesktop === true || config.hideLauncher === true;
+    hideLauncherMobile  = scriptHideLauncherParam || config.hideLauncherMobile  === true || config.hideLauncher === true;
     proactiveDingEnabled = config.proactiveChatDingEnabled === true;
     configLoaded = true;
-    // In headless mode, keep the launcher permanently hidden
-    if (hideLauncher) {
+    // In headless mode, keep the launcher permanently hidden for this viewport
+    if (isHideLauncher()) {
       button.style.display = "none";
       eyeToggleBtn.style.display = "none";
       hiddenLabel.style.display = "none";
@@ -18491,7 +18503,7 @@ Rules:
   function closeWidget() {
     iframe.style.display = "none";
     // In headless mode the launcher button stays hidden permanently
-    if (!hideLauncher) {
+    if (!isHideLauncher()) {
       button.style.display = "flex";
       if (hasCustomIcon && !isIconHidden) {
         eyeToggleBtn.style.display = "flex";
@@ -18504,6 +18516,22 @@ Rules:
     openWidget();
   };
   
+  // Re-evaluate launcher visibility when viewport resizes (e.g. phone rotation)
+  window.addEventListener("resize", function() {
+    if (!configLoaded) return;
+    if (isHideLauncher()) {
+      if (!isOpen) {
+        button.style.display = "none";
+        eyeToggleBtn.style.display = "none";
+        hiddenLabel.style.display = "none";
+      }
+    } else {
+      if (!isOpen) {
+        button.style.display = "flex";
+      }
+    }
+  });
+
   // Listen for messages from iframe (close button clicked inside widget)
   window.addEventListener("message", function(event) {
     // Validate message source is from our iframe
@@ -18780,7 +18808,7 @@ Rules:
   }
   
   function showWelcomeBubble() {
-    if (hideLauncher) return;
+    if (isHideLauncher()) return;
     if (welcomeBubble && !welcomeBubbleVisible && !isOpen) {
       welcomeBubble.style.display = "block";
       welcomeBubbleVisible = true;
@@ -18798,7 +18826,7 @@ Rules:
   // Fetch welcome bubble settings and merchant config
   function initWelcomeBubble() {
     // In headless mode the launcher and all its decorations stay hidden
-    if (hideLauncher) return;
+    if (isHideLauncher()) return;
     // Prevent multiple initializations
     if (bubbleInitialized) return;
     
@@ -20088,7 +20116,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       }
       
       const validatedData = agentWidgetSettingsSchema.parse(req.body);
-      const { primaryColor, widgetTheme, bubblePosition, widgetWelcomeMessage, photoUrl, name, hideLauncher } = validatedData;
+      const { primaryColor, widgetTheme, bubblePosition, widgetWelcomeMessage, photoUrl, name, hideLauncher, hideLauncherDesktop, hideLauncherMobile } = validatedData;
       
       const updateData: Record<string, any> = {};
       if (primaryColor !== undefined) updateData.primaryColor = primaryColor;
@@ -20098,6 +20126,8 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       if (photoUrl !== undefined) updateData.photoUrl = photoUrl;
       if (name !== undefined) updateData.name = name;
       if (hideLauncher !== undefined) updateData.hideLauncher = hideLauncher;
+      if (hideLauncherDesktop !== undefined) updateData.hideLauncherDesktop = hideLauncherDesktop;
+      if (hideLauncherMobile !== undefined) updateData.hideLauncherMobile = hideLauncherMobile;
       
       const updated = await storage.updateAgent(req.params.id, updateData);
       
