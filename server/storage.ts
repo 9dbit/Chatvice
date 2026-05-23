@@ -2103,7 +2103,19 @@ export class DatabaseStorage implements IStorage {
 
   // Stored Files implementations (database-backed file storage)
   async storeFile(file: InsertStoredFile): Promise<StoredFile> {
-    const result = await db.insert(storedFiles).values(file).returning();
+    const result = await db
+      .insert(storedFiles)
+      .values(file)
+      .onConflictDoUpdate({
+        target: storedFiles.id,
+        set: {
+          content: file.content,
+          mimeType: file.mimeType,
+          size: file.size,
+          filename: file.filename,
+        },
+      })
+      .returning();
     return result[0];
   }
   

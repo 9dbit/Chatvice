@@ -927,6 +927,14 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const isFirstEffectRun = useRef<boolean>(true); // Track if this is the first effect run
   
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Track avatar URLs that failed to load so we can show the icon fallback instead
+  const [failedAvatarUrls, setFailedAvatarUrls] = useState<Set<string>>(new Set());
+  const onAvatarError = (url: string) =>
+    setFailedAvatarUrls(prev => new Set([...prev, url]));
+  /** True when the URL is missing OR previously failed to load */
+  const avatarOk = (url: string | null | undefined): url is string =>
+    !!url && url.trim() !== "" && !failedAvatarUrls.has(url);
   
   const [isWidgetHidden, setIsWidgetHidden] = useState(() => {
     if (previewMode) return false;
@@ -2709,17 +2717,19 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             <div className="flex items-center -space-x-2">
               {/* Agent photo (background, slightly smaller) */}
               <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center overflow-hidden border-2 border-white/30 z-0">
-                {sessionInfo?.agentInfo?.photoUrl && sessionInfo.agentInfo.photoUrl.trim() !== "" ? (
+                {avatarOk(sessionInfo?.agentInfo?.photoUrl) ? (
                   <img
-                    src={sessionInfo.agentInfo.photoUrl}
+                    src={sessionInfo!.agentInfo!.photoUrl!}
                     alt="Agent"
                     className="w-full h-full object-cover"
+                    onError={() => onAvatarError(sessionInfo!.agentInfo!.photoUrl!)}
                   />
-                ) : merchantConfig?.agentPhotoUrl ? (
+                ) : avatarOk(merchantConfig?.agentPhotoUrl) ? (
                   <img
-                    src={merchantConfig.agentPhotoUrl}
+                    src={merchantConfig!.agentPhotoUrl!}
                     alt="Agent"
                     className="w-full h-full object-cover"
+                    onError={() => onAvatarError(merchantConfig!.agentPhotoUrl!)}
                   />
                 ) : (
                   <Bot className="w-4 h-4 text-white" />
@@ -2727,11 +2737,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
               </div>
               {/* Supervisor photo (foreground) */}
               <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center overflow-hidden border-2 border-white/40 z-10">
-                {sessionInfo.supervisorInfo.photoUrl && sessionInfo.supervisorInfo.photoUrl.trim() !== "" ? (
+                {avatarOk(sessionInfo.supervisorInfo.photoUrl) ? (
                   <img
-                    src={sessionInfo.supervisorInfo.photoUrl}
+                    src={sessionInfo.supervisorInfo.photoUrl!}
                     alt="Supervisor"
                     className="w-full h-full object-cover"
+                    onError={() => onAvatarError(sessionInfo.supervisorInfo.photoUrl!)}
                   />
                 ) : (
                   <HeadphonesIcon className="w-4 h-4 text-white" />
@@ -2741,23 +2752,26 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
           ) : (
             // Single agent photo
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
-              {sessionInfo?.agentInfo?.photoUrl && sessionInfo.agentInfo.photoUrl.trim() !== "" ? (
+              {avatarOk(sessionInfo?.agentInfo?.photoUrl) ? (
                 <img
-                  src={sessionInfo.agentInfo.photoUrl}
+                  src={sessionInfo!.agentInfo!.photoUrl!}
                   alt="Agent"
                   className="w-full h-full object-cover"
+                  onError={() => onAvatarError(sessionInfo!.agentInfo!.photoUrl!)}
                 />
-              ) : merchantConfig?.agentPhotoUrl ? (
+              ) : avatarOk(merchantConfig?.agentPhotoUrl) ? (
                 <img
-                  src={merchantConfig.agentPhotoUrl}
+                  src={merchantConfig!.agentPhotoUrl!}
                   alt="Agent"
                   className="w-full h-full object-cover"
+                  onError={() => onAvatarError(merchantConfig!.agentPhotoUrl!)}
                 />
-              ) : merchantConfig?.iconUrl ? (
+              ) : avatarOk(merchantConfig?.iconUrl) ? (
                 <img
-                  src={merchantConfig.iconUrl}
+                  src={merchantConfig!.iconUrl!}
                   alt="Chat"
                   className="w-full h-full object-cover"
+                  onError={() => onAvatarError(merchantConfig!.iconUrl!)}
                 />
               ) : (
                 <Bot className="w-5 h-5 text-white" />
@@ -3248,12 +3262,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-8 gap-5 text-center overflow-y-auto" data-testid="widget-left-branding">
               {/* Agent avatar */}
               <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center overflow-hidden shrink-0 shadow-lg" style={{ border: `3px solid ${primaryColor}44` }}>
-                {sessionInfo?.agentInfo?.photoUrl && sessionInfo.agentInfo.photoUrl.trim() !== "" ? (
-                  <img src={sessionInfo.agentInfo.photoUrl} alt="Agent" className="w-full h-full object-cover" />
-                ) : merchantConfig?.agentPhotoUrl ? (
-                  <img src={merchantConfig.agentPhotoUrl} alt="Agent" className="w-full h-full object-cover" />
-                ) : merchantConfig?.iconUrl ? (
-                  <img src={merchantConfig.iconUrl} alt="Chat" className="w-full h-full object-cover" />
+                {avatarOk(sessionInfo?.agentInfo?.photoUrl) ? (
+                  <img src={sessionInfo!.agentInfo!.photoUrl!} alt="Agent" className="w-full h-full object-cover" onError={() => onAvatarError(sessionInfo!.agentInfo!.photoUrl!)} />
+                ) : avatarOk(merchantConfig?.agentPhotoUrl) ? (
+                  <img src={merchantConfig!.agentPhotoUrl!} alt="Agent" className="w-full h-full object-cover" onError={() => onAvatarError(merchantConfig!.agentPhotoUrl!)} />
+                ) : avatarOk(merchantConfig?.iconUrl) ? (
+                  <img src={merchantConfig!.iconUrl!} alt="Chat" className="w-full h-full object-cover" onError={() => onAvatarError(merchantConfig!.iconUrl!)} />
                 ) : (
                   <Bot className="w-10 h-10" style={{ color: primaryColor }} />
                 )}
@@ -3965,17 +3979,17 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                   >
                     {msg.from === "supervisor" ? (
                       // Show supervisor photo if available, otherwise headphones icon
-                      sessionInfo?.supervisorInfo?.photoUrl && sessionInfo.supervisorInfo.photoUrl.trim() !== "" ? (
-                        <img src={sessionInfo.supervisorInfo.photoUrl} alt="Supervisor" className="w-full h-full object-cover" />
+                      avatarOk(sessionInfo?.supervisorInfo?.photoUrl) ? (
+                        <img src={sessionInfo!.supervisorInfo!.photoUrl!} alt="Supervisor" className="w-full h-full object-cover" onError={() => onAvatarError(sessionInfo!.supervisorInfo!.photoUrl!)} />
                       ) : (
                         <HeadphonesIcon className="w-3.5 h-3.5" style={{ color: primaryColor }} />
                       )
-                    ) : sessionInfo?.agentInfo?.photoUrl && sessionInfo.agentInfo.photoUrl.trim() !== "" ? (
+                    ) : avatarOk(sessionInfo?.agentInfo?.photoUrl) ? (
                       // Use the session's assigned agent photo
-                      <img src={sessionInfo.agentInfo.photoUrl} alt="Agent" className="w-full h-full object-cover" />
-                    ) : merchantConfig?.agentPhotoUrl ? (
+                      <img src={sessionInfo!.agentInfo!.photoUrl!} alt="Agent" className="w-full h-full object-cover" onError={() => onAvatarError(sessionInfo!.agentInfo!.photoUrl!)} />
+                    ) : avatarOk(merchantConfig?.agentPhotoUrl) ? (
                       // Fallback to merchant's default agent photo
-                      <img src={merchantConfig.agentPhotoUrl} alt="Agent" className="w-full h-full object-cover" />
+                      <img src={merchantConfig!.agentPhotoUrl!} alt="Agent" className="w-full h-full object-cover" onError={() => onAvatarError(merchantConfig!.agentPhotoUrl!)} />
                     ) : (
                       <Bot className="w-3.5 h-3.5" style={{ color: primaryColor }} />
                     )}
@@ -4807,12 +4821,12 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 overflow-hidden"
                 style={{ backgroundColor: `${primaryColor}20` }}
               >
-                {sessionInfo?.mode === "HUMAN" && sessionInfo?.supervisorInfo?.photoUrl ? (
-                  <img src={sessionInfo.supervisorInfo.photoUrl} alt="Supervisor" className="w-full h-full object-cover" />
-                ) : sessionInfo?.agentInfo?.photoUrl ? (
-                  <img src={sessionInfo.agentInfo.photoUrl} alt="Agent" className="w-full h-full object-cover" />
-                ) : merchantConfig?.agentPhotoUrl ? (
-                  <img src={merchantConfig.agentPhotoUrl} alt="Agent" className="w-full h-full object-cover" />
+                {sessionInfo?.mode === "HUMAN" && avatarOk(sessionInfo?.supervisorInfo?.photoUrl) ? (
+                  <img src={sessionInfo!.supervisorInfo!.photoUrl!} alt="Supervisor" className="w-full h-full object-cover" onError={() => onAvatarError(sessionInfo!.supervisorInfo!.photoUrl!)} />
+                ) : avatarOk(sessionInfo?.agentInfo?.photoUrl) ? (
+                  <img src={sessionInfo!.agentInfo!.photoUrl!} alt="Agent" className="w-full h-full object-cover" onError={() => onAvatarError(sessionInfo!.agentInfo!.photoUrl!)} />
+                ) : avatarOk(merchantConfig?.agentPhotoUrl) ? (
+                  <img src={merchantConfig!.agentPhotoUrl!} alt="Agent" className="w-full h-full object-cover" onError={() => onAvatarError(merchantConfig!.agentPhotoUrl!)} />
                 ) : (
                   <Bot className="w-3.5 h-3.5" style={{ color: primaryColor }} />
                 )}
