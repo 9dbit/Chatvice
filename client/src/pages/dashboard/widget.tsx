@@ -408,8 +408,8 @@ export default function WidgetPage() {
     photoUrl: string;
     name: string;
     hideLauncher: boolean;
-    hideLauncherDesktop: boolean;
-    hideLauncherMobile: boolean;
+    hideLauncherDesktop: boolean | null;
+    hideLauncherMobile: boolean | null;
   };
 
   const { data: agentWidgetSettings, refetch: refetchAgentSettings } = useQuery<WidgetSettings>({

@@ -6612,8 +6612,8 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
             widgetTheme: agent.widgetTheme || undefined,
             bubblePosition: agent.bubblePosition || undefined,
             hideLauncher: agent.hideLauncher ?? false,
-            hideLauncherDesktop: agent.hideLauncherDesktop ?? false,
-            hideLauncherMobile: agent.hideLauncherMobile ?? false,
+            hideLauncherDesktop: agent.hideLauncherDesktop ?? null,
+            hideLauncherMobile: agent.hideLauncherMobile ?? null,
           };
         }
       }
@@ -20182,8 +20182,8 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         photoUrl: agent.photoUrl || "",
         name: agent.name,
         hideLauncher: agent.hideLauncher ?? false,
-        hideLauncherDesktop: agent.hideLauncherDesktop ?? false,
-        hideLauncherMobile: agent.hideLauncherMobile ?? false,
+        hideLauncherDesktop: agent.hideLauncherDesktop ?? null,
+        hideLauncherMobile: agent.hideLauncherMobile ?? null,
       });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
