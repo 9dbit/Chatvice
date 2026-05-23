@@ -896,10 +896,6 @@ export default function WidgetPage() {
   const widgetEmbedCode = `<!-- Chatvice Chat Widget -->
 <script src="${baseUrl}/api/widget/chatvice.js?merchant=${merchantId}&v=${cacheVersion}" async></script>`;
 
-  // Embed code — without floating icon (merchant uses their own button)
-  const widgetEmbedCodeNoLauncher = `<!-- Chatvice Chat Widget (tanpa floating icon) -->
-<script src="${baseUrl}/api/widget/chatvice.js?merchant=${merchantId}&hideLauncher=true&v=${cacheVersion}" async></script>`;
-
   // Onclick attribute to add to merchant's existing button
   const customButtonOnclick = `onclick="window.chatvice.open()"`;
 
@@ -2880,69 +2876,34 @@ async function handleLogin() {
                 <CardTitle>{t("dashboard.widget.widgetSetup")}</CardTitle>
               </div>
               <CardDescription>
-                Paste this code on your website to install the chat widget and enable AI-powered support.
+                Paste sekali — tampilan floating icon dikontrol dari tab Appearance di atas.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {embedType === "widget" ? (
-                <div className="space-y-4">
-                  {/* Option 1: With floating icon */}
-                  <div className="rounded-lg border p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center">
-                        <MessageSquare className="w-4 h-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold">Dengan Floating Icon</p>
-                        <p className="text-xs text-muted-foreground">Tampilkan tombol chat Chatvice di pojok website Anda.</p>
-                      </div>
-                    </div>
-                    <pre className="bg-muted p-3 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap break-all">
-                      {widgetEmbedCode}
-                    </pre>
-                    <Button
-                      size="sm"
-                      className="chatvice-gradient-btn text-white border-0 min-w-[120px]"
-                      onClick={() => handleCopy(widgetEmbedCode, "Widget code")}
-                      data-testid="button-copy-embed"
-                    >
-                      {copied === "Widget code" ? (
-                        <><Check className="w-4 h-4 mr-1" />Copied</>
-                      ) : (
-                        <><Copy className="w-4 h-4 mr-1" />Copy Code</>
-                      )}
-                    </Button>
-                  </div>
+                <div className="space-y-3">
+                  <pre className="bg-muted p-3 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap break-all">
+                    {widgetEmbedCode}
+                  </pre>
+                  <Button
+                    size="sm"
+                    className="chatvice-gradient-btn text-white border-0 min-w-[120px]"
+                    onClick={() => handleCopy(widgetEmbedCode, "Widget code")}
+                    data-testid="button-copy-embed"
+                  >
+                    {copied === "Widget code" ? (
+                      <><Check className="w-4 h-4 mr-1" />Copied</>
+                    ) : (
+                      <><Copy className="w-4 h-4 mr-1" />Copy Code</>
+                    )}
+                  </Button>
 
-                  {/* Option 2: Without floating icon — merchant uses their own button */}
-                  <div className="rounded-lg border p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center">
-                        <Code className="w-4 h-4 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold">Tanpa Floating Icon</p>
-                        <p className="text-xs text-muted-foreground">Gunakan tombol Anda sendiri — floating icon Chatvice tidak akan muncul.</p>
-                      </div>
-                    </div>
-                    <pre className="bg-muted p-3 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap break-all">
-                      {widgetEmbedCodeNoLauncher}
-                    </pre>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="min-w-[120px]"
-                      onClick={() => handleCopy(widgetEmbedCodeNoLauncher, "Widget code no launcher")}
-                      data-testid="button-copy-embed-no-launcher"
-                    >
-                      {copied === "Widget code no launcher" ? (
-                        <><Check className="w-4 h-4 mr-1" />Copied</>
-                      ) : (
-                        <><Copy className="w-4 h-4 mr-1" />Copy Code</>
-                      )}
-                    </Button>
+                  {/* Conditional helper: only shown when launcher is hidden on any device */}
+                  {isAnyHeadless && (
                     <div className="pt-1 border-t space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">Tambahkan ke tombol Anda:</p>
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Floating icon disembunyikan — tambahkan atribut ini ke tombol Anda:
+                      </p>
                       <pre className="bg-muted p-2 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap break-all">
                         {customButtonOnclick}
                       </pre>
@@ -2962,7 +2923,7 @@ async function handleLogin() {
                         )}
                       </Button>
                     </div>
-                  </div>
+                  )}
                 </div>
               ) : (
                 <div>
