@@ -18136,8 +18136,8 @@ Rules:
       ? "position:fixed;bottom:0;left:0;right:0;width:100vw;height:100vh;max-height:100vh;max-width:100vw;border:none;z-index:100000;background:transparent;"
       : "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:" + pW + "px;height:" + pH + "px;border:none;z-index:100000;background:transparent;";
     iframe.style.cssText = iframePosStyle + "display:" + (isOpen ? "block" : "none") + ";";
-    // In headless mode keep launcher permanently hidden regardless of icon/visibility logic above
-    if (hideLauncher) {
+    // In headless mode keep launcher permanently hidden for this viewport
+    if (isHideLauncher()) {
       button.style.display = "none";
       eyeToggleBtn.style.display = "none";
       hiddenLabel.style.display = "none";
