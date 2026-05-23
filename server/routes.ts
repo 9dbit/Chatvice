@@ -6679,8 +6679,8 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         // proactiveChatEnabled controls whether AI greeting is scheduled for tracked visitors.
         chatWorkflow: "click_to_open",
         hideLauncher: agentSettings.hideLauncher ?? false,
-        hideLauncherDesktop: agentSettings.hideLauncherDesktop ?? null,
-        hideLauncherMobile: agentSettings.hideLauncherMobile ?? null,
+        hideLauncherDesktop: agentSettings.hideLauncherDesktop ?? false,
+        hideLauncherMobile: agentSettings.hideLauncherMobile ?? false,
         proactiveChatEnabled: merchant.proactiveChatEnabled ?? false,
         proactiveChatDingEnabled: merchant.proactiveChatDingEnabled ?? false,
         proactiveChatGreetingDelay: merchant.proactiveChatGreetingDelay ?? 8,
@@ -18297,15 +18297,11 @@ Rules:
     widgetTheme = config.widgetTheme || "light";
     chatWorkflow = config.chatWorkflow || "click_to_open";
     // URL param (hideLauncher=true) forces hide on all devices.
-    // Legacy config.hideLauncher is used ONLY when the new per-device fields have
-    // not yet been explicitly set (both are undefined/null = agent was saved before
-    // this feature existed).  Once the merchant saves the new toggles the save
-    // endpoint clears hideLauncher=false so this branch will no longer fire.
-    var legacyHide = config.hideLauncher === true &&
-                     config.hideLauncherDesktop == null &&
-                     config.hideLauncherMobile == null;
-    hideLauncherDesktop = scriptHideLauncherParam || config.hideLauncherDesktop === true || legacyHide;
-    hideLauncherMobile  = scriptHideLauncherParam || config.hideLauncherMobile  === true || legacyHide;
+    // Legacy config.hideLauncher is always OR'd so pre-migration agents stay hidden
+    // on both devices.  The save endpoint writes hideLauncher=false when merchant
+    // saves new per-device toggles, after which the legacy OR no longer fires.
+    hideLauncherDesktop = scriptHideLauncherParam || config.hideLauncherDesktop === true || config.hideLauncher === true;
+    hideLauncherMobile  = scriptHideLauncherParam || config.hideLauncherMobile  === true || config.hideLauncher === true;
     proactiveDingEnabled = config.proactiveChatDingEnabled === true;
     configLoaded = true;
     // In headless mode, keep the launcher permanently hidden for this viewport
@@ -20182,8 +20178,10 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         photoUrl: agent.photoUrl || "",
         name: agent.name,
         hideLauncher: agent.hideLauncher ?? false,
-        hideLauncherDesktop: agent.hideLauncherDesktop ?? null,
-        hideLauncherMobile: agent.hideLauncherMobile ?? null,
+        // Return effective value: OR with legacy hideLauncher so dashboard toggles
+        // reflect correct state for pre-migration agents without requiring a resave.
+        hideLauncherDesktop: (agent.hideLauncherDesktop || agent.hideLauncher) ?? false,
+        hideLauncherMobile: (agent.hideLauncherMobile || agent.hideLauncher) ?? false,
       });
     } catch (error) {
       res.status(500).json({ error: "Server error" });

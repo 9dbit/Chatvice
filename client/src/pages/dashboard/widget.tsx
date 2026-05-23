@@ -408,8 +408,8 @@ export default function WidgetPage() {
     photoUrl: string;
     name: string;
     hideLauncher: boolean;
-    hideLauncherDesktop: boolean | null;
-    hideLauncherMobile: boolean | null;
+    hideLauncherDesktop: boolean;
+    hideLauncherMobile: boolean;
   };
 
   const { data: agentWidgetSettings, refetch: refetchAgentSettings } = useQuery<WidgetSettings>({
@@ -441,9 +441,9 @@ export default function WidgetPage() {
         agentPhotoUrl: agentWidgetSettings.photoUrl || "",
         widgetTheme: (agentWidgetSettings.widgetTheme as "light" | "dark") || "light",
         bubblePosition: (agentWidgetSettings.bubblePosition as "left" | "right") || "right",
-        // Backward-compat: if old hideLauncher was on but new fields aren't set, pre-populate both
-        hideLauncherDesktop: agentWidgetSettings.hideLauncherDesktop ?? (agentWidgetSettings.hideLauncher ? true : false),
-        hideLauncherMobile: agentWidgetSettings.hideLauncherMobile ?? (agentWidgetSettings.hideLauncher ? true : false),
+        // API returns effective values (legacy hideLauncher already OR'd in server-side)
+        hideLauncherDesktop: agentWidgetSettings.hideLauncherDesktop ?? false,
+        hideLauncherMobile: agentWidgetSettings.hideLauncherMobile ?? false,
         allowedDomains: (merchant as any).allowedDomains || "",
       });
     } else if (merchant && !merchant.activeAgentId) {
