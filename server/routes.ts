@@ -18304,11 +18304,17 @@ Rules:
     hideLauncherMobile  = scriptHideLauncherParam || config.hideLauncherMobile  === true || config.hideLauncher === true;
     proactiveDingEnabled = config.proactiveChatDingEnabled === true;
     configLoaded = true;
-    // In headless mode, keep the launcher permanently hidden for this viewport
+    // Show or hide the launcher for the current viewport.
+    // The else branch is essential: it reverses an early-cache hide applied
+    // before version validation when the fresh config says launcher should show.
     if (isHideLauncher()) {
-      button.style.display = "none";
+      button.style.display       = "none";
       eyeToggleBtn.style.display = "none";
-      hiddenLabel.style.display = "none";
+      hiddenLabel.style.display  = "none";
+    } else {
+      button.style.display       = "";
+      eyeToggleBtn.style.display = "";
+      hiddenLabel.style.display  = "";
     }
     if (!isOpen) {
       var encColor = encodeURIComponent(config.primaryColor || '#6b5dfc');
@@ -18344,6 +18350,22 @@ Rules:
       }
     }
   } catch(e) {}
+
+  // Immediately apply launcher visibility from cache for the current device so
+  // there is zero flicker before any network response arrives.  applyConfig will
+  // re-apply the full config (color, theme, etc.) once the version check or fresh
+  // fetch completes, but this early read eliminates the first-paint flash.
+  if (cachedJsEntry && cachedJsEntry.config) {
+    var _cc = cachedJsEntry.config;
+    var _cachedHideDesktop = scriptHideLauncherParam || _cc.hideLauncherDesktop === true || _cc.hideLauncher === true;
+    var _cachedHideMobile  = scriptHideLauncherParam || _cc.hideLauncherMobile  === true || _cc.hideLauncher === true;
+    var _cachedShouldHide  = window.innerWidth <= 480 ? _cachedHideMobile : _cachedHideDesktop;
+    if (_cachedShouldHide) {
+      button.style.display       = "none";
+      eyeToggleBtn.style.display = "none";
+      hiddenLabel.style.display  = "none";
+    }
+  }
 
   // Shared flag: set to true when fetchConfig successfully applies fresh network data.
   // The version-check handler reads this flag to avoid overwriting fresh data with
