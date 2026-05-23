@@ -6600,7 +6600,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       }
       
       // Check if there's an active agent with widget settings
-      let agentSettings: { primaryColor?: string; widgetWelcomeMessage?: string; name?: string; photoUrl?: string; widgetTheme?: string; bubblePosition?: string; hideLauncher?: boolean; hideLauncherDesktop?: boolean; hideLauncherMobile?: boolean } = {};
+      let agentSettings: { primaryColor?: string; widgetWelcomeMessage?: string; name?: string; photoUrl?: string; widgetTheme?: string; bubblePosition?: string; hideLauncher?: boolean; hideLauncherDesktop?: boolean | null; hideLauncherMobile?: boolean | null } = {};
       if (merchant.activeAgentId) {
         const agent = await storage.getAgent(merchant.activeAgentId);
         if (agent) {
@@ -6679,8 +6679,8 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         // proactiveChatEnabled controls whether AI greeting is scheduled for tracked visitors.
         chatWorkflow: "click_to_open",
         hideLauncher: agentSettings.hideLauncher ?? false,
-        hideLauncherDesktop: agentSettings.hideLauncherDesktop ?? false,
-        hideLauncherMobile: agentSettings.hideLauncherMobile ?? false,
+        hideLauncherDesktop: agentSettings.hideLauncherDesktop ?? null,
+        hideLauncherMobile: agentSettings.hideLauncherMobile ?? null,
         proactiveChatEnabled: merchant.proactiveChatEnabled ?? false,
         proactiveChatDingEnabled: merchant.proactiveChatDingEnabled ?? false,
         proactiveChatGreetingDelay: merchant.proactiveChatGreetingDelay ?? 8,
