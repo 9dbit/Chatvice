@@ -2051,7 +2051,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   useEffect(() => {
     if (!merchantConfig) return;
     const themeColor = merchantConfig.primaryColor || '#7c3aed';
-    const isDark = merchantConfig.widgetTheme === 'dark';
+    // Resolve dark mode the same way widgetIsDark does so custom dark themes are handled
+    const effectiveThemeLocal = merchantConfig.widgetTheme || 'light';
+    const isDark = effectiveThemeLocal === 'dark' || document.documentElement.classList.contains('dark');
     const bottomColor = isDark ? '#18181b' : '#ffffff';
 
     document.querySelectorAll('meta[name="theme-color"]').forEach(el => el.remove());
@@ -2078,15 +2080,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       existingStatusBar.setAttribute('content', 'default');
     }
 
-    if (embedded || isExternalEmbed) {
+    if (embedded && !isExternalEmbed) {
+      // Standalone embedded mode (direct page access): tint body to match widget
       document.body.style.backgroundColor = bottomColor;
       document.documentElement.style.backgroundColor = bottomColor;
-
       const rootEl = document.getElementById('root');
-      if (rootEl) {
-        rootEl.style.backgroundColor = bottomColor;
-      }
+      if (rootEl) rootEl.style.backgroundColor = bottomColor;
     }
+    // isExternalEmbed (iframe on merchant site): keep body transparent so the
+    // rounded-corner clip area shows through cleanly with no white edges.
   }, [merchantConfig?.primaryColor, merchantConfig?.widgetTheme, embedded, isExternalEmbed]);
 
   useEffect(() => {
