@@ -18127,15 +18127,9 @@ Rules:
     // Update eye toggle position after button styles
     updateEyeTogglePosition(config);
     
-    // Also update iframe position with responsive sizing - use widget style settings
-    var wsD = getWS();
-    var pW = wsD && wsD.panel ? wsD.panel.widthPx : 380;
-    var pH = wsD && wsD.panel ? wsD.panel.heightPx : 660;
-    var isMobileNow = window.innerWidth <= 480;
-    var iframePosStyle = isMobileNow 
-      ? "position:fixed;bottom:0;left:0;right:0;width:100vw;height:100vh;max-height:100vh;max-width:100vw;border:none;z-index:100000;background:transparent;"
-      : "position:fixed;bottom:" + widgetOffset + "px;" + positionStyle + "width:" + pW + "px;height:" + pH + "px;border:none;z-index:100000;background:transparent;";
-    iframe.style.cssText = iframePosStyle + "display:" + (isOpen ? "block" : "none") + ";";
+    // Also update iframe position with responsive sizing - use getWidgetStyles() so
+    // border-radius and overflow:hidden are always preserved (prevents white corners on iOS Safari)
+    iframe.style.cssText = getWidgetStyles() + "display:" + (isOpen ? "block" : "none") + ";";
     // In headless mode keep launcher permanently hidden for this viewport
     if (isHideLauncher()) {
       button.style.display = "none";
@@ -18471,7 +18465,7 @@ Rules:
     if (isDark && !pnl) { bgR = pal.panelBgR; bgG = pal.panelBgG; bgB = pal.panelBgB; bgOpacity = 0.85; }
     
     var frostedBg = "background:rgba(" + bgR + "," + bgG + "," + bgB + "," + bgOpacity + ");backdrop-filter:blur(" + blurPx + "px);-webkit-backdrop-filter:blur(" + blurPx + "px);";
-    var borderStyle = borderOn ? "border:" + borderW + "px solid " + pal.panelBorder + ";" : "border:none;";
+    var borderStyle = "border:none;";
     var shadow = pal.shadowOpacity;
     
     if (currentIsMobile) {
