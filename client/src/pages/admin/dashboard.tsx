@@ -12366,11 +12366,16 @@ function CustomRequestsTab({ toast }: { toast: any }) {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className="font-medium truncate">
                               {request.merchant?.companyName || "Unknown"}
                             </span>
                             {getStatusBadge(request.status)}
+                            {request.additionalNotes?.startsWith("Self-serve QRIS") && (
+                              <Badge className="bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 text-xs">
+                                Self-serve (QRIS)
+                              </Badge>
+                            )}
                           </div>
                           <p className="text-sm text-muted-foreground truncate">
                             {request.merchant?.email}
@@ -12518,7 +12523,7 @@ function CustomRequestsTab({ toast }: { toast: any }) {
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <Label className="text-xs">Monthly ($)</Label>
+                        <Label className="text-xs">Monthly (Rp)</Label>
                         <Input
                           type="number"
                           value={proposedPriceMonthly}
@@ -12528,7 +12533,7 @@ function CustomRequestsTab({ toast }: { toast: any }) {
                         />
                       </div>
                       <div>
-                        <Label className="text-xs">Annual ($)</Label>
+                        <Label className="text-xs">Annual (Rp)</Label>
                         <Input
                           type="number"
                           value={proposedPriceAnnual}
@@ -12628,7 +12633,7 @@ function CustomRequestsTab({ toast }: { toast: any }) {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Monthly Price ($)</Label>
+                <Label>Monthly Price (Rp)</Label>
                 <Input
                   type="number"
                   min="0"
@@ -12641,7 +12646,7 @@ function CustomRequestsTab({ toast }: { toast: any }) {
                 />
               </div>
               <div>
-                <Label>Annual Price ($)</Label>
+                <Label>Annual Price (Rp)</Label>
                 <Input
                   type="number"
                   min="0"
