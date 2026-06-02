@@ -71,7 +71,7 @@ import ProductCardsPage from "./product-cards";
 import TeamActivityPage from "./team-activity";
 import ChatButtonsPage from "./chat-buttons";
 import LivePreviewPage from "./live-preview";
-import CheckoutPage from "./checkout";
+import EnterpriseCheckoutGate from "./enterprise-checkout-gate";
 import ChatMonitoringPage from "./chat-monitoring";
 import ProfilePage from "./profile";
 import AffiliatePage from "./affiliate";
@@ -225,7 +225,7 @@ export default function DashboardLayout() {
               <Route path="/dashboard/team-activity" component={TeamActivityPage} />
               <Route path="/dashboard/chat-buttons" component={ChatButtonsPage} />
               <Route path="/dashboard/live-preview" component={LivePreviewPage} />
-              <Route path="/dashboard/checkout" component={CheckoutPage} />
+              <Route path="/dashboard/checkout" component={EnterpriseCheckoutGate} />
               <Route path="/dashboard/plans" component={PlansPage} />
               <Route path="/dashboard/billing" component={BillingDetailsPage} />
               <Route path="/dashboard/settings" component={SettingsPage} />
