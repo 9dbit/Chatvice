@@ -112,8 +112,8 @@ export function CustomPlanRequestDialog({
 
   interface SubscribeResponse {
     paymentMethod: "qris";
-    transactionId: string;
-    orderId: string;
+    transactionId?: string;
+    orderId?: string;
     qrisString?: string;
     qrisImage?: string;
     qrisImageUrl?: string;
@@ -137,20 +137,34 @@ export function CustomPlanRequestDialog({
       });
       return (await response.json()) as SubscribeResponse;
     },
-    onSuccess: (_data) => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
       queryClient.invalidateQueries({ queryKey: ["/api/billing/pending-payment-details"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-invoices/pending"] });
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/me"] });
       toast({
         title: "Custom Plan dipesan",
-        description: "Lanjutkan pembayaran QRIS untuk mengaktifkan paket Anda.",
+        description: "Mengarahkan ke halaman checkout untuk menyelesaikan pembayaran.",
       });
       setOpen(false);
       onSuccess?.();
-      // Send merchant to billing page where the QRIS modal will pop up using
-      // the shared `pending-payment-details` query (same flow as standard
-      // tier checkout).
-      setLocation("/dashboard/billing?pending=1");
+
+      // The subscribe endpoint already creates a payment transaction. Routing
+      // to checkout resume mode makes the existing checkout page render the
+      // QRIS/VA step immediately instead of fading back to Billing with no
+      // visible payment UI.
+      if (data.transactionId) {
+        setLocation(`/dashboard/checkout?resume=${encodeURIComponent(data.transactionId)}`);
+        return;
+      }
+
+      // Fallback for deployments that return only the custom invoice ID.
+      if (data.invoiceId) {
+        setLocation(`/dashboard/checkout?invoiceId=${encodeURIComponent(data.invoiceId)}`);
+        return;
+      }
+
+      setLocation(`/dashboard/checkout?plan=custom&interval=${billingInterval}`);
     },
     onError: (error: any) => {
       toast({
