@@ -170,14 +170,14 @@ export function MerchantNotificationCenter() {
               <Clock className="w-4 h-4 mr-2 animate-spin" />
               Loading...
             </div>
-          ) : notifications.length === 0 ? (
+          ) : (notifications ?? []).length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
               <Bell className="w-8 h-8 mb-2 opacity-50" />
               <p className="text-sm">No notifications</p>
             </div>
           ) : (
             <div className="divide-y">
-              {notifications.map(notification => {
+              {(notifications ?? []).map(notification => {
                 const Icon = notificationIcons[notification.type] || notificationIcons.default;
                 const link = getNotificationLink(notification);
                 const status = notification.metadata?.status;

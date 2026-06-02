@@ -1,1 +1,1 @@
-- [TanStack Query null destructuring trap](tanstack-null-destructuring.md) — `= []` default does NOT protect against null; on401 returnNull bypasses it. Always use `?? []` on array methods.
+- [Null-safety on 401 returnNull](null-safety-on401.md) — on401:returnNull sets data=null bypassing = [] defaults; RootErrorBoundary in main.tsx catches crashes OUTSIDE PageErrorBoundary (header/sidebar).
