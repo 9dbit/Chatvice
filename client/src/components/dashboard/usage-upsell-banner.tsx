@@ -43,7 +43,7 @@ export function UsageUpsellBanner() {
     queryKey: ["/api/subscription-plans"],
   });
 
-  if (!billingStatus || !plans.length) return null;
+  if (!billingStatus || !(plans ?? []).length) return null;
   const { planId, conversationsUsed, conversationsLimit } = billingStatus;
   if (!conversationsLimit || conversationsLimit === -1) return null;
 

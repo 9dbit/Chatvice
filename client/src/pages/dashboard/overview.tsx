@@ -172,7 +172,7 @@ export default function DashboardOverview() {
 
   const isLoading = sessionsLoading || statsLoading;
 
-  const activeAgent = agents.find(a => a.id === merchant?.activeAgentId) || agents[0];
+  const activeAgent = (agents ?? []).find(a => a.id === merchant?.activeAgentId) || (agents ?? [])[0];
   const baseUrl = window.location.origin;
   const embedCode = activeAgent
     ? `<!-- Chatvice Chat Widget -->\n<script src="${baseUrl}/api/widget/chatvice.js?merchant=${merchantId}" async></script>`

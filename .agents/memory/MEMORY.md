@@ -1,0 +1,1 @@
+- [TanStack Query null destructuring trap](tanstack-null-destructuring.md) — `= []` default does NOT protect against null; on401 returnNull bypasses it. Always use `?? []` on array methods.

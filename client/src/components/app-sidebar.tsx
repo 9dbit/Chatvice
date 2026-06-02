@@ -426,7 +426,7 @@ export function AppSidebar() {
     enabled: !!merchantId && isAdmin,
     staleTime: 60000,
   });
-  const activeAddonTypes = merchantAddons.filter(a => a.isActive).map(a => a.addonType);
+  const activeAddonTypes = (merchantAddons ?? []).filter(a => a.isActive).map(a => a.addonType);
 
   const { data: sessions } = useQuery<Session[]>({
     queryKey: ["/api/sessions", merchantId],

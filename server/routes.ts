@@ -6311,15 +6311,22 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
     }
   });
 
-  app.get("/api/merchant/:merchantId", requireAuth, async (req, res) => {
+  app.get("/api/merchant/:merchantId", requireAuth, async (req, res, next) => {
     try {
+      // If an authenticated merchant is accessing a path that doesn't match their
+      // own ID, the merchantId segment is likely a reserved API sub-path (e.g.
+      // "addons", "domains", "profile") that has its own route handler registered
+      // later in the chain.  Call next() so Express can reach that handler instead
+      // of incorrectly returning 403/404.
       if (req.session.userType === "merchant" && req.session.merchantId !== req.params.merchantId) {
-        return res.status(403).json({ error: "Forbidden" });
+        return next();
       }
       
       const merchant = await resolveMerchant(req.params.merchantId);
       if (!merchant) {
-        return res.status(404).json({ error: "Merchant not found" });
+        // No merchant found for this ID/slug — pass through to later route handlers
+        // (e.g. a specific sub-path route) rather than hard-returning 404.
+        return next();
       }
       const { password, ...safeData } = merchant;
       res.json(stripBase64Photos(safeData, true));

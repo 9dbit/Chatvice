@@ -90,7 +90,7 @@ export function GettingStartedChecklist({
     enabled: !!merchantId,
   });
 
-  const hasAgent = agents.length > 0;
+  const hasAgent = (agents ?? []).length > 0;
   const hasValidatedDomain = (domainsData?.domains || []).some((d) => d.isValidated);
   const hasKnowledge =
     (sources || []).some((s) => s.isActive !== false) ||

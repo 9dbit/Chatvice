@@ -215,8 +215,8 @@ function safeMsg(body: any, fallback: string): string {
   return fallback;
 }
 
-function isAddonActive(merchantAddons: MarketplaceMerchantAddon[], addonType: string): boolean {
-  const a = merchantAddons.find((m) => m.addonType === addonType);
+function isAddonActive(merchantAddons: MarketplaceMerchantAddon[] | null | undefined, addonType: string): boolean {
+  const a = (merchantAddons ?? []).find((m) => m.addonType === addonType);
   if (!a) return false;
   const onTrial = a.trialEndsAt && new Date(a.trialEndsAt) > new Date();
   return a.isActive || !!onTrial;
@@ -1568,7 +1568,7 @@ export function MarketplacePreviewSection() {
         productId={selectedId}
         addonsData={addonsData}
         boostersData={boostersData}
-        merchantAddons={merchantAddons}
+        merchantAddons={merchantAddons ?? []}
         onClose={() => setSelectedId(null)}
       />
     </>
