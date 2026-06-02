@@ -148,6 +148,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format, subDays, startOfMonth, startOfYear } from "date-fns";
 import { subscriptionPlans } from "@shared/schema";
+import { CUSTOM_PLAN_BASELINE, CUSTOM_PLAN_MARKUP } from "@shared/customPlanPricing";
 
 import chatviceLogoLight from "@assets/Chatvice-02_1769691434945.png";
 import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
@@ -12113,7 +12114,7 @@ function CustomRequestsTab({ toast }: { toast: any }) {
         sourcesLimit: data.sourcesLimit,
         suggestedQuestionsLimit: data.suggestedQuestionsLimit,
         amount,
-        currency: "USD",
+        currency: "IDR",
         billingInterval: data.billingInterval,
       };
       const invoiceResponse = await apiRequest("POST", "/api/admin/custom-invoices", invoicePayload);
@@ -12144,30 +12145,24 @@ function CustomRequestsTab({ toast }: { toast: any }) {
   };
 
   const calculateProportionalPricing = (request: CustomPlanRequest) => {
-    const enterpriseMonthly = 499;
-    const enterpriseAnnual = 416;
-    const enterpriseLimits = {
-      conversations: 10000,
-      agents: 20,
-      supervisors: 50,
-      sources: 100,
-    };
+    const baseIdr = CUSTOM_PLAN_BASELINE.basePriceIdr;
 
-    const conversationMultiplier = request.desiredConversations / enterpriseLimits.conversations;
-    const agentMultiplier = request.desiredAgents / enterpriseLimits.agents;
-    const supervisorMultiplier = request.desiredSupervisors / enterpriseLimits.supervisors;
-    const sourceMultiplier = request.desiredSources / enterpriseLimits.sources;
+    const extraConv = Math.max(0, (request.desiredConversations || CUSTOM_PLAN_BASELINE.conversations) - CUSTOM_PLAN_BASELINE.conversations);
+    const conversationsExtraIdr = Math.ceil(extraConv / 1000) * CUSTOM_PLAN_MARKUP.perThousandConversationsIdr;
 
-    const avgMultiplier = (conversationMultiplier + agentMultiplier + supervisorMultiplier + sourceMultiplier) / 4;
-    const cappedMultiplier = Math.max(0.1, Math.min(3.0, avgMultiplier));
+    const extraAgents = Math.max(0, (request.desiredAgents || CUSTOM_PLAN_BASELINE.agents) - CUSTOM_PLAN_BASELINE.agents);
+    const agentsExtraIdr = extraAgents * CUSTOM_PLAN_MARKUP.perAgentIdr;
 
-    const monthlyPrice = Math.round(enterpriseMonthly * cappedMultiplier);
-    const annualPrice = Math.round(enterpriseAnnual * cappedMultiplier);
+    const extraSup = Math.max(0, (request.desiredSupervisors || CUSTOM_PLAN_BASELINE.supervisors) - CUSTOM_PLAN_BASELINE.supervisors);
+    const supervisorsExtraIdr = extraSup * CUSTOM_PLAN_MARKUP.perSupervisorIdr;
+
+    const monthlyPrice = baseIdr + conversationsExtraIdr + agentsExtraIdr + supervisorsExtraIdr;
+    const annualPrice = Math.round(monthlyPrice * 0.75) * 12;
 
     setProposedPriceMonthly(monthlyPrice.toString());
     setProposedPriceAnnual(annualPrice.toString());
 
-    return { monthlyPrice, annualPrice, multiplier: cappedMultiplier };
+    return { monthlyPrice, annualPrice };
   };
 
   const handleSavePricing = () => {

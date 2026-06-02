@@ -6073,6 +6073,30 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         console.warn("Could not save custom plan pending transaction:", e);
       }
 
+      // Create a customPlanRequests record so admin can see self-serve QRIS
+      // subscriptions in the Master Panel "Custom Plan Requests" tab.
+      try {
+        await storage.createCustomPlanRequest({
+          merchantId: merchant.id,
+          companyName: merchant.companyName || merchant.email,
+          contactName: merchant.picName || merchant.companyName || merchant.email,
+          contactEmail: merchant.email,
+          contactPhone: merchant.phone || null,
+          currentPlanId: merchant.subscriptionPlanId,
+          desiredConversations: cfg.conversations,
+          desiredAgents: cfg.agents,
+          desiredSupervisors: cfg.supervisors,
+          desiredSources: null,
+          desiredSuggestedQuestions: null,
+          status: "invoice_sent",
+          proposedMonthlyPrice: breakdown.monthlyPriceIdr,
+          proposedAnnualPrice: breakdown.annualPriceIdr,
+          additionalNotes: `Self-serve QRIS subscription. Billing: ${cfg.billingInterval}. Transaction: ${qrisResult.data.transactionId}`,
+        });
+      } catch (e) {
+        console.warn("Could not create customPlanRequest record for self-serve QRIS:", e);
+      }
+
       await storage.updateMerchantSubscription(merchant.id, {
         pendingTransactionId: qrisResult.data.transactionId,
       });

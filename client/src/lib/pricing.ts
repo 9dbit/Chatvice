@@ -30,7 +30,7 @@ export const CANONICAL_TIERS: PlanPricing[] = [
   { id: "starter", name: "Starter", monthlyPriceIdr: 299_000, annualPriceIdr: 2_990_000, overageRateIdr: 250, conversationsLimit: 2_000 },
   { id: "pro", name: "Pro", monthlyPriceIdr: 899_000, annualPriceIdr: 8_990_000, overageRateIdr: 200, conversationsLimit: 8_000 },
   { id: "enterprise", name: "Business", monthlyPriceIdr: 2_299_000, annualPriceIdr: 22_990_000, overageRateIdr: 150, conversationsLimit: 25_000 },
-  { id: "custom", name: "Enterprise", monthlyPriceIdr: 7_499_000, annualPriceIdr: 74_990_000, overageRateIdr: 100, conversationsLimit: 100_000 },
+  { id: "custom", name: "Enterprise", monthlyPriceIdr: 8_499_000, annualPriceIdr: 76_491_000, overageRateIdr: 100, conversationsLimit: 120_000 },
 ];
 
 export function getCanonicalTier(planId: string): PlanPricing | undefined {
