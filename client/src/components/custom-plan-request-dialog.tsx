@@ -57,6 +57,8 @@ interface CustomPlanRequestDialogProps {
   trigger?: React.ReactNode;
   onSuccess?: () => void;
   skipAuthCheck?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 type Step = "calculator" | "confirm";
@@ -65,8 +67,15 @@ export function CustomPlanRequestDialog({
   trigger,
   onSuccess,
   skipAuthCheck = false,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: CustomPlanRequestDialogProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = (val: boolean) => {
+    if (controlledOnOpenChange) controlledOnOpenChange(val);
+    else setInternalOpen(val);
+  };
   const [step, setStep] = useState<Step>("calculator");
   const [location, setLocation] = useLocation();
   const { toast } = useToast();

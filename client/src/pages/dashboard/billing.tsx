@@ -878,9 +878,17 @@ export default function BillingPage() {
   // Check if there's any pending payment (standard transaction or custom invoice)
   const hasPendingPayments = pendingPaymentDetails?.hasPendingPayment || customInvoices.filter(inv => inv.status === 'pending').length > 0;
   
+  const [showCustomPlanDialog, setShowCustomPlanDialog] = useState(false);
+
   const handleUpgrade = async (planId: string) => {
     const plan = dbPlans.find((p: any) => p.id === planId);
     if (!plan) return;
+
+    // Custom plan → open the pricing calculator dialog instead of going to checkout
+    if (planId === "custom") {
+      setShowCustomPlanDialog(true);
+      return;
+    }
     
     // Check if there's a pending payment - show confirmation dialog
     if (hasPendingPayments) {
@@ -2564,6 +2572,13 @@ export default function BillingPage() {
           </Card>
         </div>
       </div>
+
+      {/* Controlled Custom Plan Dialog — opened when the Enterprise card button is clicked */}
+      <CustomPlanRequestDialog
+        skipAuthCheck={true}
+        open={showCustomPlanDialog}
+        onOpenChange={setShowCustomPlanDialog}
+      />
 
       {/* Additional Services Section */}
       {addonConfigs.length > 0 && (
