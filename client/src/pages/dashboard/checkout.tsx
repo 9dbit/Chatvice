@@ -287,6 +287,13 @@ const TRANSFER_BANKS = [
   { code: 'BCA', name: 'Bank Central Asia (BCA)' },
 ];
 
+function CustomPlanRedirect({ navigate }: { navigate: (to: string) => void }) {
+  useEffect(() => {
+    navigate('/dashboard/billing');
+  }, [navigate]);
+  return null;
+}
+
 export default function CheckoutPage() {
   const { t } = useLanguage();
   const [, navigate] = useLocation();
@@ -1342,26 +1349,7 @@ export default function CheckoutPage() {
   
   // Custom plan requires a pending invoice
   if (!isResumeMode && planId === "custom" && pendingInvoices.length === 0) {
-    return (
-      <div className="max-w-lg mx-auto py-6 px-4 md:py-8 space-y-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleBack} data-testid="button-back">
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <h1 className="text-base font-semibold">Custom Plan</h1>
-        </div>
-        <Card>
-          <CardContent className="py-10 text-center space-y-3">
-            <AlertTriangle className="w-10 h-10 mx-auto text-amber-500" />
-            <h2 className="text-base font-semibold">No Invoice Available</h2>
-            <p className="text-[11px] text-muted-foreground">Custom plan requires an invoice from our sales team. Please check your billing page or contact sales.</p>
-            <Button size="sm" onClick={() => navigate('/dashboard/billing')} data-testid="button-go-to-billing">
-              View Billing
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <CustomPlanRedirect navigate={navigate} />;
   }
   
   // Invoice mode requires valid invoice

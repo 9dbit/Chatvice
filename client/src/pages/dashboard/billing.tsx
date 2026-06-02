@@ -902,6 +902,11 @@ export default function BillingPage() {
   };
   
   const proceedToCheckout = (planId: string, annual: boolean) => {
+    // Safety net: custom plan must never go to checkout — open the dialog instead
+    if (planId === "custom") {
+      setShowCustomPlanDialog(true);
+      return;
+    }
     const promo = getPromoForPlan(planId);
     const params = new URLSearchParams({
       plan: planId,
@@ -953,6 +958,12 @@ export default function BillingPage() {
     }
     
     setShowCancelPendingConfirmDialog(false);
+    // Custom plan must open the calculator dialog, not navigate to checkout
+    if (pendingNewPurchase.planId === "custom") {
+      setShowCustomPlanDialog(true);
+      setPendingNewPurchase(null);
+      return;
+    }
     proceedToCheckout(pendingNewPurchase.planId, pendingNewPurchase.isAnnual);
     setPendingNewPurchase(null);
   };
