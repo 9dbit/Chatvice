@@ -164,7 +164,7 @@ export function CustomPlanRequestDialog({
         return;
       }
 
-      setLocation(`/dashboard/checkout?plan=custom&interval=${billingInterval}`);
+      setLocation('/dashboard/billing');
     },
     onError: (error: any) => {
       toast({

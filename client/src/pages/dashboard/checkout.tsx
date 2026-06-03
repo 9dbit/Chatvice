@@ -287,13 +287,6 @@ const TRANSFER_BANKS = [
   { code: 'BCA', name: 'Bank Central Asia (BCA)' },
 ];
 
-function CustomPlanRedirect({ navigate }: { navigate: (to: string) => void }) {
-  useEffect(() => {
-    navigate('/dashboard/billing');
-  }, [navigate]);
-  return null;
-}
-
 export default function CheckoutPage() {
   const { t } = useLanguage();
   const [, navigate] = useLocation();
@@ -1345,11 +1338,6 @@ export default function CheckoutPage() {
         </Card>
       </div>
     );
-  }
-  
-  // Custom plan requires a pending invoice
-  if (!isResumeMode && planId === "custom" && pendingInvoices.length === 0) {
-    return <CustomPlanRedirect navigate={navigate} />;
   }
   
   // Invoice mode requires valid invoice
