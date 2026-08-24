@@ -5267,6 +5267,54 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
     }
   });
 
+  // Update a registered domain and reset validation until the replacement is checked
+  app.patch("/api/merchant/domains/:id", requireMerchant, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const { id } = req.params;
+      const { domain } = req.body;
+
+      if (!domain || typeof domain !== "string") {
+        return res.status(400).json({ error: "Domain required" });
+      }
+
+      const normalizedDomain = domain.toLowerCase()
+        .replace(/^https?:\/\//, "")
+        .replace(/\/+$/, "")
+        .trim();
+      const domainRegex = /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+      if (!domainRegex.test(normalizedDomain)) {
+        return res.status(400).json({ error: "Invalid domain format. Example: example.com or sub.example.com" });
+      }
+
+      const existingDomain = await storage.getMerchantDomain(id);
+      if (!existingDomain || existingDomain.merchantId !== merchantId) {
+        return res.status(404).json({ error: "Domain not found" });
+      }
+
+      if (existingDomain.domain === normalizedDomain) {
+        return res.json({ success: true, changed: false, domain: existingDomain });
+      }
+
+      const duplicate = await storage.getMerchantDomainByDomain(merchantId, normalizedDomain);
+      if (duplicate && duplicate.id !== id) {
+        return res.status(400).json({ error: "Domain already added" });
+      }
+
+      const updatedDomain = await storage.updateMerchantDomain(id, {
+        domain: normalizedDomain,
+        isValidated: false,
+        validatedAt: null,
+        lastCheckedAt: null,
+      });
+
+      res.json({ success: true, changed: true, domain: updatedDomain });
+    } catch (error) {
+      console.error("Update domain error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // Delete a domain
   app.delete("/api/merchant/domains/:id", requireMerchant, async (req, res) => {
     try {

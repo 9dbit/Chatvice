@@ -26,6 +26,7 @@ import {
   Loader2, Camera, RefreshCw, X, Send, Paperclip, Smile, ImageIcon, Video,
   Globe, MessageSquare, Frame, Shield, Key, Eye, EyeOff, Crown, Lock, ArrowUpRight, ChevronDown,
   Plus, Trash2, CheckCircle, AlertCircle, ExternalLink, GripVertical, ChevronUp, ChevronDown as ChevronDownIcon,
+  Pencil,
   Smartphone, Monitor, Sparkles, ArrowUpDown, ArrowLeftRight, ZoomIn, RotateCw, AlertTriangle, BanIcon, ShieldCheck, BarChart2,
   TrendingUp, TrendingDown, Minus
 } from "lucide-react";
@@ -251,6 +252,8 @@ export default function WidgetPage() {
   // Allowed Domains management
   const [newDomain, setNewDomain] = useState("");
   const [validatingDomainId, setValidatingDomainId] = useState<string | null>(null);
+  const [editingDomainId, setEditingDomainId] = useState<string | null>(null);
+  const [editingDomainValue, setEditingDomainValue] = useState("");
   
   interface DomainsResponse {
     domains: MerchantDomain[];
@@ -305,6 +308,31 @@ export default function WidgetPage() {
       toast({
         title: t("dashboard.widget.domainRemoveFailed"),
         description: t("common.tryAgain"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateDomainMutation = useMutation({
+    mutationFn: async ({ id, domain }: { id: string; domain: string }) => {
+      return apiRequest("PATCH", `/api/merchant/domains/${id}`, { domain });
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: data.changed === false ? "Domain unchanged" : "Domain updated",
+        description: data.changed === false
+          ? "This domain is already registered and keeps its current verification status."
+          : "The domain was updated and is pending validation.",
+      });
+      setEditingDomainId(null);
+      setEditingDomainValue("");
+      refetchDomains();
+    },
+    onError: (error: unknown) => {
+      const msg = error instanceof Error ? error.message : undefined;
+      toast({
+        title: "Could not update domain",
+        description: msg || "Please try again.",
         variant: "destructive",
       });
     },
@@ -2456,19 +2484,45 @@ async function handleLogin() {
                           <AlertCircle className="w-5 h-5 text-amber-500" />
                         )}
                         <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium font-mono text-sm">{domain.domain}</span>
-                            <a 
-                              href={`https://${domain.domain}`} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-muted-foreground hover:text-primary"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                            </a>
-                          </div>
+                          {editingDomainId === domain.id ? (
+                            <Input
+                              value={editingDomainValue}
+                              onChange={(e) => setEditingDomainValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Escape") {
+                                  setEditingDomainId(null);
+                                  setEditingDomainValue("");
+                                }
+                                if (e.key === "Enter" && editingDomainValue.trim()) {
+                                  updateDomainMutation.mutate({
+                                    id: domain.id,
+                                    domain: editingDomainValue.trim(),
+                                  });
+                                }
+                              }}
+                              className="h-8 w-full min-w-[180px] font-mono text-sm"
+                              aria-label={`Change domain ${domain.domain}`}
+                              data-testid={`input-edit-domain-${domain.id}`}
+                              autoFocus
+                            />
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium font-mono text-sm">{domain.domain}</span>
+                              <a
+                                href={`https://${domain.domain}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-primary"
+                                aria-label={`Open ${domain.domain}`}
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            </div>
+                          )}
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            {domain.isValidated ? (
+                            {editingDomainId === domain.id ? (
+                              <span className="text-amber-600">Saving a new domain resets verification</span>
+                            ) : domain.isValidated ? (
                               <span className="text-green-600">Validated</span>
                             ) : (
                               <span className="text-amber-600">Pending validation</span>
@@ -2479,28 +2533,84 @@ async function handleLogin() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => validateDomainMutation.mutate(domain.id)}
-                          disabled={validatingDomainId === domain.id}
-                          data-testid={`button-validate-domain-${domain.id}`}
-                        >
-                          {validatingDomainId === domain.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <RefreshCw className="w-4 h-4" />
-                          )}
-                          <span className="ml-1.5 hidden sm:inline">Validate</span>
-                        </Button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {editingDomainId === domain.id ? (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                const nextDomain = editingDomainValue.trim();
+                                if (nextDomain) {
+                                  updateDomainMutation.mutate({ id: domain.id, domain: nextDomain });
+                                }
+                              }}
+                              disabled={!editingDomainValue.trim() || updateDomainMutation.isPending}
+                              data-testid={`button-save-domain-${domain.id}`}
+                              aria-label={`Save changed domain ${domain.domain}`}
+                            >
+                              {updateDomainMutation.isPending ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Save className="w-4 h-4" />
+                              )}
+                              <span className="ml-1.5 hidden sm:inline">Save</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingDomainId(null);
+                                setEditingDomainValue("");
+                              }}
+                              disabled={updateDomainMutation.isPending}
+                              data-testid={`button-cancel-domain-${domain.id}`}
+                              aria-label={`Cancel changing domain ${domain.domain}`}
+                            >
+                              <X className="w-4 h-4" />
+                              <span className="ml-1.5 hidden sm:inline">Cancel</span>
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingDomainId(domain.id);
+                                setEditingDomainValue(domain.domain);
+                              }}
+                              disabled={validatingDomainId === domain.id || deleteDomainMutation.isPending}
+                              data-testid={`button-change-domain-${domain.id}`}
+                              aria-label={`Change domain ${domain.domain}`}
+                            >
+                              <Pencil className="w-4 h-4" />
+                              <span className="ml-1.5 hidden sm:inline">Change domain</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => validateDomainMutation.mutate(domain.id)}
+                              disabled={validatingDomainId === domain.id || deleteDomainMutation.isPending}
+                              data-testid={`button-verify-again-domain-${domain.id}`}
+                              aria-label={`Verify again ${domain.domain}`}
+                            >
+                              {validatingDomainId === domain.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <RefreshCw className="w-4 h-4" />
+                              )}
+                              <span className="ml-1.5 hidden sm:inline">{domain.isValidated ? "Verify again" : "Validate"}</span>
+                            </Button>
+                          </>
+                        )}
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={() => deleteDomainMutation.mutate(domain.id)}
-                          disabled={deleteDomainMutation.isPending}
+                          disabled={deleteDomainMutation.isPending || editingDomainId === domain.id}
                           className="text-destructive hover:text-destructive"
                           data-testid={`button-delete-domain-${domain.id}`}
+                          aria-label={`Delete domain ${domain.domain}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
