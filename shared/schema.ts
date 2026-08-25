@@ -460,7 +460,7 @@ export const merchantConfigSchema = z.object({
   quickMessageOptions: z.array(z.string()).optional(),
   chatWorkflow: z.enum(["click_to_open", "auto_open"]).optional(),
   proactiveChatEnabled: z.boolean().optional(),
-  proactiveChatGreetingDelay: z.number().int().min(5).max(120).optional(),
+  proactiveChatGreetingDelay: z.number().int().min(1).max(120).optional(),
   proactiveChatDingEnabled: z.boolean().optional(),
   proactiveChatTemplates: z.array(z.string()).optional(),
 });

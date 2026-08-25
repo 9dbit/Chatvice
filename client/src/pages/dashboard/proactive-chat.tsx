@@ -38,7 +38,7 @@ import {
 import proactiveBanner from "../../assets/proactive-chat-banner.png";
 import type { Merchant } from "@shared/schema";
 
-const MIN_DELAY = 5;
+const MIN_DELAY = 1;
 const MAX_DELAY = 120;
 const DEFAULT_DELAY = 8;
 const MAX_TEMPLATES = 5;

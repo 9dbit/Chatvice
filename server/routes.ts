@@ -6852,7 +6852,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       if (proactiveChatEnabled !== undefined) updateData.proactiveChatEnabled = Boolean(proactiveChatEnabled);
       if (proactiveChatGreetingDelay !== undefined) {
         const delay = Number(proactiveChatGreetingDelay);
-        updateData.proactiveChatGreetingDelay = Math.max(5, Math.min(120, isNaN(delay) ? 8 : delay));
+        updateData.proactiveChatGreetingDelay = Math.max(1, Math.min(120, isNaN(delay) ? 8 : delay));
       }
       if (proactiveChatDingEnabled !== undefined) updateData.proactiveChatDingEnabled = Boolean(proactiveChatDingEnabled);
       if (proactiveChatTemplates !== undefined) {
