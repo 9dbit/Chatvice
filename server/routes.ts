@@ -42,6 +42,7 @@ import { registerCustomDataPresetRoutes } from "./customDataPresetRoutes";
 import { registerGamingRoutes } from "./gamingRoutes";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import sharp from "sharp";
+import { greetingDelayToMilliseconds, hasReplayableProactiveGreeting } from "./proactiveGreetingDelivery";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -2540,6 +2541,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         clients.set(sessionId, new Set());
       }
       clients.get(sessionId)!.add(ws);
+
+      // A proactive greeting is persisted before it is broadcast. A cold visitor
+      // can therefore miss the original broadcast while the browser is still
+      // establishing this socket. Replay the open signal after the socket has
+      // been registered so the widget can recover on a delayed initial connect
+      // or a later reconnect. The client makes this signal idempotent.
+      if (clientType === "customer" && sessionId.startsWith("sess_v_")) {
+        void replayPendingProactiveGreeting(ws, sessionId);
+      }
       
       // Handle incoming messages (typing indicators, etc.)
       ws.on("message", (data) => {
@@ -2572,6 +2582,29 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
     }
   });
+
+  async function replayPendingProactiveGreeting(ws: WebSocket, sessionId: string): Promise<void> {
+    try {
+      const session = await storage.getSession(sessionId);
+      if (!session?.visitorSession || !session.proactiveGreetingSent || session.status !== "active") return;
+
+      // The scheduled proactive greeting is stored as an AI message. If it has
+      // not been created yet, the normal broadcast in the scheduler will reach
+      // this already-registered socket instead.
+      const messages = await storage.getMessages(sessionId);
+      if (!hasReplayableProactiveGreeting(session, messages) || ws.readyState !== WebSocket.OPEN) return;
+
+      ws.send(JSON.stringify({
+        type: "proactive_chat",
+        sessionId,
+        supervisorName: "AI Agent",
+        replayed: true,
+      }));
+    } catch (error) {
+      // A replay failure must never affect the regular WebSocket connection.
+      console.error("[ai-proactive] Failed to replay pending greeting:", error);
+    }
+  }
 
   function broadcastToSession(sessionId: string, data: any) {
     const sessionClients = clients.get(sessionId);
@@ -7498,7 +7531,13 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       // If this session was a visitor-tracking session, upgrade it to a real session now
       // that the customer has sent their first message
       if (existingSession?.visitorSession === true) {
-        await storage.updateSession(sessionId, { visitorSession: false });
+        await db.update(sessions)
+          .set({ visitorSession: false, lastActivity: new Date() })
+          .where(and(
+            eq(sessions.id, sessionId),
+            eq(sessions.visitorSession, true),
+            eq(sessions.status, "active"),
+          ));
       }
 
       // If session was previously ended/closed by merchant, reactivate now that customer is replying
@@ -18015,8 +18054,15 @@ Rules:
         const requestDomain = extractWidgetRequestDomain(req);
         const { allowed, gracePeriod } = await checkAndRecordDomainAccess(merchant.id, requestDomain);
         if (!allowed) {
-          res.status(403).header("Content-Type", "application/javascript");
-          return res.send(`/* Chatvice: This domain (${requestDomain}) is not authorized to embed the widget. Please register it in your Chatvice dashboard. */\nconsole.warn('[Chatvice] This domain is not authorized to use the widget. Add it in your dashboard → Widget → Allowed Domains.');`);
+          // Send only a harmless diagnostic script. A browser usually does not
+          // execute a script response with a 403 status, which would leave the
+          // site owner with a non-actionable network error. This response never
+          // initializes the widget and therefore does not bypass the domain
+          // allow-list.
+          res.status(200)
+            .header("Content-Type", "application/javascript")
+            .header("X-Chatvice-Widget-Blocked", "domain-not-allowed");
+          return res.send(`/* Chatvice: This domain (${requestDomain}) is not authorized to embed the widget. Please register it in your Chatvice dashboard. */\nconsole.error('[Chatvice] Widget blocked: this domain is not authorized. Add it in your dashboard → Widget → Allowed Domains.');`);
         }
         if (gracePeriod && requestDomain) {
           // Domain is allowed (grace period) but not yet registered — recorded for merchant review
@@ -18968,6 +19014,10 @@ Rules:
   // --- Live Visitor Tracking ---
   var visitorSessionId = null;
   var visitorWs = null;
+  var visitorReconnectTimer = null;
+  var visitorReconnectAttempts = 0;
+  var visitorTrackingStopped = false;
+  var proactiveOpenHandled = false;
 
   function getDeviceFingerprint() {
     var nav = window.navigator;
@@ -19002,6 +19052,64 @@ Rules:
     } catch(e) {}
   }
 
+  function openForProactiveGreeting() {
+    // The server can replay a persisted signal after reconnecting. Handle the
+    // greeting once per page session so a reconnect never reopens a chat the
+    // visitor has already seen or manually closed.
+    if (proactiveOpenHandled) return;
+    proactiveOpenHandled = true;
+    if (isOpen) return;
+
+    if (proactiveDingEnabled) { playProactiveDing(); }
+    iframe.src = baseUrl + "/widget/" + merchantId + "?session=" + visitorSessionId + "&showClose=true&embedded=true&visitorSession=true";
+    openWidget();
+  }
+
+  function scheduleVisitorSocketReconnect() {
+    if (visitorTrackingStopped || !visitorSessionId || visitorReconnectTimer) return;
+    var retryDelay = Math.min(10000, 250 * Math.pow(2, visitorReconnectAttempts));
+    visitorReconnectAttempts += 1;
+    visitorReconnectTimer = setTimeout(function() {
+      visitorReconnectTimer = null;
+      connectVisitorSocket();
+    }, retryDelay);
+  }
+
+  function connectVisitorSocket() {
+    if (visitorTrackingStopped || !visitorSessionId) return;
+    if (visitorWs && (visitorWs.readyState === WebSocket.CONNECTING || visitorWs.readyState === WebSocket.OPEN)) return;
+
+    var wsProto = baseUrl.replace(/^http/, "ws");
+    var socket;
+    try {
+      socket = new WebSocket(wsProto + "/ws?session=" + visitorSessionId + "&type=customer");
+    } catch(e) {
+      scheduleVisitorSocketReconnect();
+      return;
+    }
+    visitorWs = socket;
+    socket.onopen = function() {
+      visitorReconnectAttempts = 0;
+    };
+    socket.onmessage = function(evt) {
+      try {
+        var msg = JSON.parse(evt.data);
+        if (msg.type === "proactive_chat" || (msg.type === "message" && msg.message && msg.message.senderType === "supervisor")) {
+          openForProactiveGreeting();
+        }
+      } catch(e) {}
+    };
+    socket.onerror = function() {
+      // Some browsers only emit an error for a failed connection. Closing makes
+      // the reconnect path consistent across browsers.
+      try { socket.close(); } catch(e) {}
+    };
+    socket.onclose = function() {
+      if (visitorWs === socket) visitorWs = null;
+      scheduleVisitorSocketReconnect();
+    };
+  }
+
   function initVisitorTracking() {
     var fp = getDeviceFingerprint();
     var pingData = { merchantId: merchantId, deviceFingerprint: fp, pageUrl: window.location.href, referrerUrl: document.referrer || "", userAgent: (window.navigator && window.navigator.userAgent) || "" };
@@ -19010,26 +19118,26 @@ Rules:
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(pingData)
-    }).then(function(r) { return r.json(); }).then(function(data) {
+    }).then(function(r) {
+      return r.json().catch(function() { return {}; }).then(function(data) {
+        return { ok: r.ok, status: r.status, data: data };
+      });
+    }).then(function(result) {
+      var data = result.data || {};
+      if (!result.ok || data.domainNotAllowed) {
+        if (data.domainNotAllowed) {
+          console.error("[Chatvice] Visitor tracking was blocked because " + (window.location.hostname || "this domain") + " is not an allowed domain. Add it in your dashboard → Widget → Allowed Domains.");
+        } else {
+          console.warn("[Chatvice] Visitor tracking request failed (HTTP " + result.status + ").");
+        }
+        return;
+      }
       if (!data.tracked) return;
       visitorSessionId = data.sessionId;
 
-      // Connect WebSocket to listen for proactive messages
-      var wsProto = baseUrl.replace(/^http/, "ws");
-      visitorWs = new WebSocket(wsProto + "/ws?session=" + visitorSessionId + "&type=customer");
-      visitorWs.onmessage = function(evt) {
-        try {
-          var msg = JSON.parse(evt.data);
-          if (msg.type === "proactive_chat" || (msg.type === "message" && msg.message && msg.message.senderType === "supervisor")) {
-            // Only open widget if it is not already open — prevents reloading an active chat session
-            if (!isOpen) {
-              if (proactiveDingEnabled) { playProactiveDing(); }
-              iframe.src = baseUrl + "/widget/" + merchantId + "?session=" + visitorSessionId + "&showClose=true&embedded=true&visitorSession=true";
-              openWidget();
-            }
-          }
-        } catch(e) {}
-      };
+      // Connect after tracking. If the greeting was sent during this gap, the
+      // server replays its persisted proactive signal when this socket opens.
+      connectVisitorSocket();
 
       // Keep-alive ping every 30 seconds
       setInterval(function() {
@@ -19044,6 +19152,14 @@ Rules:
 
       // Signal server immediately when the visitor closes the tab/browser
       window.addEventListener("beforeunload", function() {
+        visitorTrackingStopped = true;
+        if (visitorReconnectTimer) {
+          clearTimeout(visitorReconnectTimer);
+          visitorReconnectTimer = null;
+        }
+        if (visitorWs) {
+          try { visitorWs.close(); } catch(e) {}
+        }
         if (visitorSessionId) {
           var leaveData = JSON.stringify({ sessionId: visitorSessionId });
           // sendBeacon is non-blocking and survives page unload
@@ -21198,7 +21314,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
     pageUrl: string,
     greetingDelaySeconds?: number,
   ): Promise<void> {
-    const delayMs = ((greetingDelaySeconds ?? 8) * 1000);
+    const delayMs = greetingDelayToMilliseconds(greetingDelaySeconds);
     console.log(`[ai-proactive] Greeting scheduled for session ${sessionId} in ${greetingDelaySeconds ?? 8}s`);
     setTimeout(async () => {
       try {
@@ -21278,12 +21394,33 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
           greetingText = generated || "Ada yang bisa kami bantu hari ini? Kami siap membantu Anda.";
         }
 
-        // Store the greeting as an AI message
-        const greetingMessage = await storage.createMessage({
-          sessionId,
-          from: "ai",
-          content: greetingText,
+        // Claim and persist in one transaction. The visitor may have sent a
+        // message or left while the greeting was being generated; in either
+        // case the conditional update fails and no stale greeting is delivered.
+        const greetingMessage = await db.transaction(async (tx) => {
+          const claimed = await tx.update(sessions)
+            .set({ proactiveGreetingSent: true })
+            .where(and(
+              eq(sessions.id, sessionId),
+              eq(sessions.visitorSession, true),
+              eq(sessions.status, "active"),
+              eq(sessions.proactiveGreetingSent, false),
+            ))
+            .returning({ id: sessions.id });
+          if (claimed.length === 0) return null;
+
+          const inserted = await tx.insert(messages).values({
+            id: "msg_" + crypto.randomBytes(8).toString("hex"),
+            sessionId,
+            from: "ai",
+            content: greetingText,
+          }).returning();
+          return inserted[0];
         });
+        if (!greetingMessage) {
+          console.log(`[ai-proactive] Skipped — session ${sessionId} is no longer an eligible visitor`);
+          return;
+        }
 
         // Broadcast the greeting to the visitor's WebSocket connection
         broadcastToSession(sessionId, {
@@ -21438,8 +21575,9 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
 
       // Schedule AI proactive greeting only when proactive chat is enabled
       if (merchant.proactiveChatEnabled) {
-        // Mark greeting as scheduled immediately to prevent race conditions with keep-alive pings
-        await storage.updateSession(sessionId, { proactiveGreetingSent: true });
+        // The greeting itself is atomically claimed when it is ready to persist.
+        // Keep-alive pings reuse this session and therefore never schedule a
+        // second greeting.
         scheduleAiProactiveGreeting(sessionId, resolvedMerchantId, assignedAgentId || null, pageUrl || "", merchant.proactiveChatGreetingDelay ?? 8);
       }
 
@@ -21462,23 +21600,45 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
       const { sessionId } = req.body;
       if (!sessionId) return res.json({ archived: false });
 
-      const session = await storage.getSession(sessionId);
-      // Only archive visitor-tracking sessions that haven't been upgraded to a real chat
-      if (!session || !session.visitorSession || session.status !== "active") {
-        return res.json({ archived: false });
-      }
+      // Lock the session through the message check and archive update. The
+      // proactive greeting claim updates this same row, so once this wins the
+      // lock a delayed greeting cannot be written or broadcast after the tab
+      // has been marked as left.
+      const archived = await db.transaction(async (tx) => {
+        await tx.execute(sql`
+          SELECT 1 FROM ${sessions}
+          WHERE ${sessions.id} = ${sessionId}
+          FOR UPDATE
+        `);
 
-      // Check if any real customer messages exist — if so, this is a real chat, don't archive
-      const msgs = await storage.getMessages(sessionId);
-      const hasCustomerMessages = msgs.some(
-        (m) => m.from === "user" || m.from === "customer"
-      );
-      if (hasCustomerMessages) {
-        return res.json({ archived: false });
-      }
+        const sessionRows = await tx.select()
+          .from(sessions)
+          .where(eq(sessions.id, sessionId));
+        const session = sessionRows[0];
+        if (!session || !session.visitorSession || session.status !== "active") {
+          return false;
+        }
 
-      await storage.updateSession(sessionId, { status: "archived" });
-      res.json({ archived: true });
+        const msgs = await tx.select({ from: messages.from })
+          .from(messages)
+          .where(eq(messages.sessionId, sessionId));
+        const hasCustomerMessages = msgs.some(
+          (message) => message.from === "user" || message.from === "customer",
+        );
+        if (hasCustomerMessages) return false;
+
+        const updated = await tx.update(sessions)
+          .set({ status: "archived", lastActivity: new Date() })
+          .where(and(
+            eq(sessions.id, sessionId),
+            eq(sessions.visitorSession, true),
+            eq(sessions.status, "active"),
+          ))
+          .returning({ id: sessions.id });
+        return updated.length === 1;
+      });
+
+      res.json({ archived });
     } catch (error) {
       console.error("[visitor-leave] Error:", error);
       res.json({ archived: false });
@@ -21494,7 +21654,13 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
       if (!session) return res.status(404).json({ error: "Session not found" });
 
       if (session.visitorSession) {
-        await storage.updateSession(sessionId, { visitorSession: false });
+        await db.update(sessions)
+          .set({ visitorSession: false, lastActivity: new Date() })
+          .where(and(
+            eq(sessions.id, sessionId),
+            eq(sessions.visitorSession, true),
+            eq(sessions.status, "active"),
+          ));
       }
       res.json({ success: true });
     } catch (error) {
@@ -21849,7 +22015,6 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
           customerPhone: customerPhone || null,
           customerEmail: customerEmail?.trim() || null,
           lastActivity: new Date(),
-          visitorSession: false,
         };
         // Backfill referrerUrl if this existing session doesn't have one yet
         if (startChatReferrerUrl && !session.referrerUrl) {
@@ -21863,7 +22028,34 @@ ${systemCtx || `Business name: ${merchant.companyName || merchant.officialWebsit
             }
           } catch {}
         }
-        await storage.updateSession(sessionId, sessionUpdate);
+        if (session.visitorSession) {
+          // Upgrade through the same session-row transition used by proactive
+          // delivery. Whichever operation acquires the row first wins, so a
+          // greeting cannot be written after this session has become a chat.
+          const upgraded = await db.update(sessions)
+            .set({ ...sessionUpdate, visitorSession: false })
+            .where(and(
+              eq(sessions.id, sessionId),
+              eq(sessions.visitorSession, true),
+              eq(sessions.status, "active"),
+            ))
+            .returning({ id: sessions.id });
+          if (upgraded.length === 0) {
+            const currentSession = await storage.getSession(sessionId);
+            if (!currentSession || currentSession.status !== "active") {
+              return res.json({
+                success: false,
+                error: "This visitor session is no longer active. Please refresh and try again.",
+              });
+            }
+            // Another concurrent request may already have completed the
+            // visitor-to-chat transition. Preserve its active chat state while
+            // still saving this customer's profile fields.
+            await storage.updateSession(sessionId, sessionUpdate);
+          }
+        } else {
+          await storage.updateSession(sessionId, sessionUpdate);
+        }
       }
 
       // Get agent settings for personalized greeting

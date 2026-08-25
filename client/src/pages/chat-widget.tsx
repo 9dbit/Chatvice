@@ -1373,6 +1373,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
   const wsProactiveRef = useRef<WebSocket | null>(null);
   const isOpenRef = useRef(isOpen);
   const merchantConfigRef = useRef(merchantConfig);
+  const proactiveOpenHandledRef = useRef(false);
   useEffect(() => { isOpenRef.current = isOpen; }, [isOpen]);
   useEffect(() => { merchantConfigRef.current = merchantConfig; }, [merchantConfig]);
 
@@ -1385,31 +1386,67 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws?session=${wsSession}&type=customer`;
 
-    let ws: WebSocket;
-    try {
-      ws = new WebSocket(wsUrl);
-    } catch {
-      return;
-    }
-    wsProactiveRef.current = ws;
+    let disposed = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let reconnectAttempts = 0;
+    proactiveOpenHandledRef.current = false;
 
-    ws.onmessage = (evt) => {
+    const connect = () => {
+      if (disposed) return;
+      let ws: WebSocket;
       try {
-        const data = JSON.parse(evt.data);
-        if (data.type === "proactive_chat") {
-          if (!isOpenRef.current) {
-            setIsOpen(true);
-            if (merchantConfigRef.current?.proactiveChatDingEnabled) {
-              initAudio();
-              playProactiveDing();
+        ws = new WebSocket(wsUrl);
+      } catch {
+        scheduleReconnect();
+        return;
+      }
+      wsProactiveRef.current = ws;
+
+      ws.onopen = () => {
+        reconnectAttempts = 0;
+      };
+      ws.onmessage = (evt) => {
+        try {
+          const data = JSON.parse(evt.data);
+          if (data.type === "proactive_chat" && !proactiveOpenHandledRef.current) {
+            proactiveOpenHandledRef.current = true;
+            if (!isOpenRef.current) {
+              setIsOpen(true);
+              if (merchantConfigRef.current?.proactiveChatDingEnabled) {
+                initAudio();
+                playProactiveDing();
+              }
             }
           }
+        } catch {}
+      };
+      ws.onerror = () => {
+        try { ws.close(); } catch {}
+      };
+      ws.onclose = () => {
+        if (wsProactiveRef.current === ws) {
+          wsProactiveRef.current = null;
         }
-      } catch {}
+        scheduleReconnect();
+      };
     };
 
+    const scheduleReconnect = () => {
+      if (disposed || reconnectTimer) return;
+      const delay = Math.min(10000, 250 * Math.pow(2, reconnectAttempts));
+      reconnectAttempts += 1;
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        connect();
+      }, delay);
+    };
+
+    connect();
+
     return () => {
-      ws.close();
+      disposed = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      wsProactiveRef.current?.close();
       wsProactiveRef.current = null;
     };
   }, [sessionId, urlSessionId, previewMode, embedded, initAudio, playProactiveDing]);
@@ -2026,10 +2063,15 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
         // yet (pure AI-initiated session), and proactive chat is enabled → auto-open + ding
         const hasCustomerMessages = serverMessages.some(m => m.from === "customer");
         const isProactiveGreeting = !hasCustomerMessages && merchantConfig?.proactiveChatEnabled;
-        if (isProactiveGreeting && !isOpen && !embedded) {
-          setIsOpen(true);
-          if (merchantConfig?.proactiveChatDingEnabled) {
-            playProactiveDing();
+        if (isProactiveGreeting && !embedded) {
+          if (!proactiveOpenHandledRef.current) {
+            proactiveOpenHandledRef.current = true;
+            if (!isOpen) {
+              setIsOpen(true);
+              if (merchantConfig?.proactiveChatDingEnabled) {
+                playProactiveDing();
+              }
+            }
           }
         } else if (!isOpen && !embedded) {
           setUnreadCount(prev => prev + 1);
