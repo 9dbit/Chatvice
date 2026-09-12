@@ -176,6 +176,7 @@ export interface IStorage {
   getNotifications(supervisorId: string): Promise<Notification[]>;
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationSeen(id: string): Promise<boolean>;
+  markNotificationsSeenBySession(sessionId: string): Promise<number>;
   
   getAnalytics(merchantId: string): Promise<AnalyticsData>;
   
@@ -1128,6 +1129,17 @@ export class DatabaseStorage implements IStorage {
       .where(eq(notifications.id, id))
       .returning();
     return result.length > 0;
+  }
+
+  async markNotificationsSeenBySession(sessionId: string): Promise<number> {
+    const result = await db.update(notifications)
+      .set({ seen: true })
+      .where(and(
+        eq(notifications.sessionId, sessionId),
+        or(eq(notifications.seen, false), isNull(notifications.seen)),
+      ))
+      .returning({ id: notifications.id });
+    return result.length;
   }
 
   async getAnalytics(merchantId: string): Promise<AnalyticsData> {

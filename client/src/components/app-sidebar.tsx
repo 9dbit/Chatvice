@@ -71,6 +71,7 @@ interface Session {
   id: string;
   mode: "AI" | "HUMAN";
   merchantId: string;
+  status?: string | null;
   needsSupervisorAttention?: boolean;
   lastQuestion?: string;
   pendingCustomerMessages?: number;
@@ -448,7 +449,10 @@ export function AppSidebar() {
   });
   const pendingPrCount = pendingPrCountData?.count ?? 0;
 
-  const escalatedSessions = sessions?.filter(s => s.needsSupervisorAttention === true) || [];
+  const escalatedSessions = sessions?.filter(
+    s => s.needsSupervisorAttention === true &&
+      !["ended", "closed", "archived"].includes(s.status || "active")
+  ) || [];
   const escalatedCount = escalatedSessions.length;
   const totalPendingMessages = escalatedSessions.reduce((sum, s) => sum + (s.pendingCustomerMessages ?? 0), 0);
 

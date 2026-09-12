@@ -205,6 +205,11 @@ interface SessionWithPreview extends Omit<Session, 'status' | 'needsSupervisorAt
   hasPasswordTicket?: boolean;
 }
 
+function canSessionRequireAttention(session: SessionWithPreview): boolean {
+  return session.needsSupervisorAttention === true &&
+    !["ended", "closed", "archived"].includes(session.status || "active");
+}
+
 interface PreviewContent {
   type: "photo" | "video" | "document" | "url";
   url: string;
@@ -435,7 +440,7 @@ export default function SessionsPage() {
 
     const currentSessionIds = new Set(sessions.map(s => s.id));
     const currentAttentionSessions = new Set(
-      sessions.filter(s => s.needsSupervisorAttention).map(s => s.id)
+      sessions.filter(canSessionRequireAttention).map(s => s.id)
     );
 
     if (initialLoadRef.current) {
@@ -443,7 +448,7 @@ export default function SessionsPage() {
       previousAttentionSessionsRef.current = currentAttentionSessions;
       sessions.forEach(s => sessionMessageCountsRef.current.set(s.id, 0));
       // Seed lastQuestion tracking for escalated sessions on first load
-      sessions.filter(s => s.needsSupervisorAttention).forEach(s => {
+      sessions.filter(canSessionRequireAttention).forEach(s => {
         lastQuestionPerEscalatedRef.current.set(s.id, s.lastQuestion);
       });
       initialLoadRef.current = false;
@@ -464,13 +469,13 @@ export default function SessionsPage() {
     // Check for sessions that newly require attention (trigger words or anger detected)
     // This includes both new sessions AND existing sessions that just got escalated
     const newlyEscalatedSessions = sessions.filter(s =>
-      s.needsSupervisorAttention &&
+      canSessionRequireAttention(s) &&
       !previousAttentionSessionsRef.current.has(s.id)
     );
 
     // Check for already-escalated sessions that received a new customer message
     const retriggeredSessions = sessions.filter(s =>
-      s.needsSupervisorAttention &&
+      canSessionRequireAttention(s) &&
       previousAttentionSessionsRef.current.has(s.id) &&
       lastQuestionPerEscalatedRef.current.has(s.id) &&
       s.lastQuestion !== lastQuestionPerEscalatedRef.current.get(s.id)
@@ -523,7 +528,7 @@ export default function SessionsPage() {
     });
 
     // Update lastQuestion tracking: add newly escalated, update existing, remove de-escalated
-    sessions.filter(s => s.needsSupervisorAttention).forEach(s => {
+    sessions.filter(canSessionRequireAttention).forEach(s => {
       lastQuestionPerEscalatedRef.current.set(s.id, s.lastQuestion);
     });
     lastQuestionPerEscalatedRef.current.forEach((_, id) => {
@@ -1143,7 +1148,7 @@ export default function SessionsPage() {
       return "angry";
     }
     
-    if (session.needsSupervisorAttention) {
+    if (canSessionRequireAttention(session)) {
       return "needs_response";
     }
     

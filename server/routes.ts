@@ -43,6 +43,7 @@ import { registerGamingRoutes } from "./gamingRoutes";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import sharp from "sharp";
 import { greetingDelayToMilliseconds, hasReplayableProactiveGreeting } from "./proactiveGreetingDelivery";
+import { canSessionRequireAttention, resolveSessionAttention } from "./sessionAttention";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -8754,7 +8755,8 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
           // Count customer messages that have no responder reply after them.
           // A "responder" is any non-customer sender: supervisor, bot, ai, or chatvice.
           let pendingCustomerMessages = 0;
-          if (session.needsSupervisorAttention) {
+          const isActiveSession = canSessionRequireAttention(session.status);
+          if (session.needsSupervisorAttention && isActiveSession) {
             const responderSenders = new Set(["supervisor", "bot", "ai", "chatvice"]);
             const responderMessages = messages.filter(m => responderSenders.has(m.from));
             if (responderMessages.length === 0) {
@@ -8770,6 +8772,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
           
           return {
             ...session,
+            needsSupervisorAttention: isActiveSession ? session.needsSupervisorAttention : false,
             lastQuestion: lastQuestion?.slice(0, 100),
             lastMessage: lastMessage?.slice(0, 100),
             pendingCustomerMessages,
@@ -10395,7 +10398,7 @@ Rules:
         messageType: finalMessageType,
         payload: finalPayload,
       });
-      await storage.updateSession(sessionId, { supervisorId });
+      await resolveSessionAttention(storage, sessionId, { supervisorId });
 
       broadcastToSession(sessionId, {
         type: "message",
@@ -10819,7 +10822,9 @@ Rules:
       
       // Use actual supervisor ID if logged in as supervisor, otherwise use merchant ID
       const actualSupervisorId = userType === "supervisor" ? userId : merchantId;
-      await storage.updateSession(sessionId, { supervisorId: actualSupervisorId });
+      await resolveSessionAttention(storage, sessionId, {
+        supervisorId: actualSupervisorId,
+      });
 
       broadcastToSession(sessionId, {
         type: "message",
@@ -10877,7 +10882,9 @@ Rules:
       
       // Use actual supervisor ID if logged in as supervisor, otherwise use merchant ID
       const actualSupervisorId = userType === "supervisor" ? userId : merchantId;
-      await storage.updateSession(sessionId, { supervisorId: actualSupervisorId });
+      await resolveSessionAttention(storage, sessionId, {
+        supervisorId: actualSupervisorId,
+      });
 
       broadcastToSession(sessionId, {
         type: "message",
@@ -23144,7 +23151,7 @@ ${log.extractedKnowledge}` : ''}
         return res.status(404).json({ error: "Session not found" });
       }
 
-      const updated = await storage.updateSession(sessionId, {
+      const updated = await resolveSessionAttention(storage, sessionId, {
         status: "ended",
         lastActivity: new Date(),
       });
@@ -29626,15 +29633,16 @@ Please create a comprehensive help center article that would be useful for custo
         payload: { source: "telegram" },
       });
 
+      await resolveSessionAttention(storage, bridge.sessionId, {
+        supervisorId: supervisor.id,
+        mode: "HUMAN",
+      });
+
       broadcastToSession(bridge.sessionId, {
         type: "message",
         sessionId: bridge.sessionId,
         message: newMsg,
       });
-
-      if (session.mode !== "HUMAN") {
-        await storage.updateSession(bridge.sessionId, { mode: "HUMAN" });
-      }
 
       console.log(`[Telegram] Supervisor ${supervisor.id} replied to session ${bridge.sessionId} via Telegram`);
       res.json({ ok: true });
@@ -32026,6 +32034,10 @@ Please create a comprehensive help center article that would be useful for custo
         sessionId: ticket.sessionId,
         from: "supervisor",
         content: message.trim(),
+      });
+
+      await resolveSessionAttention(storage, ticket.sessionId, {
+        supervisorId: merchantId,
       });
 
       broadcastToSession(ticket.sessionId, { type: "message", message: created });
