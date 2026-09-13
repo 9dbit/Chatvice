@@ -720,7 +720,7 @@ export async function sendSubscriptionExpiringEmail(data: SubscriptionExpiringDa
     const billingUrl = `${baseUrl}/dashboard/billing`;
 
     const isExpired = data.daysRemaining === 0;
-    const urgencyColor = isExpired ? '#dc2626' : data.daysRemaining <= 3 ? '#ef4444' : '#f59e0b';
+    const urgencyColor = isExpired ? '#6d28d9' : data.daysRemaining <= 3 ? '#7c3aed' : '#8b5cf6';
     const subject = isExpired
       ? `Your ${data.planName} Subscription Has Expired | Chatvice`
       : data.daysRemaining <= 3
@@ -743,92 +743,63 @@ export async function sendSubscriptionExpiringEmail(data: SubscriptionExpiringDa
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
         </head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f5;">
-          <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-            <div style="background-color: #18181b; border-radius: 12px; padding: 40px;">
-
-              <!-- Header -->
-              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; border-bottom: 1px solid #27272a; padding-bottom: 24px;">
-                <div>
-                  <h1 style="color: #ffffff; margin: 0 0 4px 0; font-size: 22px; font-weight: 700;">Chatvice</h1>
-                  <p style="color: #71717a; margin: 0; font-size: 13px;">AI Customer Service Platform</p>
-                </div>
-                <div style="text-align: right;">
-                  <p style="color: #71717a; margin: 0 0 2px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Renewal Notice</p>
-                  <p style="color: #a1a1aa; margin: 0; font-size: 13px;">${invoiceNumber}</p>
-                </div>
-              </div>
-
-              <!-- Urgency Banner -->
-              <div style="background-color: ${urgencyColor}1a; border: 1px solid ${urgencyColor}33; border-radius: 8px; padding: 16px 20px; margin-bottom: 28px; text-align: center;">
-                <p style="color: ${urgencyColor}; margin: 0; font-size: 15px; font-weight: 600;">
-                  ${isExpired
-                    ? 'Your subscription has expired — service is suspended'
-                    : `Your subscription expires in ${data.daysRemaining} day${data.daysRemaining > 1 ? 's' : ''}`}
-                </p>
-              </div>
-
-              <!-- Greeting -->
-              <p style="color: #a1a1aa; margin: 0 0 24px 0; font-size: 15px; line-height: 1.6;">
-                Hi <strong style="color: #ffffff;">${data.merchantName}</strong>,
-              </p>
-              <p style="color: #a1a1aa; margin: 0 0 28px 0; font-size: 15px; line-height: 1.6;">
-                ${isExpired
-                  ? `Your <strong style="color: #ffffff;">${data.planName}</strong> subscription expired on <strong style="color: #ffffff;">${formatDate(data.expiresAt)}</strong>. Your AI chatbot is currently suspended. Renew now to restore service immediately.`
-                  : `Your <strong style="color: #ffffff;">${data.planName}</strong> subscription will expire on <strong style="color: #ffffff;">${formatDate(data.expiresAt)}</strong>. Renew before the deadline to avoid any service interruption for your customers.`}
-              </p>
-
-              <!-- Invoice Details Table -->
-              <div style="background-color: #27272a; border-radius: 8px; padding: 24px; margin-bottom: 28px;">
-                <p style="color: #71717a; margin: 0 0 16px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Subscription Details</p>
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr>
-                    <td style="color: #71717a; padding: 8px 0; font-size: 14px; border-bottom: 1px solid #3f3f46;">Plan</td>
-                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right; border-bottom: 1px solid #3f3f46; font-weight: 600;">${data.planName}</td>
-                  </tr>
-                  <tr>
-                    <td style="color: #71717a; padding: 8px 0; font-size: 14px; border-bottom: 1px solid #3f3f46;">Billing Cycle</td>
-                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right; border-bottom: 1px solid #3f3f46;">${data.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</td>
-                  </tr>
-                  ${data.amount != null ? `
-                  <tr>
-                    <td style="color: #71717a; padding: 8px 0; font-size: 14px; border-bottom: 1px solid #3f3f46;">Amount Due</td>
-                    <td style="color: #ffffff; padding: 8px 0; font-size: 14px; text-align: right; border-bottom: 1px solid #3f3f46; font-weight: 600;">$${(data.amount / 100).toFixed(2)}</td>
-                  </tr>` : ''}
-                  <tr>
-                    <td style="color: #71717a; padding: 8px 0; font-size: 14px;">
-                      ${isExpired ? 'Expired On' : 'Expires On'}
-                    </td>
-                    <td style="color: ${urgencyColor}; padding: 8px 0; font-size: 14px; text-align: right; font-weight: 600;">${formatDate(data.expiresAt)}</td>
-                  </tr>
-                </table>
-              </div>
-
-              <!-- What happens if you don't renew -->
-              <div style="background-color: #1c1c1f; border-radius: 8px; padding: 20px; margin-bottom: 28px;">
-                <p style="color: #a1a1aa; margin: 0 0 10px 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">What happens after expiration</p>
-                <ul style="color: #71717a; margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
-                  <li>Your AI chatbot stops responding to customers</li>
-                  <li>All active conversations are paused</li>
-                  <li>Your data and settings are preserved for 30 days</li>
-                </ul>
-              </div>
-
-              <!-- CTA -->
-              <div style="text-align: center; margin-bottom: 24px;">
-                <a href="${billingUrl}" style="display: inline-block; background-color: #22c55e; color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-weight: 600; font-size: 16px; letter-spacing: 0.01em;">
-                  Renew Subscription Now
-                </a>
-              </div>
-
-              <p style="color: #52525b; margin: 0; font-size: 13px; text-align: center; line-height: 1.5;">
-                If you have any questions, reply to this email or contact our support team.
-              </p>
-            </div>
-            <p style="text-align: center; color: #71717a; margin: 24px 0 0 0; font-size: 12px;">
-              &copy; ${new Date().getFullYear()} Chatvice. All rights reserved.
-            </p>
+        <body style="margin:0; padding:0; background-color:#f6f3fb; color:#252238; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+          <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent;">
+            ${isExpired ? 'Your Chatvice subscription has expired.' : `Your Chatvice subscription expires in ${data.daysRemaining} day${data.daysRemaining > 1 ? 's' : ''}.`}
           </div>
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f6f3fb;">
+            <tr><td align="center" style="padding:28px 12px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:600px;">
+                <tr><td style="padding:8px 8px 22px;">
+                  <!-- Public deployment asset: client/public/chatvice-logo-light.png -->
+                  <img src="https://chatvice.app/chatvice-logo-light.png" width="170" alt="Chatvice" style="display:block; width:170px; height:auto; border:0;">
+                </td></tr>
+                <tr><td style="background-color:#ffffff; border:1px solid #e7e0f4; border-radius:18px; padding:36px 34px 32px; box-shadow:0 8px 24px rgba(71,45,124,.08);">
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr><td style="padding-bottom:24px; border-bottom:1px solid #eeeaf5;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+                        <td style="font-size:12px; line-height:18px; color:#766d89; text-transform:uppercase; letter-spacing:1.2px; font-weight:700;">Renewal notice</td>
+                        <td align="right" style="font-size:12px; line-height:18px; color:#948ba5;">${invoiceNumber}</td>
+                      </tr></table>
+                    </td></tr>
+                    <tr><td style="padding:30px 0 22px;">
+                      <div aria-hidden="true" style="width:42px; height:42px; border-radius:12px; background-color:#f0eafd; border-left:4px solid ${urgencyColor}; color:${urgencyColor}; font-size:22px; line-height:42px; text-align:center; font-weight:800;">!</div>
+                      <h1 style="margin:18px 0 10px; color:#252238; font-size:28px; line-height:34px; letter-spacing:-.4px;">${isExpired ? 'Your subscription has expired' : 'Keep your customer service running'}</h1>
+                      <p style="margin:0; color:#655c78; font-size:16px; line-height:26px;">
+                        Hi <strong style="color:#252238;">${data.merchantName}</strong>,<br>
+                        ${isExpired
+                          ? `Your <strong style="color:#252238;">${data.planName}</strong> subscription expired on <strong style="color:#252238;">${formatDate(data.expiresAt)}</strong>. Your AI chatbot is currently suspended. Renew now to restore service immediately.`
+                          : `Your <strong style="color:#252238;">${data.planName}</strong> subscription will expire on <strong style="color:#252238;">${formatDate(data.expiresAt)}</strong>. Renew before the deadline to avoid any service interruption for your customers.`}
+                      </p>
+                    </td></tr>
+                    <tr><td style="padding:16px 18px; background-color:#fbf9ff; border:1px solid #e9e1fa; border-radius:12px;">
+                      <p style="margin:0; color:${urgencyColor}; font-size:14px; line-height:20px; font-weight:700;">
+                        ${isExpired ? 'Service is suspended' : `Expires in ${data.daysRemaining} day${data.daysRemaining > 1 ? 's' : ''}`}
+                      </p>
+                    </td></tr>
+                    <tr><td style="padding:28px 0;">
+                      <p style="color:#766d89; margin:0 0 14px; font-size:11px; line-height:16px; text-transform:uppercase; letter-spacing:1.2px; font-weight:700;">Subscription details</p>
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size:14px; line-height:20px;">
+                        <tr><td style="padding:10px 0; color:#766d89; border-bottom:1px solid #eeeaf5;">Plan</td><td align="right" style="padding:10px 0; color:#252238; border-bottom:1px solid #eeeaf5; font-weight:700;">${data.planName}</td></tr>
+                        <tr><td style="padding:10px 0; color:#766d89; border-bottom:1px solid #eeeaf5;">Billing cycle</td><td align="right" style="padding:10px 0; color:#252238; border-bottom:1px solid #eeeaf5;">${data.billingInterval === 'annual' ? 'Annual' : 'Monthly'}</td></tr>
+                        ${data.amount != null ? `<tr><td style="padding:10px 0; color:#766d89; border-bottom:1px solid #eeeaf5;">Amount due</td><td align="right" style="padding:10px 0; color:#252238; border-bottom:1px solid #eeeaf5; font-weight:700;">$${(data.amount / 100).toFixed(2)}</td></tr>` : ''}
+                        <tr><td style="padding:10px 0; color:#766d89;">${isExpired ? 'Expired on' : 'Expires on'}</td><td align="right" style="padding:10px 0; color:${urgencyColor}; font-weight:700;">${formatDate(data.expiresAt)}</td></tr>
+                      </table>
+                    </td></tr>
+                    <tr><td style="padding:18px 20px; background-color:#f7f4fd; border-radius:12px;">
+                      <p style="color:#40375a; margin:0 0 9px; font-size:14px; line-height:20px; font-weight:700;">What happens after expiration</p>
+                      <p style="color:#766d89; margin:0; font-size:13px; line-height:22px;">Your AI chatbot stops responding to customers.<br>Active conversations are paused.<br>Your data and settings are preserved for 30 days.</p>
+                    </td></tr>
+                    <tr><td align="center" style="padding:30px 0 20px;">
+                      <a href="${billingUrl}" style="display:inline-block; background-color:#6f38c5; color:#ffffff; text-decoration:none; padding:15px 30px; border-radius:9px; font-size:15px; line-height:20px; font-weight:700;">Renew subscription</a>
+                    </td></tr>
+                    <tr><td align="center" style="color:#948ba5; font-size:12px; line-height:19px;">If you have any questions, reply to this email or contact our support team.</td></tr>
+                  </table>
+                </td></tr>
+                <tr><td align="center" style="padding:22px 8px 0; color:#948ba5; font-size:12px; line-height:18px;">&copy; ${new Date().getFullYear()} Chatvice. All rights reserved.</td></tr>
+              </table>
+            </td></tr>
+          </table>
         </body>
         </html>
       `
