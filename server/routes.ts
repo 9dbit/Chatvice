@@ -330,15 +330,27 @@ async function checkSubscriptionLimits(merchantId: string, type: 'conversation' 
   if (merchant.subscriptionStatus === 'trial') {
     const trialExpired = merchant.trialEndsAt && new Date(merchant.trialEndsAt) < new Date();
     if (trialExpired) {
-      return { allowed: false, message: "Trial expired. Please upgrade to continue." };
+      return {
+        allowed: false,
+        message: "Your trial has expired. Please choose a plan to continue.",
+        code: "TRIAL_EXPIRED",
+      };
     }
   } else if (merchant.subscriptionStatus === 'active') {
     // Even if status is 'active', block if the billing period has already ended
     if (merchant.currentPeriodEnd && new Date(merchant.currentPeriodEnd) < new Date()) {
-      return { allowed: false, message: "Subscription expired. Please renew to continue." };
+      return {
+        allowed: false,
+        message: "Your subscription has expired. Please renew your plan to continue.",
+        code: "SUBSCRIPTION_EXPIRED",
+      };
     }
   } else {
-    return { allowed: false, message: "Subscription inactive. Please renew to continue." };
+    return {
+      allowed: false,
+      message: "Your subscription is inactive. Please choose a plan to continue.",
+      code: "SUBSCRIPTION_INACTIVE",
+    };
   }
   
   if (type === 'conversation') {
@@ -9973,7 +9985,12 @@ Rules:
       
       const limitCheck = await checkSubscriptionLimits(merchantId, 'supervisor');
       if (!limitCheck.allowed) {
-        return res.status(403).json({ error: limitCheck.message, requiresUpgrade: limitCheck.requiresUpgrade ?? false, limit: limitCheck.limit });
+        return res.status(403).json({
+          error: limitCheck.message,
+          code: limitCheck.code,
+          requiresUpgrade: limitCheck.requiresUpgrade ?? false,
+          limit: limitCheck.limit,
+        });
       }
       
       const existing = await storage.getSupervisorByEmail(email);

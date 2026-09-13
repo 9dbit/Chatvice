@@ -106,6 +106,7 @@ export default function SupervisorsPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [showLimitPopup, setShowLimitPopup] = useState(false);
+  const [limitPopupReason, setLimitPopupReason] = useState<"limit" | "subscription">("limit");
   const [sortBy, setSortBy] = useState<"name" | "email" | "status">("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -138,6 +139,16 @@ export default function SupervisorsPage() {
     : plan.supervisorsLimit;
   const currentCount = supervisors.length;
   const canAddMore = supervisorLimit === -1 || currentCount < supervisorLimit;
+  const subscriptionBlocked = !!merchant && (
+    (merchant.subscriptionStatus === "trial" &&
+      !!merchant.trialEndsAt &&
+      new Date(merchant.trialEndsAt) < new Date()) ||
+    (merchant.subscriptionStatus === "active" &&
+      !!merchant.currentPeriodEnd &&
+      new Date(merchant.currentPeriodEnd) < new Date()) ||
+    (merchant.subscriptionStatus !== "trial" && merchant.subscriptionStatus !== "active")
+  );
+  const canOpenAddDialog = canAddMore && !subscriptionBlocked;
   const agentsPerSupervisorLimit = plan.supervisorsPerAgentLimit;
 
   const form = useForm<AddSupervisorData>({
@@ -248,8 +259,21 @@ export default function SupervisorsPage() {
       });
     },
     onError: (error: Error) => {
+      const errorCode = (error as Error & { code?: unknown }).code;
+      if (
+        errorCode === "TRIAL_EXPIRED" ||
+        errorCode === "SUBSCRIPTION_EXPIRED" ||
+        errorCode === "SUBSCRIPTION_INACTIVE"
+      ) {
+        setIsDialogOpen(false);
+        setLimitPopupReason("subscription");
+        setShowLimitPopup(true);
+        return;
+      }
+
       if (isPlanLimitError(error)) {
         setIsDialogOpen(false);
+        setLimitPopupReason("limit");
         setShowLimitPopup(true);
         return;
       }
@@ -470,10 +494,13 @@ export default function SupervisorsPage() {
             {currentCount} / {supervisorLimit === -1 ? "Unlimited" : supervisorLimit}
           </Badge>
           
-          {!canAddMore ? (
+          {!canOpenAddDialog ? (
             <Button 
               data-testid="button-add-supervisor"
-              onClick={() => setShowLimitPopup(true)}
+              onClick={() => {
+                setLimitPopupReason(subscriptionBlocked ? "subscription" : "limit");
+                setShowLimitPopup(true);
+              }}
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Supervisor
@@ -640,13 +667,19 @@ export default function SupervisorsPage() {
                 : "Upgrade your plan to add supervisors to your team"
               }
             </p>
-            {canAddMore ? (
+            {canOpenAddDialog ? (
               <Button onClick={() => setIsDialogOpen(true)} data-testid="button-add-first-supervisor">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Your First Supervisor
               </Button>
             ) : (
-              <Button onClick={() => setShowLimitPopup(true)} data-testid="button-upgrade-first-supervisor">
+              <Button
+                onClick={() => {
+                  setLimitPopupReason(subscriptionBlocked ? "subscription" : "limit");
+                  setShowLimitPopup(true);
+                }}
+                data-testid="button-upgrade-first-supervisor"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Supervisor
               </Button>
@@ -948,6 +981,7 @@ export default function SupervisorsPage() {
         limitType="supervisor"
         currentPlan={plan.name}
         currentLimit={supervisorLimit}
+        reason={limitPopupReason}
       />
     </div>
   );

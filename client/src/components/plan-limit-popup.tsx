@@ -11,6 +11,7 @@ interface PlanLimitPopupProps {
   limitType: "agent" | "supervisor" | "conversation" | "source";
   currentPlan: string;
   currentLimit: number;
+  reason?: "limit" | "subscription";
 }
 
 export function PlanLimitPopup({
@@ -20,6 +21,7 @@ export function PlanLimitPopup({
   limitType,
   currentPlan,
   currentLimit,
+  reason = "limit",
 }: PlanLimitPopupProps) {
   if (!isOpen) return null;
 
@@ -58,8 +60,18 @@ export function PlanLimitPopup({
     },
   };
 
-  const config = limitConfig[limitType];
+  const config = reason === "subscription"
+    ? {
+        icon: AlertTriangle,
+        title: "Subscription Expired",
+        description: "Your trial or subscription has ended. Choose a plan to add supervisors and continue using subscription features.",
+        showManualOption: false,
+        manualText: "",
+        manualDescription: "",
+      }
+    : limitConfig[limitType];
   const Icon = config.icon;
+  const upgradeLabel = reason === "subscription" ? "View Plans" : "Upgrade Plan";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -97,7 +109,7 @@ export function PlanLimitPopup({
                 data-testid="button-upgrade-plan"
               >
                 <Crown className="mr-2 h-4 w-4" />
-                Upgrade Plan
+                {upgradeLabel}
               </Button>
             </Link>
 
