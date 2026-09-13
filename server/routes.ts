@@ -7508,8 +7508,20 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       const resolvedMerchantId = merchant.id;
 
       const existingSession = await storage.getSession(sessionId);
+      const limitCheck = await checkSubscriptionLimits(resolvedMerchantId, 'conversation');
+
+      // Subscription expiry suspends AI for both new and existing sessions.
+      // Conversation quota is only consumed/enforced when starting a real session.
+      if (!limitCheck.allowed && limitCheck.code !== 'CONVERSATION_LIMIT_REACHED') {
+        return res.status(403).json({
+          error: limitCheck.message,
+          code: limitCheck.code,
+          limit: limitCheck.limit,
+          requiresUpgrade: limitCheck.requiresUpgrade ?? false,
+        });
+      }
+
       if (!existingSession) {
-        const limitCheck = await checkSubscriptionLimits(resolvedMerchantId, 'conversation');
         if (!limitCheck.allowed && limitCheck.code === 'CONVERSATION_LIMIT_REACHED') {
           // Graceful fallback: create session in HUMAN mode and return limitFallback flag
           await storage.createSession({
@@ -7533,8 +7545,6 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
           });
           await notifySupervisors(resolvedMerchantId, sessionId, "manual");
           return res.json({ answer: "", mode: "HUMAN", sessionId, needsSupervisorAttention: true, limitFallback: true });
-        } else if (!limitCheck.allowed) {
-          return res.status(403).json({ error: limitCheck.message, code: limitCheck.code, limit: limitCheck.limit, requiresUpgrade: limitCheck.requiresUpgrade ?? false });
         }
         const credits = storage.calculateCreditsFromCustomerId(sessionId);
         await storage.incrementConversationUsage(resolvedMerchantId, credits);

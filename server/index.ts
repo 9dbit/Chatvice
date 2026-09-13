@@ -840,6 +840,10 @@ async function deactivateExpiredTrials(): Promise<void> {
         console.log(`[trial-expiry] Deactivated trial for merchant ${addon.merchantId} addon ${addon.addonType}`);
       }
     }
+
+    // Merchant trial/subscription expiry is separate from addon trial expiry.
+    // Apply it on the same hourly cadence so AI access is suspended promptly.
+    await checkAndRenewExpiredSubscriptions();
   } catch (err) {
     console.error("[trial-expiry] Error deactivating expired trials:", err);
   }

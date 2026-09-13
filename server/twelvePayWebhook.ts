@@ -845,14 +845,22 @@ export async function checkAndRenewExpiredSubscriptions(): Promise<void> {
     let expiredCount = 0;
 
     for (const merchant of allMerchants) {
-      if (merchant.subscriptionStatus !== 'active') continue;
-      if (!merchant.currentPeriodEnd) continue;
+      const isExpiredTrial = merchant.subscriptionStatus === 'trial'
+        && !!merchant.trialEndsAt
+        && new Date(merchant.trialEndsAt) <= now;
+      const isExpiredPaidSubscription = merchant.subscriptionStatus === 'active'
+        && !!merchant.currentPeriodEnd
+        && new Date(merchant.currentPeriodEnd) <= now;
 
-      const expiresAt = new Date(merchant.currentPeriodEnd);
+      if (!isExpiredTrial && !isExpiredPaidSubscription) continue;
+
+      const expiresAt = new Date(
+        isExpiredTrial ? merchant.trialEndsAt! : merchant.currentPeriodEnd!,
+      );
       if (expiresAt > now) continue;
 
       // Skip if they have an active PayPal subscription (PayPal handles renewal)
-      if (merchant.paypalSubscriptionId) {
+      if (isExpiredPaidSubscription && merchant.paypalSubscriptionId) {
         // Verify the PayPal subscription is actually in ACTIVE state before skipping
         try {
           const { getPaypalSubscription } = await import('./paypal');
@@ -906,8 +914,10 @@ export async function checkAndRenewExpiredSubscriptions(): Promise<void> {
       await storage.createMerchantNotification({
         merchantId: merchant.id,
         type: 'subscription_expired',
-        title: 'Subscription Expired',
-        message: `Your ${planName} subscription has expired. Renew now to restore your chatbot.`,
+        title: isExpiredTrial ? 'Trial Expired' : 'Subscription Expired',
+        message: isExpiredTrial
+          ? `Your trial has expired. Choose a plan to restore your AI agent.`
+          : `Your ${planName} subscription has expired. Renew now to restore your AI agent.`,
         metadata: { planName, expiredAt: expiresAt.toISOString() },
         actionUrl: '/dashboard/billing',
         actionLabel: 'Renew Now',
