@@ -714,7 +714,9 @@ export default function SupervisorPanel() {
 
   const unseenNotifications = notifications?.filter((n) => !n.seen) || [];
   const selectedSessionData = escalatedSessions?.find((s) => s.id === selectedSession);
-  const escalatedCount = escalatedSessions?.filter((s) => s.mode === "HUMAN").length || 0;
+  const escalatedCount = escalatedSessions?.filter(
+    (s) => s.mode === "HUMAN" && s.status !== "ended" && s.status !== "closed" && s.status !== "archived",
+  ).length || 0;
 
   const sidebarStyle = {
     "--sidebar-width": "16rem",
@@ -786,8 +788,8 @@ export default function SupervisorPanel() {
             <Card className="lg:col-span-1 flex flex-col">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <AlertTriangle className="w-5 h-5 text-status-away" />
-                  Escalated Chats
+                  <MessageSquare className="w-5 h-5 text-primary" />
+                  Chat Sessions
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex-1 overflow-hidden p-0">
@@ -798,10 +800,9 @@ export default function SupervisorPanel() {
                         <Skeleton key={i} className="h-20 w-full" />
                       ))}
                     </div>
-                  ) : escalatedSessions && escalatedSessions.filter((s) => s.mode === "HUMAN").length > 0 ? (
+                  ) : escalatedSessions && escalatedSessions.length > 0 ? (
                     <div className="space-y-3">
                       {escalatedSessions
-                        .filter((s) => s.mode === "HUMAN")
                         .map((session) => (
                           <div
                             key={session.id}
@@ -821,6 +822,14 @@ export default function SupervisorPanel() {
                                 <div>
                                   <div className="flex items-center gap-1.5 flex-wrap">
                                     <p className="text-sm font-medium">{session.customerName || "Customer"}</p>
+                                    <Badge
+                                      variant="outline"
+                                      className={session.mode === "HUMAN"
+                                        ? "text-[10px] px-1.5 py-0 h-4 border-purple-500/40 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-500/10"
+                                        : "text-[10px] px-1.5 py-0 h-4 border-blue-500/40 text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10"}
+                                    >
+                                      {session.mode === "HUMAN" ? "Human" : "AI"}
+                                    </Badge>
                                     {session.limitFallback && (
                                       <Badge
                                         variant="outline"
@@ -854,7 +863,7 @@ export default function SupervisorPanel() {
                               >
                                 {selectedSession === session.id ? "Viewing" : "View Chat"}
                               </Button>
-                              {!session.supervisorId && (
+                              {session.status === "active" && !session.supervisorId && (
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -872,10 +881,10 @@ export default function SupervisorPanel() {
                     </div>
                   ) : (
                     <div className="text-center py-12">
-                      <CheckCircle className="w-12 h-12 mx-auto text-status-online/50 mb-3" />
-                      <p className="text-muted-foreground">No escalated chats</p>
+                      <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                      <p className="text-muted-foreground">No chat sessions yet</p>
                       <p className="text-sm text-muted-foreground">
-                        All conversations are being handled by AI
+                        Customer conversations will appear here
                       </p>
                     </div>
                   )}

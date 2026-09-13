@@ -10302,10 +10302,10 @@ Rules:
       if (!supervisor) {
         return res.status(404).json({ error: "Supervisor not found" });
       }
-      // Use activeOnly: true to only show sessions from the last 60 minutes
-      const allSessions = await storage.getSessionsByMerchant(supervisor.merchantId, true);
-      const escalatedSessions = allSessions.filter((s) => s.mode === "HUMAN");
-      res.json(escalatedSessions);
+      // Show all real customer conversations so supervisors can monitor AI chats
+      // and take over when needed. The default query excludes visitor-only rows.
+      const chatSessions = await storage.getSessionsByMerchant(supervisor.merchantId);
+      res.json(chatSessions);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }
