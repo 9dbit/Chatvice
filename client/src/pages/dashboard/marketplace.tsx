@@ -92,28 +92,42 @@ function ProductButton({
       type="button"
       onClick={onClick}
       data-testid={testId}
-      className={`group relative w-full rounded-[22px] text-left outline-none transition-transform duration-300 hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${className}`}
+      className={`group relative flex h-full w-full rounded-[22px] text-left outline-none transition-transform duration-300 motion-reduce:transition-none motion-reduce:hover:translate-y-0 hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${className}`}
     >
       {children}
     </button>
   );
 }
 
-function GradientIcon({
+function ProductCover({
   from,
   to,
   icon: Icon,
-  size = "md",
+  label,
 }: {
   from: string;
   to: string;
   icon: LucideIcon;
-  size?: "md" | "lg";
+  label: string;
 }) {
   return (
-    <div className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-[18px] bg-gradient-to-br ${from} ${to} shadow-lg shadow-primary/10 ${size === "lg" ? "h-16 w-16" : "h-12 w-12"}`}>
-      <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-      <Icon className={size === "lg" ? "h-8 w-8 text-white" : "h-6 w-6 text-white"} />
+    <div
+      className={`relative aspect-square w-full overflow-hidden rounded-t-[21px] bg-gradient-to-br ${from} ${to}`}
+      role="img"
+      aria-label={`${label} product cover`}
+    >
+      <div className="absolute -right-[18%] -top-[18%] h-[64%] w-[64%] rounded-full border border-white/25 bg-white/10" />
+      <div className="absolute -bottom-[28%] -left-[18%] h-[72%] w-[72%] rounded-full bg-black/10 blur-sm" />
+      <div className="absolute left-[12%] top-[12%] h-[18%] w-[18%] rounded-full border border-white/20 bg-white/10 backdrop-blur-sm" />
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="flex h-[34%] w-[34%] items-center justify-center rounded-[28%] border border-white/30 bg-white/20 shadow-2xl shadow-black/20 backdrop-blur-md transition-transform duration-500 motion-reduce:transition-none group-hover:scale-105 group-hover:-rotate-2">
+          <Icon className="h-[52%] w-[52%] text-white" strokeWidth={1.8} />
+        </div>
+      </div>
+      <div className="absolute inset-x-[10%] bottom-[9%] flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.18em] text-white/80">
+        <span>Chatvice</span>
+        <ShoppingBag className="h-3.5 w-3.5" />
+      </div>
     </div>
   );
 }
@@ -131,29 +145,29 @@ function AddonCard({
   const gradient = addonGradientMap[item.addonType] || DEFAULT_GRADIENT;
   return (
     <ProductButton onClick={onSelect} testId={`tile-marketplace-addon-${item.addonType}`}>
-      <div className="relative h-full min-h-[196px] overflow-hidden rounded-[22px] border border-border/70 bg-card p-5 shadow-sm transition-all duration-300 group-hover:border-primary/40 group-hover:shadow-xl group-hover:shadow-primary/10 dark:bg-card/90">
-        <div className="absolute -right-10 -top-12 h-36 w-36 rounded-full bg-primary/[0.06] blur-2xl transition-transform duration-500 group-hover:scale-150" />
-        <div className="relative flex items-start justify-between gap-3">
-          <GradientIcon from={gradient.from} to={gradient.to} icon={Icon} />
-          {active && (
-            <Badge className="gap-1 border-emerald-500/20 bg-emerald-500/10 text-[10px] text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400">
-              <CheckCircle2 className="h-3 w-3" /> Active
-            </Badge>
-          )}
-        </div>
-        <div className="relative mt-5">
-          <h3 className="text-[15px] font-semibold tracking-tight">{item.name}</h3>
-          <div className="mt-1 flex items-baseline gap-1.5">
-            <span className="text-2xl font-bold tracking-tight">${item.monthlyPriceUsd}</span>
-            <span className="text-[11px] text-muted-foreground">/ month</span>
+      <article className="relative flex h-full w-full flex-col overflow-hidden rounded-[22px] border border-border/70 bg-card shadow-sm transition-all duration-300 group-hover:border-primary/40 group-hover:shadow-xl group-hover:shadow-primary/10 dark:bg-card/90">
+        <div className="relative">
+          <ProductCover from={gradient.from} to={gradient.to} icon={Icon} label={item.name} />
+          <div className="absolute left-3 top-3">
+            <Badge className="border-white/25 bg-black/25 text-[10px] text-white shadow-sm backdrop-blur-md hover:bg-black/25">Add-on</Badge>
           </div>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">≈ {item.monthlyPriceIdrFormatted} / month</p>
-          <p className="mt-4 line-clamp-2 min-h-[32px] text-xs leading-relaxed text-muted-foreground">{item.description}</p>
-          <span className="mt-4 inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
-            {active ? "View service details" : "View details & subscribe"} <ArrowUpRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          {active && <Badge className="absolute right-3 top-3 gap-1 border-white/25 bg-emerald-600/90 text-[10px] text-white hover:bg-emerald-600/90"><CheckCircle2 className="h-3 w-3" /> Active</Badge>}
+        </div>
+        <div className="flex flex-1 flex-col p-5">
+          <h3 className="text-base font-semibold tracking-tight text-foreground">{item.name}</h3>
+          <p className="mt-2 line-clamp-3 min-h-[60px] text-xs leading-5 text-muted-foreground">{item.description || "Enhance your customer experience with this additional service."}</p>
+          <div className="mt-5 border-t border-border/60 pt-4">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl font-bold tracking-tight">${item.monthlyPriceUsd}</span>
+              <span className="text-[11px] text-muted-foreground">USD / month</span>
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">≈ {item.monthlyPriceIdrFormatted} / month</p>
+          </div>
+          <span className="mt-5 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-sm">
+            {active ? "View service details" : "View details & subscribe"} <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </span>
         </div>
-      </div>
+      </article>
     </ProductButton>
   );
 }
@@ -161,38 +175,45 @@ function AddonCard({
 function BoosterCard({
   item,
   onSelect,
+  testId,
+  description,
 }: {
   item: BoosterResponse["items"][number];
   onSelect: () => void;
+  testId?: string;
+  description?: string;
 }) {
   const Icon = boosterIconMap[item.iconName] || Zap;
   const nameMatch = item.name.match(/^(\+[\d,]+)\s+(.+)$/);
   const value = nameMatch?.[1];
   const label = nameMatch?.[2] || item.name;
   return (
-    <ProductButton onClick={onSelect} testId={`tile-marketplace-booster-${item.boosterType}`}>
-      <div className="relative h-full min-h-[188px] overflow-hidden rounded-[22px] border border-border/70 bg-card p-4 shadow-sm transition-all duration-300 group-hover:border-primary/40 group-hover:shadow-xl group-hover:shadow-primary/10 dark:bg-card/90">
-        <div className="flex items-start justify-between gap-3">
-          <GradientIcon from={item.gradientFrom} to={item.gradientTo} icon={Icon} />
-          {item.isFeatured && (
-            <Badge variant="secondary" className="rounded-full px-2 py-1 text-[10px] font-medium">
-              <Sparkles className="mr-1 h-3 w-3" /> Popular
-            </Badge>
-          )}
+    <ProductButton onClick={onSelect} testId={testId || `tile-marketplace-booster-${item.boosterType}`}>
+      <article className="relative flex h-full w-full flex-col overflow-hidden rounded-[22px] border border-border/70 bg-card shadow-sm transition-all duration-300 group-hover:border-primary/40 group-hover:shadow-xl group-hover:shadow-primary/10 dark:bg-card/90">
+        <div className="relative">
+          <ProductCover from={item.gradientFrom} to={item.gradientTo} icon={Icon} label={label} />
+          <Badge className="absolute left-3 top-3 border-white/25 bg-black/25 text-[10px] text-white shadow-sm backdrop-blur-md hover:bg-black/25">
+            {item.billingMode === "monthly" ? "Monthly booster" : "One-time booster"}
+          </Badge>
+          {item.isFeatured && <Badge className="absolute right-3 top-3 gap-1 border-white/25 bg-white/90 text-[10px] text-slate-900 hover:bg-white/90"><Sparkles className="h-3 w-3" /> Popular</Badge>}
         </div>
-        <div className="mt-4">
-          {value && <p className="text-[11px] font-medium text-muted-foreground">{value}</p>}
-          <h3 className="mt-0.5 text-sm font-semibold tracking-tight">{label}</h3>
-          <div className="mt-2 flex items-baseline gap-1.5">
-            <span className="text-xl font-bold">${item.priceUsd}</span>
-            <span className="text-[10px] text-muted-foreground">{item.billingMode === "monthly" ? "/ month" : "/ one-time"}</span>
+        <div className="flex flex-1 flex-col p-5">
+          <h3 className="text-base font-semibold tracking-tight">{label}</h3>
+          <p className="mt-2 line-clamp-3 min-h-[60px] text-xs leading-5 text-muted-foreground">
+            {description || `${value ? `${value} capacity included. ` : ""}Add ${item.quotaAmount.toLocaleString("id-ID")} units to your account quota.`}
+          </p>
+          <div className="mt-5 border-t border-border/60 pt-4">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl font-bold">${item.priceUsd}</span>
+              <span className="text-[11px] text-muted-foreground">USD {item.billingMode === "monthly" ? "/ month" : "/ one-time"}</span>
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">≈ {item.priceIdrFormatted} {item.billingMode === "monthly" ? "/ month" : "/ one-time"}</p>
           </div>
-          <p className="text-[10px] text-muted-foreground">≈ {item.priceIdrFormatted}</p>
-          <span className="mt-4 inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
-            View details & buy <ArrowUpRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          <span className="mt-5 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-sm">
+            View details & buy <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </span>
         </div>
-      </div>
+      </article>
     </ProductButton>
   );
 }
@@ -227,35 +248,29 @@ export default function MarketplacePage() {
 
       <ShelfSection eyebrow="Add-on services" description={t("dashboard.marketplace.addonSectionDesc")} icon={Sparkles}>
         {loadingAddons ? (
-          <div className="grid gap-4 md:grid-cols-2">{[0, 1].map((i) => <Skeleton key={i} className="h-[196px] rounded-[22px]" />)}</div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{[0, 1].map((i) => <Skeleton key={i} className="aspect-[3/5] rounded-[22px]" />)}</div>
         ) : addons.length ? (
-          <div className="grid gap-4 md:grid-cols-2">{addons.map((item) => <AddonCard key={item.addonType} item={item} active={isAddonActive(merchantAddons, item.addonType)} onSelect={() => setSelectedId(`addon-${item.addonType}`)} />)}</div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{addons.map((item) => <AddonCard key={item.addonType} item={item} active={isAddonActive(merchantAddons, item.addonType)} onSelect={() => setSelectedId(`addon-${item.addonType}`)} />)}</div>
         ) : <div className="rounded-[22px] border border-dashed border-border p-12 text-center text-sm text-muted-foreground">No add-on services available.</div>}
       </ShelfSection>
 
       {(loadingBoosters || conversation) && (
         <ShelfSection eyebrow="Conversation booster" description="Tambah kuota percakapan instan" icon={MessageSquare}>
-          {loadingBoosters ? <Skeleton className="h-[142px] rounded-[22px]" /> : conversation && (
-            <ProductButton onClick={() => setSelectedId(`booster-${conversation.boosterType}`)} testId="tile-marketplace-conv-booster">
-              <div className="relative overflow-hidden rounded-[22px] border border-primary/20 bg-gradient-to-r from-primary/[0.10] via-card to-card p-5 shadow-sm transition-all duration-300 group-hover:border-primary/50 group-hover:shadow-xl group-hover:shadow-primary/10 sm:p-6">
-                <div className="absolute -right-8 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
-                <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
-                  <GradientIcon from={conversation.gradientFrom} to={conversation.gradientTo} icon={MessageSquare} size="lg" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2"><h3 className="text-base font-semibold">Tambah Percakapan</h3><Badge variant="secondary" className="text-[10px]">{conversationBoosters.length} paket tersedia</Badge></div>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Pilih dari {conversationBoosters[0]?.quotaAmount.toLocaleString("id-ID")} hingga {conversationBoosters.at(-1)?.quotaAmount.toLocaleString("id-ID")} percakapan tambahan. Dikreditkan instan setelah pembayaran terkonfirmasi.</p>
-                    <div className="mt-3 flex flex-wrap items-baseline gap-1.5"><span className="text-xs font-semibold">Mulai dari</span><span className="text-xl font-bold">${conversationBoosters[0]?.priceUsd}</span><span className="text-[11px] text-muted-foreground">/ sekali bayar · ≈ {conversationBoosters[0]?.priceIdrFormatted}</span></div>
-                  </div>
-                  <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-primary">View details & buy <ArrowUpRight className="h-4 w-4" /></span>
-                </div>
-              </div>
-            </ProductButton>
+          {loadingBoosters ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"><Skeleton className="aspect-[3/5] rounded-[22px]" /></div> : conversation && (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <BoosterCard
+                item={conversation}
+                onSelect={() => setSelectedId(`booster-${conversation.boosterType}`)}
+                testId="tile-marketplace-conv-booster"
+                description={`${conversationBoosters.length} packages available, from ${conversationBoosters[0]?.quotaAmount.toLocaleString("id-ID")} to ${conversationBoosters.at(-1)?.quotaAmount.toLocaleString("id-ID")} additional conversations.`}
+              />
+            </div>
           )}
         </ShelfSection>
       )}
 
       <ShelfSection eyebrow="Boosters" description={t("dashboard.marketplace.boosterSectionDesc")} icon={Zap}>
-        {loadingBoosters ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-[188px] rounded-[22px]" />)}</div> : otherBoosters.length ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{otherBoosters.map((item) => <BoosterCard key={item.boosterType} item={item} onSelect={() => setSelectedId(`booster-${item.boosterType}`)} />)}</div> : <div className="rounded-[22px] border border-dashed border-border p-12 text-center text-sm text-muted-foreground">No boosters available.</div>}
+        {loadingBoosters ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="aspect-[3/5] rounded-[22px]" />)}</div> : otherBoosters.length ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{otherBoosters.map((item) => <BoosterCard key={item.boosterType} item={item} onSelect={() => setSelectedId(`booster-${item.boosterType}`)} />)}</div> : <div className="rounded-[22px] border border-dashed border-border p-12 text-center text-sm text-muted-foreground">No boosters available.</div>}
       </ShelfSection>
 
       <ProductPopup productId={selectedId} addonsData={addonsData} boostersData={boostersData} merchantAddons={merchantAddons} onClose={() => setSelectedId(null)} />
