@@ -179,7 +179,6 @@ function renderMessageWithLinks(content: string) {
 
 const supervisorMenuItems: { id: SupervisorPage; title: string; icon: any }[] = [
   { id: "overview", title: "Overview", icon: LayoutDashboard },
-  { id: "chat-sessions", title: "Chat Sessions", icon: MessageSquare },
   { id: "live-visitors", title: "Live Visitors", icon: Eye },
   { id: "chat-logs", title: "Chat Logs", icon: FileText },
   { id: "quick-replies", title: "Quick Replies", icon: Reply },
@@ -269,11 +268,6 @@ function SupervisorSidebar({
                     >
                       <Icon className="w-4 h-4" />
                       <span className="flex-1">{item.title}</span>
-                      {item.id === "chat-sessions" && escalatedCount > 0 && (
-                        <Badge variant="destructive" className="ml-2">
-                          {escalatedCount}
-                        </Badge>
-                      )}
                       {item.id === "notifications" && unseenNotifications.length > 0 && (
                         <Badge variant="destructive" className="ml-2">
                           {unseenNotifications.length}
@@ -287,7 +281,35 @@ function SupervisorSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-4 border-t border-sidebar-border">
+      <SidebarFooter className="p-3 space-y-2 border-t border-sidebar-border">
+        <button
+          type="button"
+          onClick={() => setCurrentPage("chat-sessions")}
+          data-testid="button-supervisor-chat-sessions"
+          className={`flex items-center gap-2.5 p-2.5 w-full rounded-lg transition-all duration-200 ${
+            escalatedCount > 0
+              ? "text-white animate-pulse"
+              : currentPage === "chat-sessions"
+                ? "bg-primary text-white"
+                : "bg-primary/90 text-white hover:bg-primary hover:scale-[1.02] active:scale-[0.98]"
+          }`}
+          style={{
+            backgroundColor: escalatedCount > 0 ? "rgb(220 38 38)" : undefined,
+            boxShadow: escalatedCount > 0
+              ? "0 4px 12px rgba(220, 38, 38, 0.5)"
+              : currentPage === "chat-sessions"
+                ? "inset 0 2px 8px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(107, 92, 246, 0.4)"
+                : "0 4px 12px rgba(107, 92, 246, 0.3)",
+          }}
+        >
+          <MessageSquare className="w-5 h-5 shrink-0" />
+          <span className="font-medium flex-1 text-left">Chat Sessions</span>
+          {escalatedCount > 0 && (
+            <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-white text-red-600 text-xs font-bold leading-none shrink-0">
+              {escalatedCount > 99 ? "99+" : escalatedCount}
+            </span>
+          )}
+        </button>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Button 
