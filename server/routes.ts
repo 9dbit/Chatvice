@@ -9960,12 +9960,16 @@ Rules:
         }
       }
 
+      const onlineCutoff = Date.now() - 5 * 60 * 1000;
       const safeSupervisors = supervisors.map(({ password, ...s }) => {
         const times = responseTimesBySupervisor[s.id];
         const avgResponseTime = times && times.length > 0
           ? parseFloat((times.reduce((a, b) => a + b, 0) / times.length).toFixed(1))
           : null;
-        return { ...s, avgResponseTime };
+        const status = s.lastSeen && new Date(s.lastSeen).getTime() >= onlineCutoff
+          ? "online"
+          : "offline";
+        return { ...s, status, avgResponseTime };
       });
 
       res.json(safeSupervisors);
@@ -9981,7 +9985,11 @@ Rules:
       }
       
       const supervisors = await storage.getSupervisorsByMerchant(req.params.merchantId);
-      const safeSupervisors = supervisors.map(({ password, ...s }) => s);
+      const onlineCutoff = Date.now() - 5 * 60 * 1000;
+      const safeSupervisors = supervisors.map(({ password, ...s }) => ({
+        ...s,
+        status: s.lastSeen && new Date(s.lastSeen).getTime() >= onlineCutoff ? "online" : "offline",
+      }));
       res.json(safeSupervisors);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -24717,7 +24725,10 @@ ${log.extractedKnowledge}` : ''}
   app.get("/api/quick-replies", requireAuth, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
-      const replies = await storage.getQuickReplies(merchantId);
+      const replies = await storage.getQuickReplies(
+        merchantId,
+        req.session.userType === "supervisor" ? req.session.userId : undefined,
+      );
       res.json(replies);
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -24735,6 +24746,7 @@ ${log.extractedKnowledge}` : ''}
       
       const reply = await storage.createQuickReply({
         merchantId,
+        supervisorId: null,
         shortcut,
         label,
         content,
@@ -24752,7 +24764,12 @@ ${log.extractedKnowledge}` : ''}
   app.patch("/api/quick-replies/:id", requireMerchant, async (req, res) => {
     try {
       const { id } = req.params;
-      const reply = await storage.updateQuickReply(id, req.body);
+      const existing = await storage.getQuickReply(id);
+      if (!existing || existing.merchantId !== req.session.merchantId || existing.supervisorId) {
+        return res.status(404).json({ error: "Quick reply not found" });
+      }
+      const { shortcut, label, content, category, sortOrder, isActive } = req.body;
+      const reply = await storage.updateQuickReply(id, { shortcut, label, content, category, sortOrder, isActive });
       if (!reply) {
         return res.status(404).json({ error: "Quick reply not found" });
       }
@@ -24765,7 +24782,69 @@ ${log.extractedKnowledge}` : ''}
   app.delete("/api/quick-replies/:id", requireMerchant, async (req, res) => {
     try {
       const { id } = req.params;
+      const existing = await storage.getQuickReply(id);
+      if (!existing || existing.merchantId !== req.session.merchantId || existing.supervisorId) {
+        return res.status(404).json({ error: "Quick reply not found" });
+      }
       await storage.deleteQuickReply(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/supervisor/quick-replies", requireSupervisor, async (req, res) => {
+    try {
+      const merchantId = req.session.merchantId!;
+      const supervisorId = req.session.userId!;
+      const { shortcut, label, content, category, sortOrder } = req.body;
+      if (!shortcut?.trim() || !label?.trim() || !content?.trim()) {
+        return res.status(400).json({ error: "Shortcut, label, and content are required" });
+      }
+      const reply = await storage.createQuickReply({
+        merchantId,
+        supervisorId,
+        shortcut: shortcut.trim().startsWith("/") ? shortcut.trim() : `/${shortcut.trim()}`,
+        label: label.trim(),
+        content: content.trim(),
+        category: category || "general",
+        sortOrder: sortOrder || 0,
+        isActive: true,
+      });
+      res.json(reply);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.patch("/api/supervisor/quick-replies/:id", requireSupervisor, async (req, res) => {
+    try {
+      const existing = await storage.getQuickReply(req.params.id);
+      if (!existing || existing.merchantId !== req.session.merchantId || existing.supervisorId !== req.session.userId) {
+        return res.status(404).json({ error: "Quick reply not found" });
+      }
+      const { shortcut, label, content, category, sortOrder, isActive } = req.body;
+      const reply = await storage.updateQuickReply(req.params.id, {
+        shortcut: shortcut?.trim() ? (shortcut.trim().startsWith("/") ? shortcut.trim() : `/${shortcut.trim()}`) : undefined,
+        label: label?.trim(),
+        content: content?.trim(),
+        category,
+        sortOrder,
+        isActive,
+      });
+      res.json(reply);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.delete("/api/supervisor/quick-replies/:id", requireSupervisor, async (req, res) => {
+    try {
+      const existing = await storage.getQuickReply(req.params.id);
+      if (!existing || existing.merchantId !== req.session.merchantId || existing.supervisorId !== req.session.userId) {
+        return res.status(404).json({ error: "Quick reply not found" });
+      }
+      await storage.deleteQuickReply(req.params.id);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Server error" });
@@ -26035,6 +26114,7 @@ Your Telegram integration is working correctly!`;
       
       // Get all supervisors for this merchant
       const supervisors = await storage.getSupervisorsByMerchant(merchantId);
+      const onlineCutoff = Date.now() - 5 * 60 * 1000;
       
       // Early return if no supervisors
       if (!supervisors || supervisors.length === 0) {
@@ -26057,7 +26137,9 @@ Your Telegram integration is working correctly!`;
           supervisorId: supervisor.id,
           supervisorName: supervisor.name,
           supervisorEmail: supervisor.email,
-          status: supervisor.status || 'offline',
+          status: supervisor.lastSeen && new Date(supervisor.lastSeen).getTime() >= onlineCutoff
+            ? "online"
+            : "offline",
           messages: [] as any[],
         };
       }
@@ -26129,6 +26211,7 @@ Your Telegram integration is working correctly!`;
       const agents = await storage.getAgents(merchantId);
       const shifts = await storage.getWorkShifts(merchantId);
       const assignments = await storage.getShiftAssignments(merchantId);
+      const onlineCutoff = Date.now() - 5 * 60 * 1000;
       
       // Helper function to check if current time is within a shift's time range
       const isCurrentlyInShift = (startTime: string, endTime: string, isNightShift: boolean): boolean => {
@@ -26204,14 +26287,10 @@ Your Telegram integration is working correctly!`;
           const shiftInfo = getAssignedShiftInfo(s.id);
           const isOnActiveShift = isAssigneeOnActiveShift(s.id);
           
-          // Status priority: if on active shift, show as "online" (synced with scheduler)
-          let status = s.status || "offline";
-          if (isOnActiveShift) {
-            status = "online";
-          } else if (shiftInfo && !shiftInfo.isOnShift) {
-            // Has shift assignment but not currently on shift
-            status = s.status || "offline";
-          }
+          // Presence comes from authenticated supervisor activity, not scheduled shifts.
+          const status = s.lastSeen && new Date(s.lastSeen).getTime() >= onlineCutoff
+            ? "online"
+            : "offline";
           
           return {
             id: s.id,

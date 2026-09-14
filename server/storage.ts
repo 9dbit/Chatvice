@@ -263,7 +263,7 @@ export interface IStorage {
   updateWorkReport(id: string, data: Partial<WorkReport>): Promise<WorkReport | undefined>;
   
   // Quick Replies
-  getQuickReplies(merchantId: string): Promise<QuickReply[]>;
+  getQuickReplies(merchantId: string, supervisorId?: string): Promise<QuickReply[]>;
   getQuickReply(id: string): Promise<QuickReply | undefined>;
   createQuickReply(reply: InsertQuickReply): Promise<QuickReply>;
   updateQuickReply(id: string, data: Partial<QuickReply>): Promise<QuickReply | undefined>;
@@ -2227,9 +2227,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Quick Replies
-  async getQuickReplies(merchantId: string): Promise<QuickReply[]> {
+  async getQuickReplies(merchantId: string, supervisorId?: string): Promise<QuickReply[]> {
     return db.select().from(quickReplies)
-      .where(eq(quickReplies.merchantId, merchantId))
+      .where(
+        supervisorId
+          ? and(
+              eq(quickReplies.merchantId, merchantId),
+              or(isNull(quickReplies.supervisorId), eq(quickReplies.supervisorId, supervisorId)),
+            )
+          : and(eq(quickReplies.merchantId, merchantId), isNull(quickReplies.supervisorId)),
+      )
       .orderBy(quickReplies.sortOrder);
   }
 

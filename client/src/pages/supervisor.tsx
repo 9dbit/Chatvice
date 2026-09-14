@@ -7,6 +7,8 @@ import { MessageReactions, type Reaction } from "@/components/message-reactions"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,6 +37,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -62,8 +71,11 @@ import {
   Globe,
   X,
   CheckCheck,
+  Plus,
+  Edit2,
+  Trash2,
 } from "lucide-react";
-import type { Session, Message, Notification, ChatLog } from "@shared/schema";
+import type { Session, Message, Notification, ChatLog, QuickReply } from "@shared/schema";
 import { playIncomingChatSound, playChatReplySound, playAngrySound } from "@/lib/sounds";
 import { DeviceIcon, OsIcon, BrowserIcon } from "@/lib/device-utils";
 import { Calendar } from "@/components/ui/calendar";
@@ -111,6 +123,11 @@ function getCustomerInitials(name: string): string {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
   return (parts[0]?.[0] || "C").toUpperCase();
+}
+
+function isActiveHumanEscalation(session: Session): boolean {
+  return session.mode === "HUMAN"
+    && !["ended", "closed", "archived"].includes(session.status || "");
 }
 
 type SupervisorPage = 
@@ -474,9 +491,42 @@ export default function SupervisorPanel() {
     enabled: currentPage === "chat-logs",
   });
 
-  const { data: quickReplies, isLoading: quickRepliesLoading } = useQuery<any[]>({
+  const { data: quickReplies, isLoading: quickRepliesLoading } = useQuery<QuickReply[]>({
     queryKey: ["/api/quick-replies"],
     enabled: currentPage === "quick-replies",
+  });
+  const [quickReplyDialogOpen, setQuickReplyDialogOpen] = useState(false);
+  const [editingQuickReply, setEditingQuickReply] = useState<QuickReply | null>(null);
+  const [quickReplyForm, setQuickReplyForm] = useState({ shortcut: "", label: "", content: "" });
+
+  const resetQuickReplyForm = () => {
+    setEditingQuickReply(null);
+    setQuickReplyForm({ shortcut: "", label: "", content: "" });
+  };
+
+  const saveQuickReplyMutation = useMutation({
+    mutationFn: async () => {
+      const path = editingQuickReply
+        ? `/api/supervisor/quick-replies/${editingQuickReply.id}`
+        : "/api/supervisor/quick-replies";
+      return apiRequest(editingQuickReply ? "PATCH" : "POST", path, quickReplyForm);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/quick-replies"] });
+      setQuickReplyDialogOpen(false);
+      resetQuickReplyForm();
+      toast({ title: editingQuickReply ? "Quick reply updated" : "Quick reply created" });
+    },
+    onError: () => toast({ title: "Failed to save quick reply", variant: "destructive" }),
+  });
+
+  const deleteQuickReplyMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/supervisor/quick-replies/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/quick-replies"] });
+      toast({ title: "Quick reply deleted" });
+    },
+    onError: () => toast({ title: "Failed to delete quick reply", variant: "destructive" }),
   });
 
   const { data: chatButtons, isLoading: chatButtonsLoading } = useQuery<any[]>({
@@ -637,7 +687,7 @@ export default function SupervisorPanel() {
   useEffect(() => {
     if (!escalatedSessions) return;
     
-    const humanSessions = escalatedSessions.filter((s) => s.mode === "HUMAN");
+    const humanSessions = escalatedSessions.filter(isActiveHumanEscalation);
     const currentSessionIds = new Set(humanSessions.map((s) => s.id));
     
     if (initialLoadRef.current) {
@@ -714,9 +764,10 @@ export default function SupervisorPanel() {
 
   const unseenNotifications = notifications?.filter((n) => !n.seen) || [];
   const selectedSessionData = escalatedSessions?.find((s) => s.id === selectedSession);
-  const escalatedCount = escalatedSessions?.filter(
-    (s) => s.mode === "HUMAN" && s.status !== "ended" && s.status !== "closed" && s.status !== "archived",
-  ).length || 0;
+  const escalatedCount = escalatedSessions?.filter(isActiveHumanEscalation).length || 0;
+  const sortedSessions = [...(escalatedSessions || [])].sort(
+    (a, b) => Number(isActiveHumanEscalation(b)) - Number(isActiveHumanEscalation(a)),
+  );
 
   const sidebarStyle = {
     "--sidebar-width": "16rem",
@@ -800,15 +851,17 @@ export default function SupervisorPanel() {
                         <Skeleton key={i} className="h-20 w-full" />
                       ))}
                     </div>
-                  ) : escalatedSessions && escalatedSessions.length > 0 ? (
+                  ) : sortedSessions.length > 0 ? (
                     <div className="space-y-3">
-                      {escalatedSessions
+                      {sortedSessions
                         .map((session) => (
                           <div
                             key={session.id}
                             className={`p-3 rounded-lg transition-colors ${
                               selectedSession === session.id
                                 ? "bg-primary/10 border border-primary/20"
+                                : isActiveHumanEscalation(session)
+                                  ? "bg-red-500/10 border border-red-500/50"
                                 : "bg-muted/50 hover-elevate"
                             }`}
                           >
@@ -830,6 +883,15 @@ export default function SupervisorPanel() {
                                     >
                                       {session.mode === "HUMAN" ? "Human" : "AI"}
                                     </Badge>
+                                    {isActiveHumanEscalation(session) && (
+                                      <Badge
+                                        variant="destructive"
+                                        className="text-[10px] px-1.5 py-0 h-4"
+                                        data-testid={`badge-needs-attention-${session.id}`}
+                                      >
+                                        Needs Attention
+                                      </Badge>
+                                    )}
                                     {session.limitFallback && (
                                       <Badge
                                         variant="outline"
@@ -911,7 +973,7 @@ export default function SupervisorPanel() {
                             <p className="text-xs text-muted-foreground font-mono">
                               Session: {selectedSession.slice(0, 20)}...
                             </p>
-                            {selectedSessionData && (
+                            {selectedSessionData && selectedSessionData.mode === "HUMAN" && (
                               selectedSessionData.limitFallback ? (
                                 <Badge
                                   variant="outline"
@@ -1395,17 +1457,71 @@ export default function SupervisorPanel() {
       case "quick-replies":
         return (
           <div className="p-6 space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <Reply className="w-6 h-6" />
-                Quick Replies
-              </h1>
-              <p className="text-muted-foreground">Pre-defined response templates (Read-only)</p>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h1 className="text-2xl font-bold flex items-center gap-2">
+                  <Reply className="w-6 h-6" />
+                  Quick Replies
+                </h1>
+                <p className="text-muted-foreground">Merchant templates and your personal replies</p>
+              </div>
+              <Button onClick={() => { resetQuickReplyForm(); setQuickReplyDialogOpen(true); }}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Quick Reply
+              </Button>
             </div>
+            <Dialog open={quickReplyDialogOpen} onOpenChange={(open) => {
+              setQuickReplyDialogOpen(open);
+              if (!open) resetQuickReplyForm();
+            }}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingQuickReply ? "Edit Quick Reply" : "Create Quick Reply"}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="supervisor-reply-shortcut">Shortcut</Label>
+                    <Input
+                      id="supervisor-reply-shortcut"
+                      value={quickReplyForm.shortcut.replace(/^\//, "")}
+                      onChange={(e) => setQuickReplyForm({ ...quickReplyForm, shortcut: `/${e.target.value.replace(/^\//, "")}` })}
+                      placeholder="greeting"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="supervisor-reply-label">Label</Label>
+                    <Input
+                      id="supervisor-reply-label"
+                      value={quickReplyForm.label}
+                      onChange={(e) => setQuickReplyForm({ ...quickReplyForm, label: e.target.value })}
+                      placeholder="Initial Greeting"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="supervisor-reply-content">Message</Label>
+                    <Textarea
+                      id="supervisor-reply-content"
+                      value={quickReplyForm.content}
+                      onChange={(e) => setQuickReplyForm({ ...quickReplyForm, content: e.target.value })}
+                      rows={4}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setQuickReplyDialogOpen(false)}>Cancel</Button>
+                  <Button
+                    onClick={() => saveQuickReplyMutation.mutate()}
+                    disabled={!quickReplyForm.shortcut || !quickReplyForm.label || !quickReplyForm.content || saveQuickReplyMutation.isPending}
+                  >
+                    Save
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <Card>
               <CardHeader>
                 <CardTitle>Available Quick Replies</CardTitle>
-                <CardDescription>Quick replies configured by your merchant</CardDescription>
+                <CardDescription>Shared merchant replies are read-only. Personal replies can be edited.</CardDescription>
               </CardHeader>
               <CardContent>
                 {quickRepliesLoading ? (
@@ -1416,10 +1532,32 @@ export default function SupervisorPanel() {
                   </div>
                 ) : quickReplies && quickReplies.length > 0 ? (
                   <div className="space-y-3">
-                    {quickReplies.map((reply: any) => (
+                    {quickReplies.map((reply) => (
                       <div key={reply.id} className="p-4 rounded-lg border bg-card" data-testid={`card-quick-reply-${reply.id}`}>
-                        <p className="font-medium" data-testid={`text-quick-reply-title-${reply.id}`}>{reply.title || reply.label}</p>
-                        <p className="text-sm text-muted-foreground mt-1">{reply.content || reply.message}</p>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="secondary" className="font-mono">{reply.shortcut}</Badge>
+                              <Badge variant="outline">{reply.supervisorId ? "Personal" : "Merchant"}</Badge>
+                            </div>
+                            <p className="font-medium mt-2" data-testid={`text-quick-reply-title-${reply.id}`}>{reply.label}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{reply.content}</p>
+                          </div>
+                          {reply.supervisorId === supervisorUserId && (
+                            <div className="flex gap-1">
+                              <Button size="icon" variant="ghost" onClick={() => {
+                                setEditingQuickReply(reply);
+                                setQuickReplyForm({ shortcut: reply.shortcut, label: reply.label, content: reply.content });
+                                setQuickReplyDialogOpen(true);
+                              }}>
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteQuickReplyMutation.mutate(reply.id)}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

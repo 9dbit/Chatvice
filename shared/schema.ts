@@ -1145,6 +1145,7 @@ export type WorkReport = typeof workReports.$inferSelect;
 export const quickReplies = pgTable("quick_replies", {
   id: varchar("id", { length: 32 }).primaryKey(),
   merchantId: varchar("merchant_id", { length: 32 }).notNull(),
+  supervisorId: varchar("supervisor_id", { length: 32 }),
   shortcut: text("shortcut").notNull(),
   label: text("label").notNull(),
   content: text("content").notNull(),
