@@ -40,6 +40,7 @@ import crypto from "crypto";
 import { encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup, executeFallbackSheetLookup, buildPostmanCollection, buildHtmlDocs, DEFAULT_INTENTS, PRESET_INTENTS, PRESET_META, getCustomDataHealthSummary, checkOneSourceHealth, maskValue, ConnectorResult } from "./customConnector";
 import { registerCustomDataPresetRoutes } from "./customDataPresetRoutes";
 import { registerGamingRoutes } from "./gamingRoutes";
+import { registerSubscriptionPlanRoutes } from "./subscriptionPlanRoutes";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import sharp from "sharp";
 import { greetingDelayToMilliseconds, hasReplayableProactiveGreeting } from "./proactiveGreetingDelivery";
@@ -17501,121 +17502,14 @@ Rules:
     }
   });
 
-  // Get subscription plans (uses cached utility for consistent data)
-  app.get("/api/subscription-plans", async (req, res) => {
-    try {
-      const cached = getCached("subscription-plans");
-      if (cached) return res.json(cached);
-      const plans = await getAllEffectiveSubscriptionPlans();
-      setCache("subscription-plans", plans, 300);
-      res.json(plans);
-    } catch (error) {
-      console.error("Error fetching subscription plans:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Admin: Update subscription plan
-  app.put("/api/admin/subscription-plans/:planId", requireAdmin, async (req, res) => {
-    try {
-      const { planId } = req.params;
-      const { monthlyPrice, annualPrice, monthlyPriceIdr, annualPriceIdr, overageRateIdr, conversationsLimit, agentsLimit, supervisorsLimit, sourcesLimit, suggestedQuestionsLimit, domainsLimit, chatRetentionHours, bgRemovalLimit } = req.body;
-
-      const defaultPlan = subscriptionPlans[planId as keyof typeof subscriptionPlans];
-      if (!defaultPlan) {
-        return res.status(404).json({ error: "Plan not found" });
-      }
-
-      const priceFields = {
-        monthlyPrice,
-        annualPrice,
-        monthlyPriceIdr,
-        annualPriceIdr,
-        overageRateIdr,
-      };
-      const limitFields = {
-        conversationsLimit,
-        agentsLimit,
-        supervisorsLimit,
-        sourcesLimit,
-        suggestedQuestionsLimit,
-        domainsLimit,
-        chatRetentionHours,
-        bgRemovalLimit,
-      };
-      const planFieldLabels: Record<string, string> = {
-        monthlyPrice: "Monthly Price",
-        annualPrice: "Annual Price",
-        monthlyPriceIdr: "Monthly Price (Rp)",
-        annualPriceIdr: "Annual Price (Rp)",
-        overageRateIdr: "Overage Rate",
-        conversationsLimit: "Conversations/Month",
-        agentsLimit: "AI Agents",
-        supervisorsLimit: "Supervisors",
-        sourcesLimit: "Knowledge Sources",
-        suggestedQuestionsLimit: "Suggested Questions",
-        domainsLimit: "Allowed Domains",
-        chatRetentionHours: "Chat History",
-        bgRemovalLimit: "BG Removal/Month",
-      };
-
-      for (const [field, value] of Object.entries(priceFields)) {
-        if (value !== undefined && (!Number.isInteger(value) || value < 0)) {
-          return res.status(400).json({ error: `${planFieldLabels[field]} must be a whole number of 0 or greater.` });
-        }
-      }
-      for (const [field, value] of Object.entries(limitFields)) {
-        if (value !== undefined && (!Number.isInteger(value) || value < -1)) {
-          return res.status(400).json({ error: `${planFieldLabels[field]} must be -1 (unlimited) or a whole number of 0 or greater.` });
-        }
-      }
-      
-      // Get existing custom overrides
-      const customPlansJson = await storage.getPlatformSetting("subscription_plans_custom") || "{}";
-      let customOverrides: Record<string, any> = {};
-      try {
-        customOverrides = JSON.parse(customPlansJson);
-      } catch {
-        customOverrides = {};
-      }
-      
-      // Update the specific plan
-      customOverrides[planId] = {
-        ...(customOverrides[planId] || {}),
-        ...(monthlyPrice !== undefined && { monthlyPrice }),
-        ...(annualPrice !== undefined && { annualPrice }),
-        ...(monthlyPriceIdr !== undefined && { monthlyPriceIdr }),
-        ...(annualPriceIdr !== undefined && { annualPriceIdr }),
-        ...(overageRateIdr !== undefined && { overageRateIdr }),
-        ...(conversationsLimit !== undefined && { conversationsLimit }),
-        ...(agentsLimit !== undefined && { agentsLimit }),
-        ...(supervisorsLimit !== undefined && { supervisorsLimit }),
-        ...(sourcesLimit !== undefined && { sourcesLimit }),
-        ...(suggestedQuestionsLimit !== undefined && { suggestedQuestionsLimit }),
-        ...(domainsLimit !== undefined && { domainsLimit }),
-        ...(chatRetentionHours !== undefined && { chatRetentionHours }),
-        ...(bgRemovalLimit !== undefined && { bgRemovalLimit }),
-      };
-      
-      // Save back to platform settings
-      await storage.setPlatformSetting("subscription_plans_custom", JSON.stringify(customOverrides));
-      
-      // Clear the plan cache so changes take effect immediately
-      clearPlanCache();
-      invalidateCache("subscription-plans");
-      
-      // Return the updated plan
-      const updatedPlan = {
-        ...defaultPlan,
-        id: planId,
-        ...customOverrides[planId],
-      };
-      
-      res.json({ success: true, plan: updatedPlan });
-    } catch (error) {
-      console.error("Error updating subscription plan:", error);
-      res.status(500).json({ error: "Server error" });
-    }
+  registerSubscriptionPlanRoutes(app, {
+    requireAdmin,
+    storage,
+    getAllEffectiveSubscriptionPlans,
+    clearPlanCache,
+    getCached,
+    setCache,
+    invalidateCache,
   });
 
   // ============ RESEND EMAIL TEST ============
