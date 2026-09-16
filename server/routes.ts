@@ -10314,7 +10314,11 @@ Rules:
       // Show all real customer conversations so supervisors can monitor AI chats
       // and take over when needed. The default query excludes visitor-only rows.
       const chatSessions = await storage.getSessionsByMerchant(supervisor.merchantId);
-      res.json(chatSessions);
+      const previews = await storage.getLatestMessagePreviews(chatSessions.map(session => session.id));
+      res.json(chatSessions.map(session => ({
+        ...session,
+        ...previews.get(session.id),
+      })));
     } catch (error) {
       res.status(500).json({ error: "Server error" });
     }

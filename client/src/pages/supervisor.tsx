@@ -93,6 +93,12 @@ interface DataEntrySubmissionPayload {
   intentName: string;
   rows: Array<{ label: string; value: string }>;
 }
+
+interface SupervisorSession extends Session {
+  lastQuestion?: string;
+  lastMessage?: string;
+}
+
 type DataEntrySubmissionMessage = Message & {
   messageType: "dataEntrySubmission";
   payload: DataEntrySubmissionPayload;
@@ -485,7 +491,7 @@ export default function SupervisorPanel() {
     queryFn: getQueryFn({ on401: "redirect" }),
   });
 
-  const { data: escalatedSessions, isLoading: sessionsLoading } = useQuery<Session[]>({
+  const { data: escalatedSessions, isLoading: sessionsLoading } = useQuery<SupervisorSession[]>({
     queryKey: ["/api/supervisor/sessions", supervisorUserId],
     enabled: supervisorIdReady,
     refetchInterval: 5000,
@@ -927,6 +933,14 @@ export default function SupervisorPanel() {
                                       <BrowserIcon userAgent={session.userAgent} />
                                     </div>
                                   </div>
+                                  <p className="line-clamp-1 pr-20 text-xs text-muted-foreground">
+                                    {session.lastQuestion || "No messages yet"}
+                                  </p>
+                                  {session.lastMessage && (
+                                    <p className="line-clamp-1 pr-20 text-xs text-muted-foreground/70">
+                                      <span className="text-primary/60">↳</span> {session.lastMessage}
+                                    </p>
+                                  )}
                                   <div className="flex min-w-0 items-center gap-1.5 pr-20">
                                     {needsAttention && (
                                       <Badge variant="destructive" className="h-4 shrink-0 px-1.5 py-0 text-[9px]" data-testid={`badge-needs-attention-${session.id}`}>

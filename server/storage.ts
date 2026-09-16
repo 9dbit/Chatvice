@@ -134,6 +134,11 @@ export interface AnalyticsData {
   prevWeekAvgResponseTime: number | null;
 }
 
+export interface SessionMessagePreview {
+  lastQuestion?: string;
+  lastMessage?: string;
+}
+
 export interface IStorage {
   getMerchant(id: string): Promise<Merchant | undefined>;
   getMerchantByEmail(email: string): Promise<Merchant | undefined>;
@@ -153,6 +158,7 @@ export interface IStorage {
 
   getSession(id: string): Promise<Session | undefined>;
   getSessionsByMerchant(merchantId: string, activeOnly?: boolean): Promise<Session[]>;
+  getLatestMessagePreviews(sessionIds: string[]): Promise<Map<string, SessionMessagePreview>>;
   getSessionByMerchantAndPhone(merchantId: string, customerPhone: string): Promise<Session | undefined>;
   createSession(session: InsertSession): Promise<Session>;
   updateSession(id: string, data: Partial<Session>): Promise<Session | undefined>;
@@ -927,6 +933,42 @@ export class DatabaseStorage implements IStorage {
         or(isNull(sessions.visitorSession), eq(sessions.visitorSession, false)),
       ))
       .orderBy(desc(sessions.lastActivity));
+  }
+
+  async getLatestMessagePreviews(sessionIds: string[]): Promise<Map<string, SessionMessagePreview>> {
+    const previews = new Map<string, SessionMessagePreview>();
+    if (sessionIds.length === 0) return previews;
+
+    const result = await db.execute(sql`
+      SELECT DISTINCT ON (session_id, sender_type)
+        session_id,
+        sender_type,
+        LEFT(content, 100) AS content
+      FROM (
+        SELECT
+          session_id,
+          content,
+          timestamp,
+          id,
+          CASE
+            WHEN "from" IN ('user', 'customer') THEN 'customer'
+            WHEN "from" IN ('chatvice', 'bot', 'ai') THEN 'response'
+          END AS sender_type
+        FROM messages
+        WHERE session_id IN (${sql.join(sessionIds.map(id => sql`${id}`), sql`, `)})
+          AND "from" IN ('user', 'customer', 'chatvice', 'bot', 'ai')
+      ) categorized_messages
+      ORDER BY session_id, sender_type, timestamp DESC NULLS LAST, id DESC
+    `);
+
+    for (const row of result.rows as Array<{ session_id: string; sender_type: "customer" | "response"; content: string }>) {
+      const preview = previews.get(row.session_id) ?? {};
+      if (row.sender_type === "customer") preview.lastQuestion = row.content;
+      if (row.sender_type === "response") preview.lastMessage = row.content;
+      previews.set(row.session_id, preview);
+    }
+
+    return previews;
   }
 
   async createSession(data: InsertSession): Promise<Session> {
