@@ -17520,6 +17520,55 @@ Rules:
     try {
       const { planId } = req.params;
       const { monthlyPrice, annualPrice, monthlyPriceIdr, annualPriceIdr, overageRateIdr, conversationsLimit, agentsLimit, supervisorsLimit, sourcesLimit, suggestedQuestionsLimit, domainsLimit, chatRetentionHours, bgRemovalLimit } = req.body;
+
+      const defaultPlan = subscriptionPlans[planId as keyof typeof subscriptionPlans];
+      if (!defaultPlan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+
+      const priceFields = {
+        monthlyPrice,
+        annualPrice,
+        monthlyPriceIdr,
+        annualPriceIdr,
+        overageRateIdr,
+      };
+      const limitFields = {
+        conversationsLimit,
+        agentsLimit,
+        supervisorsLimit,
+        sourcesLimit,
+        suggestedQuestionsLimit,
+        domainsLimit,
+        chatRetentionHours,
+        bgRemovalLimit,
+      };
+      const planFieldLabels: Record<string, string> = {
+        monthlyPrice: "Monthly Price",
+        annualPrice: "Annual Price",
+        monthlyPriceIdr: "Monthly Price (Rp)",
+        annualPriceIdr: "Annual Price (Rp)",
+        overageRateIdr: "Overage Rate",
+        conversationsLimit: "Conversations/Month",
+        agentsLimit: "AI Agents",
+        supervisorsLimit: "Supervisors",
+        sourcesLimit: "Knowledge Sources",
+        suggestedQuestionsLimit: "Suggested Questions",
+        domainsLimit: "Allowed Domains",
+        chatRetentionHours: "Chat History",
+        bgRemovalLimit: "BG Removal/Month",
+      };
+
+      for (const [field, value] of Object.entries(priceFields)) {
+        if (value !== undefined && (!Number.isInteger(value) || value < 0)) {
+          return res.status(400).json({ error: `${planFieldLabels[field]} must be a whole number of 0 or greater.` });
+        }
+      }
+      for (const [field, value] of Object.entries(limitFields)) {
+        if (value !== undefined && (!Number.isInteger(value) || value < -1)) {
+          return res.status(400).json({ error: `${planFieldLabels[field]} must be -1 (unlimited) or a whole number of 0 or greater.` });
+        }
+      }
       
       // Get existing custom overrides
       const customPlansJson = await storage.getPlatformSetting("subscription_plans_custom") || "{}";
@@ -17556,11 +17605,6 @@ Rules:
       invalidateCache("subscription-plans");
       
       // Return the updated plan
-      const defaultPlan = subscriptionPlans[planId as keyof typeof subscriptionPlans];
-      if (!defaultPlan) {
-        return res.status(404).json({ error: "Plan not found" });
-      }
-      
       const updatedPlan = {
         ...defaultPlan,
         id: planId,

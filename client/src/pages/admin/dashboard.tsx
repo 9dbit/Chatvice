@@ -6002,10 +6002,10 @@ function PricingTab({ toast }: { toast: any }) {
       queryClient.invalidateQueries({ queryKey: ["/api/subscription-plans"] });
       setEditPlanOpen(false);
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: "Failed to update subscription plan.",
+        description: error.message || "Failed to update subscription plan.",
         variant: "destructive",
       });
     },
@@ -6893,18 +6893,21 @@ function PricingTab({ toast }: { toast: any }) {
       </Dialog>
 
       <Dialog open={editPlanOpen} onOpenChange={setEditPlanOpen}>
-        <DialogContent data-testid="dialog-edit-plan">
-          <DialogHeader>
+        <DialogContent
+          className="flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg flex-col gap-0 overflow-hidden p-0"
+          data-testid="dialog-edit-plan"
+        >
+          <DialogHeader className="shrink-0 border-b border-border px-6 pb-4 pt-6">
             <DialogTitle>Edit Plan: {selectedPlan?.name}</DialogTitle>
             <DialogDescription>Modify subscription plan details. Changes will sync to landing page, dashboard, and payment system.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
             <div>
               <Label>Plan Name</Label>
               <Input value={selectedPlan?.name || ""} disabled className="mt-1 bg-muted" data-testid="input-edit-plan-name" />
               <p className="text-xs text-muted-foreground mt-1">Plan names cannot be changed</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label>Monthly Price ($)</Label>
                 <Input 
@@ -6928,7 +6931,7 @@ function PricingTab({ toast }: { toast: any }) {
             </div>
             <Separator />
             <p className="text-sm font-medium text-muted-foreground">Harga IDR (canonical) — kurs USD = Rp 17.500</p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label>Monthly Price (Rp)</Label>
                 <Input 
@@ -6965,7 +6968,7 @@ function PricingTab({ toast }: { toast: any }) {
             </div>
             <Separator />
             <p className="text-sm font-medium text-muted-foreground">Feature Limits</p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label>Conversations/Month</Label>
                 <Input 
@@ -6999,7 +7002,7 @@ function PricingTab({ toast }: { toast: any }) {
                 <p className="text-xs text-muted-foreground mt-1">-1 for unlimited</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label>Supervisors</Label>
                 <Input 
@@ -7033,7 +7036,7 @@ function PricingTab({ toast }: { toast: any }) {
                 <p className="text-xs text-muted-foreground mt-1">-1 for unlimited</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label>Suggested Questions</Label>
                 <Input 
@@ -7067,7 +7070,7 @@ function PricingTab({ toast }: { toast: any }) {
                 <p className="text-xs text-muted-foreground mt-1">-1 for unlimited</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label>Chat History (hours)</Label>
                 <Input 
@@ -7102,7 +7105,7 @@ function PricingTab({ toast }: { toast: any }) {
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t border-border bg-background px-6 py-4">
             <Button variant="outline" onClick={() => setEditPlanOpen(false)} data-testid="button-cancel-edit-plan">Cancel</Button>
             <Button onClick={handleSavePlan} disabled={updatePlanMutation.isPending} data-testid="button-confirm-edit-plan">
               {updatePlanMutation.isPending ? "Saving..." : "Save Changes"}
