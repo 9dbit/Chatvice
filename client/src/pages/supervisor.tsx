@@ -61,6 +61,7 @@ import {
   Volume2,
   VolumeX,
   ArrowLeft,
+  ChevronLeft,
   FileText,
   LayoutDashboard,
   Reply,
@@ -80,7 +81,7 @@ import { playIncomingChatSound, playChatReplySound, playAngrySound } from "@/lib
 import { DeviceIcon, OsIcon, BrowserIcon } from "@/lib/device-utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar as CalendarIcon, Download, ExternalLink } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
@@ -857,131 +858,134 @@ export default function SupervisorPanel() {
 
       case "chat-sessions":
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 p-6 flex-1 h-[calc(100vh-80px)] lg:h-screen overflow-hidden">
-            <Card className="lg:col-span-1 flex flex-col">
-              <CardHeader className="pb-3">
+          <div className="grid h-full min-h-0 grid-cols-1 gap-3 overflow-hidden p-3 md:grid-cols-12 md:p-4 xl:grid-cols-[28%_1fr]">
+            <Card className={`min-h-0 min-w-0 flex-col md:col-span-4 xl:col-span-1 ${selectedSession ? "hidden md:flex" : "flex"}`}>
+              <CardHeader className="flex-shrink-0 px-4 py-3">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <MessageSquare className="w-5 h-5 text-primary" />
                   Chat Sessions
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex-1 overflow-hidden p-0">
-                <ScrollArea className="h-full px-4 pb-4">
+                <ScrollArea className="h-full">
                   {sessionsLoading ? (
-                    <div className="space-y-3">
-                      {[1, 2, 3].map((i) => (
-                        <Skeleton key={i} className="h-20 w-full" />
+                    <div className="divide-y divide-border/40">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <Skeleton key={i} className="mx-2 h-20 w-[calc(100%-1rem)]" />
                       ))}
                     </div>
                   ) : sortedSessions.length > 0 ? (
-                    <div className="space-y-3">
-                      {sortedSessions
-                        .map((session) => (
-                          <div
-                            key={session.id}
-                            className={`p-3 rounded-lg transition-colors ${
-                              selectedSession === session.id
-                                ? "bg-primary/10 border border-primary/20"
-                                : isActiveHumanEscalation(session)
-                                  ? "bg-red-500/10 border border-red-500/50"
-                                : "bg-muted/50 hover-elevate"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarFallback className={`${getCustomerAvatarColor(session.customerName || "Customer")} text-white text-xs font-semibold`}>
-                                    {getCustomerInitials(session.customerName || "Customer")}
+                    <div className="divide-y divide-border/40 pb-2">
+                      {sortedSessions.map((session) => {
+                        const isSelected = selectedSession === session.id;
+                        const needsAttention = isActiveHumanEscalation(session);
+                        const displayName = session.customerName || session.clientIp || "Customer";
+                        return (
+                          <div key={session.id} className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedSession(session.id)}
+                              className={`relative w-full text-left outline-none transition-colors hover-elevate focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
+                                isSelected
+                                  ? "bg-primary/10"
+                                  : needsAttention
+                                    ? "bg-red-500/[0.07] hover:bg-red-500/10"
+                                    : "hover:bg-muted/40"
+                              }`}
+                              data-testid={`button-session-${session.id}`}
+                            >
+                              <div className={`absolute inset-y-0 left-0 w-0.5 ${needsAttention ? "bg-red-500" : session.status === "active" ? "bg-emerald-500" : "bg-transparent"}`} />
+                              <div className="flex items-start gap-2.5 py-2 pl-3 pr-3">
+                                <Avatar className={`mt-0.5 h-8 w-8 shrink-0 ${needsAttention ? "ring-2 ring-red-500/30" : ""}`}>
+                                  <AvatarFallback className={`${getCustomerAvatarColor(displayName)} text-xs font-semibold text-white`}>
+                                    {getCustomerInitials(displayName)}
                                   </AvatarFallback>
                                 </Avatar>
-                                <div>
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <p className="text-sm font-medium">{session.customerName || "Customer"}</p>
-                                    <Badge
-                                      variant="outline"
-                                      className={session.mode === "HUMAN"
-                                        ? "text-[10px] px-1.5 py-0 h-4 border-purple-500/40 text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-500/10"
-                                        : "text-[10px] px-1.5 py-0 h-4 border-blue-500/40 text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10"}
-                                    >
-                                      {session.mode === "HUMAN" ? "Human" : "AI"}
-                                    </Badge>
-                                    {isActiveHumanEscalation(session) && (
-                                      <Badge
-                                        variant="destructive"
-                                        className="text-[10px] px-1.5 py-0 h-4"
-                                        data-testid={`badge-needs-attention-${session.id}`}
-                                      >
-                                        Needs Attention
-                                      </Badge>
-                                    )}
-                                    {session.limitFallback && (
-                                      <Badge
-                                        variant="outline"
-                                        className="text-[10px] px-1.5 py-0 h-4 border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10"
-                                        data-testid={`badge-limit-fallback-${session.id}`}
-                                      >
-                                        Limit
-                                      </Badge>
-                                    )}
+                                <div className="min-w-0 flex-1">
+                                  <div className="mb-0.5 flex items-center justify-between gap-1.5">
+                                    <span className="truncate text-sm font-semibold">{displayName}</span>
+                                    <div className="flex shrink-0 items-center gap-1">
+                                      <span className={`rounded px-1 py-0.5 text-[9px] font-semibold leading-none ${session.mode === "HUMAN" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
+                                        {session.mode === "HUMAN" ? "Human" : "AI"}
+                                      </span>
+                                      <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+                                        {session.lastActivity ? formatDistanceToNow(new Date(session.lastActivity), { addSuffix: false }) : ""}
+                                      </span>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-1.5 mt-0.5">
-                                    <p className="text-xs text-muted-foreground font-mono">
-                                      {session.id.slice(0, 12)}...
-                                    </p>
-                                    <div className="flex items-center gap-0.5">
+                                  <div className="mb-0.5 flex items-center justify-between gap-1.5">
+                                    <div className="flex min-w-0 items-center gap-1 text-xs">
+                                      {session.mode === "HUMAN" ? <HeadphonesIcon className="h-3 w-3 shrink-0 text-primary" /> : <Bot className="h-3 w-3 shrink-0 text-muted-foreground" />}
+                                      <span className={`truncate ${session.mode === "HUMAN" ? "text-primary" : "text-muted-foreground"}`}>
+                                        {session.mode === "HUMAN" ? (session.supervisorId ? "Supervisor assigned" : "Awaiting supervisor") : "AI agent"}
+                                      </span>
+                                    </div>
+                                    <div className="flex shrink-0 items-center gap-0.5">
+                                      {session.countryCode && <span className="mr-0.5 text-[9px] font-medium text-muted-foreground">{session.countryCode}</span>}
                                       <DeviceIcon userAgent={session.userAgent} />
                                       <OsIcon userAgent={session.userAgent} />
                                       <BrowserIcon userAgent={session.userAgent} />
                                     </div>
                                   </div>
+                                  <div className="flex min-w-0 items-center gap-1.5 pr-20">
+                                    {needsAttention && (
+                                      <Badge variant="destructive" className="h-4 shrink-0 px-1.5 py-0 text-[9px]" data-testid={`badge-needs-attention-${session.id}`}>
+                                        Needs Attention
+                                      </Badge>
+                                    )}
+                                    {session.limitFallback && (
+                                      <Badge variant="outline" className="h-4 shrink-0 border-amber-500/40 bg-amber-50 px-1.5 py-0 text-[9px] text-amber-600 dark:bg-amber-500/10 dark:text-amber-400" data-testid={`badge-limit-fallback-${session.id}`}>
+                                        Limit
+                                      </Badge>
+                                    )}
+                                    <span className="truncate font-mono text-[10px] text-muted-foreground">{session.id.slice(0, 16)}...</span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                            <div className="flex gap-2">
+                            </button>
+                            {session.status === "active" && !session.supervisorId && (
                               <Button
                                 size="sm"
-                                variant={selectedSession === session.id ? "secondary" : "default"}
-                                onClick={() => setSelectedSession(session.id)}
-                                className="flex-1"
-                                data-testid={`button-view-session-${session.id}`}
+                                variant="outline"
+                                onClick={() => handleTakeoverClick(session)}
+                                disabled={takeOverMutation.isPending}
+                                className="absolute bottom-2 right-2 z-10 h-6 gap-1 rounded-full px-2 text-[10px]"
+                                data-testid={`button-takeover-${session.id}`}
                               >
-                                {selectedSession === session.id ? "Viewing" : "View Chat"}
+                                <Hand className="h-3 w-3" />
+                                Take Over
                               </Button>
-                              {session.status === "active" && !session.supervisorId && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleTakeoverClick(session)}
-                                  disabled={takeOverMutation.isPending}
-                                  data-testid={`button-takeover-${session.id}`}
-                                >
-                                  <Hand className="w-3 h-3 mr-1" />
-                                  Take Over
-                                </Button>
-                              )}
-                            </div>
+                            )}
                           </div>
-                        ))}
+                        );
+                      })}
                     </div>
                   ) : (
-                    <div className="text-center py-12">
-                      <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-                      <p className="text-muted-foreground">No chat sessions yet</p>
-                      <p className="text-sm text-muted-foreground">
-                        Customer conversations will appear here
-                      </p>
+                    <div className="px-4 py-12 text-center">
+                      <MessageSquare className="mx-auto mb-2 h-10 w-10 text-muted-foreground/40" />
+                      <p className="text-sm text-muted-foreground">No chat sessions yet</p>
                     </div>
                   )}
                 </ScrollArea>
               </CardContent>
             </Card>
 
-            <Card className="lg:col-span-3 flex flex-col">
+            <Card className={`min-h-0 min-w-0 flex-col md:col-span-8 xl:col-span-1 ${selectedSession ? "flex" : "hidden md:flex"}`}>
               {selectedSession ? (
                 <>
                   <CardHeader className="border-b pb-3">
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setSelectedSession(null)}
+                          className="h-8 w-8 shrink-0 md:hidden"
+                          aria-label="Back to chat sessions"
+                          data-testid="button-back-to-session-list"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
                         <Avatar className="h-10 w-10">
                           <AvatarFallback className={`${getCustomerAvatarColor(selectedSessionData?.customerName || "Customer")} text-white text-sm font-semibold`}>
                             {getCustomerInitials(selectedSessionData?.customerName || "Customer")}
@@ -1839,7 +1843,7 @@ export default function SupervisorPanel() {
             </h1>
             <div className="w-9" />
           </header>
-          <main className="flex-1 overflow-auto">
+          <main className="min-h-0 flex-1 overflow-auto">
             {renderContent()}
           </main>
         </div>
