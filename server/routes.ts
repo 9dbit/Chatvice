@@ -278,6 +278,22 @@ async function getEffectivePlanLimitsAsync(merchant: Merchant) {
   };
 }
 
+async function getEffectiveDomainLimit(merchant: Merchant) {
+  const plan =
+    await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId) ||
+    await getEffectiveSubscriptionPlan("free");
+  const fallbackPlan =
+    subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] ||
+    subscriptionPlans.free;
+  const baseLimit = plan?.domainsLimit ?? fallbackPlan.domainsLimit;
+  const extraDomainSlots = merchant.extraDomainSlots || 0;
+
+  return {
+    limit: baseLimit === -1 ? -1 : baseLimit + extraDomainSlots,
+    planId: plan?.id ?? fallbackPlan.id,
+  };
+}
+
 async function checkAndSendQuotaEmails(merchantId: string): Promise<void> {
   try {
     const merchant = await storage.getMerchant(merchantId);
@@ -5237,16 +5253,14 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         return res.status(404).json({ error: "Merchant not found" });
       }
 
-      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
       const domains = await storage.getMerchantDomains(merchantId);
-      const extraDomainSlots = merchant.extraDomainSlots || 0;
-      const domainsLimit = plan.domainsLimit === -1 ? -1 : plan.domainsLimit + extraDomainSlots;
+      const { limit: domainsLimit, planId } = await getEffectiveDomainLimit(merchant);
 
       res.json({ 
         domains, 
         limit: domainsLimit,
         used: domains.length,
-        planId: plan.id
+        planId
       });
     } catch (error) {
       console.error("Get domains error:", error);
@@ -5281,16 +5295,14 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         return res.status(404).json({ error: "Merchant not found" });
       }
 
-      const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
-      const extraDomainSlots = merchant.extraDomainSlots || 0;
-      const domainsLimit = plan.domainsLimit === -1 ? -1 : plan.domainsLimit + extraDomainSlots;
+      const { limit: domainsLimit, planId } = await getEffectiveDomainLimit(merchant);
       const currentCount = await storage.countMerchantDomains(merchantId);
       
       if (domainsLimit !== -1 && currentCount >= domainsLimit) {
         return res.status(403).json({ 
           error: "Domain limit reached",
           limit: domainsLimit,
-          planId: plan.id,
+          planId,
           requiresUpgrade: true
         });
       }
@@ -5515,13 +5527,13 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         // Check plan limit (including booster extra slots) before adding
         const merchant = await storage.getMerchant(merchantId);
         if (merchant) {
-          const plan = subscriptionPlans[merchant.subscriptionPlanId as SubscriptionPlanId] || subscriptionPlans.free;
-          const extraDomainSlots = merchant.extraDomainSlots || 0;
-          const effectiveLimit = plan.domainsLimit === -1 ? -1 : plan.domainsLimit + extraDomainSlots;
+          const { limit: effectiveLimit, planId } = await getEffectiveDomainLimit(merchant);
           const currentCount = await storage.countMerchantDomains(merchantId);
           if (effectiveLimit !== -1 && currentCount >= effectiveLimit) {
             return res.status(403).json({ 
               error: "Domain limit reached. Please upgrade your plan to add more domains.",
+              limit: effectiveLimit,
+              planId,
               requiresUpgrade: true,
             });
           }

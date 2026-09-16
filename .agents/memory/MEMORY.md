@@ -1,2 +1,3 @@
 - [Null-safety on 401 returnNull](null-safety-on401.md) — on401:returnNull sets data=null bypassing = [] defaults; RootErrorBoundary in main.tsx catches crashes OUTSIDE PageErrorBoundary (header/sidebar).
 - [AI suspension on subscription expiry](ai-subscription-suspension.md) — block AI at request time for every session; do not repurpose the merchant-controlled agent active flag.
+- [Effective plan limits](effective-plan-limits.md) — feature enforcement must use database-backed effective plans, never static plan defaults.
