@@ -54,12 +54,13 @@ content types and cache metadata. Compare object counts and checksums.
 Adapter tests do not prove production media has been migrated. Never point the
 validation deployment at writable source media.
 
-## Portable email
+## Portable links and email
 
 Set RESEND_API_KEY and RESEND_FROM_EMAIL using the existing verified sender.
 Direct credentials take priority; the existing Replit connector remains supported.
-Set APP_URL to the Railway validation URL during parity checks. All email link
-builders use it, and Railway refuses to generate email links without APP_URL.
+Set APP_URL to the Railway validation URL during parity checks. Email, request-based URLs, calendar links, AI media URL fallbacks, PayPal redirects,
+payment webhook URLs and Telegram URLs use it. Railway requires APP_URL for these
+URL builders, preventing links from falling back to localhost or the source domain.
 Use https://chatvice.app only after domain cutover. Validate email delivery and
 domain verification separately; local tests mock Resend and send no real emails.
 
@@ -67,9 +68,9 @@ domain verification separately; local tests mock Resend and send no real emails.
 
 | Check | Status |
 | --- | --- |
-| Server tests (including S3 HTTP integration and email URLs) | 146 PASS |
+| Server tests (including S3 HTTP integration and email URLs) | 151 PASS |
 | Production build | PASS |
-| Repository TypeScript check | 280 existing errors; unchanged from source baseline |
+| Repository TypeScript check | 280 errors on source and branch; existing diagnostic categories |
 | Database restore and row counts | BLOCKED: source snapshot/configuration unavailable |
 | Existing login, dashboard, chat/AI, widget and API | BLOCKED: target cannot start without DATABASE_URL |
 | Production media and persistence | BLOCKED: source media not exported |

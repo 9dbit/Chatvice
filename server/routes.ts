@@ -113,9 +113,12 @@ declare module "express-session" {
 // Import subscription plan utility with caching
 import { getEffectiveSubscriptionPlan, getAllEffectiveSubscriptionPlans, clearPlanCache } from './subscriptionPlanUtils';
 import { extractHostnameFromUrl } from './urlUtils';
+import { getConfiguredAppUrl } from './appUrl';
 import { sendTelegramNotification, sendTelegramMessage, setTelegramWebhook, generateWebhookSecret, formatChatNotification, formatEscalationNotification, formatCustomerMessage } from './telegram';
 
 function getBaseUrl(req: Request): string {
+  const configured = getConfiguredAppUrl();
+  if (configured) return configured;
   if (process.env.REPLIT_DEV_DOMAIN) {
     return `https://${process.env.REPLIT_DEV_DOMAIN}`;
   }
@@ -564,7 +567,9 @@ async function notifySupervisors(merchantId: string, sessionId: string, reason: 
     const recentMessages = await storage.getMessages(sessionId);
     const last3 = recentMessages.slice(-3).map(m => ({ from: m.from, content: m.content }));
 
-    const supervisorPanelUrl = process.env.REPLIT_DEV_DOMAIN
+    const supervisorPanelUrl = getConfiguredAppUrl()
+      ? `${getConfiguredAppUrl()}/supervisor`
+      : process.env.REPLIT_DEV_DOMAIN
       ? `https://${process.env.REPLIT_DEV_DOMAIN}/supervisor`
       : process.env.REPLIT_DOMAINS
         ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}/supervisor`
@@ -1499,7 +1504,7 @@ This merchant uses an AI appointment scheduling system. When customers ask about
    Only use when customer explicitly asks to cancel and provides an appointment ID or booking code.
 
 5. BOOKING CALENDAR LINK — direct customer to the public calendar page:
-   [LINK:Buka Kalender Booking:https://${process.env.REPLIT_DOMAINS?.split(',')[0] || 'chatvice.app'}/cal/pub/${slug}]
+   [LINK:Buka Kalender Booking:${getConfiguredAppUrl() || `https://${process.env.REPLIT_DOMAINS?.split(',')[0] || 'chatvice.app'}`}/cal/pub/${slug}]
 
 KAPAN GUNAKAN:
 - "bisa booking?", "ada slot?", "kapan tersedia?", "mau janji temu" → [CHECK_AVAILABILITY]
@@ -2048,9 +2053,9 @@ ATURAN KETAT:
               image_url: { url: `data:${mimeType};base64,${imgBuffer.toString('base64')}`, detail: "auto" }
             });
           } catch {
-            const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-              ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
-              : "https://chatvice.app";
+            const baseUrl = getConfiguredAppUrl() || (process.env.REPLIT_DEV_DOMAIN
+              ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+              : "https://chatvice.app");
             contentArray.push({
               type: "image_url",
               image_url: { url: `${baseUrl}${img.url}`, detail: "auto" }
@@ -2183,11 +2188,11 @@ async function analyzeMediaWithAI(
         if (fileErr.message !== "Image too large for base64") {
           console.error("[Media Analysis] Failed to read local file, trying URL fallback:", fileErr);
         }
-        const baseUrl = requestHost 
+        const baseUrl = getConfiguredAppUrl() || (requestHost
           ? `https://${requestHost}`
-          : process.env.REPLIT_DEV_DOMAIN 
+          : process.env.REPLIT_DEV_DOMAIN
             ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-            : "https://chatvice.app";
+            : "https://chatvice.app");
         imageUrl = `${baseUrl}${fileUrl}`;
       }
 
@@ -12391,11 +12396,11 @@ Rules:
       // Always keep the in-process cache warm
       paypalPlanIdCache.set(cacheKey, paypalPlanId);
 
-      const baseUrl = process.env.REPLIT_DEPLOYMENT_ID
+      const baseUrl = getConfiguredAppUrl() || (process.env.REPLIT_DEPLOYMENT_ID
         ? 'https://chatvice.app'
         : process.env.REPLIT_DEV_DOMAIN
           ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-          : 'http://localhost:5000';
+          : 'http://localhost:5000');
 
       const subscription = await createPaypalSubscription(
         paypalPlanId,
@@ -16625,7 +16630,7 @@ Rules:
       
       // Get payment settings from platform settings
       const gatewayName = await storage.getPlatformSetting("payment_gateway_name") || "12Pay";
-      const webhookUrl = `${process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://chatvice.app"}/api/payment/webhook`;
+      const webhookUrl = `${getConfiguredAppUrl() || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://chatvice.app")}/api/payment/webhook`;
       const apiBaseUrl = dbConfig.apiBaseUrl || dbConfig.baseUrl || 'https://api.12pay.id';
       
       res.json({
@@ -32644,11 +32649,11 @@ Please create a comprehensive help center article that would be useful for custo
         try {
           const ns = await storage.getNotificationSettings(merchant.id);
           if (ns?.telegramEnabled && ns?.telegramBotToken) {
-            const baseUrl = process.env.REPLIT_DEV_DOMAIN
+            const baseUrl = getConfiguredAppUrl() || (process.env.REPLIT_DEV_DOMAIN
               ? `https://${process.env.REPLIT_DEV_DOMAIN}`
               : process.env.REPLIT_DOMAINS
                 ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
-                : null;
+                : null);
             if (baseUrl) {
               const webhookUrl = `${baseUrl}/api/telegram/webhook/${merchant.id}`;
               const secretToken = generateWebhookSecret(merchant.id);

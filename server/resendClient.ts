@@ -1,24 +1,15 @@
 // Resend email client integration
 import { Resend } from 'resend';
+import { getConfiguredAppUrl } from './appUrl';
 
 let connectionSettings: any;
 
 // Railway validation must use its own URL; preserve existing Replit defaults.
 export function getEmailBaseUrl(): string {
-  const configured = process.env.APP_URL;
-  if (configured) {
-    let url: URL;
-    try { url = new URL(configured); } catch {
-      throw new Error("APP_URL must be a valid HTTP(S) URL");
-    }
-    if (!["https:", "http:"].includes(url.protocol) || url.username || url.password) {
-      throw new Error("APP_URL must be an HTTP(S) URL without credentials");
-    }
-    return url.origin;
-  }
+  const configured = getConfiguredAppUrl();
+  if (configured) return configured;
   if (process.env.REPLIT_DEPLOYMENT_ID) return "https://chatvice.app";
   if (process.env.REPLIT_DEV_DOMAIN) return `https://${process.env.REPLIT_DEV_DOMAIN}`;
-  if (process.env.RAILWAY_PROJECT_ID) throw new Error("APP_URL is required for email links on Railway");
   return "http://localhost:5000";
 }
 
