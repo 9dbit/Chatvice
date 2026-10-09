@@ -4,6 +4,9 @@ import request from "supertest";
 import { registerCustomDataPresetRoutes } from "../customDataPresetRoutes";
 import type { CustomDataIntent, CustomDataSource } from "@shared/schema";
 
+// These tests inject storage and must not require a live production database.
+vi.mock("../storage", () => ({ storage: {} }));
+
 const baseSource: CustomDataSource = {
   id: "cds_http",
   merchantId: "m1",

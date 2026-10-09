@@ -35,13 +35,51 @@ Audit APP_URL, Google/GitHub OAuth clients and callbacks, OpenAI/Gemini keys and
 base URLs, Resend, Twilio, payment gateways and their webhook signing keys.
 Replit AI proxy URLs may require replacement with provider-native credentials.
 
-## Storage blocker
+## Portable object storage
 
-server/objectStorage.ts authenticates and signs URLs using Replit's sidecar
-on 127.0.0.1:1106. OBJECT_STORAGE_BUCKET alone does not make Railway compatible.
-Export bucket objects plus local uploads/exports, compare object counts and
-checksums, and implement an authenticated portable storage adapter before
-claiming storage parity. Preserve existing /storage/uploads/... paths.
+server/objectStorage.ts supports S3-compatible storage on Railway while retaining
+the existing Replit sidecar adapter for the source deployment. Existing
+/storage/uploads/... URLs remain unchanged and files are streamed through the backend.
+
+Set OBJECT_STORAGE_PROVIDER=s3, OBJECT_STORAGE_BUCKET, S3_ENDPOINT,
+S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY and S3_REGION (Railway uses auto).
+Map Railway bucket BUCKET, ENDPOINT, ACCESS_KEY_ID, SECRET_ACCESS_KEY and REGION
+into those application variable names using Railway reference variables.
+Use the base endpoint supplied by Railway, without adding the bucket name.
+Only set S3_FORCE_PATH_STYLE=true when the bucket requires path-style access;
+new Railway buckets use virtual-hosted-style access by default.
+
+Export source objects plus local uploads/exports and copy them preserving keys,
+content types and cache metadata. Compare object counts and checksums.
+Adapter tests do not prove production media has been migrated. Never point the
+validation deployment at writable source media.
+
+## Portable email
+
+Set RESEND_API_KEY and RESEND_FROM_EMAIL using the existing verified sender.
+Direct credentials take priority; the existing Replit connector remains supported.
+Set APP_URL to the Railway validation URL during parity checks. All email link
+builders use it, and Railway refuses to generate email links without APP_URL.
+Use https://chatvice.app only after domain cutover. Validate email delivery and
+domain verification separately; local tests mock Resend and send no real emails.
+
+## Verification status
+
+| Check | Status |
+| --- | --- |
+| Server tests (including S3 HTTP integration and email URLs) | 146 PASS |
+| Production build | PASS |
+| Repository TypeScript check | 280 existing errors; unchanged from source baseline |
+| Database restore and row counts | BLOCKED: source snapshot/configuration unavailable |
+| Existing login, dashboard, chat/AI, widget and API | BLOCKED: target cannot start without DATABASE_URL |
+| Production media and persistence | BLOCKED: source media not exported |
+| OAuth, email delivery and sandbox payment/webhooks | BLOCKED: source credentials/configuration unavailable |
+
+Railway bucket credentials are redacted to this connected app. Bucket provisioning
+and reference variables are confirmed; live upload/download remains unverified.
+
+The S3 tests use a local HTTP fixture with disposable objects, not production
+buckets. Email tests mock the provider. Neither is a full production parity check.
 
 ## Deployment and cutover gate
 
@@ -57,6 +95,8 @@ claiming storage parity. Preserve existing /storage/uploads/... paths.
 8. Transfer worker ownership and integration webhook destinations deliberately.
 9. Keep the old deployment available for rollback until verification completes.
 
-Current status: target lacks application variables and latest deployment crashed.
-Production database/media export, portable storage and parity remain blocked.
+Current status: target storage bucket ChatviceMedia and S3 references are configured,
+with NODE_ENV=production and ENABLE_BACKGROUND_JOBS=false. No redeploy was triggered.
+Source credentials and DATABASE_URL remain missing; latest deployment is CRASHED.
+Production database/media export, production media transfer and parity remain blocked.
 No domain cutover has been performed.
