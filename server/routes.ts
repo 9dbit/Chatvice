@@ -1,3 +1,4 @@
+import { backgroundJobsEnabled } from "./backgroundJobs";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
@@ -861,6 +862,7 @@ function mapSheetStatusToTicket(raw: string): "checking" | "rejected" | "solved"
 
 // Start the session-level poller (3s) — must run after WebSocket server is initialized
 function startPasswordRecoverySessionPoller() {
+  if (!backgroundJobsEnabled()) return;
   setInterval(async () => {
     if (passwordRecoveryPollRegistry.size === 0) return;
     const maxAge = 30 * 60 * 1000; // Auto-expire polls after 30 minutes
@@ -920,6 +922,7 @@ function startPasswordRecoverySessionPoller() {
 // in sync even after the customer's session is closed/archived (the per-session
 // registry above only covers freshly opened sessions).
 function startPasswordRecoveryStatusSweeper() {
+  if (!backgroundJobsEnabled()) return;
   const tick = async () => {
     try {
       const configs = await storage.getActivePasswordRecoveryConfigs();
@@ -23596,7 +23599,7 @@ ${log.extractedKnowledge}` : ''}
   // Start blast scheduler — checks every 60s for due scheduled blasts
   // Uses atomic claim: UPDATE status='sending' WHERE status='scheduled' AND scheduled_for<=now
   // to prevent duplicate execution across restarts or overlapping intervals.
-  setInterval(async () => {
+  if (backgroundJobsEnabled()) setInterval(async () => {
     try {
       const now = new Date();
       // Find due campaigns without claiming yet
@@ -32634,7 +32637,7 @@ Please create a comprehensive help center article that would be useful for custo
   });
 
   // ─── Auto-register Telegram webhooks on startup for configured merchants ───
-  (async () => {
+  if (backgroundJobsEnabled()) (async () => {
     try {
       const allMerchants = await storage.getAllMerchants();
       for (const merchant of allMerchants) {
