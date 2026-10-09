@@ -71,7 +71,7 @@ domain verification separately; local tests mock Resend and send no real emails.
 | Server tests (including S3 HTTP integration and email URLs) | 151 PASS |
 | Production build | PASS |
 | Repository TypeScript check | 280 errors on source and branch; existing diagnostic categories |
-| Database restore and row counts | BLOCKED: source snapshot/configuration unavailable |
+| Database restore and row counts | BLOCKED: source archive decoded; complete export/transfer unavailable |
 | Existing login, dashboard, chat/AI, widget and API | BLOCKED: target cannot start without DATABASE_URL |
 | Production media and persistence | BLOCKED: source media not exported |
 | OAuth, email delivery and sandbox payment/webhooks | BLOCKED: source credentials/configuration unavailable |
@@ -122,10 +122,25 @@ are not an atomic snapshot; final writes still require synchronization at cutove
 Audit dynamically selected environment variables, database-stored integration
 settings, role/permission mappings and provider-native AI credentials separately.
 
-Local exporter verification: 13 fixture tests PASS, Node syntax PASS.
-The first source export stopped at pg_dump; it is incomplete and is not a verified
-backup. The corrected exporter must be rerun in the source workspace. No production
-restoration has been verified yet.
+The exporter prints EXPORT_STAGE markers and a safe failure code if any stage
+fails. Raw SDK details are saved only in export-error.private.log beside the
+private backup; do not paste this file into chat or publish it.
+
+If DATABASE_ARCHIVE_DECODE_PASS was printed before a later failure, run the
+updated exporter with --reuse-database followed by that backup directory.
+It verifies that the saved configuration belongs to the current database and
+bucket, requires private regular files owned by the current user, copies the
+saved configuration and dump into a new private backup directory, verifies the
+dump checksum, and decodes it again before exporting media. It leaves the
+original backup intact and records the original dump modification time and
+backup name in the new manifest. Reuse retains the earlier database snapshot;
+the media export runs at the new time, so final synchronization remains required.
+
+Local exporter verification: 20 fixture tests PASS, Node syntax PASS.
+The source reported DATABASE_ARCHIVE_DECODE_PASS, then failed in a later stage.
+This confirms archive decoding, not database restoration or a completed export.
+Stage diagnostics must identify the remaining failure in the source workspace.
+No production restoration has been verified yet.
 
 ## Deployment and cutover gate
 
@@ -144,5 +159,6 @@ restoration has been verified yet.
 Current status: target storage bucket ChatviceMedia and S3 references are configured,
 with NODE_ENV=production and ENABLE_BACKGROUND_JOBS=false. No redeploy was triggered.
 Source credentials and DATABASE_URL remain missing; latest deployment is CRASHED.
-Production database/media export, production media transfer and parity remain blocked.
+The source database archive decoded successfully, but the complete database/media export,
+production media transfer and parity remain blocked.
 No domain cutover has been performed.

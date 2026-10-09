@@ -244,9 +244,68 @@ export async function preparePrivateTransfer(root, archive) {
   return folder;
 }
 
+
+let exportStage = "SOURCE_PREFLIGHT";
+let exportOutput;
+
+export function safeFailureCode(error) {
+  const status = error?.response?.status ?? error?.statusCode ?? error?.code;
+  if (Number.isInteger(status) && status >= 100 && status <= 599) return "HTTP_" + status;
+  const known = ["ENOENT", "EACCES", "EPERM", "ENOSPC", "EMFILE", "ENOTDIR", "EISDIR", "EEXIST", "ETIMEDOUT", "ECONNREFUSED", "ENOTFOUND", "ECONNRESET", "EAI_AGAIN"];
+  return known.includes(error?.code) ? error.code : "UNKNOWN_ERROR";
+}
+
+function stage(name) {
+  exportStage = name;
+  console.log("EXPORT_STAGE: " + name);
+}
+
+export async function reuseDatabaseSnapshot(sourceDirectory, output, expectedDatabaseUrl, backupRoot) {
+  const parent = await fs.realpath(backupRoot);
+  const source = await fs.realpath(sourceDirectory);
+  if (path.dirname(source) !== parent || !path.basename(source).startsWith("chatvice-") || source === output) {
+    throw new ExportError("Database reuse is limited to an existing private Chatvice backup folder");
+  }
+  for (const name of ["source-config.json", "database.dump"]) {
+    const stat = await fs.lstat(path.join(source, name));
+    if (!stat.isFile() || stat.isSymbolicLink() || (stat.mode & 0o077) !== 0 ||
+        (process.getuid && stat.uid !== process.getuid())) {
+      throw new ExportError("Database reuse requires private regular files owned by the current user");
+    }
+  }
+  const config = JSON.parse(await fs.readFile(path.join(source, "source-config.json"), "utf8"));
+  if (config.sourceDatabaseUrl !== expectedDatabaseUrl || !config.applicationVariables || typeof config.applicationVariables !== "object") {
+    throw new ExportError("Saved database configuration does not match the current source");
+  }
+  const dump = path.join(source, "database.dump");
+  const originalChecksum = await checksum(dump);
+  for (const name of ["source-config.json", "database.dump"]) {
+    const destination = path.join(output, name);
+    await fs.copyFile(path.join(source, name), destination, constants.COPYFILE_EXCL);
+    await fs.chmod(destination, 0o600);
+  }
+  if (await checksum(path.join(output, "database.dump")) !== originalChecksum) {
+    throw new ExportError("Reused database checksum mismatch");
+  }
+  return { config, snapshotFileModifiedAt: (await fs.stat(dump)).mtime.toISOString(), reusedFrom: path.basename(source) };
+}
+
+function reportFailure(error) {
+  if (exportOutput) {
+    try {
+      const detail = String(error?.stack || error?.message || "Unknown error");
+      writeFileSync(path.join(exportOutput, "export-error.private.log"), "Stage: " + exportStage + "\n" + detail + "\n", { mode: 0o600, flag: "wx" });
+    } catch { /* Never print raw error details if private logging fails. */ }
+  }
+  const reason = error instanceof ExportError ? error.message : safeFailureCode(error);
+  console.error("SOURCE_EXPORT_FAILED [" + exportStage + "]: " + reason + ". Keep Replit active.");
+  if (exportOutput) console.error("Private diagnostics saved beside the backup; do not paste that log into chat.");
+}
+
 export async function main() {
   process.umask(0o077);
   const root = await fs.realpath(process.cwd());
+  stage("SOURCE_PREFLIGHT");
   await preflight(root);
   if (process.argv.includes("--check")) { console.log("SOURCE_PREFLIGHT_PASS"); return; }
   const parent = path.join(os.homedir(), "chatvice-private-backups");
@@ -254,40 +313,68 @@ export async function main() {
   await fs.chmod(parent, 0o700);
   if (parent === root || parent.startsWith(root + path.sep)) throw new ExportError("Backup directory must be outside the repository");
   const output = await fs.mkdtemp(path.join(parent, "chatvice-"));
+  exportOutput = output;
   const startedAt = new Date().toISOString();
   console.log("Creating private backup in " + output);
-  const variables = selectApplicationVariables(await discoverVariableNames(root), process.env);
-  const resend = await exportResend(variables, process.env);
-  await writePrivate(path.join(output, "source-config.json"), {
-    applicationVariables: variables,
-    sourceDatabaseUrl: process.env.DATABASE_URL,
-    sourceBucketName: process.env.OBJECT_STORAGE_BUCKET || null,
-  });
-  const dump = path.join(output, "database.dump");
-  const connection = await prepareDatabaseConnection(process.env.DATABASE_URL, output);
   const tools = postgresTools();
-  runPrivate(tools.dump, [...connection.args, "--format=custom", "--no-owner", "--no-acl", "--file", dump], {
-    env: { ...process.env, ...connection.env },
-    privateErrorFile: path.join(output, "pg_dump-error.private.log"),
-  });
+  const dump = path.join(output, "database.dump");
+  const reuseIndex = process.argv.indexOf("--reuse-database");
+  let variables, resend, databaseProvenance;
+  if (reuseIndex >= 0) {
+    if (!process.argv[reuseIndex + 1] || process.argv[reuseIndex + 1].startsWith("--")) {
+      throw new ExportError("--reuse-database requires the completed dump's backup folder");
+    }
+    stage("DATABASE_REUSE");
+    const reused = await reuseDatabaseSnapshot(process.argv[reuseIndex + 1], output, process.env.DATABASE_URL, parent);
+    if (reused.config.sourceBucketName !== (process.env.OBJECT_STORAGE_BUCKET || null)) {
+      throw new ExportError("Saved bucket configuration does not match the current source");
+    }
+    variables = reused.config.applicationVariables;
+    resend = "saved-source-config";
+    databaseProvenance = { snapshotFileModifiedAt: reused.snapshotFileModifiedAt, reusedFrom: reused.reusedFrom };
+    console.log("DATABASE_REUSE_CHECKSUM_PASS");
+  } else {
+    stage("SOURCE_CONFIG");
+    variables = selectApplicationVariables(await discoverVariableNames(root), process.env);
+    resend = await exportResend(variables, process.env);
+    await writePrivate(path.join(output, "source-config.json"), {
+      applicationVariables: variables, sourceDatabaseUrl: process.env.DATABASE_URL,
+      sourceBucketName: process.env.OBJECT_STORAGE_BUCKET || null,
+    });
+    const connection = await prepareDatabaseConnection(process.env.DATABASE_URL, output);
+    stage("DATABASE_DUMP");
+    runPrivate(tools.dump, [...connection.args, "--format=custom", "--no-owner", "--no-acl", "--file", dump], {
+      env: { ...process.env, ...connection.env },
+      privateErrorFile: path.join(output, "pg_dump-error.private.log"),
+    });
+    databaseProvenance = { snapshotFileModifiedAt: (await fs.stat(dump)).mtime.toISOString() };
+  }
+  stage("DATABASE_DECODE");
   runPrivate(tools.restore, ["--file=/dev/null", dump], {
     privateErrorFile: path.join(output, "pg_restore-error.private.log"),
   });
   console.log("DATABASE_ARCHIVE_DECODE_PASS");
+  stage("LOCAL_MEDIA");
   const localMedia = await exportLocalMedia(root, output);
+  console.log("LOCAL_MEDIA_FILES: " + localMedia.files.length);
+  stage("REPLIT_OBJECT_STORAGE");
   const objectStorage = await exportObjects(output, process.env);
+  console.log("BUCKET_OBJECTS: " + objectStorage.objects.length);
+  stage("MANIFEST");
   await writePrivate(path.join(output, "manifest.json"), {
     version: 1, startedAt, finishedAt: new Date().toISOString(),
-    database: { path: "database.dump", size: (await fs.stat(dump)).size, sha256: await checksum(dump), archiveDecodePass: true },
+    database: { path: "database.dump", size: (await fs.stat(dump)).size, sha256: await checksum(dump), archiveDecodePass: true, ...databaseProvenance },
     config: { path: "source-config.json", sha256: await checksum(path.join(output, "source-config.json")), variableNames: Object.keys(variables).sort(), resend },
     localMedia, objectStorage,
     limitations: ["A live database snapshot and media export are not one atomic snapshot; synchronize final writes before cutover.", "Database restore, target media upload and feature parity remain unverified."],
   });
   if (localMedia.skippedSymlinks.length) throw new ExportError("Media symlinks require manual review; no complete archive was produced");
+  stage("PACKAGE_ARCHIVE");
   const archive = output + ".tar.gz";
   runPrivate("tar", ["-czf", archive, "-C", parent, path.basename(output)]);
   await fs.chmod(archive, 0o600);
   await fs.writeFile(archive + ".sha256", (await checksum(archive)) + "  " + path.basename(archive) + "\n", { mode: 0o600, flag: "wx" });
+  stage("PRIVATE_TRANSFER");
   const transfer = await preparePrivateTransfer(root, archive);
   console.log("SOURCE_EXPORT_PASS");
   console.log("Download the archive and checksum from the Replit Files folder: " + transfer);
@@ -298,8 +385,7 @@ export async function main() {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(error => {
-    // No SDK/connection errors, credentials, file keys or tokens in terminal output.
-    console.error("SOURCE_EXPORT_FAILED: " + (error instanceof ExportError ? error.message : "export did not complete") + ". Keep Replit active.");
+    reportFailure(error);
     process.exitCode = 1;
   });
 }

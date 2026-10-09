@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { selectApplicationVariables, discoverVariableNames, exportLocalMedia, objectBackupName, checksum, preflight, preparePrivateTransfer, prepareDatabaseConnection, classifyProcessFailure } from "./export-replit-migration.mjs";
+import { selectApplicationVariables, discoverVariableNames, exportLocalMedia, objectBackupName, checksum, preflight, preparePrivateTransfer, prepareDatabaseConnection, classifyProcessFailure, reuseDatabaseSnapshot, safeFailureCode } from "./export-replit-migration.mjs";
 
 async function fixture(run) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "chatvice-export-test-"));
@@ -168,4 +168,147 @@ test("database diagnostics classify authentication, DNS, connection and permissi
   }
   assert.equal(classifyProcessFailure({ status: 1, stderr: "secret details" }), "PROCESS_FAILED (exit 1)");
   assert.equal(classifyProcessFailure({ error: { code: "ENOENT" } }), "EXECUTABLE_NOT_FOUND");
+});
+
+async function savedSnapshot(root) {
+  const backups = path.join(root, "backups");
+  const source = path.join(backups, "chatvice-existing");
+  const output = path.join(backups, "chatvice-next");
+  await fs.mkdir(source, { recursive: true, mode: 0o700 });
+  await fs.mkdir(output, { mode: 0o700 });
+  const url = "postgresql://fixture:private@source.example.com/chatvice";
+  const config = { sourceDatabaseUrl: url, applicationVariables: { JWT_SECRET: "fixture-secret" }, sourceBucketName: "fixture-bucket" };
+  await fs.writeFile(path.join(source, "source-config.json"), JSON.stringify(config), { mode: 0o600 });
+  await fs.writeFile(path.join(source, "database.dump"), Buffer.from([0, 1, 2, 255]), { mode: 0o600 });
+  return { backups, source, output, url, config };
+}
+
+test("reuse copies the saved configuration and dump with matching checksums and provenance", async () => {
+  await fixture(async root => {
+    const f = await savedSnapshot(root);
+    const before = await checksum(path.join(f.source, "database.dump"));
+    const result = await reuseDatabaseSnapshot(f.source, f.output, f.url, f.backups);
+    assert.deepEqual(result.config, f.config);
+    assert.equal(result.reusedFrom, "chatvice-existing");
+    assert.equal(result.snapshotFileModifiedAt, (await fs.stat(path.join(f.source, "database.dump"))).mtime.toISOString());
+    assert.equal(await checksum(path.join(f.output, "database.dump")), before);
+    assert.equal(await checksum(path.join(f.source, "database.dump")), before);
+    for (const name of ["source-config.json", "database.dump"]) {
+      assert.deepEqual(await fs.readFile(path.join(f.output, name)), await fs.readFile(path.join(f.source, name)));
+      assert.equal((await fs.stat(path.join(f.output, name))).mode & 0o777, 0o600);
+    }
+  });
+});
+
+test("reuse rejects a different database without copying or disclosing credentials", async () => {
+  await fixture(async root => {
+    const f = await savedSnapshot(root);
+    await assert.rejects(reuseDatabaseSnapshot(f.source, f.output, "postgresql://other:secret@elsewhere/db", f.backups), error => {
+      assert.match(error.message, /does not match/);
+      assert.ok(!error.message.includes("private"));
+      assert.ok(!error.message.includes("secret"));
+      return true;
+    });
+    assert.deepEqual(await fs.readdir(f.output), []);
+  });
+});
+
+test("reuse rejects backups outside the private backup parent", async () => {
+  await fixture(async root => {
+    const f = await savedSnapshot(root);
+    const outside = path.join(root, "chatvice-outside");
+    await fs.mkdir(outside);
+    await assert.rejects(reuseDatabaseSnapshot(outside, f.output, f.url, f.backups), /limited to an existing private/);
+    assert.deepEqual(await fs.readdir(f.output), []);
+  });
+});
+
+test("reuse rejects symlink files and files readable by other users", async () => {
+  for (const unsafe of ["symlink", "permissions"]) {
+    await fixture(async root => {
+      const f = await savedSnapshot(root);
+      const dump = path.join(f.source, "database.dump");
+      if (unsafe === "symlink") {
+        const external = path.join(root, "external-dump");
+        await fs.rename(dump, external);
+        await fs.symlink(external, dump);
+      } else await fs.chmod(dump, 0o644);
+      await assert.rejects(reuseDatabaseSnapshot(f.source, f.output, f.url, f.backups), /private regular files/);
+      assert.deepEqual(await fs.readdir(f.output), []);
+    });
+  }
+});
+
+test("reuse never overwrites existing destination files", async () => {
+  await fixture(async root => {
+    const f = await savedSnapshot(root);
+    const existing = path.join(f.output, "source-config.json");
+    await fs.writeFile(existing, "existing-private-config", { mode: 0o600 });
+    await assert.rejects(reuseDatabaseSnapshot(f.source, f.output, f.url, f.backups), { code: "EEXIST" });
+    assert.equal(await fs.readFile(existing, "utf8"), "existing-private-config");
+    assert.deepEqual(await fs.readdir(f.output), ["source-config.json"]);
+  });
+});
+
+test("stage diagnostics expose only recognized HTTP or system codes", () => {
+  assert.equal(safeFailureCode({ code: 403, message: "secret" }), "HTTP_403");
+  assert.equal(safeFailureCode({ response: { status: 401 }, message: "secret" }), "HTTP_401");
+  assert.equal(safeFailureCode({ statusCode: 503, message: "secret" }), "HTTP_503");
+  assert.equal(safeFailureCode({ code: "ENOSPC", message: "secret" }), "ENOSPC");
+  assert.equal(safeFailureCode({ code: "ECONNREFUSED" }), "ECONNREFUSED");
+  assert.equal(safeFailureCode({ code: "credential-secret", message: "secret" }), "UNKNOWN_ERROR");
+  assert.equal(safeFailureCode(new Error("secret")), "UNKNOWN_ERROR");
+});
+
+test("CLI reuse skips pg_dump, labels bucket failures privately and completes a fresh export on retry", async () => {
+  await fixture(async root => {
+    const home = path.join(root, "home");
+    const project = path.join(root, "project");
+    const backups = path.join(home, "chatvice-private-backups");
+    const source = path.join(backups, "chatvice-existing");
+    const url = "postgresql://fixture:private@source.example.com/chatvice";
+    await fs.mkdir(source, { recursive: true, mode: 0o700 });
+    await fs.mkdir(path.join(project, "server"), { recursive: true });
+    await fs.writeFile(path.join(project, "server/routes.ts"), "// Chatvice");
+    await fs.writeFile(path.join(project, "server/objectStorage.ts"), "");
+    await fs.writeFile(path.join(source, "source-config.json"), JSON.stringify({
+      sourceDatabaseUrl: url, applicationVariables: {}, sourceBucketName: "fixture-bucket",
+    }), { mode: 0o600 });
+    await fs.writeFile(path.join(source, "database.dump"), "fixture bytes; archive decoding is mocked", { mode: 0o600 });
+    assert.equal(spawnSync("git", ["init", project], { stdio: "pipe" }).status, 0);
+    const scriptPath = path.join(project, "export.mjs");
+    await fs.copyFile(new URL("./export-replit-migration.mjs", import.meta.url), scriptPath);
+    const script = await fs.realpath(scriptPath);
+    const tools = path.join(root, "mock-postgres");
+    await fs.writeFile(tools, "#!" + process.execPath + "\nif (!process.argv.includes('--version') && process.argv.includes('--format=custom')) process.exit(99);\n", { mode: 0o700 });
+    const sdk = path.join(project, "node_modules/@google-cloud/storage");
+    await fs.mkdir(sdk, { recursive: true });
+    await fs.writeFile(path.join(sdk, "package.json"), JSON.stringify({ type: "module", main: "index.js" }));
+    await fs.writeFile(path.join(sdk, "index.js"), "export class Storage { bucket() { return { async getFiles() { throw Object.assign(new Error('fixture-private-token'), {code:403}); } }; } }");
+    const env = { ...process.env, HOME: home, REPL_ID: "fixture", RAILWAY_PROJECT_ID: "", DATABASE_URL: url,
+      OBJECT_STORAGE_BUCKET: "fixture-bucket", PG_DUMP_BIN: tools, PG_RESTORE_BIN: tools };
+    const run = () => spawnSync(process.execPath, [script, "--reuse-database", source], { cwd: project, env, encoding: "utf8" });
+    const failed = run();
+    assert.equal(failed.status, 1);
+    assert.match(failed.stdout, /DATABASE_REUSE_CHECKSUM_PASS/);
+    assert.match(failed.stdout, /DATABASE_ARCHIVE_DECODE_PASS/);
+    assert.match(failed.stderr, /SOURCE_EXPORT_FAILED \[REPLIT_OBJECT_STORAGE\]: HTTP_403/);
+    assert.ok(!(failed.stdout + failed.stderr).includes("fixture-private-token"));
+    const failedFolder = (await fs.readdir(backups)).find(name => name !== "chatvice-existing");
+    const log = path.join(backups, failedFolder, "export-error.private.log");
+    assert.match(await fs.readFile(log, "utf8"), /fixture-private-token/);
+    assert.equal((await fs.stat(log)).mode & 0o777, 0o600);
+    await fs.writeFile(path.join(sdk, "index.js"), "export class Storage { bucket() { return { async getFiles() { return [[], null]; } }; } }");
+    const completed = run();
+    assert.equal(completed.status, 0, completed.stderr);
+    assert.match(completed.stdout, /SOURCE_EXPORT_PASS/);
+    const transfers = await fs.readdir(path.join(project, "chatvice-private-transfer"));
+    assert.equal(transfers.filter(name => name.endsWith(".tar.gz")).length, 1);
+    assert.equal(transfers.filter(name => name.endsWith(".sha256")).length, 1);
+    assert.equal(await fs.readFile(path.join(source, "database.dump"), "utf8"), "fixture bytes; archive decoding is mocked");
+    const nextFolder = (await fs.readdir(backups)).find(name => name !== "chatvice-existing" && name !== failedFolder && !name.includes("."));
+    const manifest = JSON.parse(await fs.readFile(path.join(backups, nextFolder, "manifest.json"), "utf8"));
+    assert.equal(manifest.database.reusedFrom, "chatvice-existing");
+    assert.equal(manifest.objectStorage.configured, true);
+  });
 });
