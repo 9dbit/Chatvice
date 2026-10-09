@@ -82,6 +82,43 @@ and reference variables are confirmed; live upload/download remains unverified.
 The S3 tests use a local HTTP fixture with disposable objects, not production
 buckets. Email tests mock the provider. Neither is a full production parity check.
 
+## Exporting the Replit source
+
+Run script/export-replit-migration.mjs from the source Chatvice workspace.
+It requires Node, git, pg_dump, pg_restore and tar. PostgreSQL clients must support
+the source server version. Use --check for a prerequisite check before exporting.
+
+The script creates a custom-format database dump and decodes it with pg_restore
+without restoring to a database. It exports referenced application environment
+variables and the Resend connector credentials into source-config.json.
+The source database URL is stored separately from applicationVariables; do not
+apply it directly to Railway validation. Restore the dump to an isolated target
+and use that target's DATABASE_URL.
+
+Local uploads, exports, attached_assets and upload directories under public are
+copied with a path manifest. Replit bucket objects retain original keys, content
+types, cache metadata, sizes, source generations and SHA-256 checksums. Downloads
+pin object generations; failures or skipped media symlinks prevent a completed
+export. SDK or database connection errors are not printed because they can
+contain credentials.
+
+The primary backup is outside the repository in ~/chatvice-private-backups.
+A copy of the tar.gz and its .sha256 file is placed in chatvice-private-transfer
+for download from Replit Files. The script first adds this directory to the
+checkout's local Git exclude and verifies it is ignored; files have 0600
+permissions and directories have 0700 permissions. These archives contain
+production secrets and customer data: transfer privately, never publish or commit.
+
+Download the archive and checksum to Spark's Downloads folder. The exporter
+does not upload data, change running application code, alter DNS, restore a
+database, or switch worker ownership. A live database snapshot and media export
+are not an atomic snapshot; final writes still require synchronization at cutover.
+Audit dynamically selected environment variables, database-stored integration
+settings, role/permission mappings and provider-native AI credentials separately.
+
+Local exporter verification: 8 fixture tests PASS, Node syntax PASS.
+No production backup has been generated or restoration verified yet.
+
 ## Deployment and cutover gate
 
 1. Back up actual production database and media; verify backup restoration.
