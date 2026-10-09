@@ -73,7 +73,7 @@ domain verification separately; local tests mock Resend and send no real emails.
 | Repository TypeScript check | 280 errors on source and branch; existing diagnostic categories |
 | Database restore and row counts | BLOCKED: source archive decoded; complete export/transfer unavailable |
 | Existing login, dashboard, chat/AI, widget and API | BLOCKED: target cannot start without DATABASE_URL |
-| Production media and persistence | BLOCKED: source media not exported |
+| Production media and persistence | BLOCKED: 1,168 local files copied; bucket export failed with HTTP 401 |
 | OAuth, email delivery and sandbox payment/webhooks | BLOCKED: source credentials/configuration unavailable |
 
 Railway bucket credentials are redacted to this connected app. Bucket provisioning
@@ -139,7 +139,15 @@ the media export runs at the new time, so final synchronization remains required
 Local exporter verification: 20 fixture tests PASS, Node syntax PASS.
 The source reported DATABASE_ARCHIVE_DECODE_PASS, then failed in a later stage.
 This confirms archive decoding, not database restoration or a completed export.
-Stage diagnostics must identify the remaining failure in the source workspace.
+The isolated @google-cloud/storage 7.18.0 installation resolved the source SDK import failure.
+The source then copied 1,168 local files but bucket access returned HTTP 401.
+Run script/check-replit-storage.mjs from the source workspace to distinguish token
+exchange failure from bucket listing failure. It automatically finds the installed
+SDK in the workspace or a private sdk.* migration directory, requests an access
+token and lists at most one bucket object. Output contains only fixed phase,
+status and endpoint labels; it prints no credentials, bucket names or object keys.
+The probe does not export media or modify bucket permissions. Its five fixture
+tests cover endpoint classification, private SDK resolution and output privacy.
 No production restoration has been verified yet.
 
 ## Deployment and cutover gate
