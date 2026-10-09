@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { probeStorage, safeStorageFailure, findStorageSdk, sourceContext, originalDatabaseFilesPresent } from "./check-replit-storage.mjs";
+import { probeStorage, safeStorageFailure, findStorageSdk, sourceContext, originalDatabaseFilesPresent, installWorkspaceSdk, snapshotInventory } from "./check-replit-storage.mjs";
 
 test("token exchange failure identifies the sidecar and never calls the bucket", async () => {
   const messages = [];
@@ -130,5 +130,66 @@ test("CLI reports missing source files explicitly without revealing paths or raw
     assert.equal(result.status, 1);
     assert.equal(result.stdout.trim(), "SOURCE_FILES_MISSING");
     assert.equal(result.stderr, "");
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
+
+test("SDK installation stays in the private Git-ignored workspace with lifecycle scripts disabled", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "chatvice-storage-check-"));
+  try {
+    assert.equal(spawnSync("git", ["init", root], { stdio: "pipe" }).status, 0);
+    const fsRealRoot = await fs.realpath(root);
+    let called = false;
+    const sdk = await installWorkspaceSdk(root, () => {}, (command, args) => {
+      called = true;
+      assert.equal(command, "npm");
+      assert.ok(args.includes("--ignore-scripts"));
+      assert.ok(args.includes("@google-cloud/storage@7.18.0"));
+      assert.equal(args[args.indexOf("--prefix") + 1], fsRealRoot + "/chatvice-private-transfer/sdk");
+      return { status: 0 };
+    });
+    assert.equal(called, true);
+    assert.equal((await fs.stat(sdk)).mode & 0o777, 0o700);
+    assert.equal(spawnSync("git", ["check-ignore", "--quiet", "--", "chatvice-private-transfer/sdk/"], { cwd: root }).status, 0);
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
+
+test("failed SDK install prints a fixed code and keeps raw output in a private log", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "chatvice-storage-check-"));
+  try {
+    assert.equal(spawnSync("git", ["init", root], { stdio: "pipe" }).status, 0);
+    const messages = [];
+    await assert.rejects(installWorkspaceSdk(root, message => messages.push(message), () => ({ status: 1, stderr: "private-token" })), { code: "STORAGE_SDK_INSTALL_FAILED" });
+    assert.deepEqual(messages, ["SDK_INSTALL_START"]);
+    const log = path.join(root, "chatvice-private-transfer/sdk/npm-install.private.log");
+    assert.equal(await fs.readFile(log, "utf8"), "private-token");
+    assert.equal((await fs.stat(log)).mode & 0o777, 0o600);
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
+
+test("SDK loader finds the workspace cache after legacy home folders are unavailable", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "chatvice-storage-check-"));
+  try {
+    const sdk = path.join(root, "chatvice-private-transfer/sdk");
+    const module = path.join(sdk, "node_modules/@google-cloud/storage");
+    await fs.mkdir(module, { recursive: true });
+    await fs.chmod(sdk, 0o700);
+    await fs.writeFile(path.join(module, "package.json"), JSON.stringify({ type: "module", main: "index.mjs" }));
+    await fs.writeFile(path.join(module, "index.mjs"), "export class Storage {}");
+    assert.equal(typeof (await findStorageSdk(root, path.join(root, "missing-home"))).Storage, "function");
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
+
+test("snapshot inventory reports file pairs without filenames, data or restoration claims", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "chatvice-storage-check-"));
+  try {
+    const backups = path.join(root, "chatvice-private-transfer/backups");
+    await fs.mkdir(path.join(backups, "chatvice-fixture"), { recursive: true });
+    await fs.writeFile(path.join(backups, "chatvice-fixture/database.dump"), "private-database");
+    await fs.writeFile(path.join(backups, "chatvice-fixture/source-config.json"), "private-config");
+    const result = await snapshotInventory(root, path.join(root, "missing-home"));
+    assert.deepEqual(result.find(item => item.label === "PRIVATE_WORKSPACE"), { label: "PRIVATE_WORKSPACE", exists: true, filePairs: 1 });
+    assert.deepEqual(result.find(item => item.label === "CURRENT_HOME"), { label: "CURRENT_HOME", exists: false, filePairs: 0 });
+    assert.ok(!JSON.stringify(result).includes("private-database"));
+    assert.ok(!JSON.stringify(result).includes("chatvice-fixture"));
   } finally { await fs.rm(root, { recursive: true, force: true }); }
 });

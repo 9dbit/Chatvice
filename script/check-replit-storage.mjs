@@ -4,6 +4,8 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { createRequire } from "node:module";
+import { spawnSync } from "node:child_process";
+import { preparePrivateTransfer, ensurePrivateDirectory } from "./export-replit-migration.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const credentials = {
@@ -19,7 +21,7 @@ const credentials = {
 export function safeStorageFailure(error) {
   const status = error?.response?.status ?? error?.statusCode ?? error?.code;
   const numeric = typeof status === "number" ? status : typeof status === "string" && /^[1-5]\d{2}$/.test(status) ? Number(status) : null;
-  const allowed = ["ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND", "ECONNRESET", "EAI_AGAIN", "ERR_MODULE_NOT_FOUND", "MODULE_NOT_FOUND", "ERR_REQUIRE_ESM", "ERR_PACKAGE_PATH_NOT_EXPORTED", "ERR_PACKAGE_IMPORT_NOT_DEFINED", "ERR_INVALID_PACKAGE_CONFIG", "ENOENT", "EACCES", "EPERM", "STORAGE_SDK_UNAVAILABLE", "STORAGE_SDK_INTERFACE_INVALID"];
+  const allowed = ["ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND", "ECONNRESET", "EAI_AGAIN", "ERR_MODULE_NOT_FOUND", "MODULE_NOT_FOUND", "ERR_REQUIRE_ESM", "ERR_PACKAGE_PATH_NOT_EXPORTED", "ERR_PACKAGE_IMPORT_NOT_DEFINED", "ERR_INVALID_PACKAGE_CONFIG", "ENOENT", "EACCES", "EPERM", "STORAGE_SDK_UNAVAILABLE", "STORAGE_SDK_INTERFACE_INVALID", "STORAGE_SDK_INSTALL_FAILED", "PRIVATE_SDK_PATH_UNSAFE"];
   const code = Number.isInteger(numeric) && numeric >= 100 && numeric <= 599
     ? "HTTP_" + numeric : allowed.includes(error?.code) ? error.code : error?.name === "TypeError" ? "SDK_TYPE_ERROR" : error?.name === "SyntaxError" ? "SDK_SYNTAX_ERROR" : "UNKNOWN_ERROR";
   let endpoint = "UNKNOWN_ENDPOINT";
@@ -94,6 +96,17 @@ export async function findStorageSdk(root, backupRoot, report = () => {}) {
   }
   try { return await load(root); }
   catch (error) { report("SDK_CANDIDATE [WORKSPACE]: " + safeStorageFailure(error).code); }
+  const workspaceSdk = path.join(root, "chatvice-private-transfer", "sdk");
+  const workspaceStat = await fs.lstat(workspaceSdk).catch(error => { if (error.code === "ENOENT") return null; throw error; });
+  if (workspaceStat) {
+    if (!workspaceStat.isDirectory() || workspaceStat.isSymbolicLink() || (workspaceStat.mode & 0o077) ||
+        (process.getuid && workspaceStat.uid !== process.getuid())) {
+      report("SDK_CANDIDATE [PRIVATE_WORKSPACE]: PERMISSIONS_OR_OWNER_REJECTED");
+    } else {
+      try { return await load(workspaceSdk); }
+      catch (error) { report("SDK_CANDIDATE [PRIVATE_WORKSPACE]: " + safeStorageFailure(error).code); }
+    }
+  }
   const candidates = [];
   let entries;
   try { entries = await fs.readdir(backupRoot, { withFileTypes: true }); }
@@ -121,6 +134,50 @@ export async function findStorageSdk(root, backupRoot, report = () => {}) {
   throw Object.assign(new Error(), { code: "STORAGE_SDK_UNAVAILABLE" });
 }
 
+
+export async function installWorkspaceSdk(root, report = console.log, run = spawnSync) {
+  const transfer = await preparePrivateTransfer(root);
+  const sdk = await ensurePrivateDirectory(path.join(transfer, "sdk"));
+  report("SDK_INSTALL_START");
+  const result = run("npm", ["install", "--prefix", sdk, "--ignore-scripts", "--no-audit", "--no-fund", "--save-exact", "@google-cloud/storage@7.18.0"], { stdio: "pipe", encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
+  if (result.error || result.status !== 0) {
+    await fs.writeFile(path.join(sdk, "npm-install.private.log"), String(result.stderr || result.stdout || "Installation failed"), { mode: 0o600 });
+    await fs.chmod(path.join(sdk, "npm-install.private.log"), 0o600);
+    throw Object.assign(new Error(), { code: "STORAGE_SDK_INSTALL_FAILED" });
+  }
+  report("SDK_INSTALL_PASS");
+  return sdk;
+}
+
+export async function snapshotInventory(root, backupRoot) {
+  const locations = [
+    ["CURRENT_HOME", backupRoot],
+    ["PREVIOUS_HOME", "/home/runner/chatvice-private-backups"],
+    ["PRIVATE_WORKSPACE", path.join(root, "chatvice-private-transfer", "backups")],
+  ];
+  const result = [];
+  for (const [label, directory] of locations) {
+    let entries;
+    try { entries = await fs.readdir(directory, { withFileTypes: true }); }
+    catch (error) {
+      if (error.code === "ENOENT") { result.push({ label, exists: false, filePairs: 0 }); continue; }
+      throw error;
+    }
+    let filePairs = 0;
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !entry.name.startsWith("chatvice-")) continue;
+      let present = true;
+      for (const name of ["database.dump", "source-config.json"]) {
+        const stat = await fs.lstat(path.join(directory, entry.name, name)).catch(error => { if (error.code === "ENOENT") return null; throw error; });
+        if (!stat?.isFile() || stat.isSymbolicLink() || !stat.size) present = false;
+      }
+      if (present) filePairs++;
+    }
+    result.push({ label, exists: true, filePairs });
+  }
+  return result; // File pairs only; no claim of complete or restored backups.
+}
+
 export async function main(report = console.log) {
   let stage = "SOURCE_DIRECTORY";
   try {
@@ -135,6 +192,13 @@ export async function main(report = console.log) {
     const backupRoot = path.join(os.homedir(), "chatvice-private-backups");
     stage = "BACKUP_FILES";
     report("ORIGINAL_DATABASE_FILES_PRESENT: " + await originalDatabaseFilesPresent(backupRoot));
+    for (const item of await snapshotInventory(root, backupRoot)) {
+      report("BACKUP_LOCATION [" + item.label + "]: " + (item.exists ? "PRESENT" : "MISSING") + " DATABASE_FILE_PAIRS=" + item.filePairs);
+    }
+    if (process.argv.includes("--install-sdk")) {
+      stage = "SDK_INSTALL";
+      await installWorkspaceSdk(root, report);
+    }
     stage = "SDK_DISCOVERY";
     const { Storage } = await findStorageSdk(root, backupRoot, report);
     report("STORAGE_SDK_LOAD_PASS");

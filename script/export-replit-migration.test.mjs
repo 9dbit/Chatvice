@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { selectApplicationVariables, discoverVariableNames, exportLocalMedia, objectBackupName, checksum, preflight, preparePrivateTransfer, prepareDatabaseConnection, classifyProcessFailure, reuseDatabaseSnapshot, safeFailureCode } from "./export-replit-migration.mjs";
+import { selectApplicationVariables, discoverVariableNames, exportLocalMedia, objectBackupName, checksum, preflight, preparePrivateTransfer, prepareDatabaseConnection, classifyProcessFailure, reuseDatabaseSnapshot, safeFailureCode, prepareWorkspaceBackupRoot } from "./export-replit-migration.mjs";
 
 async function fixture(run) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "chatvice-export-test-"));
@@ -276,9 +276,10 @@ test("CLI reuse skips pg_dump, labels bucket failures privately and completes a 
     }), { mode: 0o600 });
     await fs.writeFile(path.join(source, "database.dump"), "fixture bytes; archive decoding is mocked", { mode: 0o600 });
     assert.equal(spawnSync("git", ["init", project], { stdio: "pipe" }).status, 0);
-    const scriptPath = path.join(project, "export.mjs");
+    const scriptPath = path.join(project, "export-replit-migration.mjs");
     await fs.copyFile(new URL("./export-replit-migration.mjs", import.meta.url), scriptPath);
     const script = await fs.realpath(scriptPath);
+    await fs.copyFile(new URL("./check-replit-storage.mjs", import.meta.url), path.join(project, "check-replit-storage.mjs"));
     const tools = path.join(root, "mock-postgres");
     await fs.writeFile(tools, "#!" + process.execPath + "\nif (!process.argv.includes('--version') && process.argv.includes('--format=custom')) process.exit(99);\n", { mode: 0o700 });
     const sdk = path.join(project, "node_modules/@google-cloud/storage");
@@ -294,8 +295,9 @@ test("CLI reuse skips pg_dump, labels bucket failures privately and completes a 
     assert.match(failed.stdout, /DATABASE_ARCHIVE_DECODE_PASS/);
     assert.match(failed.stderr, /SOURCE_EXPORT_FAILED \[REPLIT_OBJECT_STORAGE\]: HTTP_403/);
     assert.ok(!(failed.stdout + failed.stderr).includes("fixture-private-token"));
-    const failedFolder = (await fs.readdir(backups)).find(name => name !== "chatvice-existing");
-    const log = path.join(backups, failedFolder, "export-error.private.log");
+    const outputBackups = path.join(project, "chatvice-private-transfer/backups");
+    const failedFolder = (await fs.readdir(outputBackups)).find(name => name.startsWith("chatvice-"));
+    const log = path.join(outputBackups, failedFolder, "export-error.private.log");
     assert.match(await fs.readFile(log, "utf8"), /fixture-private-token/);
     assert.equal((await fs.stat(log)).mode & 0o777, 0o600);
     await fs.writeFile(path.join(sdk, "index.js"), "export class Storage { bucket() { return { async getFiles() { return [[], null]; } }; } }");
@@ -306,9 +308,44 @@ test("CLI reuse skips pg_dump, labels bucket failures privately and completes a 
     assert.equal(transfers.filter(name => name.endsWith(".tar.gz")).length, 1);
     assert.equal(transfers.filter(name => name.endsWith(".sha256")).length, 1);
     assert.equal(await fs.readFile(path.join(source, "database.dump"), "utf8"), "fixture bytes; archive decoding is mocked");
-    const nextFolder = (await fs.readdir(backups)).find(name => name !== "chatvice-existing" && name !== failedFolder && !name.includes("."));
-    const manifest = JSON.parse(await fs.readFile(path.join(backups, nextFolder, "manifest.json"), "utf8"));
+    const nextFolder = (await fs.readdir(outputBackups)).find(name => name !== failedFolder && !name.includes("."));
+    const manifest = JSON.parse(await fs.readFile(path.join(outputBackups, nextFolder, "manifest.json"), "utf8"));
     assert.equal(manifest.database.reusedFrom, "chatvice-existing");
     assert.equal(manifest.objectStorage.configured, true);
+  });
+});
+
+test("workspace backups are private and Git-ignored before any snapshot is written", async () => {
+  await fixture(async root => {
+    assert.equal(spawnSync("git", ["init", root], { stdio: "pipe" }).status, 0);
+    const backups = await prepareWorkspaceBackupRoot(root);
+    assert.equal(path.relative(await fs.realpath(root), backups), "chatvice-private-transfer/backups");
+    assert.equal((await fs.stat(backups)).mode & 0o777, 0o700);
+    await fs.writeFile(path.join(backups, "fixture.dump"), "private", { mode: 0o600 });
+    assert.equal(spawnSync("git", ["check-ignore", "--quiet", "--", "chatvice-private-transfer/backups/fixture.dump"], { cwd: root }).status, 0);
+    assert.equal(spawnSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).stdout, "");
+  });
+});
+
+test("workspace backup root refuses a symlink before writing customer data", async () => {
+  await fixture(async root => {
+    assert.equal(spawnSync("git", ["init", root], { stdio: "pipe" }).status, 0);
+    const transfer = await preparePrivateTransfer(root);
+    const outside = path.join(root, "outside");
+    await fs.mkdir(outside);
+    await fs.symlink(outside, path.join(transfer, "backups"));
+    await assert.rejects(prepareWorkspaceBackupRoot(root), /real directory owned/);
+    assert.deepEqual(await fs.readdir(outside), []);
+  });
+});
+
+test("private workspace setup refuses a path with Git-tracked files", async () => {
+  await fixture(async root => {
+    assert.equal(spawnSync("git", ["init", root], { stdio: "pipe" }).status, 0);
+    await fs.mkdir(path.join(root, "chatvice-private-transfer"));
+    await fs.writeFile(path.join(root, "chatvice-private-transfer/fixture.txt"), "fixture only");
+    assert.equal(spawnSync("git", ["add", "chatvice-private-transfer/fixture.txt"], { cwd: root }).status, 0);
+    await assert.rejects(prepareWorkspaceBackupRoot(root), /no Git-tracked files/);
+    assert.deepEqual(await fs.readdir(path.join(root, "chatvice-private-transfer")), ["fixture.txt"]);
   });
 });

@@ -151,7 +151,8 @@ function runPrivate(command, args, options = {}) {
 
 async function exportObjects(output, env) {
   if (!env.OBJECT_STORAGE_BUCKET) return { configured: false, objects: [] };
-  const { Storage } = await import("@google-cloud/storage");
+  const { findStorageSdk } = await import("./check-replit-storage.mjs");
+  const { Storage } = await findStorageSdk(await fs.realpath(process.cwd()), path.join(os.homedir(), "chatvice-private-backups"));
   const endpoint = "http://127.0.0.1:1106";
   const storage = new Storage({
     projectId: "",
@@ -230,13 +231,17 @@ export async function preparePrivateTransfer(root, archive) {
     await fs.mkdir(path.dirname(exclude), { recursive: true });
     await fs.appendFile(exclude, "\n" + rule + "\n");
   }
+  const tracked = spawnSync("git", ["ls-files", "-z", "--", "chatvice-private-transfer"], { cwd: root, encoding: "utf8", stdio: "pipe" });
+  if (tracked.error || tracked.status !== 0 || tracked.stdout.length) {
+    throw new ExportError("Private transfer path must contain no Git-tracked files");
+  }
   runPrivate("git", ["check-ignore", "--quiet", "--", "chatvice-private-transfer/"], { cwd: root });
   const folder = path.join(root, "chatvice-private-transfer");
   let stat = await fs.lstat(folder).catch(error => { if (error.code === "ENOENT") return null; throw error; });
-  if (stat && (!stat.isDirectory() || stat.isSymbolicLink())) throw new ExportError("Private transfer folder must be a real directory");
+  if (stat && (!stat.isDirectory() || stat.isSymbolicLink() || (process.getuid && stat.uid !== process.getuid()))) throw new ExportError("Private transfer folder must be a real directory owned by the current user");
   if (!stat) await fs.mkdir(folder, { mode: 0o700 });
   await fs.chmod(folder, 0o700);
-  for (const source of [archive, archive + ".sha256"]) {
+  for (const source of archive ? [archive, archive + ".sha256"] : []) {
     const destination = path.join(folder, path.basename(source));
     await fs.copyFile(source, destination, constants.COPYFILE_EXCL);
     await fs.chmod(destination, 0o600);
@@ -244,6 +249,32 @@ export async function preparePrivateTransfer(root, archive) {
   return folder;
 }
 
+
+
+export async function ensurePrivateDirectory(directory) {
+  const stat = await fs.lstat(directory).catch(error => { if (error.code === "ENOENT") return null; throw error; });
+  if (stat && (!stat.isDirectory() || stat.isSymbolicLink() || (process.getuid && stat.uid !== process.getuid()))) {
+    throw new ExportError("Private workspace directory must be a real directory owned by the current user");
+  }
+  if (!stat) await fs.mkdir(directory, { mode: 0o700 });
+  await fs.chmod(directory, 0o700);
+  return fs.realpath(directory);
+}
+
+export async function prepareWorkspaceBackupRoot(root) {
+  const transfer = await preparePrivateTransfer(root);
+  return ensurePrivateDirectory(path.join(transfer, "backups"));
+}
+
+async function allowedReuseRoot(sourceDirectory, workspaceBackupRoot) {
+  const source = await fs.realpath(sourceDirectory);
+  const candidates = [workspaceBackupRoot, path.join(os.homedir(), "chatvice-private-backups"), "/home/runner/chatvice-private-backups"];
+  for (const candidate of candidates) {
+    const parent = await fs.realpath(candidate).catch(error => { if (error.code === "ENOENT") return null; throw error; });
+    if (parent && path.dirname(source) === parent) return parent;
+  }
+  throw new ExportError("Database reuse requires a known private Chatvice backup directory");
+}
 
 let exportStage = "SOURCE_PREFLIGHT";
 let exportOutput;
@@ -308,10 +339,8 @@ export async function main() {
   stage("SOURCE_PREFLIGHT");
   await preflight(root);
   if (process.argv.includes("--check")) { console.log("SOURCE_PREFLIGHT_PASS"); return; }
-  const parent = path.join(os.homedir(), "chatvice-private-backups");
-  await fs.mkdir(parent, { recursive: true, mode: 0o700 });
-  await fs.chmod(parent, 0o700);
-  if (parent === root || parent.startsWith(root + path.sep)) throw new ExportError("Backup directory must be outside the repository");
+  stage("PRIVATE_WORKSPACE");
+  const parent = await prepareWorkspaceBackupRoot(root);
   const output = await fs.mkdtemp(path.join(parent, "chatvice-"));
   exportOutput = output;
   const startedAt = new Date().toISOString();
@@ -325,7 +354,8 @@ export async function main() {
       throw new ExportError("--reuse-database requires the completed dump's backup folder");
     }
     stage("DATABASE_REUSE");
-    const reused = await reuseDatabaseSnapshot(process.argv[reuseIndex + 1], output, process.env.DATABASE_URL, parent);
+    const reuseRoot = await allowedReuseRoot(process.argv[reuseIndex + 1], parent);
+    const reused = await reuseDatabaseSnapshot(process.argv[reuseIndex + 1], output, process.env.DATABASE_URL, reuseRoot);
     if (reused.config.sourceBucketName !== (process.env.OBJECT_STORAGE_BUCKET || null)) {
       throw new ExportError("Saved bucket configuration does not match the current source");
     }

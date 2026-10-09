@@ -108,11 +108,16 @@ beside the backup. POSTGRES_VERSION_MISMATCH includes only server/client version
 numbers. If newer clients are installed outside PATH, set PG_DUMP_BIN and
 PG_RESTORE_BIN to their executable paths.
 
-The primary backup is outside the repository in ~/chatvice-private-backups.
-A copy of the tar.gz and its .sha256 file is placed in chatvice-private-transfer
-for download from Replit Files. The script first adds this directory to the
-checkout's local Git exclude and verifies it is ignored; files have 0600
-permissions and directories have 0700 permissions. These archives contain
+Primary backups now live in chatvice-private-transfer/backups under the source
+workspace. Before creating this directory, the script adds the transfer folder
+to the checkout's local Git exclude, verifies it is ignored, and refuses any
+Git-tracked files or directory symlinks at the private path. A copy of the
+tar.gz and checksum remains at the top of chatvice-private-transfer for download
+from Replit Files. Files have 0600 permissions and directories have 0700 permissions.
+The earlier home-directory backup and isolated SDK folder were not found in the
+latest source diagnostic; their cause of disappearance is not established.
+Do not assume any local backup survives a reset. Download and verify successful
+archives promptly, and retain a separate private copy before cutover. These archives contain
 production secrets and customer data: transfer privately, never publish or commit.
 
 Download the archive and checksum to Spark's Downloads folder. The exporter
@@ -136,23 +141,31 @@ original backup intact and records the original dump modification time and
 backup name in the new manifest. Reuse retains the earlier database snapshot;
 the media export runs at the new time, so final synchronization remains required.
 
-Local exporter verification: 20 fixture tests PASS, Node syntax PASS.
+Local exporter verification: 23 fixture tests PASS, Node syntax PASS.
 The source reported DATABASE_ARCHIVE_DECODE_PASS, then failed in a later stage.
 This confirms archive decoding, not database restoration or a completed export.
 The isolated @google-cloud/storage 7.18.0 installation resolved the source SDK import failure.
 The source then copied 1,168 local files but bucket access returned HTTP 401.
+The latest source check confirmed Chatvice context, but found neither the earlier
+home backup folder nor the SDK cache; a complete backup/restore remains unavailable.
 Run script/check-replit-storage.mjs from the source workspace to distinguish token
 exchange failure from bucket listing failure. It automatically finds the installed
-SDK in the workspace or a private sdk.* migration directory, requests an access
+SDK in the workspace, the private workspace cache, or an older private sdk.* migration directory, requests an access
 token and lists at most one bucket object. Output contains only fixed phase,
 status and endpoint labels; it prints no credentials, bucket names or object keys.
-The probe does not export media or modify bucket permissions. Its ten fixture
+The probe does not export media or modify bucket permissions. Its fourteen fixture
 tests cover endpoint classification, CJS/ESM SDK resolution, missing source files,
-missing SDK directories, snapshot file presence and output privacy.
+missing SDK directories, workspace SDK installation, snapshot inventory and output privacy.
 Setup failures include the failing phase and a safe code. The probe identifies
 missing Chatvice source files or another app before reading storage credentials.
-It reports whether the original dump/config files still exist and prints safe
-SDK candidate failure codes. Snapshot file presence does not prove decoding or
+It reports whether the original dump/config files still exist, checks both the
+current and previous home backup locations plus the private workspace location,
+and prints safe SDK candidate failure codes. Use --install-sdk to install the
+pinned @google-cloud/storage 7.18.0 into chatvice-private-transfer/sdk with lifecycle
+scripts disabled; the project's main dependency files are not modified.
+Download the exporter and the diagnostic script from the same commit before
+running this option, since the probe imports the private-directory helpers.
+Install failures keep raw npm output in a private log, printing only a fixed code. Snapshot file presence does not prove decoding or
 restoration.
 No production restoration has been verified yet.
 
