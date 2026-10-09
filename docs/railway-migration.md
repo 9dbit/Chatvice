@@ -99,8 +99,14 @@ Local uploads, exports, attached_assets and upload directories under public are
 copied with a path manifest. Replit bucket objects retain original keys, content
 types, cache metadata, sizes, source generations and SHA-256 checksums. Downloads
 pin object generations; failures or skipped media symlinks prevent a completed
-export. SDK or database connection errors are not printed because they can
-contain credentials.
+export. Database URIs are decoded into a private libpq service file, rather than put in
+PGDATABASE. The dump command references only the fixed service name. This avoids
+treating a URI as a literal database name and keeps credentials out of arguments.
+SDK errors are not printed because they can contain credentials. PostgreSQL failures
+print a classified error code; raw stderr is retained only in a 0600 private log
+beside the backup. POSTGRES_VERSION_MISMATCH includes only server/client version
+numbers. If newer clients are installed outside PATH, set PG_DUMP_BIN and
+PG_RESTORE_BIN to their executable paths.
 
 The primary backup is outside the repository in ~/chatvice-private-backups.
 A copy of the tar.gz and its .sha256 file is placed in chatvice-private-transfer
@@ -116,8 +122,10 @@ are not an atomic snapshot; final writes still require synchronization at cutove
 Audit dynamically selected environment variables, database-stored integration
 settings, role/permission mappings and provider-native AI credentials separately.
 
-Local exporter verification: 8 fixture tests PASS, Node syntax PASS.
-No production backup has been generated or restoration verified yet.
+Local exporter verification: 13 fixture tests PASS, Node syntax PASS.
+The first source export stopped at pg_dump; it is incomplete and is not a verified
+backup. The corrected exporter must be rerun in the source workspace. No production
+restoration has been verified yet.
 
 ## Deployment and cutover gate
 

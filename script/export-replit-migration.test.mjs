@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { selectApplicationVariables, discoverVariableNames, exportLocalMedia, objectBackupName, checksum, preflight, preparePrivateTransfer } from "./export-replit-migration.mjs";
+import { selectApplicationVariables, discoverVariableNames, exportLocalMedia, objectBackupName, checksum, preflight, preparePrivateTransfer, prepareDatabaseConnection, classifyProcessFailure } from "./export-replit-migration.mjs";
 
 async function fixture(run) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "chatvice-export-test-"));
@@ -107,4 +107,65 @@ test("download archives remain private and are ignored by the source Git checkou
     const status = spawnSync("git", ["status", "--porcelain"], { cwd: source, encoding: "utf8" });
     assert.equal(status.stdout.trim(), "");
   });
+});
+
+test("database URI is split into a private libpq service file, not passed as PGDATABASE", async () => {
+  await fixture(async root => {
+    const uri = "postgresql://export_user:p%40%23%3A%3D@source.example.com:5433/chatvice%2Dproduction?sslmode=require&channel_binding=require";
+    const connection = await prepareDatabaseConnection(uri, root);
+    assert.deepEqual(connection.args, ["--dbname=service=chatvice_migration", "--no-password"]);
+    assert.equal(connection.env.PGDATABASE, undefined);
+    assert.equal(connection.env.PGSERVICE, "chatvice_migration");
+    const config = await fs.readFile(connection.env.PGSERVICEFILE, "utf8");
+    for (const line of ["host=source.example.com", "port=5433", "user=export_user", "password=p@#:=", "dbname=chatvice-production", "sslmode=require", "channel_binding=require"]) {
+      assert.ok(config.split("\n").includes(line));
+    }
+    assert.equal((await fs.stat(connection.env.PGSERVICEFILE)).mode & 0o777, 0o600);
+    assert.ok(!connection.args.join(" ").includes("export_user"));
+    assert.ok(!connection.args.join(" ").includes("p@#:="));
+  });
+});
+
+test("database service handles IPv6 and libpq query overrides", async () => {
+  await fixture(async root => {
+    const connection = await prepareDatabaseConnection("postgresql://user:password@[::1]/default?dbname=selected&connect_timeout=30", root);
+    const config = await fs.readFile(connection.env.PGSERVICEFILE, "utf8");
+    assert.ok(config.includes("host=::1\n"));
+    assert.ok(config.includes("dbname=selected\n"));
+    assert.ok(config.includes("connect_timeout=30\n"));
+    assert.ok(!config.includes("dbname=default\n"));
+  });
+});
+
+test("database service rejects malformed URLs and line injection without leaking secrets", async () => {
+  for (const uri of ["secret", "https://secret@example.com/db", "postgres://user:secret@example.com/db?host=x%0Apassword=leak", "postgres://user:secret@example.com/db?service=other"]) {
+    await fixture(async root => {
+      await assert.rejects(prepareDatabaseConnection(uri, root), error => {
+        assert.ok(!error.message.includes("secret"));
+        assert.ok(!error.message.includes("leak"));
+        return true;
+      });
+      assert.deepEqual(await fs.readdir(root), []);
+    });
+  }
+});
+
+test("database diagnostics show only version numbers for a client/server mismatch", () => {
+  const result = { status: 1, stderr: "pg_dump: error: server version: 17.5; pg_dump version: 16.2\npg_dump: error: aborting because of server version mismatch\npassword=hidden" };
+  assert.equal(classifyProcessFailure(result), "POSTGRES_VERSION_MISMATCH (server 17.5, pg_dump 16.2)");
+});
+
+test("database diagnostics classify authentication, DNS, connection and permissions without echoing details", () => {
+  for (const [stderr, code] of [
+    ['password authentication failed for user "secret"', "DATABASE_AUTHENTICATION_FAILED"],
+    ['could not translate host name "secret-host"', "DATABASE_DNS_FAILED"],
+    ["secret connection refused", "DATABASE_CONNECTION_REFUSED"],
+    ["secret timeout expired", "DATABASE_CONNECTION_TIMEOUT"],
+    ["secret SSL error", "DATABASE_TLS_FAILED"],
+    ["secret permission denied for table customer_data", "DATABASE_PERMISSION_DENIED"],
+  ]) {
+    assert.equal(classifyProcessFailure({ status: 1, stderr }), code);
+  }
+  assert.equal(classifyProcessFailure({ status: 1, stderr: "secret details" }), "PROCESS_FAILED (exit 1)");
+  assert.equal(classifyProcessFailure({ error: { code: "ENOENT" } }), "EXECUTABLE_NOT_FOUND");
 });

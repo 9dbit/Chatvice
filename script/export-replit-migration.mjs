@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Read-only production access; creates private backup files. Run in source Replit.
-import { promises as fs, createReadStream, constants } from "node:fs";
+import { promises as fs, createReadStream, constants, writeFileSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { createHash } from "node:crypto";
@@ -82,11 +82,70 @@ export async function exportLocalMedia(root, output) {
   return { files, skippedSymlinks };
 }
 
+
+export async function prepareDatabaseConnection(databaseUrl, directory) {
+  let url;
+  try { url = new URL(databaseUrl); } catch { throw new ExportError("DATABASE_URL must be a valid PostgreSQL URI"); }
+  if (!["postgres:", "postgresql:"].includes(url.protocol)) throw new ExportError("DATABASE_URL must use PostgreSQL");
+  const config = new Map();
+  try {
+    config.set("host", decodeURIComponent(url.hostname.replace(/^\[|\]$/g, "")));
+    config.set("port", url.port || "5432");
+    if (url.username) config.set("user", decodeURIComponent(url.username));
+    if (url.password) config.set("password", decodeURIComponent(url.password));
+    config.set("dbname", decodeURIComponent(url.pathname.replace(/^\//, "")));
+    config.set("connect_timeout", "20");
+    for (const [key, value] of url.searchParams) config.set(key, value);
+  } catch { throw new ExportError("DATABASE_URL contains invalid encoding"); }
+  if (!config.get("host") || !config.get("dbname")) throw new ExportError("DATABASE_URL must specify host and database");
+  for (const [key, value] of config) {
+    if (!/^[a-z][a-z0-9_]*$/.test(key) || ["service", "servicefile"].includes(key) ||
+        /[\r\n\0]/.test(value) || value.trim() !== value) {
+      throw new ExportError("DATABASE_URL contains a parameter that cannot be safely stored in the connection file");
+    }
+  }
+  const serviceFile = path.join(directory, "postgres-service.private.conf");
+  await fs.writeFile(serviceFile, "[chatvice_migration]\n" + [...config].map(([k, v]) => k + "=" + v).join("\n") + "\n", { mode: 0o600, flag: "wx" });
+  return {
+    args: ["--dbname=service=chatvice_migration", "--no-password"],
+    env: { PGSERVICEFILE: serviceFile, PGSERVICE: "chatvice_migration", PGCONNECT_TIMEOUT: "20" },
+  };
+}
+
+export function classifyProcessFailure(result) {
+  if (result.error?.code === "ENOENT") return "EXECUTABLE_NOT_FOUND";
+  if (result.error?.code === "EACCES") return "EXECUTABLE_PERMISSION_DENIED";
+  if (result.error?.code === "ENOBUFS") return "PROCESS_OUTPUT_LIMIT";
+  const stderr = String(result.stderr || "");
+  if (/server version mismatch/i.test(stderr)) {
+    const server = stderr.match(/server version:\s*(\d+(?:\.\d+)*)/i)?.[1];
+    const client = stderr.match(/pg_dump version:\s*(\d+(?:\.\d+)*)/i)?.[1];
+    return "POSTGRES_VERSION_MISMATCH" + (server && client ? " (server " + server + ", pg_dump " + client + ")" : "");
+  }
+  if (/password authentication failed|no password supplied|authentication failed/i.test(stderr)) return "DATABASE_AUTHENTICATION_FAILED";
+  if (/could not translate host name|name or service not known|nodename nor servname/i.test(stderr)) return "DATABASE_DNS_FAILED";
+  if (/connection refused/i.test(stderr)) return "DATABASE_CONNECTION_REFUSED";
+  if (/timeout expired|connection timed out/i.test(stderr)) return "DATABASE_CONNECTION_TIMEOUT";
+  if (/SSL|TLS|certificate/i.test(stderr)) return "DATABASE_TLS_FAILED";
+  if (/permission denied/i.test(stderr)) return "DATABASE_PERMISSION_DENIED";
+  if (/database .* does not exist/i.test(stderr)) return "DATABASE_NOT_FOUND";
+  if (/invalid connection option|syntax error in service file/i.test(stderr)) return "DATABASE_CONNECTION_PARAMETER_UNSUPPORTED";
+  return "PROCESS_FAILED" + (Number.isInteger(result.status) ? " (exit " + result.status + ")" : "");
+}
+
+function postgresTools(env = process.env) {
+  return { dump: env.PG_DUMP_BIN || "pg_dump", restore: env.PG_RESTORE_BIN || "pg_restore" };
+}
+
 function runPrivate(command, args, options = {}) {
-  const result = spawnSync(command, args, { stdio: "pipe", ...options });
+  const { privateErrorFile, ...spawnOptions } = options;
+  const result = spawnSync(command, args, { stdio: "pipe", ...spawnOptions });
   if (result.error || result.status !== 0) {
-    // Child stderr can contain connection credentials. Do not forward it.
-    throw new ExportError(command + " failed; verify installation, permissions and PostgreSQL client/server versions");
+    if (privateErrorFile && result.stderr) {
+      writeFileSync(privateErrorFile, String(result.stderr), { mode: 0o600, flag: "wx" });
+    }
+    throw new ExportError(path.basename(command) + ": " + classifyProcessFailure(result) +
+      (privateErrorFile ? "; details saved privately beside the backup, not printed" : ""));
   }
 }
 
@@ -156,7 +215,8 @@ export async function preflight(root, env = process.env) {
   }
   if (env.RAILWAY_PROJECT_ID) throw new ExportError("Source export cannot run on Railway");
   if (!env.DATABASE_URL) throw new ExportError("Source DATABASE_URL is missing");
-  for (const command of ["pg_dump", "pg_restore", "tar", "git"]) runPrivate(command, ["--version"]);
+  const tools = postgresTools(env);
+  for (const command of [tools.dump, tools.restore, "tar", "git"]) runPrivate(command, ["--version"]);
 }
 
 
@@ -204,10 +264,15 @@ export async function main() {
     sourceBucketName: process.env.OBJECT_STORAGE_BUCKET || null,
   });
   const dump = path.join(output, "database.dump");
-  runPrivate("pg_dump", ["--format=custom", "--no-owner", "--no-acl", "--file", dump], {
-    env: { ...process.env, PGDATABASE: process.env.DATABASE_URL, PGCONNECT_TIMEOUT: "20" },
+  const connection = await prepareDatabaseConnection(process.env.DATABASE_URL, output);
+  const tools = postgresTools();
+  runPrivate(tools.dump, [...connection.args, "--format=custom", "--no-owner", "--no-acl", "--file", dump], {
+    env: { ...process.env, ...connection.env },
+    privateErrorFile: path.join(output, "pg_dump-error.private.log"),
   });
-  runPrivate("pg_restore", ["--file=/dev/null", dump]);
+  runPrivate(tools.restore, ["--file=/dev/null", dump], {
+    privateErrorFile: path.join(output, "pg_restore-error.private.log"),
+  });
   console.log("DATABASE_ARCHIVE_DECODE_PASS");
   const localMedia = await exportLocalMedia(root, output);
   const objectStorage = await exportObjects(output, process.env);
