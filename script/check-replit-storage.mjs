@@ -4,7 +4,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const credentials = {
   audience: "replit", subject_token_type: "access_token",
@@ -19,9 +19,9 @@ const credentials = {
 export function safeStorageFailure(error) {
   const status = error?.response?.status ?? error?.statusCode ?? error?.code;
   const numeric = typeof status === "number" ? status : typeof status === "string" && /^[1-5]\d{2}$/.test(status) ? Number(status) : null;
-  const allowed = ["ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND", "ECONNRESET", "EAI_AGAIN", "ERR_MODULE_NOT_FOUND", "MODULE_NOT_FOUND"];
+  const allowed = ["ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND", "ECONNRESET", "EAI_AGAIN", "ERR_MODULE_NOT_FOUND", "MODULE_NOT_FOUND", "ERR_REQUIRE_ESM", "ERR_PACKAGE_PATH_NOT_EXPORTED", "ERR_PACKAGE_IMPORT_NOT_DEFINED", "ERR_INVALID_PACKAGE_CONFIG", "ENOENT", "EACCES", "EPERM", "STORAGE_SDK_UNAVAILABLE", "STORAGE_SDK_INTERFACE_INVALID"];
   const code = Number.isInteger(numeric) && numeric >= 100 && numeric <= 599
-    ? "HTTP_" + numeric : allowed.includes(error?.code) ? error.code : "UNKNOWN_ERROR";
+    ? "HTTP_" + numeric : allowed.includes(error?.code) ? error.code : error?.name === "TypeError" ? "SDK_TYPE_ERROR" : error?.name === "SyntaxError" ? "SDK_SYNTAX_ERROR" : "UNKNOWN_ERROR";
   let endpoint = "UNKNOWN_ENDPOINT";
   try {
     const raw = error?.config?.url ?? error?.response?.config?.url ?? error?.response?.url;
@@ -55,42 +55,102 @@ export async function probeStorage(storage, bucketName, report = console.log) {
   }
 }
 
-export async function findStorageSdk(root, backupRoot) {
-  try { return createRequire(path.join(root, "package.json"))("@google-cloud/storage"); }
-  catch { /* Use the isolated SDK installed for migration. */ }
+export async function sourceContext(root, env) {
+  if (env.RAILWAY_PROJECT_ID) return "SOURCE_CONTEXT_REQUIRED";
+  if (!(env.REPL_ID || env.REPLIT_DEPLOYMENT_ID || env.REPL_IDENTITY || env.WEB_REPL_RENEWAL)) return "SOURCE_CONTEXT_REQUIRED";
+  let routes;
+  try {
+    routes = await fs.readFile(path.join(root, "server/routes.ts"), "utf8");
+    await fs.access(path.join(root, "server/objectStorage.ts"));
+  } catch (error) {
+    if (error.code === "ENOENT") return "SOURCE_FILES_MISSING";
+    throw error;
+  }
+  return routes.includes("Chatvice") ? "SOURCE_CONTEXT_PASS" : "SOURCE_APP_MISMATCH";
+}
+
+export async function originalDatabaseFilesPresent(backupRoot) {
+  for (const name of ["database.dump", "source-config.json"]) {
+    try {
+      const stat = await fs.lstat(path.join(backupRoot, "chatvice-R7H1dF", name));
+      if (!stat.isFile() || stat.isSymbolicLink() || !stat.size) return false;
+    } catch (error) {
+      if (error.code === "ENOENT") return false;
+      throw error;
+    }
+  }
+  return true; // Presence alone does not verify archive decoding or restoration.
+}
+
+export async function findStorageSdk(root, backupRoot, report = () => {}) {
+  async function load(directory) {
+    const resolved = createRequire(path.join(directory, "package.json")).resolve("@google-cloud/storage");
+    const module = await import(pathToFileURL(resolved).href);
+    const Storage = module.Storage || module.default?.Storage;
+    if (typeof Storage !== "function") {
+      throw Object.assign(new Error(), { code: "STORAGE_SDK_INTERFACE_INVALID" });
+    }
+    return { Storage };
+  }
+  try { return await load(root); }
+  catch (error) { report("SDK_CANDIDATE [WORKSPACE]: " + safeStorageFailure(error).code); }
   const candidates = [];
-  for (const entry of await fs.readdir(backupRoot, { withFileTypes: true })) {
-    if (!entry.isDirectory() || !/^sdk\.[A-Za-z0-9]+$/.test(entry.name)) continue;
+  let entries;
+  try { entries = await fs.readdir(backupRoot, { withFileTypes: true }); }
+  catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    report("PRIVATE_SDK_DIRECTORY_MISSING");
+    entries = [];
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !/^sdk[.][A-Za-z0-9]+$/.test(entry.name)) continue;
     const directory = path.join(backupRoot, entry.name);
     const stat = await fs.lstat(directory);
-    if ((stat.mode & 0o077) || (process.getuid && stat.uid !== process.getuid())) continue;
+    if ((stat.mode & 0o077) || (process.getuid && stat.uid !== process.getuid())) {
+      report("SDK_CANDIDATE [PRIVATE]: PERMISSIONS_OR_OWNER_REJECTED");
+      continue;
+    }
     candidates.push({ directory, modified: stat.mtimeMs });
   }
   candidates.sort((a, b) => b.modified - a.modified);
+  report("PRIVATE_SDK_CANDIDATES: " + candidates.length);
   for (const { directory } of candidates) {
-    try { return createRequire(path.join(directory, "package.json"))("@google-cloud/storage"); }
-    catch { /* An earlier installation may be incomplete. */ }
+    try { return await load(directory); }
+    catch (error) { report("SDK_CANDIDATE [PRIVATE]: " + safeStorageFailure(error).code); }
   }
-  throw new Error("STORAGE_SDK_UNAVAILABLE");
+  throw Object.assign(new Error(), { code: "STORAGE_SDK_UNAVAILABLE" });
 }
 
-async function main() {
-  const root = await fs.realpath(process.cwd());
-  const routes = await fs.readFile(path.join(root, "server/routes.ts"), "utf8");
-  if (!routes.includes("Chatvice") || process.env.RAILWAY_PROJECT_ID ||
-      !(process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT_ID || process.env.REPL_IDENTITY || process.env.WEB_REPL_RENEWAL)) {
-    console.log("SOURCE_CONTEXT_REQUIRED"); process.exitCode = 1; return;
+export async function main(report = console.log) {
+  let stage = "SOURCE_DIRECTORY";
+  try {
+    const root = await fs.realpath(process.cwd());
+    stage = "SOURCE_FILES";
+    const context = await sourceContext(root, process.env);
+    report(context);
+    if (context !== "SOURCE_CONTEXT_PASS") { process.exitCode = 1; return; }
+    if (!process.env.OBJECT_STORAGE_BUCKET) {
+      report("SOURCE_BUCKET_NOT_CONFIGURED"); process.exitCode = 1; return;
+    }
+    const backupRoot = path.join(os.homedir(), "chatvice-private-backups");
+    stage = "BACKUP_FILES";
+    report("ORIGINAL_DATABASE_FILES_PRESENT: " + await originalDatabaseFilesPresent(backupRoot));
+    stage = "SDK_DISCOVERY";
+    const { Storage } = await findStorageSdk(root, backupRoot, report);
+    report("STORAGE_SDK_LOAD_PASS");
+    stage = "SDK_CLIENT_SETUP";
+    const storage = new Storage({ projectId: "", credentials, retryOptions: { autoRetry: false } });
+    if (typeof storage.authClient?.getAccessToken !== "function") {
+      throw Object.assign(new Error(), { code: "STORAGE_SDK_INTERFACE_INVALID" });
+    }
+    const result = await probeStorage(storage, process.env.OBJECT_STORAGE_BUCKET, report);
+    process.exitCode = result.success ? 0 : 1;
+  } catch (error) {
+    report("STORAGE_DIAGNOSTIC_SETUP_FAILED [" + stage + "]: " + safeStorageFailure(error).code);
+    process.exitCode = 1;
   }
-  if (!process.env.OBJECT_STORAGE_BUCKET) {
-    console.log("SOURCE_BUCKET_NOT_CONFIGURED"); process.exitCode = 1; return;
-  }
-  const { Storage } = await findStorageSdk(root, path.join(os.homedir(), "chatvice-private-backups"));
-  console.log("STORAGE_SDK_LOAD_PASS");
-  const storage = new Storage({ projectId: "", credentials, retryOptions: { autoRetry: false } });
-  const result = await probeStorage(storage, process.env.OBJECT_STORAGE_BUCKET);
-  process.exitCode = result.success ? 0 : 1;
 }
 
 if (process.argv[1] && await fs.realpath(process.argv[1]).catch(() => "") === fileURLToPath(import.meta.url)) {
-  main().catch(() => { console.log("STORAGE_DIAGNOSTIC_SETUP_FAILED"); process.exitCode = 1; });
+  await main();
 }

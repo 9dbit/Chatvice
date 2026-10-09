@@ -146,8 +146,14 @@ exchange failure from bucket listing failure. It automatically finds the install
 SDK in the workspace or a private sdk.* migration directory, requests an access
 token and lists at most one bucket object. Output contains only fixed phase,
 status and endpoint labels; it prints no credentials, bucket names or object keys.
-The probe does not export media or modify bucket permissions. Its five fixture
-tests cover endpoint classification, private SDK resolution and output privacy.
+The probe does not export media or modify bucket permissions. Its ten fixture
+tests cover endpoint classification, CJS/ESM SDK resolution, missing source files,
+missing SDK directories, snapshot file presence and output privacy.
+Setup failures include the failing phase and a safe code. The probe identifies
+missing Chatvice source files or another app before reading storage credentials.
+It reports whether the original dump/config files still exist and prints safe
+SDK candidate failure codes. Snapshot file presence does not prove decoding or
+restoration.
 No production restoration has been verified yet.
 
 ## Deployment and cutover gate
