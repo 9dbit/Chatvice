@@ -1,3 +1,5 @@
+import { mediaDirectory } from "./mediaPaths";
+import { openAIOptions, geminiOptions } from "./aiConfig";
 import { backgroundJobsEnabled } from "./backgroundJobs";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
@@ -47,7 +49,7 @@ import sharp from "sharp";
 import { greetingDelayToMilliseconds, hasReplayableProactiveGreeting } from "./proactiveGreetingDelivery";
 import { canSessionRequireAttention, resolveSessionAttention } from "./sessionAttention";
 
-const uploadDir = path.join(process.cwd(), "uploads");
+const uploadDir = mediaDirectory("uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -127,10 +129,7 @@ function getBaseUrl(req: Request): string {
   return `${protocol}://${host}`;
 }
 
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-});
+const openai = new OpenAI(openAIOptions());
 
 // OpenAI public list pricing (USD per 1M tokens) — used for cost monitoring only.
 // Values intentionally conservative to avoid under-reporting. Update when pricing changes.
@@ -2040,7 +2039,7 @@ ATURAN KETAT:
       const imagesToInclude = recentImages.slice(-3);
       for (const img of imagesToInclude) {
         if (img.url.startsWith('/')) {
-          const localPath = path.join(process.cwd(), "uploads", img.url.replace("/uploads/", ""));
+          const localPath = path.join(mediaDirectory("uploads"), img.url.replace("/uploads/", ""));
           try {
             const imgStats = await fs.promises.stat(localPath);
             if (imgStats.size > 4 * 1024 * 1024) throw new Error("Too large");
@@ -2169,7 +2168,7 @@ async function analyzeMediaWithAI(
 
   try {
     if (mediaType === "photo") {
-      const localFilePath = path.join(process.cwd(), "uploads", fileUrl.replace("/uploads/", ""));
+      const localFilePath = path.join(mediaDirectory("uploads"), fileUrl.replace("/uploads/", ""));
       let imageUrl: string;
       
       try {
@@ -2255,7 +2254,7 @@ ${conversationContext ? `Recent Conversation:\n${conversationContext}` : ""}`
       }
       
       if (ext === "txt" || ext === "csv") {
-        const filePath = path.join(process.cwd(), "uploads", fileUrl.replace("/uploads/", ""));
+        const filePath = path.join(mediaDirectory("uploads"), fileUrl.replace("/uploads/", ""));
         try {
           const stats = await fs.promises.stat(filePath);
           if (stats.size > 100 * 1024) {
@@ -7407,13 +7406,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       }
 
       const { GoogleGenAI, Modality } = await import("@google/genai");
-      const ai = new GoogleGenAI({
-        apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-        httpOptions: {
-          apiVersion: "",
-          baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
-        },
-      });
+      const ai = new GoogleGenAI(geminiOptions());
 
       // Extract base64 data from data URL or fetch from URL
       let base64Data: string;
@@ -32677,7 +32670,7 @@ Please create a comprehensive help center article that would be useful for custo
     try {
       const filename = EXPORT_TOKENS[req.params.token];
       if (!filename) return res.status(404).json({ error: "Invalid or expired token" });
-      const filePath = path.join(process.cwd(), "exports", filename);
+      const filePath = path.join(mediaDirectory("exports"), filename);
       if (!fs.existsSync(filePath)) return res.status(404).json({ error: "File not found" });
       res.download(filePath, filename, (err) => {
         if (err && !res.headersSent) res.status(500).json({ error: "Download error" });

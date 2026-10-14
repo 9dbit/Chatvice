@@ -1,3 +1,4 @@
+import { mediaDirectory } from "./mediaPaths";
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
@@ -179,7 +180,7 @@ export function serveStatic(app: Express) {
     );
   }
 
-  const uploadsPath = path.resolve(process.cwd(), "uploads");
+  const uploadsPath = mediaDirectory("uploads");
   if (!fs.existsSync(uploadsPath)) {
     fs.mkdirSync(uploadsPath, { recursive: true });
   }

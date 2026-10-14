@@ -1,3 +1,4 @@
+import { mediaDirectory } from "./mediaPaths";
 import { backgroundJobsEnabled } from "./backgroundJobs";
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
@@ -82,7 +83,7 @@ app.get('/__health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-const uploadsPath = path.resolve(process.cwd(), "uploads");
+const uploadsPath = mediaDirectory("uploads");
 try {
   if (!fs.existsSync(uploadsPath)) {
     fs.mkdirSync(uploadsPath, { recursive: true });
@@ -93,7 +94,7 @@ try {
 app.use("/uploads", express.static(uploadsPath));
 
 // Serve exports as forced downloads
-const exportsPath = path.resolve(process.cwd(), "exports");
+const exportsPath = mediaDirectory("exports");
 try {
   if (!fs.existsSync(exportsPath)) fs.mkdirSync(exportsPath, { recursive: true });
 } catch {}
