@@ -1,12 +1,14 @@
+import { openAIOptions } from "./aiConfig";
 import OpenAI from "openai";
 import { storage } from "./storage";
 import { randomBytes } from "crypto";
 import { blogArticles } from "../client/src/pages/company/blog-data";
 
 function getOpenAI(): OpenAI {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  const options = openAIOptions();
+  const apiKey = options.apiKey;
   if (!apiKey) throw new Error("OpenAI API key not set");
-  return new OpenAI({ apiKey });
+  return new OpenAI(options);
 }
 
 const CATEGORIES = ["Product", "Tutorial", "Industry", "Comparison", "Insights"];

@@ -1,14 +1,9 @@
+import { geminiOptions } from "./aiConfig";
 import { GoogleGenAI } from "@google/genai";
 import { storage } from "./storage";
 import type { ChatSecuritySettings, InsertChatSecurityAlert } from "@shared/schema";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-  httpOptions: {
-    apiVersion: "",
-    baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
-  },
-});
+const ai = new GoogleGenAI(geminiOptions());
 
 interface SecurityAnalysisResult {
   isSuspicious: boolean;

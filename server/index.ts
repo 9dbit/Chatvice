@@ -1,3 +1,5 @@
+import { mediaDirectory } from "./mediaPaths";
+import { backgroundJobsEnabled } from "./backgroundJobs";
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
 import fs from "fs";
@@ -66,12 +68,22 @@ app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Readiness includes database access; liveness endpoints remain lightweight.
+app.get('/api/health', async (_req, res) => {
+  try {
+    await db.execute(sql`SELECT 1`);
+    res.status(200).json({ status: 'ok', database: 'connected' });
+  } catch {
+    res.status(503).json({ status: 'unavailable', database: 'unavailable' });
+  }
+});
+
 // Also respond to root health check
 app.get('/__health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-const uploadsPath = path.resolve(process.cwd(), "uploads");
+const uploadsPath = mediaDirectory("uploads");
 try {
   if (!fs.existsSync(uploadsPath)) {
     fs.mkdirSync(uploadsPath, { recursive: true });
@@ -82,7 +94,7 @@ try {
 app.use("/uploads", express.static(uploadsPath));
 
 // Serve exports as forced downloads
-const exportsPath = path.resolve(process.cwd(), "exports");
+const exportsPath = mediaDirectory("exports");
 try {
   if (!fs.existsSync(exportsPath)) fs.mkdirSync(exportsPath, { recursive: true });
 } catch {}
@@ -216,24 +228,26 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Bootstrap default addon configs if they don't exist yet
-  try {
-    const existingConfigs = await storage.getAddonConfigs();
-    const defaultAddons = [
-      { addonType: "appointment_scheduling", name: "Smart Appointment Scheduling", description: "AI-powered appointment booking with calendar management", monthlyPriceUsd: 7, isEnabled: true },
-      { addonType: "hospitality", name: "Hospitality AI Assistant", description: "Hotel availability checker and room booking assistant", monthlyPriceUsd: 12, isEnabled: true },
-    ];
-    for (const addon of defaultAddons) {
-      const existing = existingConfigs.find(c => c.addonType === addon.addonType);
-      if (!existing || existing.monthlyPriceUsd !== addon.monthlyPriceUsd) {
-        await storage.upsertAddonConfig(addon);
+  // Bootstrap only on the deployment that owns background work.
+  if (backgroundJobsEnabled()) {
+    try {
+      const existingConfigs = await storage.getAddonConfigs();
+      const defaultAddons = [
+        { addonType: "appointment_scheduling", name: "Smart Appointment Scheduling", description: "AI-powered appointment booking with calendar management", monthlyPriceUsd: 7, isEnabled: true },
+        { addonType: "hospitality", name: "Hospitality AI Assistant", description: "Hotel availability checker and room booking assistant", monthlyPriceUsd: 12, isEnabled: true },
+      ];
+      for (const addon of defaultAddons) {
+        const existing = existingConfigs.find(c => c.addonType === addon.addonType);
+        if (!existing || existing.monthlyPriceUsd !== addon.monthlyPriceUsd) {
+          await storage.upsertAddonConfig(addon);
+        }
       }
+    } catch (err) {
+      console.error("[Bootstrap] Failed to seed addon configs:", err);
     }
-  } catch (err) {
-    console.error("[Bootstrap] Failed to seed addon configs:", err);
-  }
 
-  await seedMasterAdminFromEnv();
+    await seedMasterAdminFromEnv();
+  }
 
   await registerRoutes(httpServer, app);
 
@@ -955,6 +969,10 @@ async function runSubscriptionExpiryReminders(): Promise<void> {
 
 
 function startBackgroundSync(): void {
+  if (!backgroundJobsEnabled()) {
+    console.log("[sync] Background jobs disabled for this deployment");
+    return;
+  }
   setTimeout(() => migrateLegacyCrawledLinks(), 3000);
   setTimeout(() => runAllBackgroundJobs(), 5 * 60 * 1000);
   setInterval(() => runAllBackgroundJobs(), 60 * 60 * 1000);

@@ -1,11 +1,9 @@
+import { openAIOptions } from "./aiConfig";
 import OpenAI from "openai";
 import { storage } from "./storage";
 import type { KnowledgeChunk } from "@shared/schema";
 
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || undefined,
-});
+const openai = new OpenAI(openAIOptions());
 
 let embeddingsSupported: boolean | null = null;
 
