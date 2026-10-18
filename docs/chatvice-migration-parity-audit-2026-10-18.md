@@ -1,19 +1,22 @@
 # Chatvice migration parity audit — 18 October 2026
 
-Status: **snapshot parity verified; production cutover on hold**.
+Status: **HARD BLOCK — development snapshot parity verified; live published production data not yet audited.**
 
 This document records a read-only comparison of the legacy Replit deployment and the Railway Chatvice production environment. It contains **no credentials, customer identifiers, user messages, media filenames, or database rows**.
 
 ## Exact scope and baseline
 
+> **P0 SOURCE-PROVENANCE CORRECTION (2026-10-18):** The 13 October backup's `sourceDatabaseUrl` host is exactly **`helium`**, Replit's internal development database. This is **not verified as the published Replit production database**. The 140/140 checksum pass below compares the development snapshot with Railway, not necessarily live `chatvice.app` customer data. Replit can provision an independent production database when publishing. **Do not change DNS, discard old hosting, or run a final restore to Railway until the published production database has been independently identified, backed up, and compared.**
+
+
 - Source service: Replit **Chatvice.app**, publicly serving `https://chatvice.app`.
 - Target: Railway project **Chatvice** (`40970ac6-3ce6-4d31-8d6a-555d2dd6fecf`), app service `c9d4bade-3f8b-4270-b68a-4e03d576493b`, Postgres service `d3d64e81-89df-4969-9bff-5f3246303d69`.
 - Target deployment branch: `feat/railway-migration-safety`, source commit `9e146b7d834a43c596c1e0241b9eff48538d4223`.
-- Baseline source snapshot: 13 October 2026 17:35 UTC (from partial backup manifest). The backup was located on an authorized local Mac. Source Postgres uses an internal Replit hostname and cannot be queried directly from outside Replit.
+- Baseline **Replit development (Helium)** snapshot: 13 October 2026 17:35 UTC (partial backup manifest). The backup was located on an authorized Mac. Its `sourceDatabaseUrl` hostname was checked without disclosing the URI and is exactly `helium`. It is internal to Replit, not externally routable. Published production DB connection and provenance have NOT been established.
 - The source transfer ZIP contained two custom-format PostgreSQL dumps, 86,423,457 bytes each. Both passed ZIP/PGDMP read and `pg_restore --list` checks. The second backup (`chatvice-SNnEcT`) was used for full parity testing. Its SHA-256 differs from the other snapshot; do not assume they are identical merely from identical row counts.
 - The backup is **partial**: local media and database exports exist, but legacy Replit object-storage export failed at token exchange (HTTP 401). The backup contains production-sensitive data and must remain private.
 
-## Database parity: PASS for the 13 October snapshot
+## Development-snapshot database parity: PASS (NOT production parity)
 
 Compared the selected source PostgreSQL custom-format dump locally on Mac against the current Railway PostgreSQL service using read-only queries and SHA-256 of sorted PostgreSQL `COPY` text rows. No database updates/restores were performed.
 
@@ -38,7 +41,7 @@ Public read-only API comparisons on 18 October:
 | Starter plan `domainsLimit` | 2 | 1 |
 | Platform `exchange_rate` | 17,688 | 18,089 |
 
-The historical source dump stores the Railway values (1 and 18,089), confirming that the live source changed after the snapshot. Do not blindly patch one-off values until a final fresh source export and authoritative delta capture is complete.
+The **Helium development** dump stores the Railway values (1 and 18,089). This divergence does NOT establish when a production setting changed: it may reflect independent development and production database state. Do not blindly patch one-off values until the published production database is identified and audited.
 
 ## Local media and object storage
 
@@ -66,7 +69,7 @@ The historical source dump stores the Railway values (1 and 18,089), confirming 
 ## Cutover gates still outstanding
 
 1. **Fresh source backup** from the live Replit workspace after 13 October, plus a final delta/freeze strategy so subsequent user writes are not lost. The existing Replit export script is `script/export-replit-migration.mjs`; check prerequisites in the source workspace with `node script/export-replit-migration.mjs --check`. Do not post dumps or credentials to chat.
-2. Inspect and securely export any remaining legacy Replit object-storage bucket objects or independently establish that none are required, including objects created after the snapshot.
+2. Inspect and securely export **the published production App Storage/bucket** objects or independently establish that none are required, including objects created after the snapshot; do not assume the development bucket is the production bucket.
 3. Restore-test a fresh backup in an isolated database, compare tables and content checksums again, and reconcile changed configuration (Starter `domainsLimit`, exchange rate and any newly changed records).
 4. Perform authenticated UAT for admin/member login, OAuth callbacks, dashboard, chat/AI agent responses, WebSocket/widget, persistent uploads, email, subscriptions, PayPal/12Pay sandbox and webhook signature handling. No live payment transactions during migration testing.
 5. Prepare cutover rollback: drain or pause legacy writes, take final consistent backup, apply delta, verify HTTPS, switch DNS records, transfer webhook destinations and background-job ownership exactly once, then monitor and keep legacy available for rollback.
@@ -76,3 +79,11 @@ The historical source dump stores the Railway values (1 and 18,089), confirming 
 - No DNS traffic cutover, service deletion, database modification, source deployment modification, or worker ownership switch performed.
 - One disposable R2 object was created/read/deleted and cleanup verified.
 - This audit document is on a separate GitHub branch; it is not a Railway production deployment or a change to the running `feat/railway-migration-safety` branch.
+
+## Verified offline restore recovery test (2026-10-18)
+
+- Built PostgreSQL 18.6 in a temporary, private Mac directory and launched a Unix-socket-only throwaway cluster (no TCP listener).
+- Restored the `chatvice-SNnEcT` development snapshot using `pg_restore --no-owner --no-privileges --exit-on-error --jobs=4`: **PASS**, 140 tables restored; 39 merchants and 11,891 chat logs verified; 0 unvalidated constraints.
+- Initial post-restore text `COPY` SHA-256 check showed 136/140 matches. The remaining 4 Stripe tables contained timezone-sensitive text representations: Mac's PostgreSQL default session timezone was `Asia/Jakarta` while the dump used UTC. Repeating those four checks with `PGOPTIONS='-c timezone=UTC'` yielded **4/4 PASS**. No content differences remained after normalizing session timezone.
+- The temporary PostgreSQL server was stopped; production Railway and Replit databases were untouched.
+- This recovery test proves the development backup is restorable, **not** that it contains current live production data.
