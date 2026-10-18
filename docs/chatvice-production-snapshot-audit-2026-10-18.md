@@ -90,3 +90,73 @@ Source configuration and content updates are therefore not entirely captured by 
 **This audit made NO writes to either the published Replit Production database or Railway PostgreSQL. There was NO DNS cutover, deployment, payment operation, or background-worker switch.** Local temporary PostgreSQL was started and stopped only for isolated restore/read-only inspections.
 
 See also `docs/chatvice-migration-parity-audit-2026-10-18.md` for the earlier *development baseline* audit. Draft PR #3 adds an exporter safeguard against accidentally treating Helium as Production.
+
+
+## Railway backup and local staging merge rehearsal
+
+Status on 18 October 2026: **MERGE REHEARSAL PASS; LIVE CUTOVER STILL BLOCKED.**
+
+### Independent backups and recovery
+
+- Operator-selected Replit Production snapshot: 109,180,474 bytes, SHA-256 verified, 141 database tables and isolated PostgreSQL restore PASS.
+- Independent Railway Production snapshot via encrypted SSH tunnel (no public TCP proxy): 86,425,709 bytes, SHA-256 verified, 140 table data sections, archive list PASS. Tunnel closed.
+- Both backups are stored privately on the authorized Mac. Neither file, credentials, nor customer content was published to GitHub.
+- Railway backup was restored to a new local database using a private Unix-socket-only PostgreSQL cluster. No live database changes.
+
+### Insert-only merge simulation
+
+Imported the Production source snapshot into an isolated clone of Railway with PostgreSQL ON CONFLICT DO NOTHING, a single transaction, and pre/post union checks of primary keys for all 140 application tables. No existing Railway record was overwritten.
+
+| Check | Result |
+| --- | ---: |
+| Source app records | 52,933 |
+| Railway baseline records | 31,776 |
+| Expected union / staged result | 53,522 / 53,522 |
+| Railway-only IDs preserved | 589 |
+| Source or Railway IDs missing | 0 |
+| Unexpected IDs created | 0 |
+| Merged chat logs | 20,605 |
+| Foreign keys unvalidated | 0 |
+| Live database writes | 0 |
+
+589 Railway-only records: 546 custom_data_health_pings, 31 merchant_notifications, 9 knowledge_chunks, and 3 chat_logs.
+
+### Content conflicts and optional field-level policy rehearsal
+
+After insert-only merge, 24 shared-primary-key rows differed from the published Production snapshot, across eight tables:
+- 6 custom_data_sources (health check times, latency, error, timestamp);
+- 6 platform_settings (6 timestamp differences, 4 value differences);
+- 3 sessions (last_activity);
+- 3 unknown_domain_attempts (attempt_count and last_seen_at);
+- 2 crawled_links (content, sync status/time);
+- 2 knowledge_entries (content);
+- 1 knowledge (content);
+- 1 merchants (last_login_ip).
+
+Four platform setting values with real drift: exchange_rate, exchange_rate_updated, guide_knowledge_last_refreshed and subscription_plans_custom. Two other settings differ only in timestamps.
+
+A **second independent offline database clone** tested a candidate policy: Replit Production values for platform configuration and knowledge content; latest timestamps for transient activity and health; preserve all Railway-only records; defer merchant login IP. Results: **21 rows updated**, **3 differences remaining** (2 Railway session activity times intentionally retained because newer, 1 security-sensitive merchant login IP intentionally deferred). Total rows still 53,522, chat logs still 20,605, foreign-key validation remains PASS.
+
+**This candidate policy has NOT been approved for live use.** Staging tests do not constitute permission to overwrite Production data.
+
+### File/media storage clarification
+
+- All 91 Production stored_files rows contain their file content embedded directly in PostgreSQL: aggregate 101,937,792 bytes. All 91 records are in staging, including the 35 missing from the prior Helium Development snapshot.
+- All 27 chat_media rows have embedded file_data with no storage_url.
+- All 50 media_attachments URLs are relative paths under /uploads/; their physical files still require source-vs-target parity checks.
+- The former 1,168 local media files match the Development backup and Railway volume, but **this does not establish complete published Production App Storage parity**.
+- The Replit read-only Agent did not produce a verifiable object inventory. Production App Storage reconciliation remains a cutover blocker.
+
+### Production-origin public API corroboration
+
+The newly acquired source snapshot matches the live public chatvice.app API for exchange_rate (17,688) and Starter domainsLimit (2). This supports the Production provenance claim but does not replace a final consistent backup immediately before cutover.
+
+### Outstanding gates
+
+1. Inventory Production Replit App Storage and reconcile object bytes/checksums with Cloudflare R2 and physical /uploads/ files.
+2. Review and approve business-data conflict policy, preserving security metadata and all 589 Railway-only records.
+3. Authenticate UAT on staging: login/OAuth, merchants, agents, chat/widget, file URLs, webhooks and sandbox payments.
+4. Define final write freeze or validated change capture; take and verify a fresh source snapshot and rerun reconciliation.
+5. Preserve Railway backup, verify rollback, and only then consider cutover of DNS/worker/webhook ownership.
+
+**No production database, application, DNS, object storage or worker ownership was changed during these offline tests.**
