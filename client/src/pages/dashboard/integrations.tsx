@@ -27,7 +27,7 @@ import {
   SiHubspot,
   SiIntercom,
 } from "react-icons/si";
-import { Search, ExternalLink, Check, Clock, Plug, Send, Bell, BellRing, Sparkles, CreditCard, Zap } from "lucide-react";
+import { Search, ExternalLink, Check, Clock, Plug, Send, Bell, BellRing, Sparkles, CreditCard, Zap, Network } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { NotificationSetting } from "@shared/schema";
 
@@ -36,7 +36,7 @@ interface Integration {
   name: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
-  category: "messaging" | "crm" | "ecommerce" | "helpdesk" | "notifications" | "payment" | "ai";
+  category: "messaging" | "crm" | "ecommerce" | "helpdesk" | "notifications" | "payment" | "ai" | "operations";
   status: "available" | "coming_soon" | "connected";
   popular?: boolean;
   configurable?: boolean;
@@ -51,6 +51,7 @@ const categoryLabels: Record<string, string> = {
   helpdesk: "Helpdesk",
   payment: "Payment",
   ai: "AI & Automation",
+  operations: "Operations",
 };
 
 const categoryIconBg: Record<string, string> = {
@@ -61,6 +62,7 @@ const categoryIconBg: Record<string, string> = {
   helpdesk: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
   payment: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400",
   ai: "bg-primary/15 text-primary",
+  operations: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
 };
 
 export default function IntegrationsPage() {
@@ -91,6 +93,14 @@ export default function IntegrationsPage() {
   });
 
   const integrations: Integration[] = [
+    {
+      id: "company-command-center",
+      name: "Company Command Center",
+      description: "Read-only Customer Service agent directory for approved merchant workspaces. Integration requires merchant authorization and a separate security review.",
+      icon: Network,
+      category: "operations",
+      status: "coming_soon",
+    },
     {
       id: "push-notifications",
       name: "Browser Notifications",
