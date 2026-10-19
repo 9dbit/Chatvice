@@ -17,7 +17,7 @@ const cycle = (month: string) => ({
 describe.runIf(runOnIsolatedCiPostgres)("PayPal atomic renewal (ephemeral database only)", () => {
   beforeAll(async () => {
     await pool.query('CREATE TABLE merchants (id varchar(32) primary key, email text not null, company_name text, subscription_plan_id text, current_period_end timestamp, paypal_subscription_id text, subscription_status text, expiry_reminder_7d_sent_at timestamp, expiry_reminder_3d_sent_at timestamp)');
-    await pool.query('CREATE TABLE payment_transactions (id varchar(32) primary key, merchant_id varchar(32) not null, amount integer not null, status varchar(20), gateway_name text, external_id text, payment_method text, plan_id varchar(32), plan_name text, subscription_months integer, merchant_email text, merchant_company_name text, currency varchar(10), paid_at timestamp, invoice_number text, created_at timestamp, updated_at timestamp)');
+    await pool.query('CREATE TABLE payment_transactions (id varchar(32) primary key, merchant_id varchar(32) not null, gateway_id varchar(32), gateway_name text, external_id text, amount integer not null, currency varchar(10), status varchar(20), payment_method text, plan_id varchar(32), plan_name text, subscription_months integer, merchant_email text, merchant_company_name text, gateway_response jsonb, qris_url text, paid_at timestamp, expires_at timestamp, created_at timestamp, updated_at timestamp, receipt_sent_at timestamp, invoice_number text)');
   });
 
   beforeEach(async () => {
