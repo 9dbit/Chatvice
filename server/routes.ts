@@ -1,6 +1,7 @@
 import { mediaDirectory } from "./mediaPaths";
 import { openAIOptions, geminiOptions } from "./aiConfig";
 import { backgroundJobsEnabled } from "./backgroundJobs";
+import { getTopupJwtSecret } from "./topupTokenSecurity";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
@@ -26511,7 +26512,8 @@ Your Telegram integration is working correctly!`;
       
       // Generate JWT token for payment flow with proper expiration
       const jwt = await import("jsonwebtoken");
-      const JWT_SECRET = process.env.JWT_SECRET || "chatvice_topup_secret_key_2024";
+      const JWT_SECRET = getTopupJwtSecret();
+      if (!JWT_SECRET) return res.status(503).json({ error: "Top-up temporarily unavailable" });
       
       const payload = {
         type: "topup_session", // Token type identifier
@@ -26524,7 +26526,7 @@ Your Telegram integration is working correctly!`;
       };
       
       // Sign with expiration (30 minutes)
-      const token = jwt.default.sign(payload, JWT_SECRET, { expiresIn: "30m" });
+      const token = jwt.default.sign(payload, JWT_SECRET, { expiresIn: "30m", algorithm: "HS256" });
       
       // Generate redirect URL - using same domain for now (will be pay.chatvice.com later)
       const baseUrl = process.env.PAYMENT_BASE_URL || `https://${req.get("host")}`;
@@ -26552,10 +26554,11 @@ Your Telegram integration is working correctly!`;
       }
       
       const jwt = await import("jsonwebtoken");
-      const JWT_SECRET = process.env.JWT_SECRET || "chatvice_topup_secret_key_2024";
+      const JWT_SECRET = getTopupJwtSecret();
+      if (!JWT_SECRET) return res.status(503).json({ error: "Top-up temporarily unavailable" });
       
       try {
-        const decoded = jwt.default.verify(token, JWT_SECRET) as {
+        const decoded = jwt.default.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as {
           type?: string;
           merchant_id: string;
           site_id: string;
@@ -26648,7 +26651,8 @@ Your Telegram integration is working correctly!`;
       }
       
       const jwt = await import("jsonwebtoken");
-      const JWT_SECRET = process.env.JWT_SECRET || "chatvice_topup_secret_key_2024";
+      const JWT_SECRET = getTopupJwtSecret();
+      if (!JWT_SECRET) return res.status(503).json({ error: "Top-up temporarily unavailable" });
       
       let decoded: {
         type?: string;
@@ -26661,7 +26665,7 @@ Your Telegram integration is working correctly!`;
       };
       
       try {
-        decoded = jwt.default.verify(token, JWT_SECRET) as typeof decoded;
+        decoded = jwt.default.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as typeof decoded;
       } catch (jwtError) {
         return res.status(401).json({ error: "Invalid or expired token" });
       }
