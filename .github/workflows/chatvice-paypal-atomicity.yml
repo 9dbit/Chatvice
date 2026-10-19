@@ -7,6 +7,8 @@ on:
   pull_request:
     paths:
       - server/paypalRenewalAtomic.ts
+      - server/paypalBillingCycle.ts
+      - server/__tests__/paypal-billing-cycle.test.ts
       - server/__tests__/paypal-renewal-atomic.integration.test.ts
       - server/routes.ts
       - .github/workflows/chatvice-paypal-atomicity.yml
@@ -48,5 +50,7 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: 16-way renewal race, rollback and owner isolation
         run: npx --no-install vitest run server/__tests__/paypal-renewal-atomic.integration.test.ts
+      - name: Verify provider billing-cycle identity across month boundaries
+        run: npx --no-install vitest run server/__tests__/paypal-billing-cycle.test.ts
       - name: Build production bundle
         run: npm run build
