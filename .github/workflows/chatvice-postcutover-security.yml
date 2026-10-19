@@ -31,7 +31,7 @@ jobs:
           run_install: false
       - name: Install test dependencies without changing npm lockfile
         run: pnpm install --no-frozen-lockfile --ignore-scripts --config.strict-peer-dependencies=false
-      - name: Top-up JWT and worker configuration tests
-        run: pnpm exec vitest run server/__tests__/topup-token-security.test.ts server/__tests__/background-jobs.test.ts
+      - name: Top-up JWT and worker guards (Node built-in test runner)
+        run: node --experimental-strip-types --test server/__tests__/postcutover-security.node.test.mjs
       - name: Typecheck
         run: pnpm run check
