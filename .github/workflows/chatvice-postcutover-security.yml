@@ -1,0 +1,40 @@
+name: Chatvice post-cutover security checks
+
+on:
+  push:
+    branches:
+      - security/chatvice-topup-jwt-failclosed-20261019
+  pull_request:
+    paths:
+      - server/routes.ts
+      - server/topupTokenSecurity.ts
+      - server/__tests__/topup-token-security.test.ts
+      - .github/workflows/chatvice-postcutover-security.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  topup-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.18.2"
+          run_install: false
+      - name: Install test dependencies without changing npm lockfile
+        run: pnpm install --no-frozen-lockfile --ignore-scripts --config.strict-peer-dependencies=false
+      - name: Top-up JWT and worker guards (Node built-in test runner)
+        run: node --experimental-strip-types --test server/__tests__/postcutover-security.node.test.mjs
+      - name: Typecheck top-up signing security helper
+        run: pnpm exec tsc --noEmit --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext server/topupTokenSecurity.ts
+      - name: Full-repository TypeScript audit (preexisting technical debt)
+        continue-on-error: true
+        run: pnpm run check
