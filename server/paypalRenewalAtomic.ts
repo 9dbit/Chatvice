@@ -41,7 +41,7 @@ export type PaypalRenewalResult =
 
 export function validatePaypalRenewalInput(input: PaypalRenewalInput) {
   if (!input.subscriptionId || input.subscriptionId.length > 255) throw new Error("Invalid PayPal subscription reference");
-  if (input.cycleKey !== input.cycleKey.trim() || !/^paypal_cycle_.+_\\d{4}_\\d{2}$/.test(input.cycleKey) || input.cycleKey.length > 512) {
+  if (input.cycleKey !== input.cycleKey.trim() || !/^paypal_cycle_.+_\d{4}_\d{2}$/.test(input.cycleKey) || input.cycleKey.length > 512) {
     throw new Error("Invalid PayPal billing cycle key");
   }
   if (!Number.isFinite(input.amountUsd) || input.amountUsd <= 0) throw new Error("Invalid PayPal renewal amount");
@@ -91,7 +91,7 @@ export async function commitPaypalRenewal(input: PaypalRenewalInput): Promise<Pa
     const expiresAt = new Date(startAt.getTime() + 30 * 24 * 60 * 60 * 1000);
     const planName = merchant.subscriptionPlanId === "custom"
       ? "Custom Plan"
-      : merchant.subscriptionPlanId?.replace("_", " ").replace(/\\b\\w/g, c => c.toUpperCase()) || "Plan";
+      : merchant.subscriptionPlanId?.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase()) || "Plan";
     const invoiceNumber = "PP-" + randomBytes(8).toString("hex");
     const transactionId = "txn_" + randomBytes(12).toString("hex");
     const companyName = merchant.companyName || merchant.email.split("@")[0];
