@@ -78,3 +78,21 @@ Draft PR #4 includes the disabled Company Command Center vendor card and the Gat
 ### Operator checkpoint
 
 When source freeze has been activated, record `snapshot_started_at`, `backup_finished_at`, estimated watchdog deadline, final source SHA and size (do not send secrets), and each gate result. Stop on unknown/failed gate. Do not run unattended background work or promise automatic cutover merely because a preparation script exists.
+
+
+## Actual cutover checkpoint: 2026-10-19
+
+**Main domain migrated, full authenticated/payment acceptance remains gated.**
+
+- New frozen Replit Published Production backup: 109,176,591 bytes, SHA-256 74ad5a00199077a38e7e3dcde512cf97cd76549728989da70d56b63d6bca34ae (private folder final-frozen-1Yc2vO).
+- Verified restored Railway shadow Postgres-F6Uj: 140 app tables, 52,761 rows, 20,625 chat logs, 59 merchants, 40 agents, 26,716 sessions, 0 unvalidated FK. Excluded 589 Railway-only historical records.
+- Cloudflare apex chatvice.app and www.chatvice.app CNAME to Railway, both Proxied. HTTPS GET /api/health returns JSON status ok, database connected on both hosts. Homepage, landing settings, auth providers, subscription plans, platform settings and /topup pass public HTTP smoke.
+- Chatvice production Railway service uses Postgres-F6Uj, APP_URL=https://chatvice.app and PAYMENT_BASE_URL=https://chatvice.app; ENABLE_BACKGROUND_JOBS remains false. Successful deployment: 0ad04f3a-e269-436d-b352-7cf188a06ff1.
+- Replit source write-freeze watchdog status CUTOVER_CONFIRMED_OLD_DB_STAYS_READONLY. Source DB must NOT be unfrozen, otherwise split-brain writes may occur.
+- Orchestration bug: onepass script falsely reported SOURCE_WRITE_FREEZE_LATCH_MISSING after both Cloudflare records were saved. Root cause was a macOS /tmp symlink not traversed by find. We recovered Railway native Postgres-F6Uj variable before obsolete rollback deployment became active, and patched the onepass latch check to canonicalize tmpdir. Subsequent check PASS.
+- Cloudflare Full SSL and active Universal edge cert; Railway custom-domain origin cert still validating ownership. Verify edge and origin TLS before switching to Full Strict.
+- Startup logs confirmed database connected, LOCAL_MEDIA_READY:1168, 12Pay key configuration detected, and background jobs disabled. Post-cutover sampled HTTP logs had no 5xx.
+- PENDING: authenticated merchant login, AI chat send/receive, subscriptions, PayPal and 12Pay QRIS/VA/webhook E2E, uploads/media parity, topup token/session continuity. Existing pay, chat, blaster legacy hostnames failed SSL checks and were intentionally not re-routed.
+- SECURITY ACTION REQUIRED: Railway JWT_SECRET is not set, so token signing configuration needs urgent controlled remediation. Verify in-flight topup sessions before setting or rotating the secret.
+- Before enabling Railway background jobs, disable Replit legacy schedulers safely and establish singleton ownership. Draft Command Center Gate A PR #4 remains unmerged/unactivated.
+- WARNING: never blindly revert DB after Railway production starts accepting new writes; snapshot and reconcile under new write freeze.
