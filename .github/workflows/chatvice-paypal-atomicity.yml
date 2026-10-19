@@ -1,0 +1,59 @@
+name: Chatvice PayPal renewal atomicity (isolated CI)
+
+on:
+  push:
+    branches:
+      - security/chatvice-paypal-renewal-atomic-20261019
+  pull_request:
+    paths:
+      - server/paypalRenewalAtomic.ts
+      - server/paypalBillingCycle.ts
+      - tsconfig.paypal-ci.json
+      - server/__tests__/paypal-billing-cycle.test.ts
+      - server/__tests__/paypal-renewal-atomic.integration.test.ts
+      - server/routes.ts
+      - .github/workflows/chatvice-paypal-atomicity.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-renewal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: chatvice_ci
+          POSTGRES_PASSWORD: ci_synthetic_only
+          POSTGRES_DB: chatvice_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U chatvice_ci -d chatvice_ci"
+          --health-interval=2s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      # Intentionally points to the isolated, ephemeral GitHub Actions service.
+      DATABASE_URL: postgres://chatvice_ci:ci_synthetic_only@127.0.0.1:5432/chatvice_ci
+      CHATVICE_PAYPAL_TEST_DB: isolated_ci_fixture
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Deterministic install
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: 16-way renewal race, rollback and owner isolation
+        run: npx --no-install vitest run server/__tests__/paypal-renewal-atomic.integration.test.ts
+      - name: Verify provider billing-cycle identity across month boundaries
+        run: npx --no-install vitest run server/__tests__/paypal-billing-cycle.test.ts
+      - name: Strict focused TypeScript check of PayPal renewal helper
+        run: npx --no-install tsc -p tsconfig.paypal-ci.json
+      - name: Build production bundle
+        run: npm run build
