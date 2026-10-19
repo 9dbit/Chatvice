@@ -2,6 +2,7 @@ import { mediaDirectory } from "./mediaPaths";
 import { openAIOptions, geminiOptions } from "./aiConfig";
 import { backgroundJobsEnabled } from "./backgroundJobs";
 import { getTopupJwtSecret } from "./topupTokenSecurity";
+import { commitPaypalRenewal } from "./paypalRenewalAtomic";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
@@ -12557,15 +12558,8 @@ Rules:
         cycleKey: string,
         amountUsd: number
       ): Promise<void> => {
-        // Idempotency: skip if we already processed this billing cycle
-        const existing = await storage.getPaymentTransactionByExternalId(cycleKey);
-        if (existing) {
-          console.log(`[PayPal Webhook] Cycle ${cycleKey} already processed (tx ${existing.id}), skipping`);
-          return;
-        }
-
-        // If the triggering event did not carry an amount (common with BILLING.SUBSCRIPTION.RENEWED),
-        // enrich it from the subscription's last payment record via the PayPal API.
+        // Provider lookups happen before entering the transaction, never
+        // while holding a PostgreSQL advisory lock or merchant row lock.
         let resolvedAmountUsd = amountUsd;
         if (resolvedAmountUsd === 0) {
           try {
@@ -12574,69 +12568,40 @@ Rules:
             const lastPaymentValue = sub.billing_info?.last_payment?.amount?.value;
             if (lastPaymentValue) resolvedAmountUsd = parseFloat(lastPaymentValue);
           } catch {
-            // Non-fatal — proceed with zero amount if enrichment fails
+            console.warn("[PayPal Webhook] Could not enrich renewal amount from subscription");
           }
         }
+        if (!Number.isFinite(resolvedAmountUsd) || resolvedAmountUsd <= 0) {
+          // Never credit a subscription renewal from an unverified zero or
+          // unparseable amount. This will make PayPal retry the webhook.
+          throw new Error("Missing valid PayPal renewal amount");
+        }
 
-        const allMerchants = await storage.getAllMerchants();
-        const merchant = allMerchants.find(m => m.paypalSubscriptionId === subscriptionId);
-        if (!merchant) {
-          console.log(`[PayPal Webhook] No merchant for subscription ${subscriptionId}, skipping`);
+        const savedRate = await storage.getPlatformSetting("exchange_rate");
+        const candidateRate = savedRate ? Number.parseInt(savedRate, 10) : 17500;
+        const exchangeRate = Number.isFinite(candidateRate) && candidateRate > 0 ? candidateRate : 17500;
+        const result = await commitPaypalRenewal({ subscriptionId, cycleKey, amountUsd: resolvedAmountUsd, exchangeRate });
+        if (result.status === "duplicate") {
+          console.log("[PayPal Webhook] Duplicate billing cycle safely ignored");
+          return;
+        }
+        if (result.status === "missing_merchant") {
+          console.warn("[PayPal Webhook] No matching subscription owner; renewal not credited");
           return;
         }
 
-        // Extend subscription 30 days from current period end or now
-        const base = merchant.currentPeriodEnd && new Date(merchant.currentPeriodEnd) > new Date()
-          ? new Date(merchant.currentPeriodEnd)
-          : new Date();
-        const newPeriodEnd = new Date(base.getTime() + 30 * 24 * 60 * 60 * 1000);
+        // Durable financial state is already committed. Only the winner of
+        // the atomic cycle claim sends a receipt; duplicates do not send.
+        // A transactional outbox is a separate reliability release gate.
+        try {
+          const { sendPaymentReceiptEmail } = await import('./resendClient');
+          await sendPaymentReceiptEmail(result.receipt);
+          await storage.updatePaymentTransaction(result.transactionId, { receiptSentAt: new Date() });
+        } catch {
+          console.error("[PayPal Webhook] Receipt delivery or status update failed");
+        }
 
-        await storage.updateMerchantSubscription(merchant.id, {
-          subscriptionStatus: 'active',
-          currentPeriodEnd: newPeriodEnd,
-          expiryReminder7dSentAt: null,
-          expiryReminder3dSentAt: null,
-        });
-
-        const savedRate = await storage.getPlatformSetting("exchange_rate");
-        const exchangeRate = savedRate ? parseInt(savedRate) : 17500;
-        const amountIDR = Math.round(resolvedAmountUsd * exchangeRate);
-
-        const planName = merchant.subscriptionPlanId === 'custom' ? 'Custom Plan'
-          : merchant.subscriptionPlanId?.replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Plan';
-
-        const invoiceNum = `PP-${Date.now()}`;
-        await storage.createPaymentTransaction({
-          merchantId: merchant.id,
-          amount: amountIDR || 0,
-          status: 'completed',
-          gatewayName: 'PayPal',
-          externalId: cycleKey,
-          paymentMethod: 'paypal_subscription',
-          planId: merchant.subscriptionPlanId || 'unknown',
-          planName,
-          subscriptionMonths: 1,
-          merchantEmail: merchant.email,
-          merchantCompanyName: merchant.companyName || merchant.email.split('@')[0],
-          currency: 'USD',
-          paidAt: new Date(),
-          invoiceNumber: invoiceNum,
-        });
-
-        const { sendPaymentReceiptEmail } = await import('./resendClient');
-        sendPaymentReceiptEmail({
-          merchantEmail: merchant.email,
-          merchantName: merchant.companyName || merchant.email.split('@')[0],
-          planName,
-          subscriptionMonths: 1,
-          amount: amountIDR || 0,
-          paymentMethod: 'PayPal Auto-Renewal',
-          paidAt: new Date(),
-          expiresAt: newPeriodEnd,
-          invoiceNumber: invoiceNum,
-        }).catch(err => console.error('[PayPal Webhook] Receipt email error:', err));
-
-        console.log(`[PayPal Webhook] Renewed subscription ${subscriptionId} via ${cycleKey}, new period end: ${newPeriodEnd.toISOString()}`);
+        console.log("[PayPal Webhook] One subscription renewal cycle committed");
       };
 
       // PAYMENT.SALE.COMPLETED fires when a subscription payment is collected.
