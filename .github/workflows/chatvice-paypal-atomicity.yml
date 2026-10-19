@@ -8,6 +8,7 @@ on:
     paths:
       - server/paypalRenewalAtomic.ts
       - server/paypalBillingCycle.ts
+      - tsconfig.paypal-ci.json
       - server/__tests__/paypal-billing-cycle.test.ts
       - server/__tests__/paypal-renewal-atomic.integration.test.ts
       - server/routes.ts
@@ -52,5 +53,7 @@ jobs:
         run: npx --no-install vitest run server/__tests__/paypal-renewal-atomic.integration.test.ts
       - name: Verify provider billing-cycle identity across month boundaries
         run: npx --no-install vitest run server/__tests__/paypal-billing-cycle.test.ts
+      - name: Strict focused TypeScript check of PayPal renewal helper
+        run: npx --no-install tsc -p tsconfig.paypal-ci.json
       - name: Build production bundle
         run: npm run build
