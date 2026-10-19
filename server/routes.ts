@@ -2,6 +2,7 @@ import { mediaDirectory } from "./mediaPaths";
 import { openAIOptions, geminiOptions } from "./aiConfig";
 import { backgroundJobsEnabled } from "./backgroundJobs";
 import { getTopupJwtSecret } from "./topupTokenSecurity";
+import { getSessionSecret } from "./sessionSecret";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
@@ -2494,7 +2495,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   const SESSION_TTL_SECONDS = 365 * 24 * 60 * 60; // 1 year in seconds
   const SESSION_TTL_MS = SESSION_TTL_SECONDS * 1000;
   const sessionConfig: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "chatvice-secret-key-change-in-production",
+    secret: getSessionSecret(),
     resave: false,
     saveUninitialized: false,
     rolling: true, // Refresh cookie on every request — active users never expire
