@@ -20,46 +20,29 @@
 - Historic 50 /uploads references: 17 valid byte-identical old/Railway, 33 no valid file in either, 0 valid old-only. This is not a complete Replit Production App Storage inventory; do not falsely certify all media.
 - Latest confirmed backup is 2026-10-18; no `final-frozen-*/manifest.json` at last Mac inspection.
 
-## Critical blocker, manual local step
+## Source Production attestation (confirmed)
 
-At the owner's authorized Mac, in local Terminal (NOT through remote agent/clipboard):
+Owner confirmed the hidden URI came from Replit > Chatvice.app > Database > Production > Settings. Separate read-only attestation returned `READONLY_SOURCE_CONTENT_CONSISTENT`, 59 merchants, 40 agents, 20,624 chat logs, with published exchange rate and Starter domain limit matching. This establishes content consistency and owner-confirmed origin, but not an independent vendor-signed provenance attestation.
 
-```bash
-node "$HOME/Documents/Chatvice/Backup File Replit/chatvice-cutover-freeze-backup.mjs" --freeze-and-backup --prompt
-```
+## One local command for controlled freeze + source-only shadow restore
 
-Only the owner pastes a **Replit published Production** PostgreSQL URI into the hidden TTY prompt. Do not paste URI, password, token or raw backups into chat. Do not run against `helium`, `localhost`, Railway database or Replit Development.
-
-Expected terminal evidence (redacted, without credentials):
-- `SOURCE_WRITE_GUARD=ACTIVE`
-- `ROLLBACK_FAILSAFE=AUTOMATIC_UNFREEZE_AFTER_25_MINUTES`
-- `FINAL_SOURCE_BACKUP=STARTED`
-- `RESULT=FROZEN_PRODUCTION_SNAPSHOT_VERIFIED`
-- Final backup folder, bytes, SHA256.
-
-Script's freeze is a DB-level default read-only setting plus client disconnect; not a platform-wide maintenance feature. Do not claim every external writer is blocked without verifying behavior. Check web/app, webhooks, worker queues and all known writers, and do not accept new payments while not ready. The watchdog automatically **UNFREEZES** the legacy DB 25 minutes after activation unless cutover is explicitly confirmed. Stop promotion if it expired.
-
-**On initial failure:** confirm `AUTO_ROLLBACK_WRITE_GUARD`; verify legacy writes restored and app service functioning. Do not proceed on `FAILED_*` statuses.
-
-## Offline final archive assembly
-
-After fresh frozen backup and **while guard is still active**:
+**Operator must paste the Replit Production URI locally into a hidden TTY. Never send it in chat.** The earlier staged script was superseded by a fail-closed one-command wrapper:
 
 ```bash
-python3 "$HOME/Documents/Chatvice/Backup File Replit/chatvice-final-assemble-offline.py" --final
+bash "$HOME/Documents/Chatvice/Backup File Replit/chatvice-final-freeze-and-stage.sh"
 ```
 
-Expected `RESULT=FINAL_ASSEMBLY_VERIFIED`. Script restores a new isolated local DB and appends only previously verified Railway-only IDs where they do not collide with final Replit Production data. Verify 140 app tables, every source table row count preserved, complete SHA256 manifest, zero unvalidated FK, no newly resurrected deleted source rows. No direct remote DB writes in assembly.
+The wrapper performs in order:
 
-## Restore final snapshot to unattached Railway shadow
+1. Freeze Replit Production via `chatvice-cutover-freeze-backup.mjs --freeze-and-backup --prompt`, starting the 25-minute auto-unfreeze watchdog. Expect website write failures during maintenance.
+2. Verify an active read-only source and watchdog with `chatvice-freeze-active-verify.py`.
+3. Restore the fresh frozen Replit Production snapshot into an isolated, Unix-socket-only PostgreSQL locally and generate a **source-only** application archive with `chatvice-final-source-only-offline.py --final`. This excludes 589 records found only in the historical Railway database. Historical Railway backup/database remain intact for separate reconciliation; do not contaminate published Production with unproven notifications/chat records.
+4. Restore the checksum-verified source-only archive into **unattached** Railway production shadow `Postgres-F6Uj` using `restore-sourceonly-to-railway-shadow.py`. Existing Railway production `Postgres` and the live Chatvice service `DATABASE_URL` remain unchanged at this stage.
+5. Verify source read-only guard is still active. Only a final `RESULT=FROZEN_SOURCE_AND_RAILWAY_SHADOW_VERIFIED_AWAITING_PROMOTION` qualifies for the next promotion step.
 
-Only if final archive is fresh and checksum valid:
+On any pre-promotion script failure, wrapper calls `chatvice-source-emergency-unfreeze.py` and the detached watchdog remains the last-resort fallback. The emergency unfreeze procedure was tested against a local isolated database; original backup, restoration on a populated local clone, source-only offline assembly, and source-only shadow script fail-closed behavior were all separately tested. No testing claims extend to live authenticated payments/AI until actual UAT.
 
-```bash
-python3 "$HOME/Documents/Chatvice/Backup File Replit/restore-final-to-railway-shadow.py"
-```
-
-This uses an approved SSH tunnel to the **unattached** `Postgres-F6Uj` in Railway production. It does **not** touch the currently connected legacy Postgres service. Abort on archive/schema mismatch or failed row/foreign-key verification. Obtain independent updated shadow backup/checksum.
+**Strict timing:** after wrapper success, send the redacted output immediately so the operator can verify the source remains frozen and promote Railway + DNS within the watchdog window. If the guard expires, do not promote. Never mark cutover successful based only on shadow restore. The source write guard is a database-level default, not proof every network writer has been stopped.
 
 ## Production app promotion and validation
 
