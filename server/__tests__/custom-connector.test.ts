@@ -224,9 +224,9 @@ describe("executeIntentLookup failure modes", () => {
     fetchSpy.mockRestore();
   });
 
-  it("end-to-end: detect → validate → fetch → render template", async () => {
+  it("end-to-end: detect → validate → fetch → summarize response", async () => {
     // Simulates the full path the chat dispatcher takes: required fields are
-    // present, base URL is public, panel returns 200 JSON, template renders.
+    // present, base URL is public, panel returns 200 JSON, customer summary retains the useful fields.
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input: any) => {
       const u = String(input);
       expect(u).toContain("/api/deposit/");
@@ -242,11 +242,12 @@ describe("executeIntentLookup failure modes", () => {
     });
     expect(res.ok).toBe(true);
     expect(res.httpStatus).toBe(200);
-    expect(res.text).toBe("Status deposit Anda: PENDING");
+    expect(res.text).toBe("Status: PENDING\nAmount: 250000");
+    expect(res.rawData).toEqual({ status: "PENDING", amount: 250000 });
     fetchSpy.mockRestore();
   });
 
-  it("returns success and renders template on 2xx JSON", async () => {
+  it("returns success and summarizes 2xx JSON", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ status: "APPROVED" }), { status: 200 }) as any);
     const res = await executeIntentLookup({
       merchantId: "m1",

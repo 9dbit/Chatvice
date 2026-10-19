@@ -1,3 +1,7 @@
+import { mediaDirectory } from "./mediaPaths";
+import { openAIOptions, geminiOptions } from "./aiConfig";
+import { backgroundJobsEnabled } from "./backgroundJobs";
+import { getTopupJwtSecret } from "./topupTokenSecurity";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
@@ -46,7 +50,7 @@ import sharp from "sharp";
 import { greetingDelayToMilliseconds, hasReplayableProactiveGreeting } from "./proactiveGreetingDelivery";
 import { canSessionRequireAttention, resolveSessionAttention } from "./sessionAttention";
 
-const uploadDir = path.join(process.cwd(), "uploads");
+const uploadDir = mediaDirectory("uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -112,9 +116,12 @@ declare module "express-session" {
 // Import subscription plan utility with caching
 import { getEffectiveSubscriptionPlan, getAllEffectiveSubscriptionPlans, clearPlanCache } from './subscriptionPlanUtils';
 import { extractHostnameFromUrl } from './urlUtils';
+import { getConfiguredAppUrl } from './appUrl';
 import { sendTelegramNotification, sendTelegramMessage, setTelegramWebhook, generateWebhookSecret, formatChatNotification, formatEscalationNotification, formatCustomerMessage } from './telegram';
 
 function getBaseUrl(req: Request): string {
+  const configured = getConfiguredAppUrl();
+  if (configured) return configured;
   if (process.env.REPLIT_DEV_DOMAIN) {
     return `https://${process.env.REPLIT_DEV_DOMAIN}`;
   }
@@ -123,10 +130,7 @@ function getBaseUrl(req: Request): string {
   return `${protocol}://${host}`;
 }
 
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-});
+const openai = new OpenAI(openAIOptions());
 
 // OpenAI public list pricing (USD per 1M tokens) — used for cost monitoring only.
 // Values intentionally conservative to avoid under-reporting. Update when pricing changes.
@@ -563,7 +567,9 @@ async function notifySupervisors(merchantId: string, sessionId: string, reason: 
     const recentMessages = await storage.getMessages(sessionId);
     const last3 = recentMessages.slice(-3).map(m => ({ from: m.from, content: m.content }));
 
-    const supervisorPanelUrl = process.env.REPLIT_DEV_DOMAIN
+    const supervisorPanelUrl = getConfiguredAppUrl()
+      ? `${getConfiguredAppUrl()}/supervisor`
+      : process.env.REPLIT_DEV_DOMAIN
       ? `https://${process.env.REPLIT_DEV_DOMAIN}/supervisor`
       : process.env.REPLIT_DOMAINS
         ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}/supervisor`
@@ -861,6 +867,7 @@ function mapSheetStatusToTicket(raw: string): "checking" | "rejected" | "solved"
 
 // Start the session-level poller (3s) — must run after WebSocket server is initialized
 function startPasswordRecoverySessionPoller() {
+  if (!backgroundJobsEnabled()) return;
   setInterval(async () => {
     if (passwordRecoveryPollRegistry.size === 0) return;
     const maxAge = 30 * 60 * 1000; // Auto-expire polls after 30 minutes
@@ -920,6 +927,7 @@ function startPasswordRecoverySessionPoller() {
 // in sync even after the customer's session is closed/archived (the per-session
 // registry above only covers freshly opened sessions).
 function startPasswordRecoveryStatusSweeper() {
+  if (!backgroundJobsEnabled()) return;
   const tick = async () => {
     try {
       const configs = await storage.getActivePasswordRecoveryConfigs();
@@ -1496,7 +1504,7 @@ This merchant uses an AI appointment scheduling system. When customers ask about
    Only use when customer explicitly asks to cancel and provides an appointment ID or booking code.
 
 5. BOOKING CALENDAR LINK — direct customer to the public calendar page:
-   [LINK:Buka Kalender Booking:https://${process.env.REPLIT_DOMAINS?.split(',')[0] || 'chatvice.app'}/cal/pub/${slug}]
+   [LINK:Buka Kalender Booking:${getConfiguredAppUrl() || `https://${process.env.REPLIT_DOMAINS?.split(',')[0] || 'chatvice.app'}`}/cal/pub/${slug}]
 
 KAPAN GUNAKAN:
 - "bisa booking?", "ada slot?", "kapan tersedia?", "mau janji temu" → [CHECK_AVAILABILITY]
@@ -2032,7 +2040,7 @@ ATURAN KETAT:
       const imagesToInclude = recentImages.slice(-3);
       for (const img of imagesToInclude) {
         if (img.url.startsWith('/')) {
-          const localPath = path.join(process.cwd(), "uploads", img.url.replace("/uploads/", ""));
+          const localPath = path.join(mediaDirectory("uploads"), img.url.replace("/uploads/", ""));
           try {
             const imgStats = await fs.promises.stat(localPath);
             if (imgStats.size > 4 * 1024 * 1024) throw new Error("Too large");
@@ -2045,9 +2053,9 @@ ATURAN KETAT:
               image_url: { url: `data:${mimeType};base64,${imgBuffer.toString('base64')}`, detail: "auto" }
             });
           } catch {
-            const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-              ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
-              : "https://chatvice.app";
+            const baseUrl = getConfiguredAppUrl() || (process.env.REPLIT_DEV_DOMAIN
+              ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+              : "https://chatvice.app");
             contentArray.push({
               type: "image_url",
               image_url: { url: `${baseUrl}${img.url}`, detail: "auto" }
@@ -2161,7 +2169,7 @@ async function analyzeMediaWithAI(
 
   try {
     if (mediaType === "photo") {
-      const localFilePath = path.join(process.cwd(), "uploads", fileUrl.replace("/uploads/", ""));
+      const localFilePath = path.join(mediaDirectory("uploads"), fileUrl.replace("/uploads/", ""));
       let imageUrl: string;
       
       try {
@@ -2180,11 +2188,11 @@ async function analyzeMediaWithAI(
         if (fileErr.message !== "Image too large for base64") {
           console.error("[Media Analysis] Failed to read local file, trying URL fallback:", fileErr);
         }
-        const baseUrl = requestHost 
+        const baseUrl = getConfiguredAppUrl() || (requestHost
           ? `https://${requestHost}`
-          : process.env.REPLIT_DEV_DOMAIN 
+          : process.env.REPLIT_DEV_DOMAIN
             ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-            : "https://chatvice.app";
+            : "https://chatvice.app");
         imageUrl = `${baseUrl}${fileUrl}`;
       }
 
@@ -2247,7 +2255,7 @@ ${conversationContext ? `Recent Conversation:\n${conversationContext}` : ""}`
       }
       
       if (ext === "txt" || ext === "csv") {
-        const filePath = path.join(process.cwd(), "uploads", fileUrl.replace("/uploads/", ""));
+        const filePath = path.join(mediaDirectory("uploads"), fileUrl.replace("/uploads/", ""));
         try {
           const stats = await fs.promises.stat(filePath);
           if (stats.size > 100 * 1024) {
@@ -7399,13 +7407,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       }
 
       const { GoogleGenAI, Modality } = await import("@google/genai");
-      const ai = new GoogleGenAI({
-        apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-        httpOptions: {
-          apiVersion: "",
-          baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
-        },
-      });
+      const ai = new GoogleGenAI(geminiOptions());
 
       // Extract base64 data from data URL or fetch from URL
       let base64Data: string;
@@ -12388,11 +12390,11 @@ Rules:
       // Always keep the in-process cache warm
       paypalPlanIdCache.set(cacheKey, paypalPlanId);
 
-      const baseUrl = process.env.REPLIT_DEPLOYMENT_ID
+      const baseUrl = getConfiguredAppUrl() || (process.env.REPLIT_DEPLOYMENT_ID
         ? 'https://chatvice.app'
         : process.env.REPLIT_DEV_DOMAIN
           ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-          : 'http://localhost:5000';
+          : 'http://localhost:5000');
 
       const subscription = await createPaypalSubscription(
         paypalPlanId,
@@ -16622,7 +16624,7 @@ Rules:
       
       // Get payment settings from platform settings
       const gatewayName = await storage.getPlatformSetting("payment_gateway_name") || "12Pay";
-      const webhookUrl = `${process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://chatvice.app"}/api/payment/webhook`;
+      const webhookUrl = `${getConfiguredAppUrl() || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://chatvice.app")}/api/payment/webhook`;
       const apiBaseUrl = dbConfig.apiBaseUrl || dbConfig.baseUrl || 'https://api.12pay.id';
       
       res.json({
@@ -23596,7 +23598,7 @@ ${log.extractedKnowledge}` : ''}
   // Start blast scheduler — checks every 60s for due scheduled blasts
   // Uses atomic claim: UPDATE status='sending' WHERE status='scheduled' AND scheduled_for<=now
   // to prevent duplicate execution across restarts or overlapping intervals.
-  setInterval(async () => {
+  if (backgroundJobsEnabled()) setInterval(async () => {
     try {
       const now = new Date();
       // Find due campaigns without claiming yet
@@ -26510,7 +26512,8 @@ Your Telegram integration is working correctly!`;
       
       // Generate JWT token for payment flow with proper expiration
       const jwt = await import("jsonwebtoken");
-      const JWT_SECRET = process.env.JWT_SECRET || "chatvice_topup_secret_key_2024";
+      const JWT_SECRET = getTopupJwtSecret();
+      if (!JWT_SECRET) return res.status(503).json({ error: "Top-up temporarily unavailable" });
       
       const payload = {
         type: "topup_session", // Token type identifier
@@ -26523,7 +26526,7 @@ Your Telegram integration is working correctly!`;
       };
       
       // Sign with expiration (30 minutes)
-      const token = jwt.default.sign(payload, JWT_SECRET, { expiresIn: "30m" });
+      const token = jwt.default.sign(payload, JWT_SECRET, { expiresIn: "30m", algorithm: "HS256" });
       
       // Generate redirect URL - using same domain for now (will be pay.chatvice.com later)
       const baseUrl = process.env.PAYMENT_BASE_URL || `https://${req.get("host")}`;
@@ -26551,10 +26554,11 @@ Your Telegram integration is working correctly!`;
       }
       
       const jwt = await import("jsonwebtoken");
-      const JWT_SECRET = process.env.JWT_SECRET || "chatvice_topup_secret_key_2024";
+      const JWT_SECRET = getTopupJwtSecret();
+      if (!JWT_SECRET) return res.status(503).json({ error: "Top-up temporarily unavailable" });
       
       try {
-        const decoded = jwt.default.verify(token, JWT_SECRET) as {
+        const decoded = jwt.default.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as {
           type?: string;
           merchant_id: string;
           site_id: string;
@@ -26647,7 +26651,8 @@ Your Telegram integration is working correctly!`;
       }
       
       const jwt = await import("jsonwebtoken");
-      const JWT_SECRET = process.env.JWT_SECRET || "chatvice_topup_secret_key_2024";
+      const JWT_SECRET = getTopupJwtSecret();
+      if (!JWT_SECRET) return res.status(503).json({ error: "Top-up temporarily unavailable" });
       
       let decoded: {
         type?: string;
@@ -26660,7 +26665,7 @@ Your Telegram integration is working correctly!`;
       };
       
       try {
-        decoded = jwt.default.verify(token, JWT_SECRET) as typeof decoded;
+        decoded = jwt.default.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as typeof decoded;
       } catch (jwtError) {
         return res.status(401).json({ error: "Invalid or expired token" });
       }
@@ -32634,18 +32639,18 @@ Please create a comprehensive help center article that would be useful for custo
   });
 
   // ─── Auto-register Telegram webhooks on startup for configured merchants ───
-  (async () => {
+  if (backgroundJobsEnabled()) (async () => {
     try {
       const allMerchants = await storage.getAllMerchants();
       for (const merchant of allMerchants) {
         try {
           const ns = await storage.getNotificationSettings(merchant.id);
           if (ns?.telegramEnabled && ns?.telegramBotToken) {
-            const baseUrl = process.env.REPLIT_DEV_DOMAIN
+            const baseUrl = getConfiguredAppUrl() || (process.env.REPLIT_DEV_DOMAIN
               ? `https://${process.env.REPLIT_DEV_DOMAIN}`
               : process.env.REPLIT_DOMAINS
                 ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
-                : null;
+                : null);
             if (baseUrl) {
               const webhookUrl = `${baseUrl}/api/telegram/webhook/${merchant.id}`;
               const secretToken = generateWebhookSecret(merchant.id);
@@ -32669,7 +32674,7 @@ Please create a comprehensive help center article that would be useful for custo
     try {
       const filename = EXPORT_TOKENS[req.params.token];
       if (!filename) return res.status(404).json({ error: "Invalid or expired token" });
-      const filePath = path.join(process.cwd(), "exports", filename);
+      const filePath = path.join(mediaDirectory("exports"), filename);
       if (!fs.existsSync(filePath)) return res.status(404).json({ error: "File not found" });
       res.download(filePath, filename, (err) => {
         if (err && !res.headersSent) res.status(500).json({ error: "Download error" });

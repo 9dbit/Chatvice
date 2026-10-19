@@ -2,6 +2,9 @@ import { describe, it, expect, vi } from "vitest";
 import { listPresetsForApi, scaffoldPresetIntent, PRESET_INTENTS } from "../customConnector";
 import type { CustomDataIntent, CustomDataSource } from "@shared/schema";
 
+// These tests inject storage and must not require a live production database.
+vi.mock("../storage", () => ({ storage: {} }));
+
 const baseSource: CustomDataSource = {
   id: "cds_1",
   merchantId: "m1",

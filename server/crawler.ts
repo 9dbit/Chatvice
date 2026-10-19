@@ -1,9 +1,7 @@
+import { openAIOptions } from "./aiConfig";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-});
+const openai = new OpenAI(openAIOptions());
 
 const PRIVATE_IP_RANGES = [
   /^127\./,
