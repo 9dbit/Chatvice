@@ -1,0 +1,33 @@
+name: Chatvice post-cutover security checks
+
+on:
+  push:
+    branches:
+      - security/chatvice-topup-jwt-failclosed-20261019
+  pull_request:
+    paths:
+      - server/routes.ts
+      - server/topupTokenSecurity.ts
+      - server/__tests__/topup-token-security.test.ts
+      - .github/workflows/chatvice-postcutover-security.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  topup-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Top-up JWT and worker configuration tests
+        run: npx vitest run server/__tests__/topup-token-security.test.ts server/__tests__/background-jobs.test.ts
+      - name: Typecheck
+        run: npm run check
