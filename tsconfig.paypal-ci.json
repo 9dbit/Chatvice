@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": [
+        "./shared/*"
+      ]
+    },
+    "types": [
+      "node"
+    ]
+  },
+  "files": [
+    "server/paypalRenewalAtomic.ts",
+    "server/paypalBillingCycle.ts"
+  ]
+}
