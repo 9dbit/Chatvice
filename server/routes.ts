@@ -3,6 +3,7 @@ import { openAIOptions, geminiOptions } from "./aiConfig";
 import { backgroundJobsEnabled } from "./backgroundJobs";
 import { getTopupJwtSecret } from "./topupTokenSecurity";
 import { commitPaypalRenewal } from "./paypalRenewalAtomic";
+import { paypalBillingCycleKey } from "./paypalBillingCycle";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
@@ -12611,9 +12612,11 @@ Rules:
       if (eventType === 'PAYMENT.SALE.COMPLETED') {
         const billingAgreementId = event?.resource?.billing_agreement_id;
         if (billingAgreementId) {
-          const createTime: string = event?.resource?.create_time || new Date().toISOString();
-          const yyyyMM = createTime.slice(0, 7).replace('-', '_'); // "2025_04"
-          const cycleKey = `paypal_cycle_${billingAgreementId}_${yyyyMM}`;
+          // The payment provider timestamp, not webhook delivery time,
+          // determines the month shared with BILLING.SUBSCRIPTION.RENEWED.
+          const paidAt = event?.resource?.create_time;
+          if (!paidAt) return res.status(422).json({ error: "Missing PayPal provider paid-at timestamp" });
+          const cycleKey = paypalBillingCycleKey(billingAgreementId, paidAt);
           const amountUsd = parseFloat(event?.resource?.amount?.total || '0');
           await processPaypalRenewal(billingAgreementId, cycleKey, amountUsd);
         }
@@ -12626,9 +12629,24 @@ Rules:
 
         // Shared cycle key: same format as PAYMENT.SALE.COMPLETED uses so only
         // one of the two events performs the renewal — whichever arrives first wins.
-        const eventTime: string = event?.create_time || new Date().toISOString();
-        const yyyyMM = eventTime.slice(0, 7).replace('-', '_');
-        const cycleKey = `paypal_cycle_${subscriptionId}_${yyyyMM}`;
+        let providerPaidAt: string | undefined =
+          event?.resource?.billing_info?.last_payment?.time ||
+          event?.resource?.last_payment?.time;
+        if (!providerPaidAt) {
+          try {
+            const { getPaypalSubscription: fetchSub } = await import("./paypal");
+            const sub = await fetchSub(subscriptionId);
+            providerPaidAt = sub.billing_info?.last_payment?.time;
+          } catch {
+            console.warn("[PayPal Webhook] Could not resolve provider last-payment time");
+          }
+        }
+        if (!providerPaidAt) {
+          // Retrying a delayed webhook is safer than crediting the same
+          // payment under a second month derived from delivery time.
+          throw new Error("PayPal renewal is missing actual payment timestamp");
+        }
+        const cycleKey = paypalBillingCycleKey(subscriptionId, providerPaidAt);
         const amountUsd = parseFloat(event?.resource?.amount?.total || '0');
         await processPaypalRenewal(subscriptionId, cycleKey, amountUsd);
       }
