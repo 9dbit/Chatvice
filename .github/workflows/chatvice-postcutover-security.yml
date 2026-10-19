@@ -4,11 +4,15 @@ on:
   push:
     branches:
       - security/chatvice-topup-jwt-failclosed-20261019
+      - chore/chatvice-postcutover-ci-integrity-20261019
   pull_request:
     paths:
       - server/routes.ts
       - server/topupTokenSecurity.ts
       - server/__tests__/topup-token-security.test.ts
+      - server/__tests__/postcutover-security.node.test.mjs
+      - package.json
+      - package-lock.json
       - .github/workflows/chatvice-postcutover-security.yml
   workflow_dispatch:
 
@@ -25,16 +29,15 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-      - uses: pnpm/action-setup@v4
-        with:
-          version: "10.18.2"
-          run_install: false
-      - name: Install test dependencies without changing npm lockfile
-        run: pnpm install --no-frozen-lockfile --ignore-scripts --config.strict-peer-dependencies=false
+      - name: Install reproducibly from committed npm lockfile
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Top-up JWT and worker guards (Node built-in test runner)
         run: node --experimental-strip-types --test server/__tests__/postcutover-security.node.test.mjs
+      - name: Test top-up JWT (Vitest)
+        run: npx --no-install vitest run server/__tests__/topup-token-security.test.ts
       - name: Typecheck top-up signing security helper
-        run: pnpm exec tsc --noEmit --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext server/topupTokenSecurity.ts
-      - name: Full-repository TypeScript audit (preexisting technical debt)
+        run: npx --no-install tsc --noEmit --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext server/topupTokenSecurity.ts
+      # Repository-wide TypeScript debt is tracked separately; this step is informational.
+      - name: Full-repository TypeScript audit (non-blocking legacy debt)
         continue-on-error: true
-        run: pnpm run check
+        run: npm run check
