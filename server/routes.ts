@@ -2,6 +2,7 @@ import { mediaDirectory } from "./mediaPaths";
 import { openAIOptions, geminiOptions } from "./aiConfig";
 import { backgroundJobsEnabled } from "./backgroundJobs";
 import { getTopupJwtSecret } from "./topupTokenSecurity";
+import { decideCoinWebhookTransition } from "./coinWebhookTransitions";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
@@ -26900,51 +26901,31 @@ Your Telegram integration is working correctly!`;
         return res.status(400).json({ error: "Amount mismatch" });
       }
       
-      if (status === "PAID") {
-        // Update order to PAID
-        await storage.updateCoinOrder(order.id, {
-          status: "PAID",
-          paidAt: new Date(),
-          gatewayRef: payment_ref,
-          paymentType: payment_type,
-        });
-        
-        // TODO: Call merchant's coin API to credit coins
-        // const site = await storage.getWidgetSite(order.siteId);
-        // if (site?.coinApiBaseUrl) {
-        //   try {
-        //     const creditResult = await creditCoinsToUser(site, order);
-        //     if (creditResult.success) {
-        //       await storage.updateCoinOrder(order.id, {
-        //         status: "COMPLETED",
-        //         creditedAt: new Date(),
-        //       });
-        //     } else {
-        //       await storage.updateCoinOrder(order.id, {
-        //         status: "PAID_BUT_NOT_CREDITED",
-        //         errorMessage: creditResult.error,
-        //       });
-        //     }
-        //   } catch (e) {
-        //     await storage.updateCoinOrder(order.id, {
-        //       status: "PAID_BUT_NOT_CREDITED",
-        //       errorMessage: "Failed to credit coins",
-        //     });
-        //   }
-        // }
-        
-        // For now, mark as completed since we don't have coin API integration
-        await storage.updateCoinOrder(order.id, {
-          status: "COMPLETED",
-          creditedAt: new Date(),
-        });
-      } else if (status === "FAILED" || status === "EXPIRED") {
-        await storage.updateCoinOrder(order.id, {
-          status: status,
-          errorMessage: `Payment ${status.toLowerCase()}`,
-        });
+      // Gateway confirms payment, not delivery of merchant coins. Never set
+      // COMPLETED or creditedAt until a separate merchant integration confirms
+      // the credit. This order-level compare-and-set prevents concurrent
+      // retries and late FAILED/EXPIRED events from undoing confirmed payment.
+      const transition = decideCoinWebhookTransition(order.status, status);
+      if (transition) {
+        const patch = status === "PAID"
+          ? {
+              status: transition.status,
+              paidAt: order.paidAt || new Date(),
+              creditedAt: null,
+              gatewayRef: payment_ref || order.gatewayRef,
+              paymentType: payment_type || order.paymentType,
+              errorMessage: null,
+            }
+          : {
+              status: transition.status,
+              errorMessage: `Payment ${status.toLowerCase()}`,
+            };
+        const changed = await storage.updateCoinOrderIfStatus(order.id, transition.expectedStatuses, patch);
+        if (!changed) {
+          console.info("[12Pay webhook] Duplicate or stale status ignored");
+        }
       }
-      
+
       res.json({ success: true });
     } catch (error) {
       console.error("Webhook error:", error);
