@@ -25,9 +25,13 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-      - name: Install test dependencies without mutating outdated lockfile
-        run: npm install --package-lock=false --no-save --ignore-scripts --no-audit --no-fund
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.18.2"
+          run_install: false
+      - name: Install test dependencies without changing npm lockfile
+        run: pnpm install --no-frozen-lockfile --ignore-scripts --config.strict-peer-dependencies=false
       - name: Top-up JWT and worker configuration tests
-        run: npx vitest run server/__tests__/topup-token-security.test.ts server/__tests__/background-jobs.test.ts
+        run: pnpm exec vitest run server/__tests__/topup-token-security.test.ts server/__tests__/background-jobs.test.ts
       - name: Typecheck
-        run: npm run check
+        run: pnpm run check
