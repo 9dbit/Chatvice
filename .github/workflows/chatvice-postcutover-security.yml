@@ -10,6 +10,8 @@ on:
       - server/routes.ts
       - server/topupTokenSecurity.ts
       - server/__tests__/topup-token-security.test.ts
+      - server/sessionSecret.ts
+      - server/__tests__/session-secret.node.test.mjs
       - server/__tests__/postcutover-security.node.test.mjs
       - package.json
       - package-lock.json
@@ -35,8 +37,10 @@ jobs:
         run: node --experimental-strip-types --test server/__tests__/postcutover-security.node.test.mjs
       - name: Test top-up JWT (Vitest)
         run: npx --no-install vitest run server/__tests__/topup-token-security.test.ts
-      - name: Typecheck top-up signing security helper
-        run: npx --no-install tsc --noEmit --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext server/topupTokenSecurity.ts
+      - name: Production Express session-secret regression guards
+        run: node --experimental-strip-types --test server/__tests__/session-secret.node.test.mjs
+      - name: Typecheck top-up and session security helpers
+        run: npx --no-install tsc --noEmit --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext server/topupTokenSecurity.ts server/sessionSecret.ts
       # Repository-wide TypeScript debt is tracked separately; this step is informational.
       - name: Full-repository TypeScript audit (non-blocking legacy debt)
         continue-on-error: true
