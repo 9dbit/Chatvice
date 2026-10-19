@@ -13,8 +13,9 @@ export function decideCoinWebhookTransition(
   current: string | null | undefined,
   incoming: string,
 ): CoinWebhookAction {
+  if (current == null) return null;
   if (incoming === "PAID") {
-    if (!["PENDING", "FAILED", "EXPIRED", "PAID"].includes(current || "PENDING")) {
+    if (!["PENDING", "FAILED", "EXPIRED", "PAID"].includes(current)) {
       return null;
     }
     return {
