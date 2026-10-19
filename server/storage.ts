@@ -406,6 +406,11 @@ export interface IStorage {
   getCoinOrdersByMerchant(merchantId: string): Promise<CoinOrder[]>;
   createCoinOrder(data: InsertCoinOrder): Promise<CoinOrder>;
   updateCoinOrder(id: string, data: Partial<CoinOrder>): Promise<CoinOrder | undefined>;
+  /**
+   * Atomic compare-and-set for payment webhook processing. A stale or repeated
+   * callback returns undefined, with no status mutation or duplicate side effect.
+   */
+  updateCoinOrderIfStatus(id: string, expectedStatuses: readonly string[], data: Partial<CoinOrder>): Promise<CoinOrder | undefined>;
   
   // Topup Nominals
   getTopupNominals(siteId: string): Promise<TopupNominal[]>;
@@ -2968,6 +2973,18 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(coinOrders)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(coinOrders.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async updateCoinOrderIfStatus(id: string, expectedStatuses: readonly string[], data: Partial<CoinOrder>): Promise<CoinOrder | undefined> {
+    if (expectedStatuses.length === 0) return undefined;
+    const result = await db.update(coinOrders)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(
+        eq(coinOrders.id, id),
+        inArray(coinOrders.status, [...expectedStatuses]),
+      ))
       .returning();
     return result[0];
   }
