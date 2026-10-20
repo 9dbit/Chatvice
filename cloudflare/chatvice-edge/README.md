@@ -12,6 +12,8 @@
 
 ## Edge proxy preparation
 
+The proxy pins every request to the configured upstream origin, including paths beginning with `//`. Path and query are assigned as URL components so client-supplied paths cannot send session cookies or authorization headers to another host. This regression is covered by the Worker tests; browser sessions, WebSocket upgrades and media still require live acceptance tests before a production route is enabled.
+
 `wrangler.example.jsonc` is a template only; it deliberately contains `"routes": []`. It cannot change live DNS or Worker routes.
 
 1. Test with `node --test cloudflare/chatvice-edge/test/edge.test.mjs`.

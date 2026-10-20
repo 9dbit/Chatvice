@@ -32,7 +32,11 @@ export function makeOriginRequest(request, env) {
   }
   // Hostname and path are intentionally NOT taken from the client's headers.
   // Keep the original query string, HTTP method, body stream, and cookies.
-  const target = new URL(incoming.pathname + incoming.search, origin);
+  // Assign components instead of resolving a relative URL: paths beginning
+  // with // must remain paths, never replace the configured upstream host.
+  const target = new URL(origin);
+  target.pathname = incoming.pathname;
+  target.search = incoming.search;
   const outgoing = new Request(target, request);
   outgoing.headers.delete("host");
   outgoing.headers.delete("forwarded");

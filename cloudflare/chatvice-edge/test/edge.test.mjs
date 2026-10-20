@@ -79,3 +79,18 @@ test("origin network errors return a sanitized 502 response", async () => {
   assert.equal(res.status, 502);
   assert.equal((await res.text()).includes("private"), false);
 });
+
+test("double-slash paths cannot redirect cookies and authorization to another origin", async () => {
+  for (const path of ["//external.example/collect?x=1", "/%2f%2fexternal.example/collect"]) {
+    const response = await handleEdgeRequest(new Request("https://chat.chatvice.app" + path, {
+      headers: { Cookie: "session=private", Authorization: "Bearer private" },
+    }), env, async (upstream) => {
+      const target = new URL(upstream.url);
+      assert.equal(target.origin, env.UPSTREAM_ORIGIN);
+      assert.equal(target.pathname, new URL("https://chat.chatvice.app" + path).pathname);
+      assert.equal(upstream.headers.get("cookie"), "session=private");
+      return new Response("OK");
+    });
+    assert.equal(response.status, 200);
+  }
+});
