@@ -1,0 +1,26 @@
+name: Chatvice Cloudflare edge checks
+on:
+  pull_request:
+    paths:
+      - "cloudflare/chatvice-edge/**"
+      - ".github/workflows/chatvice-cloudflare-edge-check.yml"
+  push:
+    branches:
+      - infra/chatvice-cloudflare-edge-cutover-20261020
+    paths:
+      - "cloudflare/chatvice-edge/**"
+      - ".github/workflows/chatvice-cloudflare-edge-check.yml"
+jobs:
+  edge-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Unit-test Cloudflare Worker reverse proxy
+        run: node --test cloudflare/chatvice-edge/test/edge.test.mjs
+      - name: Validate Wrangler configuration template
+        run: node -e "const c=JSON.parse(require('fs').readFileSync('cloudflare/chatvice-edge/wrangler.example.jsonc','utf8'));if(c.routes.length)process.exit(1);console.log('No active DNS/Worker routes in template')"
