@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Read-only production access; creates private backup files. Run in source Replit.
+// Read-only Replit backup: development Helium is NOT the published production DB.
+// Explicit production DB selection is required before a production migration export.
 import { promises as fs, createReadStream, constants, writeFileSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -9,12 +10,40 @@ import { fileURLToPath } from "node:url";
 
 class ExportError extends Error {}
 
+/**
+ * Distinguish the Replit development Helium database from a production URI.
+ * A non-Helium host is only a candidate: the operator must still confirm it
+ * against Replit Database > Production > Settings before cutover.
+ * Never print or log the connection string.
+ */
+export function resolveSourceDatabaseForExport(env = process.env, args = []) {
+  const productionUri = typeof env.CHATVICE_PRODUCTION_DATABASE_URL === "string"
+    ? env.CHATVICE_PRODUCTION_DATABASE_URL.trim() : "";
+  const databaseUrl = productionUri || env.DATABASE_URL;
+  if (!databaseUrl) throw new ExportError("Source DATABASE_URL is missing");
+  let parsed;
+  try { parsed = new URL(databaseUrl); } catch {
+    throw new ExportError("Source database URL is not a PostgreSQL URI");
+  }
+  if (!["postgres:", "postgresql:"].includes(parsed.protocol) || !parsed.hostname) {
+    throw new ExportError("Source database URL is not a PostgreSQL URI");
+  }
+  const hostname = parsed.hostname.toLowerCase().replace(/\.$/, "");
+  if (hostname === "helium") {
+    if (productionUri || !args.includes("--development-backup")) {
+      throw new ExportError("HELIUM_DEVELOPMENT_DATABASE_BLOCKED: use Replit Production Database connection details, not the editor DATABASE_URL");
+    }
+    return { databaseUrl, origin: "HELIUM_DEVELOPMENT_ONLY" };
+  }
+  return { databaseUrl, origin: productionUri ? "EXPLICIT_PRODUCTION_URI_UNVERIFIED" : "UNKNOWN_EXTERNAL_DATABASE_UNVERIFIED" };
+}
+
 export function selectApplicationVariables(names, env) {
   const result = {};
   for (const name of new Set(names)) {
     if (!/^[A-Z][A-Z0-9_]*$/.test(name)) continue;
     if (/^(REPL|RAILWAY_|WEB_REPL_|S3_)/.test(name)) continue;
-    if (["DATABASE_URL", "PORT", "NODE_ENV", "ENABLE_BACKGROUND_JOBS", "APP_URL", "OBJECT_STORAGE_PROVIDER", "OBJECT_STORAGE_BUCKET", "PATH", "HOME", "TMPDIR", "USER", "LOGNAME", "SHELL"].includes(name)) continue;
+    if (["DATABASE_URL", "CHATVICE_PRODUCTION_DATABASE_URL", "PORT", "NODE_ENV", "ENABLE_BACKGROUND_JOBS", "APP_URL", "OBJECT_STORAGE_PROVIDER", "OBJECT_STORAGE_BUCKET", "PATH", "HOME", "TMPDIR", "USER", "LOGNAME", "SHELL"].includes(name)) continue;
     if (env[name] !== undefined && env[name] !== "") result[name] = env[name];
   }
   return result;
@@ -215,7 +244,7 @@ export async function preflight(root, env = process.env) {
     throw new ExportError("Run this script inside the source Chatvice Replit workspace");
   }
   if (env.RAILWAY_PROJECT_ID) throw new ExportError("Source export cannot run on Railway");
-  if (!env.DATABASE_URL) throw new ExportError("Source DATABASE_URL is missing");
+  if (!env.DATABASE_URL && !env.CHATVICE_PRODUCTION_DATABASE_URL) throw new ExportError("Source DATABASE_URL is missing");
   const tools = postgresTools(env);
   for (const command of [tools.dump, tools.restore, "tar", "git"]) runPrivate(command, ["--version"]);
 }
@@ -338,6 +367,9 @@ export async function main() {
   const root = await fs.realpath(process.cwd());
   stage("SOURCE_PREFLIGHT");
   await preflight(root);
+  const databaseSource = resolveSourceDatabaseForExport(process.env, process.argv);
+  console.log("SOURCE_DATABASE_PROVENANCE: " + databaseSource.origin);
+  if (databaseSource.origin === "HELIUM_DEVELOPMENT_ONLY") console.log("WARNING: development backup only; NEVER use as published production parity proof");
   if (process.argv.includes("--check")) { console.log("SOURCE_PREFLIGHT_PASS"); return; }
   stage("PRIVATE_WORKSPACE");
   const parent = await prepareWorkspaceBackupRoot(root);
@@ -355,7 +387,7 @@ export async function main() {
     }
     stage("DATABASE_REUSE");
     const reuseRoot = await allowedReuseRoot(process.argv[reuseIndex + 1], parent);
-    const reused = await reuseDatabaseSnapshot(process.argv[reuseIndex + 1], output, process.env.DATABASE_URL, reuseRoot);
+    const reused = await reuseDatabaseSnapshot(process.argv[reuseIndex + 1], output, databaseSource.databaseUrl, reuseRoot);
     if (reused.config.sourceBucketName !== (process.env.OBJECT_STORAGE_BUCKET || null)) {
       throw new ExportError("Saved bucket configuration does not match the current source");
     }
@@ -368,10 +400,10 @@ export async function main() {
     variables = selectApplicationVariables(await discoverVariableNames(root), process.env);
     resend = await exportResend(variables, process.env);
     await writePrivate(path.join(output, "source-config.json"), {
-      applicationVariables: variables, sourceDatabaseUrl: process.env.DATABASE_URL,
+      applicationVariables: variables, sourceDatabaseUrl: databaseSource.databaseUrl, sourceDatabaseOrigin: databaseSource.origin,
       sourceBucketName: process.env.OBJECT_STORAGE_BUCKET || null,
     });
-    const connection = await prepareDatabaseConnection(process.env.DATABASE_URL, output);
+    const connection = await prepareDatabaseConnection(databaseSource.databaseUrl, output);
     stage("DATABASE_DUMP");
     runPrivate(tools.dump, [...connection.args, "--format=custom", "--no-owner", "--no-acl", "--file", dump], {
       env: { ...process.env, ...connection.env },
@@ -393,10 +425,16 @@ export async function main() {
   stage("MANIFEST");
   await writePrivate(path.join(output, "manifest.json"), {
     version: 1, startedAt, finishedAt: new Date().toISOString(),
-    database: { path: "database.dump", size: (await fs.stat(dump)).size, sha256: await checksum(dump), archiveDecodePass: true, ...databaseProvenance },
+    database: { origin: databaseSource.origin, path: "database.dump", size: (await fs.stat(dump)).size, sha256: await checksum(dump), archiveDecodePass: true, ...databaseProvenance },
     config: { path: "source-config.json", sha256: await checksum(path.join(output, "source-config.json")), variableNames: Object.keys(variables).sort(), resend },
     localMedia, objectStorage,
-    limitations: ["A live database snapshot and media export are not one atomic snapshot; synchronize final writes before cutover.", "Database restore, target media upload and feature parity remain unverified."],
+    limitations: [
+      "A snapshot of Replit editor Helium is DEVELOPMENT ONLY, not proof of published production data parity.",
+      "External database URI provenance must be matched against Replit Production database settings before cutover.",
+      "Replit object-storage bucket provenance may differ between development and production and requires independent verification.",
+      "A live database snapshot and media export are not one atomic snapshot; synchronize final writes before cutover.",
+      "Database restore, target media upload and feature parity remain unverified."
+    ],
   });
   if (localMedia.skippedSymlinks.length) throw new ExportError("Media symlinks require manual review; no complete archive was produced");
   stage("PACKAGE_ARCHIVE");

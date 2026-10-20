@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { selectApplicationVariables, discoverVariableNames, exportLocalMedia, objectBackupName, checksum, preflight, preparePrivateTransfer, prepareDatabaseConnection, classifyProcessFailure, reuseDatabaseSnapshot, safeFailureCode, prepareWorkspaceBackupRoot } from "./export-replit-migration.mjs";
+import { selectApplicationVariables, discoverVariableNames, exportLocalMedia, objectBackupName, checksum, preflight, preparePrivateTransfer, prepareDatabaseConnection, classifyProcessFailure, reuseDatabaseSnapshot, safeFailureCode, prepareWorkspaceBackupRoot, resolveSourceDatabaseForExport } from "./export-replit-migration.mjs";
 
 async function fixture(run) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "chatvice-export-test-"));
@@ -17,7 +17,7 @@ test("application variables exclude source database, worker flags and platform c
     DATABASE_URL: "source-database-secret", JWT_SECRET: "jwt", RESEND_API_KEY: "email",
     REPL_IDENTITY: "identity", WEB_REPL_RENEWAL: "renewal", REPLIT_CONNECTORS_HOSTNAME: "connector",
     RAILWAY_TOKEN: "railway", ENABLE_BACKGROUND_JOBS: "true", S3_SECRET_ACCESS_KEY: "bucket",
-    APP_URL: "https://source.example.com", PATH: "system",
+    APP_URL: "https://source.example.com", CHATVICE_PRODUCTION_DATABASE_URL: "postgresql://user:secret@example.com/live", PATH: "system",
   };
   assert.deepEqual(selectApplicationVariables(Object.keys(env).filter(k => k !== "PATH"), env), { JWT_SECRET: "jwt", RESEND_API_KEY: "email" });
 });
@@ -348,4 +348,37 @@ test("private workspace setup refuses a path with Git-tracked files", async () =
     await assert.rejects(prepareWorkspaceBackupRoot(root), /no Git-tracked files/);
     assert.deepEqual(await fs.readdir(path.join(root, "chatvice-private-transfer")), ["fixture.txt"]);
   });
+});
+
+test("production migration fails closed when Replit editor URL points to Helium", () => {
+  const env = { DATABASE_URL: "postgresql://dev:private@helium:5432/chatvice" };
+  assert.throws(() => resolveSourceDatabaseForExport(env, []), /HELIUM_DEVELOPMENT_DATABASE_BLOCKED/);
+  assert.throws(() => resolveSourceDatabaseForExport(env, ["--check"]), /HELIUM_DEVELOPMENT_DATABASE_BLOCKED/);
+});
+
+test("development-only flag makes Helium snapshot provenance explicit", () => {
+  const devUrl = "postgresql://dev:private@helium:5432/chatvice";
+  const result = resolveSourceDatabaseForExport({ DATABASE_URL: devUrl }, ["--development-backup"]);
+  assert.equal(result.origin, "HELIUM_DEVELOPMENT_ONLY");
+  assert.equal(result.databaseUrl, devUrl);
+});
+
+test("explicit production database URI overrides Helium but is marked unverified", () => {
+  const devUrl = "postgresql://dev:private@helium:5432/chatvice";
+  const prodUrl = "postgresql://prod:private@db.example.org:5432/production?sslmode=require";
+  const result = resolveSourceDatabaseForExport({
+    DATABASE_URL: devUrl, CHATVICE_PRODUCTION_DATABASE_URL: prodUrl
+  }, []);
+  assert.equal(result.databaseUrl, prodUrl);
+  assert.equal(result.origin, "EXPLICIT_PRODUCTION_URI_UNVERIFIED");
+  assert.throws(() => resolveSourceDatabaseForExport({
+    DATABASE_URL: prodUrl, CHATVICE_PRODUCTION_DATABASE_URL: devUrl
+  }, ["--development-backup"]), /HELIUM_DEVELOPMENT_DATABASE_BLOCKED/);
+});
+
+test("unknown external database remains provenance-unverified", () => {
+  const result = resolveSourceDatabaseForExport({ DATABASE_URL: "postgresql://user:pass@db.example.org/live" }, []);
+  assert.equal(result.origin, "UNKNOWN_EXTERNAL_DATABASE_UNVERIFIED");
+  assert.throws(() => resolveSourceDatabaseForExport({ DATABASE_URL: "not-a-uri" }, []), /not a PostgreSQL URI/);
+  assert.throws(() => resolveSourceDatabaseForExport({ }, []), /DATABASE_URL is missing/);
 });
