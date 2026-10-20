@@ -33,9 +33,9 @@ export const hostingerOnlySPF = (r) =>
 
 export function exactForwardRule(rule, source = SOURCE, destination = DEST) {
   return !!rule?.enabled &&
-    Array.isArray(rule.matchers) && rule.matchers.some(m =>
+    Array.isArray(rule.matchers) && rule.matchers.length === 1 && rule.matchers.every(m =>
       m.type === "literal" && m.field === "to" && m.value?.toLowerCase() === source) &&
-    Array.isArray(rule.actions) && rule.actions.some(a =>
+    Array.isArray(rule.actions) && rule.actions.length === 1 && rule.actions.every(a =>
       a.type === "forward" && Array.isArray(a.value) &&
       a.value.length === 1 && a.value[0]?.toLowerCase() === destination);
 }
@@ -51,7 +51,18 @@ export function cutoverReady({ destinations, rules }) {
   return { ready: true, reason: "VERIFIED_FORWARDING" };
 }
 export function canRemoveOldMX({ routingEnabled, dns }) {
-  return routingEnabled && dns.filter(isCloudflareMX).length >= 2;
+  const servers = new Set(dns.filter(isCloudflareMX).map(r =>
+    String(r.content).replace(/\.$/, "").toLowerCase()));
+  return routingEnabled && servers.size >= 2;
+}
+
+export const isRootMX = r => r?.type === "MX" && r?.name?.toLowerCase() === DOMAIN;
+const rootSPF = dns => dns.filter(r => r.type === "TXT" && r.name?.toLowerCase() === DOMAIN &&
+  /^v=spf1(?:\s|$)/i.test(String(r.content || "").replace(/^"|"$/g, "")));
+export function routingSPFReady(dns) {
+  const records = rootSPF(dns);
+  return records.length === 1 && /(?:^|\s)include:_spf\.mx\.cloudflare\.net(?:\s|$)/i.test(
+    String(records[0].content).replace(/^"|"$/g, ""));
 }
 
 async function cloudflare(method, endpoint, payload, token, fetcher = fetch) {
@@ -73,11 +84,11 @@ async function cloudflare(method, endpoint, payload, token, fetcher = fetch) {
   return body;
 }
 
-async function paginated(endpoint, token) {
+async function paginated(endpoint, token, api = cloudflare) {
   const all = [];
   for (let page = 1; page <= 20; page++) {
     const glue = endpoint.includes("?") ? "&" : "?";
-    const r = await cloudflare("GET", endpoint + glue + "per_page=50&page=" + page, null, token);
+    const r = await api("GET", endpoint + glue + "per_page=50&page=" + page, null, token);
     if (!Array.isArray(r.result)) throw new Error("Unexpected Cloudflare listing");
     all.push(...r.result);
     if (!r.result_info?.total_pages || page >= r.result_info.total_pages) return all;
@@ -85,8 +96,8 @@ async function paginated(endpoint, token) {
   throw new Error("Cloudflare listing exceeds safety pagination limit");
 }
 
-async function state(token) {
-  const zones = await cloudflare("GET", "/zones?name=" + encodeURIComponent(DOMAIN), null, token);
+export async function state(token, api = cloudflare) {
+  const zones = await api("GET", "/zones?name=" + encodeURIComponent(DOMAIN), null, token);
   const choices = (zones.result || []).filter(z => z.name === DOMAIN);
   if (choices.length !== 1 || !choices[0].id || !choices[0].account?.id) {
     throw new Error("No uniquely accessible Cloudflare DNS zone for chatvice.app");
@@ -95,10 +106,11 @@ async function state(token) {
   const zid = zone.id;
   const aid = zone.account.id;
   const [addresses, rules, dns, routing] = await Promise.all([
-    paginated("/accounts/" + aid + "/email/routing/addresses", token),
-    paginated("/zones/" + zid + "/email/routing/rules", token),
-    paginated("/zones/" + zid + "/dns_records?name=" + encodeURIComponent(DOMAIN), token),
-    cloudflare("GET", "/zones/" + zid + "/email/routing", null, token).catch(() => ({ result: { enabled: false } })),
+    paginated("/accounts/" + aid + "/email/routing/addresses", token, api),
+    paginated("/zones/" + zid + "/email/routing/rules", token, api),
+    // A rollback snapshot must include subdomains, Resend and DKIM as well.
+    paginated("/zones/" + zid + "/dns_records", token, api),
+    api("GET", "/zones/" + zid + "/email/routing", null, token),
   ]);
   return { zoneId: zid, accountId: aid, destinations: addresses, rules, dns, routingEnabled: !!routing.result?.enabled };
 }
@@ -130,6 +142,7 @@ export async function run(mode, token) {
     cloudflareRoutingEnabled: s.routingEnabled,
     cloudflareMXCount: s.dns.filter(isCloudflareMX).length,
     hostingerMXCount: s.dns.filter(isHostingerMX).length,
+    rootSPFReady: routingSPFReady(s.dns),
   }));
 
   if (mode === "status") return;
@@ -164,7 +177,7 @@ export async function run(mode, token) {
   if (!cutoverReady(s).ready) {
     throw new Error("CUTOVER_BLOCKED: " + cutoverReady(s).reason);
   }
-  const nonstandard = s.dns.filter(r => r.type === "MX" && !isHostingerMX(r) && !isCloudflareMX(r));
+  const nonstandard = s.dns.filter(r => isRootMX(r) && !isHostingerMX(r) && !isCloudflareMX(r));
   if (nonstandard.length) throw new Error("CUTOVER_BLOCKED: unrecognized root MX provider");
   const snapshot = await snapshotDNS(s);
   console.log("DNS_BACKUP_SAVED_LOCALLY:", snapshot);
@@ -173,7 +186,12 @@ export async function run(mode, token) {
     s = await state(token);
   }
   if (!cutoverReady(s).ready || !canRemoveOldMX(s)) {
-    throw new Error("CUTOVER_PARTIAL: Cloudflare Email Routing MX not ready; old MX were retained");
+    throw new Error("CUTOVER_PARTIAL: Cloudflare Email Routing MX not ready; no explicit legacy deletions attempted; inspect DNS against backup");
+  }
+  // Only the known Hostinger-only SPF may be retired. Refuse to remove MX
+  // if that would still leave missing, duplicate or unknown SPF records.
+  if (!routingSPFReady(s.dns.filter(r => !hostingerOnlySPF(r)))) {
+    throw new Error("CUTOVER_PARTIAL: root SPF requires review; no explicit legacy deletions attempted; inspect DNS against backup");
   }
   // Only remove exact legacy Hostinger MX and SPF. No other DNS records
   // (DKIM, Resend, web, API, verification tokens) are modified.
@@ -190,7 +208,7 @@ export async function run(mode, token) {
     }
   }
   s = await state(token);
-  if (s.dns.some(isHostingerMX) || s.dns.filter(isCloudflareMX).length < 2) {
+  if (!cutoverReady(s).ready || !canRemoveOldMX(s) || s.dns.some(isHostingerMX) || !routingSPFReady(s.dns)) {
     throw new Error("DNS_CUTOVER_INCOMPLETE: verify MX before disconnecting Hostinger");
   }
   console.log("DNS_CUTOVER_APPLIED; MUST VERIFY live Gmail delivery from independent sender.");
