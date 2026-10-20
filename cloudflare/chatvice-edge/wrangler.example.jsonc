@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/wrangler.json",
+  "name": "chatvice-subdomain-edge",
+  "main": "src/index.mjs",
+  "compatibility_date": "2026-10-20",
+  "workers_dev": true,
+  "routes": [],
+  "vars": {
+    "UPSTREAM_ORIGIN": "https://chatvice-production.up.railway.app",
+    "ALLOWED_HOSTS": "chat.chatvice.app"
+  }
+}
