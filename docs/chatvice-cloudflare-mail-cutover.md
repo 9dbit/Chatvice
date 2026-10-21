@@ -32,3 +32,25 @@ node scripts/email-routing-cutover.mjs cutover
 Explicit legacy deletions require verified forwarding rules for both recipients, enabled routing, at least two distinct Cloudflare MX servers, and a root SPF configuration that converges to one Cloudflare-authorizing record after removal of only a recognized Hostinger-only SPF. Unknown or duplicate SPF records require review. Resend subdomain MX/SPF and all unrelated records are preserved. Routing API read failures abort rather than being treated as disabled routing.
 
 After cutover, compare public MX/SPF through two resolvers. Send an independent external message to each of `hello@chatvice.app` and `master@chatvice.app` and verify both forwarded messages at Gmail; recheck application sending and SPF/DKIM/DMARC. Keep Hostinger live during propagation and export any late arrivals before retirement. Cloudflare forwarding does not move historical email into Gmail. Do not enable catch-all or cancel legacy services until the full acceptance checks pass.
+
+## Observed dashboard cutover path
+
+On 21 October 2026 the authenticated dashboard rejected **Activate** while the two existing Hostinger apex MX records remained: `Existing non-Cloudflare MX records conflict with Email Routing. Remove or update them and try again.` The limited token used for preparation grants only **Email Routing Rules: Edit** on `chatvice.app`; it cannot execute the CLI's DNS cutover mode. Both exact forwarding rules were successfully created and read back before domain activation.
+
+For a supervised dashboard cutover after both complete archives and a fresh full-zone export are verified:
+
+1. Stage the three MX records and priorities displayed by Cloudflare. Retain the old Hostinger MX while preparing these replacements, so the domain is never left without MX records.
+2. Replace only the known Hostinger-only root SPF with the displayed Cloudflare SPF. Keep exactly one root SPF and preserve Resend's separate sending-domain MX/SPF and DKIM records.
+3. Confirm the exact two Hostinger apex MX records and remove only those records. Complete any required action-time deletion confirmation before submitting the final delete.
+4. Activate routing promptly, inspect the resulting DNS and routing status, and verify the Cloudflare DKIM record. If activation fails after legacy MX removal, restore the saved Hostinger MX and SPF rather than leaving an unverified route in production.
+5. Verify public MX/SPF with two resolvers and send separate tests for hello and master from an account **different from the destination Gmail**. Some providers suppress messages forwarded back to the sending account; see [Cloudflare's routing test instructions](https://developers.cloudflare.com/email-service/get-started/route-emails/#test-your-routing-rule).
+
+The observed dashboard conflict does not establish the behavior of every API activation endpoint. Do not claim that the CLI DNS path has been validated against production merely because rule preparation and local tests passed. Keep Hostinger available through propagation and final mailbox synchronization.
+
+## Production verification, 21 October 2026
+
+After explicit approval of the exact two legacy MX deletions, the dashboard activated routing and published the Cloudflare DKIM record. Google and Cloudflare public DNS resolvers returned exactly the three displayed Cloudflare apex MX records, one root SPF authorizing Cloudflare, and the Cloudflare DKIM. Resend's sending-subdomain MX/SPF and DKIM and the existing DMARC policy were preserved.
+
+Separate test messages from an independent Gmail sender to `hello@chatvice.app` and `master@chatvice.app` both arrived in the destination Gmail inbox. Received and forwarding headers identified Cloudflare, Gmail reported SPF/DKIM/DMARC passes, and the Cloudflare activity log showed both messages as **Forwarded**. Both exact rules are Active; catch-all remains disabled. The overview initially showed Syncing even after live forwarding succeeded, so dashboard propagation status and delivery evidence must be reported separately.
+
+Verified local archives cover 833 hello messages and 14 master messages, including attachments. A post-cutover inventory check still found 831 hello Inbox messages plus 2 Sent messages and the same 14 master Inbox conversation IDs. Keep Hostinger accessible through a final propagation check and archive any late arrivals before retiring it. Historical email has not been imported into Gmail, and this verification does not establish completion of the application-subdomain migrations.
