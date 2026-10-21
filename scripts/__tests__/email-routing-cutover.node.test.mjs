@@ -1,25 +1,46 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  DOMAIN, SOURCE, DEST, isHostingerMX, isCloudflareMX,
+  DOMAIN, SOURCES, DEST, isHostingerMX, isCloudflareMX,
   hostingerOnlySPF, exactForwardRule, cutoverReady, canRemoveOldMX, run,
-  state, isRootMX, routingSPFReady,
+  state, isRootMX, routingSPFReady, forwardingPlan,
 } from "../email-routing-cutover.mjs";
 
 const verified = [{ email: DEST, verified: "2026-10-20T10:00:00Z" }];
 const rule = {
   enabled: true,
-  matchers: [{ type: "literal", field: "to", value: SOURCE }],
+  matchers: [{ type: "literal", field: "to", value: SOURCES[0] }],
   actions: [{ type: "forward", value: [DEST] }],
 };
 const hostinger = { type:"MX", name:DOMAIN, content:"mx1.hostinger.com", id:"old1" };
+const masterRule = { ...rule, matchers: [{ type: "literal", field: "to", value: SOURCES[1] }] };
 const cf = { type:"MX", name:DOMAIN, content:"route1.mx.cloudflare.net", id:"cf1" };
 
 test("blocks unverified destinations and missing/incorrect rules", () => {
   assert.equal(cutoverReady({ destinations:[{email:DEST,verified:null}], rules:[rule] }).ready, false);
   assert.equal(cutoverReady({ destinations:verified, rules:[] }).ready, false);
   assert.equal(cutoverReady({ destinations:verified, rules:[{...rule,actions:[{type:"drop"}]}] }).ready, false);
-  assert.equal(cutoverReady({ destinations:verified, rules:[rule] }).ready, true);
+  assert.equal(cutoverReady({ destinations:verified, rules:[rule,masterRule] }).ready, true);
+});
+
+test("cutover requires both hello and master to forward to the verified Gmail", () => {
+  const missingMaster = cutoverReady({ destinations: verified, rules: [rule] });
+  assert.equal(missingMaster.ready, false);
+  assert.equal(missingMaster.source, "master@chatvice.app");
+  assert.equal(cutoverReady({ destinations: verified, rules: [masterRule] }).ready, false);
+  const wrongMaster = { ...masterRule, actions: [{ type: "forward", value: ["someone-else@gmail.com"] }] };
+  assert.equal(cutoverReady({ destinations: verified, rules: [rule, wrongMaster] }).ready, false);
+  assert.equal(cutoverReady({ destinations: verified, rules: [rule, masterRule, masterRule] }).ready, false);
+  assert.equal(cutoverReady({ destinations: verified, rules: [rule, { ...masterRule, enabled: false }] }).ready, false);
+});
+
+test("preparation adds only missing recipients and rejects conflicts before any changes", () => {
+  assert.deepEqual(forwardingPlan([]), [...SOURCES]);
+  assert.deepEqual(forwardingPlan([rule]), ["master@chatvice.app"]);
+  assert.deepEqual(forwardingPlan([masterRule]), ["hello@chatvice.app"]);
+  assert.deepEqual(forwardingPlan([rule, masterRule]), []);
+  assert.throws(() => forwardingPlan([{ ...masterRule, actions: [{ type: "drop" }] }]), /conflicting master@chatvice.app/);
+  assert.throws(() => forwardingPlan([rule, rule]), /conflicting hello@chatvice.app/);
 });
 
 test("rules match exactly one designated forwarding target and source", () => {

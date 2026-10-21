@@ -7,7 +7,7 @@
  *
  * Modes:
  *   status   read Cloudflare configuration (default)
- *   prepare  create destination for verification, then an exact-match rule
+ *   prepare  create destination for verification, then exact-match rules
  *   cutover  back up DNS and enable Cloudflare Email Routing, retiring only
  *            known Hostinger root MX after verifying Cloudflare routing first
  */
@@ -17,7 +17,7 @@ import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 export const DOMAIN = "chatvice.app";
-export const SOURCE = "hello@chatvice.app";
+export const SOURCES = Object.freeze(["hello@chatvice.app", "master@chatvice.app"]);
 export const DEST = "9dragons.project@gmail.com";
 const API = "https://api.cloudflare.com/client/v4";
 
@@ -31,7 +31,7 @@ export const hostingerOnlySPF = (r) =>
   r?.type === "TXT" && r?.name?.toLowerCase() === DOMAIN &&
   /^v=spf1\s+include:_spf\.mail\.hostinger\.com\s+~all$/i.test(String(r.content || "").replace(/^"|"$/g, ""));
 
-export function exactForwardRule(rule, source = SOURCE, destination = DEST) {
+export function exactForwardRule(rule, source = SOURCES[0], destination = DEST) {
   return !!rule?.enabled &&
     Array.isArray(rule.matchers) && rule.matchers.length === 1 && rule.matchers.every(m =>
       m.type === "literal" && m.field === "to" && m.value?.toLowerCase() === source) &&
@@ -43,12 +43,30 @@ export function cutoverReady({ destinations, rules }) {
   if (!destinations.some(d => d.email?.toLowerCase() === DEST && d.verified)) {
     return { ready: false, reason: "GMAIL_DESTINATION_UNVERIFIED" };
   }
-  const matches = rules.filter(r =>
-    r.matchers?.some(m => m.type === "literal" && m.field === "to" && m.value?.toLowerCase() === SOURCE));
-  if (matches.length !== 1 || !exactForwardRule(matches[0])) {
-    return { ready: false, reason: "EXACT_FORWARDING_RULE_MISSING_OR_CONFLICTING" };
+  for (const source of SOURCES) {
+    const matches = rulesForSource(rules, source);
+    if (matches.length !== 1 || !exactForwardRule(matches[0], source)) {
+      return { ready: false, reason: "EXACT_FORWARDING_RULE_MISSING_OR_CONFLICTING", source };
+    }
   }
   return { ready: true, reason: "VERIFIED_FORWARDING" };
+}
+
+const rulesForSource = (rules, source) => rules.filter(r =>
+  r.matchers?.some(m => m.type === "literal" && m.field === "to" && m.value?.toLowerCase() === source));
+
+export function forwardingPlan(rules) {
+  const missing = [];
+  // Inspect both recipients before creating anything. A conflict on either
+  // address must not leave a partially prepared configuration.
+  for (const source of SOURCES) {
+    const matches = rulesForSource(rules, source);
+    if (!matches.length) missing.push(source);
+    else if (matches.length !== 1 || !exactForwardRule(matches[0], source)) {
+      throw new Error("Existing conflicting " + source + " rule requires manual review");
+    }
+  }
+  return missing;
 }
 export function canRemoveOldMX({ routingEnabled, dns }) {
   const servers = new Set(dns.filter(isCloudflareMX).map(r =>
@@ -135,7 +153,7 @@ export async function run(mode, token) {
   let s = await state(token);
   const verified = s.destinations.some(x => x.email?.toLowerCase() === DEST && !!x.verified);
   console.log(JSON.stringify({
-    domain: DOMAIN, mode,
+    domain: DOMAIN, mode, requiredSources: SOURCES,
     destinationRegistered: s.destinations.some(x => x.email?.toLowerCase() === DEST),
     destinationVerified: verified,
     forwardingReady: cutoverReady(s).ready,
@@ -157,25 +175,24 @@ export async function run(mode, token) {
       return;
     }
     if (cutoverReady(s).ready) {
-      console.log("EXACT_FORWARDING_RULE_ALREADY_READY");
+      console.log("EXACT_FORWARDING_RULES_ALREADY_READY");
       return;
     }
-    if (s.rules.some(r => r.matchers?.some(m =>
-      m.type === "literal" && m.field === "to" && m.value?.toLowerCase() === SOURCE))) {
-      throw new Error("Existing conflicting hello@chatvice.app rule requires manual review");
+    for (const source of forwardingPlan(s.rules)) {
+      await cloudflare("POST", "/zones/" + s.zoneId + "/email/routing/rules", {
+        name: "Forward " + source + " to verified Gmail",
+        enabled: true,
+        matchers: [{ type: "literal", field: "to", value: source }],
+        actions: [{ type: "forward", value: [DEST] }],
+      }, token);
     }
-    await cloudflare("POST", "/zones/" + s.zoneId + "/email/routing/rules", {
-      name: "Forward hello@chatvice.app to verified Gmail",
-      enabled: true,
-      matchers: [{ type: "literal", field: "to", value: SOURCE }],
-      actions: [{ type: "forward", value: [DEST] }],
-    }, token);
-    console.log("FORWARD_RULE_CREATED; DNS unchanged. Run status before cutover.");
+    console.log("FORWARD_RULES_CREATED; DNS unchanged. Run status before cutover.");
     return;
   }
 
   if (!cutoverReady(s).ready) {
-    throw new Error("CUTOVER_BLOCKED: " + cutoverReady(s).reason);
+    const readiness = cutoverReady(s);
+    throw new Error("CUTOVER_BLOCKED: " + readiness.reason + (readiness.source ? " " + readiness.source : ""));
   }
   const nonstandard = s.dns.filter(r => isRootMX(r) && !isHostingerMX(r) && !isCloudflareMX(r));
   if (nonstandard.length) throw new Error("CUTOVER_BLOCKED: unrecognized root MX provider");
