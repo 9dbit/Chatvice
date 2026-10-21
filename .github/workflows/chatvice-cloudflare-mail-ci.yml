@@ -1,0 +1,31 @@
+name: Chatvice Cloudflare Email Cutover Safety
+on:
+  pull_request:
+    paths:
+      - "scripts/email-routing-cutover.mjs"
+      - "scripts/__tests__/email-routing-cutover.node.test.mjs"
+      - "docs/chatvice-cloudflare-mail-cutover.md"
+      - ".github/workflows/chatvice-cloudflare-mail-ci.yml"
+  push:
+    branches:
+      - infra/chatvice-email-routing-cutover-20261020
+    paths:
+      - "scripts/email-routing-cutover.mjs"
+      - "scripts/__tests__/email-routing-cutover.node.test.mjs"
+      - ".github/workflows/chatvice-cloudflare-mail-ci.yml"
+permissions:
+  contents: read
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test verified-destination and MX transition guards
+        run: node --test scripts/__tests__/email-routing-cutover.node.test.mjs
+      - name: Verify no Cloudflare tokens or live DNS changes in CI
+        run: |
+          ! grep -E '^[[:space:]]*(CLOUDFLARE_API_TOKEN|CF_API_TOKEN)=' scripts/email-routing-cutover.mjs
+          node scripts/email-routing-cutover.mjs status 2>&1 | grep -q 'CLOUDFLARE_API_TOKEN_NOT_AVAILABLE'
