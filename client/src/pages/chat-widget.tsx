@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { classifyChatDeliveryError, shouldShowHumanHandoffNotice, HUMAN_HANDOFF_NOTICE } from "@/lib/chat-delivery-feedback";
 import { MessageReactions, type Reaction } from "@/components/message-reactions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1501,15 +1502,29 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       if (data.answer) {
         setPendingMessages((prev) => [
           ...prev,
-          { 
+          {
             clientId: data.responseClientId || generateClientId(),
-            from: data.mode === "HUMAN" ? "system" : "chatvice", 
-            content: data.answer, 
+            from: data.mode === "HUMAN" ? "system" : "chatvice",
+            content: data.answer,
             timestamp: new Date(),
           },
         ]);
-        
+
         playNotificationSound("reply");
+      } else if (shouldShowHumanHandoffNotice(data)) {
+        // An existing HUMAN-mode session deliberately has no AI response.
+        // Explain the handoff once rather than leaving customers waiting
+        // under an indefinite typing indicator or a silent empty response.
+        setPendingMessages((prev) => (
+          prev.some((m) => m.clientId === `human-handoff-${sessionId}`)
+            ? prev
+            : [...prev, {
+                clientId: `human-handoff-${sessionId}`,
+                from: "system",
+                content: HUMAN_HANDOFF_NOTICE,
+                timestamp: new Date(),
+              }]
+        ));
       }
       queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
       // Upgrade visitor session to active chat session on first message sent
@@ -1519,12 +1534,27 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
       }
     },
     onError: (error: Error) => {
-      const msg = error.message || "";
-      if (msg.includes("CONVERSATION_LIMIT_REACHED")) {
-        const limitMatch = msg.match(/"limit":(\d+)/);
-        setConversationLimitCount(limitMatch ? parseInt(limitMatch[1], 10) : 0);
+      // apiRequest carries a structured HTTP error code and limit. Do not
+      // rely on parsing JSON from error.message; it has already been replaced
+      // with the server's human-readable message.
+      const feedback = classifyChatDeliveryError(error);
+      if (feedback.kind === "quota") {
+        setConversationLimitCount(feedback.limit ?? 0);
         setShowConversationLimitPopup(true);
+      } else {
+        // The optimistic customer bubble can remain even when delivery is
+        // uncertain. Surface an explicit notice so failures are not silent.
+        setPendingMessages((prev) => [
+          ...prev,
+          {
+            clientId: generateClientId(),
+            from: "system",
+            content: feedback.message,
+            timestamp: new Date(),
+          },
+        ]);
       }
+      queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
     },
   });
 
