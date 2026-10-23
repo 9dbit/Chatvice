@@ -1,0 +1,33 @@
+name: Chatvice merchant chat delivery regression
+on:
+  pull_request:
+    paths:
+      - "client/src/lib/chat-delivery-feedback.ts"
+      - "client/src/lib/__tests__/chat-delivery-feedback.node.test.mjs"
+      - "client/src/pages/chat-widget.tsx"
+      - ".github/workflows/chatvice-merchant-chat-delivery.yml"
+  push:
+    branches:
+      - fix/chatvice-merchant-chat-delivery-feedback-20261023
+    paths:
+      - "client/src/lib/chat-delivery-feedback.ts"
+      - "client/src/lib/__tests__/chat-delivery-feedback.node.test.mjs"
+      - "client/src/pages/chat-widget.tsx"
+      - ".github/workflows/chatvice-merchant-chat-delivery.yml"
+permissions:
+  contents: read
+jobs:
+  widget-delivery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install from verified lockfile
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Merchant chat delivery and handoff guards
+        run: node --experimental-strip-types --test client/src/lib/__tests__/chat-delivery-feedback.node.test.mjs
+      - name: Build frontend and backend
+        run: npm run build
