@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from "express";
 import multer from "multer";
+import rateLimit from "express-rate-limit";
 import { pool } from "../db";
 import { cleanMailFilename, type ResendReceivedAttachment } from "./resend-attachments";
 import { scanMailAttachment } from "./scanner";
@@ -93,6 +94,10 @@ export async function persistInboundMailAttachments(
 const upload=multer({storage:multer.memoryStorage(),limits:{
   fileSize:MAX_MAIL_ATTACHMENT_BYTES,files:1,fields:2,parts:3,fieldSize:2048
 }});
+const uploadLimiter=rateLimit({windowMs:60_000,limit:12,
+  standardHeaders:"draft-7",legacyHeaders:false,
+  message:{error:"Too many attachment upload attempts"}
+});
 export function registerMailAttachmentRoutes(app:Express):void{
   app.get("/api/mail/messages/:id/attachments",async(req,res)=>{
     if(!validId(req.params.id))return res.sendStatus(400);
@@ -105,7 +110,7 @@ export function registerMailAttachmentRoutes(app:Express):void{
       res.json(q.rows);
     }catch{reportError(res);}
   });
-  app.post("/api/mail/messages/:id/attachments",async(req,res)=>{
+  app.post("/api/mail/messages/:id/attachments",uploadLimiter,async(req,res)=>{
     if(!validId(req.params.id))return res.sendStatus(400);
     let auth:Awaited<ReturnType<typeof checkMessage>>;
     try{auth=await checkMessage(req,req.params.id,true);}
