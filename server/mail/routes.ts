@@ -170,6 +170,71 @@ export function registerMailRoutes(app: Express) {
       await client.query("COMMIT"); res.status(201).json({id,threadId,status:d.draft?"draft":"queued"});
     } catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
   }));
+  app.patch("/api/mail/drafts/:id",wrap(async(req,res)=>{
+    const p=principal(req)!;
+    const id=uuid.parse(req.params.id);
+    const data=z.object({
+      to:addressList.min(1).optional(),cc:addressList.optional(),bcc:addressList.optional(),
+      subject:small.optional(),text:z.string().max(500000).optional()
+    }).refine(x=>Object.keys(x).length>0).parse(req.body);
+    const q=await pool.query(`UPDATE mail_messages m SET
+      to_emails=COALESCE($3::jsonb,m.to_emails),
+      cc_emails=COALESCE($4::jsonb,m.cc_emails),
+      bcc_emails=COALESCE($5::jsonb,m.bcc_emails),
+      subject=COALESCE($6,m.subject),text_body=COALESCE($7,m.text_body)
+      WHERE m.id=$1 AND m.tenant_id=$2 AND m.direction='outbound'
+        AND m.status='draft' AND m.folder='drafts'
+        AND EXISTS(SELECT 1 FROM mail_mailboxes b WHERE b.id=m.mailbox_id
+          AND b.tenant_id=$2 AND b.enabled=true
+          AND ($8::boolean OR EXISTS(SELECT 1 FROM mail_memberships mm
+            WHERE mm.mailbox_id=b.id AND mm.tenant_id=$2 AND mm.user_id=$9
+              AND mm.role IN('owner','member'))))
+      RETURNING m.id,m.thread_id`,[
+      id,p.tenantId,data.to?JSON.stringify(data.to):null,
+      data.cc?JSON.stringify(data.cc):null,data.bcc?JSON.stringify(data.bcc):null,
+      data.subject??null,data.text??null,p.isMerchant,p.userId
+    ]);
+    if(!q.rowCount)return res.sendStatus(404);
+    if(data.subject!==undefined)await pool.query(
+      "UPDATE mail_threads SET subject=$1 WHERE id=$2 AND tenant_id=$3",
+      [data.subject,q.rows[0].thread_id,p.tenantId]);
+    res.json({id,status:"draft"});
+  }));
+  app.post("/api/mail/drafts/:id/send",wrap(async(req,res)=>{
+    const p=principal(req)!;
+    const id=uuid.parse(req.params.id);
+    if(process.env.CHATVICE_MAIL_OUTBOUND_ENABLED!=="true" ||
+       process.env.CHATVICE_MAIL_PROVIDER!=="resend" || !process.env.RESEND_API_KEY)
+      return res.status(503).json({error:"Outbound delivery is not configured"});
+    const c=await pool.connect();
+    try{
+      await c.query("BEGIN");
+      const q=await c.query(`SELECT m.id,m.mailbox_id FROM mail_messages m
+        JOIN mail_mailboxes b ON b.id=m.mailbox_id AND b.tenant_id=m.tenant_id
+        JOIN mail_domains d ON d.id=b.domain_id AND d.tenant_id=m.tenant_id
+        WHERE m.id=$1 AND m.tenant_id=$2 AND m.direction='outbound'
+          AND m.status='draft' AND m.folder='drafts'
+          AND b.enabled=true AND d.status='verified'
+          AND ($3::boolean OR EXISTS(SELECT 1 FROM mail_memberships mm
+            WHERE mm.mailbox_id=b.id AND mm.tenant_id=$2 AND mm.user_id=$4
+              AND mm.role IN('owner','member')))
+        FOR UPDATE OF m`,[id,p.tenantId,p.isMerchant,p.userId]);
+      if(!q.rowCount){await c.query("ROLLBACK");return res.sendStatus(404);}
+      const pending=await c.query(`SELECT count(*)::integer AS total,
+        count(*) FILTER(WHERE scan_status<>'clean')::integer AS blocked
+        FROM mail_attachments WHERE message_id=$1 AND tenant_id=$2`,[id,p.tenantId]);
+      const count=pending.rows[0]?.total||0;
+      if(count>0 && (process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED!=="true" ||
+         pending.rows[0].blocked>0 || count>8)){
+        await c.query("ROLLBACK");
+        return res.status(409).json({error:"Attachments must be scanned and approved before sending"});
+      }
+      await c.query(`UPDATE mail_messages SET status='queued',folder='sent',
+        queued_at=now(),next_attempt_at=now(),retry_count=0,lock_acquired_at=NULL
+        WHERE id=$1 AND tenant_id=$2`,[id,p.tenantId]);
+      await c.query("COMMIT");return res.json({id,status:"queued"});
+    }catch(err){await c.query("ROLLBACK");throw err;}finally{c.release();}
+  }));
   app.patch("/api/mail/messages/:id",wrap(async(req,res)=>{
     const p=principal(req)!;
     const id=uuid.parse(req.params.id);
