@@ -249,6 +249,13 @@ app.use((req, res, next) => {
     throw err;
   });
 
+  // Mail UI must never be search indexed or publicly cached.
+  app.use("/dashboard/mail", (_req, res, next) => {
+    res.setHeader("X-Robots-Tag", "noindex, nofollow, nosnippet, noarchive");
+    res.setHeader("Cache-Control", "private, no-store");
+    next();
+  });
+
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
