@@ -1,44 +1,85 @@
-# Chatvice Mail V1 (isolated development branch)
+# Chatvice Mail Engine (V1 development branch)
 
-This change adds a first, disabled-by-default mail data-plane and UI to the existing Chatvice React/Vite + Express + PostgreSQL application. **This is not a live SMTP/IMAP/email hosting solution yet.**
+Owner: GitHub `9dbit/Chatvice`, Railway is the deployment target. Replit is **not** used.
 
-## Feature flag / safety
-- `CHATVICE_MAIL_ENABLED=true`: opt-in ONLY after staging migration and security tests.
-- `CHATVICE_MAIL_INBOUND_SECRET`: random 32+ character secret for HMAC webhook verification; do not print.
-- No MX/DNS/Hostinger changes. No automatic database schema push.
-- Existing outbound creation stores *queued* messages only. **No external email is sent** until a verified, retry-safe provider worker is implemented.
-- Inbound JSON requires headers `x-mail-timestamp` (epoch milliseconds) and `x-mail-signature` (hex HMAC-SHA256 of `timestamp + "." + JSON.stringify(body)`). This is a provider-neutral adapter contract; keep publicly inaccessible until a provider adapter implements signature verification and normalization.
-- All internal mail API routes require merchant/supervisor HTTP session and tenant-scoped checks (except independently HMAC-authenticated provider ingestion).
-- Mail content must never be exposed to third-party analytics, indexed pages, generic public uploads or public object storage.
+> Security gate: Mail is **OFF by default**. This is a code branch, NOT an operating email service. Do not change `chatvice.app` MX or decommission existing mailboxes.
 
-## Apply ONLY to isolated staging Postgres
-1. Verify backup and restore point. Check database owner and targeted instance.
-2. Run `migrations/20261026_chatvice_mail_v1.sql` as a transaction against **staging** database.
-3. Verify table structures and indexes. Do not run `npm run db:push` against production.
-4. Set `CHATVICE_MAIL_ENABLED=true` on staging **only**.
-5. Sign in as merchant at `/dashboard/mail`.
-6. Add domain from merchant-admin API (pending state), then create mailbox. Domain verification must be implemented via DNS verification before sending is enabled. Do not manually mark unverified domain verified without checking DNS.
-7. Verify unauthenticated 401, noindex/no-store, tenant isolation and inability to send from unverified domain.
+## Implementation
+- Multi-tenant PostgreSQL schema for domains, mailbox memberships, aliases, threads, messages, attachments metadata and delivery events.
+- Private dashboard pages: `/dashboard/mail` and `/dashboard/mail/admin`.
+- Domain ownership proof via TXT `_chatvice-mail.DOMAIN` containing `chatvice-verify=TOKEN`.
+- Mailbox create/disable, aliases, existing Chatvice supervisor permissions (owner/member/viewer).
+- Session-authenticated mailbox APIs; tenant/box scope and explicit origin allowlist for mutating requests.
+- Provider-neutral signed normalized inbound endpoint (raw payload HMAC) and Resend provider adapter.
+- Resend webhook signature verification on original raw bytes (Svix protocol), inbound fetching with recipient-to-verified-mailbox routing, deduplication, and delivery-state updates.
+- Provider-specific outbound queue processor with DB lease and up to seven bounded retries. Resend idempotency key uses internal message UUID; retries stop ahead of the 24-hour provider idempotency window.
+- RFC Message-ID correlation through Resend send/delivery events for more accurate reply threading.
+- Customer 360 context via tenant-filtered CRM lead lookup, with user-triggered Convert to Lead.
+- Safe/plain text email rendering in React, **never inject untrusted email HTML**.
+- Provider email attachments are deliberately **not ingested yet**. The provider webhook returns 503 so Resend retains the email and retries rather than silently discarding an attachment. A private R2 adapter, malware scanning, and authorized retrieval must precede attachment activation.
 
-## API (V1)
-`GET /api/mail/mailboxes`: accessible mailboxes.
-`GET /api/mail/threads?mailboxId=...&folder=inbox`: paged previews.
-`GET /api/mail/threads/:id`: authorized full thread.
-`POST /api/mail/compose`: create draft or outbound queued record.
-`PATCH /api/mail/messages/:id`: read/star/folder.
-`GET /api/mail/domains`: merchant-only.
-`POST /api/mail/domains`: merchant-only, creates pending domain.
-`POST /api/mail/mailboxes`: merchant-only.
-`POST /api/mail/inbound`: HMAC-authenticated provider adapter ingestion.
+## Railway environment template
+Keep these values disabled until a segregated staging environment is ready. Never commit real values.
 
-## Required next work before readiness
-- Add real provider transport and background worker with idempotency, retries, bounce handling, DKIM signing, rate limits and delivery webhooks.
-- Validate domain ownership (DNS TXT) before enabling a sending identity; prevent duplicate mailbox names/aliases and domain spoofing across tenants.
-- Implement secure attachment upload/scan/private object storage and authorized download.
-- Implement operator membership management, aliases, admin UI, customer 360 and AI assist workflows.
-- Harden CSRF/origin handling behind reverse proxy and test same-site/cookie configurations.
-- Add API and E2E test suites; run `npm run check`, `npm run build`, route smoke tests, and full security regression in an isolated staging environment.
-- Inspect public/static legacy uploads paths separately before handling mail attachments.
-- Coordinate production cutover only once actual inbound/outbound delivery pass with MX, SPF, DKIM, DMARC, rollback and archived mailbox migration verified.
+```dotenv
+CHATVICE_MAIL_ENABLED=false
+CHATVICE_MAIL_OUTBOUND_ENABLED=false
+CHATVICE_MAIL_PROVIDER=resend
+CHATVICE_MAIL_ALLOWED_ORIGINS=https://your-staging-host.example
+CHATVICE_MAIL_INBOUND_SECRET=
+RESEND_API_KEY=
+RESEND_WEBHOOK_SECRET=
+```
 
-**Do not merge this PR or deploy to production until the above requirements are met.**
+The Resend API key must support sending AND receiving according to provider permissions. The webhook secret must be the `whsec_...` signing secret. Prefer scoped keys and restrict access in Railway. Do not reuse secrets from production Chatvice authentication.
+
+## Staging migration
+1. Confirm which Railway project/environment/database is **non-production** and test its backup/restore.
+2. Explicitly review the five older staged changes already present on `cutover-staging`. **Do not blindly commit or overwrite those changes.**
+3. Run `migrations/20261026_chatvice_mail_v1.sql` only against the isolated staging PostgreSQL after a backup.
+4. Confirm tables, indexes and foreign keys, and ensure no existing production tables changed.
+5. Set `CHATVICE_MAIL_ENABLED=true`, `CHATVICE_MAIL_OUTBOUND_ENABLED=false`, and the exact staging origin.
+6. Log into staging as an existing Chatvice merchant at `/dashboard/mail/admin`. Add a disposable test domain and read the DNS TXT proof.
+7. Verify TXT proof in test DNS; this **does not** set up MX, SPF, DKIM or Resend sending-domain verification.
+8. Configure a test provider domain (prefer dedicated subdomain; do not touch primary MX). Configure Resend webhook for `email.received`, `email.sent`, `email.delivered`, `email.bounced`, `email.failed`, `email.complained`, and secret.
+9. Test inbound without attachment and confirm unknown recipients cannot access another tenant's mail. Test duplicate delivery, invalid signatures, expired signatures and direct unauthenticated API calls.
+10. Confirm outbound sending-domain verified by provider; enable `CHATVICE_MAIL_OUTBOUND_ENABLED=true` on staging only. Test draft, send, receive, reply, delivery and bounces.
+11. Test user permission changes, disabled mailbox and concurrent outbox workers.
+12. Keep feature disabled on production and maintain old mailboxes until complete cutover + rollback checks.
+
+## User API (mail engine enabled)
+- `GET /api/mail/mailboxes` (membership filtered)
+- `GET /api/mail/threads?mailboxId=UUID&folder=inbox&limit=40&offset=0`
+- `GET /api/mail/threads/:id`
+- `GET /api/mail/threads/:id/context`
+- `POST /api/mail/threads/:id/convert-to-lead`
+- `POST /api/mail/compose` (only sends when outbound provider is fully configured)
+- `PATCH /api/mail/messages/:id` (isRead, isStarred, folder)
+
+## Merchant administration
+- `GET /api/mail/domains`, `POST /api/mail/domains`
+- `GET /api/mail/domains/:id/dns`, `POST /api/mail/domains/:id/verify`
+- `POST /api/mail/mailboxes`, `PATCH /api/mail/mailboxes/:id`
+- `GET/POST /api/mail/mailboxes/:id/members`, `DELETE /api/mail/mailboxes/:id/members/:userId`
+- `GET/POST /api/mail/mailboxes/:id/aliases`, `DELETE /api/mail/mailboxes/:id/aliases/:aliasId`
+
+## Provider ingress
+- `POST /api/mail/provider/resend/webhook` requires verified Svix `svix-id`, `svix-timestamp`, `svix-signature` on raw payload bytes.
+- `POST /api/mail/inbound` is only for controlled internal adapters. Requires HMAC-SHA256 hex `x-mail-signature` of `timestamp + "." + raw_body` and `x-mail-timestamp` in epoch **milliseconds**. Secret must be 32+ characters.
+- Both ingress routes only use verified recipient addresses to identify mailbox/tenant. Incoming payload cannot select an arbitrary tenant.
+
+## Current testing
+- GitHub Actions workflow: `.github/workflows/chatvice-mail-ci.yml`.
+- Unit tests: `npx tsx --test server/mail/security.test.ts`.
+- CI initially passed all six Mail signature/provider tests. App-wide `npm run check` had ~280 pre-existing TypeScript errors in unrelated modules, so CI currently reports baseline separately while **failing on new Mail-specific TS errors** and running `npm run build`.
+- Full database integration, E2E, R2 attachments, mailbox history migration and live DNS delivery are still pending. Do not claim production readiness.
+
+## Remaining hard blockers
+- Private Cloudflare R2 attachment storage, malware scan, bounded uploads and authorized downloads.
+- Production provider credentials, ownership verification, inbound MX cutover and mailbox history copy.
+- Integration tests against isolated PostgreSQL, origin/session/CSRF tests, tenant boundary tests and real provider delivery smoke tests.
+- Mail-specific role permissions and optional AI summaries/draft generation with explicit privacy consent.
+- Independent mailbox account login/IMAP compatibility, if Chatvice Mail should also operate outside existing Chatvice merchant/supervisor sessions.
+- Safe provider and domain rollback for `hello@chatvice.app` and `master@chatvice.app`.
+
+**Do not merge or deploy to production before those checks and explicit approval.**
