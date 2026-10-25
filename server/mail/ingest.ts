@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { pool } from "../db";
 import { normalizeEmail } from "./security";
+import { encryptMailField } from "./crypto";
 
 export type IncomingMail = {
   eventId: string;
@@ -58,7 +59,7 @@ export async function ingestIncomingMail(data: IncomingMail): Promise<{
       }
       if(!thread) {
         thread=randomUUID();
-        await client.query("INSERT INTO mail_threads(id,tenant_id,mailbox_id,subject) VALUES ($1,$2,$3,$4)",[thread,box.tenant_id,box.id,data.subject.slice(0,250)]);
+        await client.query("INSERT INTO mail_threads(id,tenant_id,mailbox_id,subject) VALUES ($1,$2,$3,$4)",[thread,box.tenant_id,box.id,encryptMailField(box.tenant_id,thread,"thread-subject",data.subject.slice(0,250))]);
       }
       const id=randomUUID();
       const q=await client.query(`INSERT INTO mail_messages
@@ -67,8 +68,10 @@ export async function ingestIncomingMail(data: IncomingMail): Promise<{
         ON CONFLICT (mailbox_id,source_event_id) WHERE source_event_id IS NOT NULL DO NOTHING RETURNING id`,[
           id,box.tenant_id,box.id,thread,data.eventId,data.messageId?.slice(0,512)||null,
           data.inReplyTo?.slice(0,512)||null,from,JSON.stringify(to),JSON.stringify(cc),
-          JSON.stringify(bcc),data.subject.slice(0,250),data.text.slice(0,500000),
-          data.html?.slice(0,1000000)||null
+          JSON.stringify(bcc),
+          encryptMailField(box.tenant_id,id,"message-subject",data.subject.slice(0,250)),
+          encryptMailField(box.tenant_id,id,"message-text",data.text.slice(0,500000)),
+          data.html ? encryptMailField(box.tenant_id,id,"message-html",data.html.slice(0,1000000)) : null
         ]);
       if(!q.rowCount) { await client.query("ROLLBACK"); duplicate++;
         const original=await client.query("SELECT id FROM mail_messages WHERE mailbox_id=$1 AND source_event_id=$2",[box.id,data.eventId]);
