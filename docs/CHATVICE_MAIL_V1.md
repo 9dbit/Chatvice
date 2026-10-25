@@ -18,7 +18,7 @@ Owner: GitHub `9dbit/Chatvice`, Railway is the deployment target. Replit is **no
 - Safe/plain text email rendering in React, **never inject untrusted email HTML**.
 - AI Summary and Draft Reply are opt-in (both feature flag + individual explicit user consent), and **never auto-send**. Snippets have basic email/phone redaction, which is not a guarantee of full PII removal.
 - Mail page uses stricter CSP, suppresses Google Tag Manager on private documents, and forces a clean full-document navigation when entering the Mail route from a tracker-loaded SPA page. This is a transitional defense, not equal to dedicated cross-origin isolation.
-- Provider email attachments are deliberately **not ingested yet**. The provider webhook returns 503 so Resend retains the email and retries rather than silently discarding an attachment. A private R2 adapter, malware scanning, and authorized retrieval must precede attachment activation.
+- Private R2 draft/inbound attachments are implemented behind disabled-by-default flags, with tenant authorization, bounded file sizes, quarantine and optional clamd scanning. Real provider and infrastructure verification remain outstanding.
 
 ## Railway environment template
 Keep these values disabled until a segregated staging environment is ready. Never commit real values.
@@ -88,3 +88,24 @@ The Resend API key must support sending AND receiving according to provider perm
 - Safe provider and domain rollback for `hello@chatvice.app` and `master@chatvice.app`.
 
 **Do not merge or deploy to production before those checks and explicit approval.**
+
+
+## Private attachment integration (development only)
+- New additive migration: `migrations/20261026_chatvice_mail_attachments_v2.sql`. Apply after v1, only against isolated staging PostgreSQL.
+- R2 is accessed server-side via S3 SigV4 over HTTPS (`auto` region). Files have server-generated private keys. No public bucket or presigned browser link is used. Set a bucket-scoped R2 token in Railway secrets.
+- Set `CHATVICE_MAIL_ATTACHMENTS_ENABLED=true` only in staging after a private R2 bucket is configured. Credentials: `CHATVICE_MAIL_R2_ACCOUNT_ID`, `CHATVICE_MAIL_R2_BUCKET`, `CHATVICE_MAIL_R2_ACCESS_KEY_ID`, `CHATVICE_MAIL_R2_SECRET_ACCESS_KEY`.
+- Resend attachments are fetched through the provider API, then from signed download URLs restricted to exact hostnames configured in `CHATVICE_MAIL_ATTACHMENT_DOWNLOAD_HOSTS`. Redirects and unapproved hosts fail closed. Never use a wildcard.
+- ClamAV: `CHATVICE_MAIL_CLAMAV_HOST` (private Railway network) and `CHATVICE_MAIL_CLAMAV_PORT=3310`. If unavailable or scanning fails, scan status remains `pending`. Pending/blocked attachments cannot be downloaded or sent.
+- `POST /api/mail/messages/:id/attachments` uploads one file to a draft. `GET /api/mail/messages/:id/attachments` lists safe metadata. `GET /api/mail/attachments/:id/download` requires a session and clean scan status. `POST /api/mail/attachments/:id/rescan` allows an authorized operator to retry.
+- `PATCH /api/mail/drafts/:id` edits a saved draft; `POST /api/mail/drafts/:id/send` queues a draft only when every attachment is clean. Outbound worker reads clean attachments privately from R2 and sends as provider base64 payloads.
+- Limits: 8 MiB per file, at most 8 attachments, and maximum 16 MiB total payload. Current draft upload quota accounting and automatic retention/garbage collection require additional hardening.
+- Never switch the main domain MX solely to test attachments. Use a disposable provider test domain/subdomain; verify signed inbound event, safe file, blocked EICAR, scanner outage, provider retry, duplicate event and tenant separation.
+- Unit tests: `server/mail/attachment-security.test.ts`. DB integration: `server/mail/integration.test.ts` with disposable PostgreSQL.
+
+### Activation checklist
+1. Verify provider sending and receiving domains in staging (TXT/SPF/DKIM/MX) and configure exact callback origin/secret.
+2. Provision private R2 bucket and key scoped to that bucket only; disable public bucket access and public URL.
+3. Provision ClamAV on a private internal network with no public service exposure.
+4. Run CI and test real inbound and outbound messages with safe attachments and scanner failures.
+5. Verify operator/member access, email privacy headers, original sender references, bounded upload, no email data in analytics and rollback.
+6. Keep production email and Mail feature flags untouched until all gates pass.
