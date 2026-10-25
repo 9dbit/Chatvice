@@ -180,6 +180,43 @@ export function registerMailRoutes(app: Express) {
     if(!q.rowCount)return res.sendStatus(404);
     res.json({updated:true});
   }));
+  app.get("/api/mail/threads/:id/context",wrap(async(req,res)=>{
+    const p=principal(req)!;
+    const thread=uuid.parse(req.params.id);
+    const q=await pool.query(`SELECT t.mailbox_id,(
+        SELECT m.from_email FROM mail_messages m WHERE m.thread_id=t.id
+        AND m.tenant_id=t.tenant_id AND m.direction='inbound'
+        ORDER BY m.created_at ASC LIMIT 1) AS sender
+      FROM mail_threads t WHERE t.id=$1 AND t.tenant_id=$2`,[thread,p.tenantId]);
+    if(!q.rowCount || !await canAccess(p,q.rows[0].mailbox_id))return res.sendStatus(404);
+    const sender=q.rows[0].sender;
+    if(!sender)return res.json({sender:null,lead:null});
+    const lead=await pool.query(`SELECT id,customer_name,customer_email,stage,score,source,last_contact_at,
+      created_at FROM leads WHERE merchant_id=$1 AND lower(customer_email)=$2
+      ORDER BY updated_at DESC NULLS LAST LIMIT 1`,[p.tenantId,sender]);
+    res.json({sender,lead:lead.rows[0]||null});
+  }));
+  app.post("/api/mail/threads/:id/convert-to-lead",wrap(async(req,res)=>{
+    const p=principal(req)!;
+    const thread=uuid.parse(req.params.id);
+    const t=await pool.query(`SELECT t.mailbox_id,
+      (SELECT m.from_email FROM mail_messages m WHERE m.thread_id=t.id
+       AND m.direction='inbound' AND m.tenant_id=$2 ORDER BY m.created_at ASC LIMIT 1) AS sender
+      FROM mail_threads t WHERE t.id=$1 AND t.tenant_id=$2`,[thread,p.tenantId]);
+    if(!t.rowCount || !await canAccess(p,t.rows[0].mailbox_id,true))return res.sendStatus(404);
+    const sender=t.rows[0].sender;
+    if(!sender)return res.status(409).json({error:"No inbound sender"});
+    const c=await pool.connect();
+    try{
+      await c.query("BEGIN");
+      const existing=await c.query(`SELECT id FROM leads WHERE merchant_id=$1 AND lower(customer_email)=$2 ORDER BY created_at ASC LIMIT 1`,[p.tenantId,sender]);
+      const leadId=existing.rows[0]?.id || ("lead_"+randomUUID().replace(/-/g,"").slice(0,24));
+      if(!existing.rowCount) await c.query(`INSERT INTO leads(id,merchant_id,customer_email,stage,source,score)
+        VALUES($1,$2,$3,'cold','mail',0)`,[leadId,p.tenantId,sender]);
+      await c.query("UPDATE mail_threads SET customer_id=$1 WHERE id=$2 AND tenant_id=$3",[leadId,thread,p.tenantId]);
+      await c.query("COMMIT");res.status(201).json({leadId,created:!existing.rowCount});
+    }catch(e){await c.query("ROLLBACK");throw e;}finally{c.release();}
+  }));
   app.get("/api/mail/domains",wrap(async(req,res)=>{
     const p=principal(req)!;
     if(!p.isMerchant)return res.sendStatus(403);
