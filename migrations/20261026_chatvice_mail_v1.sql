@@ -10,7 +10,9 @@ CREATE TABLE IF NOT EXISTS mail_domains (
   verified_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX IF NOT EXISTS mail_domains_unique_domain ON mail_domains (lower(domain));
+-- A pending claim must NOT let one tenant squat on another tenant's domain.
+CREATE UNIQUE INDEX IF NOT EXISTS mail_domains_unique_tenant_domain ON mail_domains(tenant_id,lower(domain));
+CREATE UNIQUE INDEX IF NOT EXISTS mail_domains_unique_verified_domain ON mail_domains(lower(domain)) WHERE status='verified';
 CREATE INDEX IF NOT EXISTS mail_domains_tenant_idx ON mail_domains (tenant_id);
 
 CREATE TABLE IF NOT EXISTS mail_mailboxes (
@@ -68,7 +70,7 @@ CREATE TABLE IF NOT EXISTS mail_messages (
   thread_id uuid NOT NULL REFERENCES mail_threads(id) ON DELETE CASCADE,
   direction text NOT NULL CHECK (direction IN ('inbound','outbound')),
   folder text NOT NULL DEFAULT 'inbox' CHECK (folder IN ('inbox','sent','drafts','archive','spam','trash')),
-  status text NOT NULL DEFAULT 'received' CHECK (status IN ('received','draft','queued','sending','sent','failed','bounced')),
+  status text NOT NULL DEFAULT 'received' CHECK (status IN ('received','draft','queued','sending','sent','delivered','failed','bounced')),
   source_event_id text,
   rfc_message_id text,
   in_reply_to text,
@@ -94,6 +96,7 @@ CREATE INDEX IF NOT EXISTS mail_messages_thread_idx ON mail_messages(tenant_id,t
 CREATE INDEX IF NOT EXISTS mail_messages_folder_idx ON mail_messages(tenant_id,mailbox_id,folder,created_at DESC);
 CREATE INDEX IF NOT EXISTS mail_messages_rfc_idx ON mail_messages(tenant_id,mailbox_id,rfc_message_id);
 CREATE INDEX IF NOT EXISTS mail_messages_outbox_idx ON mail_messages(status,next_attempt_at) WHERE status IN ('queued','sending');
+CREATE INDEX IF NOT EXISTS mail_messages_provider_id_idx ON mail_messages(provider_message_id) WHERE provider_message_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS mail_attachments (
   id uuid PRIMARY KEY,
