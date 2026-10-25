@@ -18,6 +18,7 @@ export async function sendResendMail(message: SendRequest, apiKey: string): Prom
   const body: Record<string,unknown> = {
     from: message.from, to: message.to, cc: message.cc, bcc: message.bcc,
     subject: message.subject, text: message.text,
+    tags: [{name:"chatvice_id",value:message.id}],
   };
   if (message.inReplyTo && /^<[^<>\r\n]{1,500}>$/.test(message.inReplyTo)) {
     body.headers = { "In-Reply-To": message.inReplyTo };
