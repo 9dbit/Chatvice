@@ -87,6 +87,7 @@ export const mailMessages=pgTable("mail_messages",{
  isStarred:boolean("is_starred").notNull().default(false),
  retryCount:integer("retry_count").notNull().default(0),
  nextAttemptAt:time("next_attempt_at").notNull().defaultNow(),
+ queuedAt:time("queued_at").notNull().defaultNow(),
  lockAcquiredAt:time("lock_acquired_at"),
  deliveredAt:time("delivered_at"),
  receivedAt:time("received_at").notNull().defaultNow(),
