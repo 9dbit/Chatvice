@@ -4,6 +4,7 @@ import fs from "fs";
 import crypto from "crypto";
 import cookieParser from "cookie-parser";
 import { registerRoutes, cleanupStaleVisitorSessions } from "./routes";
+import { registerMailRoutes } from "./mail/routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { execSync } from "child_process";
@@ -236,6 +237,8 @@ app.use((req, res, next) => {
   await seedMasterAdminFromEnv();
 
   await registerRoutes(httpServer, app);
+  // Mail routes are registered after session middleware and before static catch-all.
+  registerMailRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
