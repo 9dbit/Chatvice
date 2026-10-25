@@ -1,6 +1,7 @@
 import { pool } from "../db";
 import { MailProviderError, sendResendMail } from "./provider";
 import { getPrivateAttachment, MAX_MAIL_ATTACHMENT_BYTES, MAX_MAIL_ATTACHMENTS } from "./object-store";
+import { decryptMailField, isMailEncryptionReady } from "./crypto";
 
 type Queued = {
   id: string; tenant_id:string; from_email: string; to_emails: string[]; cc_emails: string[];
@@ -12,7 +13,7 @@ export async function processMailOutboxOnce():Promise<{processed:number;sent:num
   if(process.env.CHATVICE_MAIL_ENABLED!=="true" ||
      process.env.CHATVICE_MAIL_OUTBOUND_ENABLED!=="true" ||
      process.env.CHATVICE_MAIL_PROVIDER!=="resend" ||
-     !process.env.RESEND_API_KEY)return {processed:0,sent:0,failed:0};
+     !process.env.RESEND_API_KEY || !isMailEncryptionReady())return {processed:0,sent:0,failed:0};
   if(running)return {processed:0,sent:0,failed:0};
   running=true;
   let processed=0,sent=0,failed=0;
@@ -63,7 +64,9 @@ export async function processMailOutboxOnce():Promise<{processed:number;sent:num
         const providerId=await sendResendMail({
           id:m.id,from:m.from_email,to:m.to_emails||[],
           cc:m.cc_emails||[],bcc:m.bcc_emails||[],
-          subject:m.subject,text:m.text_body,inReplyTo:m.in_reply_to,attachments,
+          subject:decryptMailField(m.tenant_id,m.id,"message-subject",m.subject),
+          text:decryptMailField(m.tenant_id,m.id,"message-text",m.text_body),
+          inReplyTo:m.in_reply_to,attachments,
         },process.env.RESEND_API_KEY!);
         await pool.query(`UPDATE mail_messages SET status='sent',provider_message_id=$2,
           lock_acquired_at=NULL WHERE id=$1 AND status='sending'`,[m.id,providerId]);
@@ -89,7 +92,7 @@ let timer: ReturnType<typeof setInterval>|null=null;
 export function startMailOutboxWorker():void {
   if(timer || process.env.CHATVICE_MAIL_ENABLED!=="true" ||
      process.env.CHATVICE_MAIL_OUTBOUND_ENABLED!=="true" ||
-     process.env.CHATVICE_MAIL_PROVIDER!=="resend" || !process.env.RESEND_API_KEY)return;
+     process.env.CHATVICE_MAIL_PROVIDER!=="resend" || !process.env.RESEND_API_KEY || !isMailEncryptionReady())return;
   const tick=()=>processMailOutboxOnce().catch(()=>{
     // Deliberately no payload, token, email address or body in server logs.
     console.warn("[chatvice-mail] outbound cycle unavailable");
