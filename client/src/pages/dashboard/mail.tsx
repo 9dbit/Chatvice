@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Inbox, Send, FileText, Archive, Trash2, Star, Mail, Plus, Search, Reply, ArrowLeft, Settings, UserRoundPlus, ShieldCheck, Sparkles } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import MailAttachments from "./mail-attachments";
 
 type Box = {id:string;local_part:string;domain:string;display_name:string};
 type Thread = {id:string;subject:string;from_email:string;text_body:string;created_at:string;is_read:boolean;is_starred:boolean};
-type Message = {id:string;direction:string;from_email:string;to_emails:string[];subject:string;text_body:string;created_at:string;is_read:boolean;is_starred:boolean};
+type Message = {id:string;status:string;direction:string;from_email:string;to_emails:string[];subject:string;text_body:string;created_at:string;is_read:boolean;is_starred:boolean};
 type Context = {sender:string|null;lead:{id:string;customer_name:string|null;customer_email:string;stage:string;score:number;source:string;last_contact_at:string|null}|null};
 const folders=[{name:"inbox",label:"Inbox",icon:Inbox},{name:"sent",label:"Sent",icon:Send},{name:"drafts",label:"Drafts",icon:FileText},{name:"archive",label:"Archive",icon:Archive},{name:"trash",label:"Trash",icon:Trash2}];
 export default function MailPage(){
@@ -27,8 +28,11 @@ export default function MailPage(){
  const [replyToId,setReplyToId]=useState<string|undefined>();
  const [aiSummary,setAiSummary]=useState("");
  const [aiLoading,setAiLoading]=useState(false);
+ const [draftId,setDraftId]=useState<string|undefined>();
+ const [draftSaved,setDraftSaved]=useState(false);
+ const [reload,setReload]=useState(0);
  useEffect(()=>{apiRequest("GET","/api/mail/mailboxes").then(r=>r.json()).then((x:Box[])=>{setBoxes(x);if(x.length)setBox(x[0].id)}).catch(e=>setError(e.message))},[]);
- useEffect(()=>{if(!box)return;setLoading(true);setError("");setSelected("");apiRequest("GET",`/api/mail/threads?mailboxId=${encodeURIComponent(box)}&folder=${folder}`).then(r=>r.json()).then(setThreads).catch(e=>setError(e.message)).finally(()=>setLoading(false))},[box,folder]);
+ useEffect(()=>{if(!box)return;setLoading(true);setError("");setSelected("");apiRequest("GET",`/api/mail/threads?mailboxId=${encodeURIComponent(box)}&folder=${folder}`).then(r=>r.json()).then(setThreads).catch(e=>setError(e.message)).finally(()=>setLoading(false))},[box,folder,reload]);
  useEffect(()=>{
   if(!selected){setMessages([]);setContext(null);return;}
   setMessages([]);setContext(null);setAiSummary("");
@@ -43,10 +47,30 @@ export default function MailPage(){
  const current=threads.find(t=>t.id===selected);
  async function submit(draft:boolean){
   if(!box||!to.trim())return;
+  const toEmails=to.split(",").map(s=>s.trim()).filter(Boolean);
   setSaving(true);setError("");
-  try{await apiRequest("POST","/api/mail/compose",{mailboxId:box,to:to.split(",").map(s=>s.trim()).filter(Boolean),subject,text:body,draft,replyToId});
-   setCompose(false);setTo("");setSubject("");setBody("");setReplyToId(undefined);setFolder(draft?"drafts":"sent");
-  }catch(e:any){setError(e.message)}finally{setSaving(false)}
+  try {
+   if(draftId){
+    await apiRequest("PATCH",`/api/mail/drafts/${draftId}`,{to:toEmails,subject,text:body});
+    if(!draft)await apiRequest("POST",`/api/mail/drafts/${draftId}/send`,{});
+   }else{
+    const result=await apiRequest("POST","/api/mail/compose",{
+      mailboxId:box,to:toEmails,subject,text:body,draft,replyToId
+    });
+    const saved:{id:string}=await result.json();
+    if(draft)setDraftId(saved.id);
+   }
+   setReload(x=>x+1);
+   if(draft){setDraftSaved(true);return;}
+   setCompose(false);setTo("");setSubject("");setBody("");
+   setReplyToId(undefined);setDraftId(undefined);setDraftSaved(false);setFolder("sent");
+  }catch(e:any){setError(e.message||"Mail request failed")}finally{setSaving(false)}
+ }
+ function openDraft(message:Message){
+  setDraftId(message.id);setDraftSaved(true);
+  setReplyToId(undefined);setCompose(true);
+  setTo(Array.isArray(message.to_emails)?message.to_emails.join(", "):"");
+  setSubject(message.subject);setBody(message.text_body);
  }
  async function aiTask(task:"summary"|"draft"){
   if(!selected||!window.confirm("AI Mail sends a shortened email excerpt to an external AI provider. Common email addresses and phone numbers are redacted, but other personal information may remain. Continue?"))return;
@@ -60,7 +84,7 @@ export default function MailPage(){
     setReplyToId(incoming?.id);
     setTo(incoming?.from_email||"");
     setSubject(current?.subject?.startsWith("Re:")?current.subject:"Re: "+(current?.subject||""));
-    setBody(data.text);setCompose(true);
+    setBody(data.text);setDraftId(undefined);setDraftSaved(false);setCompose(true);
    }
   }catch(e:any){setError(e.message)}finally{setAiLoading(false)}
  }
@@ -69,7 +93,7 @@ export default function MailPage(){
   <header className="flex items-center justify-between gap-3 px-5 py-4 border-b border-white/10">
    <div><h1 className="text-xl font-semibold">Chatvice <span className="text-orange-500">Mail</span></h1><p className="text-xs text-white/40">Private unified communications</p></div>
    <div className="flex items-center gap-2"><Link href="/dashboard/mail/admin" className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/15 text-white/75 text-sm hover:bg-white/10"><Settings size={16}/><span className="hidden sm:inline">Mail Admin</span></Link>
-   <button onClick={()=>{setCompose(true);setReplyToId(undefined);setTo("");setSubject("");setBody("")}} className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-black font-semibold"><Plus size={16}/> Compose</button></div>
+   <button onClick={()=>{setCompose(true);setReplyToId(undefined);setDraftId(undefined);setDraftSaved(false);setTo("");setSubject("");setBody("")}} className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-black font-semibold"><Plus size={16}/> Compose</button></div>
   </header>
   {error&&<div role="alert" className="bg-red-950/40 px-5 py-3 text-red-300 text-sm">{error}</div>}
   <div className="flex flex-col md:flex-row flex-1 min-h-[65vh]">
@@ -97,11 +121,14 @@ export default function MailPage(){
       <button disabled={aiLoading} onClick={()=>aiTask("draft")} className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-xs text-orange-300"><Sparkles size={14}/> Draft Reply</button>
      </div>
      {aiSummary&&<div className="p-4 mb-5 bg-orange-500/10 border border-orange-500/20 rounded-xl"><p className="font-semibold text-orange-300 mb-2 text-sm">AI Summary · Review before use</p><p className="whitespace-pre-wrap text-sm text-white/75">{aiSummary}</p></div>}
-     {messages.map(m=><div key={m.id} className="border-b border-white/10 mb-5 pb-5"><p className="font-medium">{m.from_email}</p><p className="text-xs text-white/40 mb-4">{new Date(m.created_at).toLocaleString()}</p><p className="whitespace-pre-wrap text-sm leading-7 text-white/80">{m.text_body}</p></div>)}
+     {messages.map(m=><div key={m.id} className="border-b border-white/10 mb-5 pb-5"><p className="font-medium">{m.from_email}</p><p className="text-xs text-white/40 mb-4">{new Date(m.created_at).toLocaleString()}</p><p className="whitespace-pre-wrap text-sm leading-7 text-white/80">{m.text_body}</p>
+      <div className="mt-4"><MailAttachments messageId={m.id} compact/></div>
+      {m.status==="draft"&&<button className="mt-4 text-orange-400 text-sm" onClick={()=>openDraft(m)}>Edit draft & attachments</button>}
+     </div>)}
      <button onClick={()=>{
       const incoming=messages.filter(m=>m.direction==="inbound").at(-1);
       if(!incoming)return;
-      setReplyToId(incoming.id);setCompose(true);setBody("");
+      setReplyToId(incoming.id);setDraftId(undefined);setDraftSaved(false);setCompose(true);setBody("");
       setSubject(current?.subject?.startsWith("Re:")?current.subject:"Re: "+(current?.subject||""));
       setTo(incoming.from_email);
      }} className="flex items-center gap-2 text-orange-400 text-sm"><Reply size={16}/> Reply</button>
@@ -130,11 +157,14 @@ export default function MailPage(){
    </aside>}
   </div>
   {compose&&<div className="fixed inset-0 bg-black/80 z-[100] flex justify-end"><div className="w-full max-w-2xl bg-[#111318] h-full p-6 flex flex-col gap-4">
-   <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">New Message</h2><button onClick={()=>setCompose(false)} aria-label="Close compose">✕</button></div>
+   <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">{draftId?"Edit Draft":"New Message"}</h2><button onClick={()=>setCompose(false)} aria-label="Close compose">✕</button></div>
    <p className="text-sm text-white/40">From: {boxes.find(b=>b.id===box)?.local_part}@{boxes.find(b=>b.id===box)?.domain}</p>
    <input aria-label="Recipients" className="bg-white/5 p-3 rounded-xl" placeholder="To: address@example.com" value={to} onChange={e=>setTo(e.target.value)}/>
    <input aria-label="Subject" className="bg-white/5 p-3 rounded-xl" placeholder="Subject" value={subject} onChange={e=>setSubject(e.target.value)}/>
    <textarea aria-label="Message" className="flex-1 bg-white/5 p-4 rounded-xl resize-none" placeholder="Write a message..." value={body} onChange={e=>setBody(e.target.value)}/>
+   {draftId&&<div className="rounded-xl border border-white/10 p-3"><MailAttachments messageId={draftId} allowUpload/></div>}
+   {!draftId&&<p className="text-xs text-white/40">Save as Draft first to add private attachments. File access is locked until malware scanning passes.</p>}
+   {draftSaved&&<p role="status" className="text-xs text-green-400">Draft saved privately</p>}
    <div className="flex justify-end gap-3"><button disabled={saving} onClick={()=>submit(true)} className="px-4 py-2 rounded-full bg-white/10">Save Draft</button><button disabled={saving} onClick={()=>submit(false)} className="px-6 py-2 rounded-full bg-orange-500 text-black font-semibold">Queue Send</button></div>
   </div></div>}
  </section>;
