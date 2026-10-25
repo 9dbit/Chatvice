@@ -8,6 +8,7 @@ import { registerResendWebhook } from "./resend-webhook";
 import { registerMailAdminRoutes } from "./admin";
 import { registerMailAIRoutes } from "./ai";
 import { registerMailAttachmentRoutes } from "./attachments";
+import { encryptMailField, decryptMailField, isMailEncryptionReady } from "./crypto";
 
 const email = z.string().email().max(320).transform(v => v.toLowerCase());
 const uuid = z.string().uuid();
@@ -70,6 +71,7 @@ export function registerMailRoutes(app: Express) {
     res.setHeader("X-Robots-Tag","noindex, nofollow, nosnippet, noarchive");
     res.setHeader("Cache-Control","private, no-store");
     if (process.env.CHATVICE_MAIL_ENABLED !== "true") return res.status(503).json({error:"Mail engine not enabled"});
+    if (!isMailEncryptionReady()) return res.status(503).json({error:"Private mail encryption is not configured"});
     next();
   });
   app.post("/api/mail/inbound",wrap(async(req,res)=>{
@@ -123,7 +125,11 @@ export function registerMailRoutes(app: Express) {
         ORDER BY created_at DESC LIMIT 1) m ON true
        WHERE t.tenant_id=$1 AND t.mailbox_id=$2
        ORDER BY m.created_at DESC LIMIT $4 OFFSET $5`,[p.tenantId,box,folder,limit,offset]);
-    res.json(q.rows.map(r=>({...r,text_body:String(r.text_body||"").slice(0,220)})));
+    res.json(q.rows.map(r=>({
+      ...r,
+      subject:decryptMailField(p.tenantId,r.id,"thread-subject",r.subject),
+      text_body:decryptMailField(p.tenantId,r.message_id,"message-text",r.text_body).slice(0,220)
+    })));
   }));
   app.get("/api/mail/threads/:id",wrap(async(req,res)=>{
     const p=principal(req)!;
@@ -135,7 +141,12 @@ export function registerMailRoutes(app: Express) {
        (SELECT 1 FROM mail_memberships x WHERE x.mailbox_id=b.id AND x.tenant_id=$1 AND x.user_id=$4)))
       ORDER BY m.created_at ASC`,[p.tenantId,id,p.isMerchant,p.userId]);
     if(!q.rowCount) return res.sendStatus(404);
-    res.json(q.rows);
+    res.json(q.rows.map(m=>({
+      ...m,
+      subject:decryptMailField(p.tenantId,m.id,"message-subject",m.subject),
+      text_body:decryptMailField(p.tenantId,m.id,"message-text",m.text_body),
+      html_body:m.html_body ? decryptMailField(p.tenantId,m.id,"message-html",m.html_body) : null
+    })));
   }));
   app.post("/api/mail/compose",wrap(async(req,res)=>{
     const p=principal(req)!;
@@ -160,11 +171,12 @@ export function registerMailRoutes(app: Express) {
     const client=await pool.connect();
     try {
       await client.query("BEGIN");
-      if(!d.replyToId) await client.query("INSERT INTO mail_threads(id,tenant_id,mailbox_id,subject) VALUES($1,$2,$3,$4)",[threadId,p.tenantId,d.mailboxId,d.subject]);
+      if(!d.replyToId) await client.query("INSERT INTO mail_threads(id,tenant_id,mailbox_id,subject) VALUES($1,$2,$3,$4)",[threadId,p.tenantId,d.mailboxId,encryptMailField(p.tenantId,threadId,"thread-subject",d.subject)]);
       const id=randomUUID();
       await client.query(`INSERT INTO mail_messages(id,tenant_id,mailbox_id,thread_id,direction,folder,status,from_email,to_emails,cc_emails,bcc_emails,subject,text_body,in_reply_to)
        VALUES($1,$2,$3,$4,'outbound',$5,$6,$7,$8::jsonb,$9::jsonb,$10::jsonb,$11,$12,$13)`,[
-        id,p.tenantId,d.mailboxId,threadId,d.draft?"drafts":"sent",d.draft?"draft":"queued",from,JSON.stringify(d.to),JSON.stringify(d.cc),JSON.stringify(d.bcc),d.subject,d.text,replyHeader
+        id,p.tenantId,d.mailboxId,threadId,d.draft?"drafts":"sent",d.draft?"draft":"queued",from,JSON.stringify(d.to),JSON.stringify(d.cc),JSON.stringify(d.bcc),encryptMailField(p.tenantId,id,"message-subject",d.subject),
+        encryptMailField(p.tenantId,id,"message-text",d.text),replyHeader
       ]);
       await client.query("UPDATE mail_threads SET updated_at=now() WHERE id=$1",[threadId]);
       await client.query("COMMIT"); res.status(201).json({id,threadId,status:d.draft?"draft":"queued"});
@@ -192,12 +204,13 @@ export function registerMailRoutes(app: Express) {
       RETURNING m.id,m.thread_id`,[
       id,p.tenantId,data.to?JSON.stringify(data.to):null,
       data.cc?JSON.stringify(data.cc):null,data.bcc?JSON.stringify(data.bcc):null,
-      data.subject??null,data.text??null,p.isMerchant,p.userId
+      data.subject!==undefined ? encryptMailField(p.tenantId,id,"message-subject",data.subject) : null,
+      data.text!==undefined ? encryptMailField(p.tenantId,id,"message-text",data.text) : null,p.isMerchant,p.userId
     ]);
     if(!q.rowCount)return res.sendStatus(404);
     if(data.subject!==undefined)await pool.query(
       "UPDATE mail_threads SET subject=$1 WHERE id=$2 AND tenant_id=$3",
-      [data.subject,q.rows[0].thread_id,p.tenantId]);
+      [encryptMailField(p.tenantId,q.rows[0].thread_id,"thread-subject",data.subject),q.rows[0].thread_id,p.tenantId]);
     res.json({id,status:"draft"});
   }));
   app.post("/api/mail/drafts/:id/send",wrap(async(req,res)=>{
