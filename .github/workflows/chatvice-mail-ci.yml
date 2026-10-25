@@ -5,6 +5,8 @@ on:
     paths:
       - "server/mail/**"
       - "client/src/pages/dashboard/mail.tsx"
+      - "client/src/pages/dashboard/mail-admin.tsx"
+      - "client/src/pages/dashboard/mail-attachments.tsx"
       - "client/src/pages/dashboard/layout.tsx"
       - "client/src/components/app-sidebar.tsx"
       - "server/index.ts"
