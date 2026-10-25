@@ -48,7 +48,7 @@ jobs:
       - name: Install from lockfile
         run: npm ci --no-audit --no-fund
       - name: Verify mail security and provider tests
-        run: npx tsx --test server/mail/security.test.ts
+        run: npx tsx --test server/mail/security.test.ts server/mail/privacy.test.ts
       - name: Test mail tenant isolation on disposable PostgreSQL
         run: npx tsx --test server/mail/integration.test.ts
       - name: Typecheck mail files (report existing app baseline separately)
