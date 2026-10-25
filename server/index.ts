@@ -5,6 +5,7 @@ import crypto from "crypto";
 import cookieParser from "cookie-parser";
 import { registerRoutes, cleanupStaleVisitorSessions } from "./routes";
 import { registerMailRoutes } from "./mail/routes";
+import { startMailOutboxWorker } from "./mail/outbox";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { execSync } from "child_process";
@@ -291,6 +292,8 @@ app.use((req, res, next) => {
       
       // Start background sync job for crawled links (every 60 minutes)
       startBackgroundSync();
+      // Opt-in only. Does not send mail unless enabled AND provider key is configured.
+      startMailOutboxWorker();
     },
   );
 })().catch((error) => {
