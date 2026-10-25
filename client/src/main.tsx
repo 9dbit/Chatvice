@@ -3,6 +3,10 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 
+// Records the route at DOCUMENT load, not client-side SPA navigation. If a
+// visitor enters Mail from a page that loaded analytics, force a clean reload.
+(window as any).__CHATVICE_PRIVATE_MAIL_DOCUMENT__ = /^\\/dashboard\\/mail(?:\\/|$)/.test(window.location.pathname);
+
 function hideLoadingScreen() {
   const loadingScreen = document.getElementById("loading-screen");
   if (loadingScreen) {
