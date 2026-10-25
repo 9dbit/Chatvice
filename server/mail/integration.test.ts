@@ -30,6 +30,7 @@ before(async()=>{
   await pool.query("CREATE TABLE supervisors (id varchar(32) PRIMARY KEY, merchant_id varchar(32) NOT NULL)");
   await pool.query("CREATE TABLE leads (id varchar(32) PRIMARY KEY, merchant_id varchar(32) NOT NULL, customer_name text, customer_email text, stage text, score integer, source text, last_contact_at timestamp, created_at timestamp DEFAULT now(), updated_at timestamp DEFAULT now())");
   await pool.query(readFileSync("migrations/20261026_chatvice_mail_v1.sql","utf8"));
+  await pool.query(readFileSync("migrations/20261026_chatvice_mail_attachments_v2.sql","utf8"));
   await pool.query("INSERT INTO merchants(id) VALUES($1),($2)",[fixture.tenantA,fixture.tenantB]);
   await pool.query("INSERT INTO supervisors(id,merchant_id) VALUES ($1,$2)",[fixture.supervisor,fixture.tenantA]);
   await pool.query(`INSERT INTO mail_domains(id,tenant_id,domain,verification_token,status) VALUES
