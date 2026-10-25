@@ -8,6 +8,7 @@ import supertest from "supertest";
 import { ingestIncomingMail } from "./ingest";
 import { registerMailRoutes } from "./routes";
 import { registerAttachment, MailAttachmentPolicyError } from "./attachment-quota";
+import { persistInboundMailAttachments } from "./attachments";
 import { newPrivateAttachmentKey } from "./object-store";
 import { pool as appPool } from "../db";
 
@@ -273,5 +274,49 @@ test("mailbox storage and message attachment caps are enforced inside PostgreSQL
    }),e=>e instanceof MailAttachmentPolicyError);
  }finally{
   await pool.query("UPDATE mail_mailboxes SET quota_bytes=1073741824 WHERE id=$1",[fixture.boxB]);
+ }
+});
+
+test("inbound attachments reconcile on webhook replay without cross-tenant copies leaking",async()=>{
+ const vars=["CHATVICE_MAIL_R2_ACCOUNT_ID","CHATVICE_MAIL_R2_BUCKET","CHATVICE_MAIL_R2_ACCESS_KEY_ID","CHATVICE_MAIL_R2_SECRET_ACCESS_KEY","CHATVICE_MAIL_CLAMAV_HOST"] as const;
+ const old=Object.fromEntries(vars.map(k=>[k,process.env[k]]));
+ const oldFetch=globalThis.fetch;
+ process.env.CHATVICE_MAIL_R2_ACCOUNT_ID="c".repeat(32);
+ process.env.CHATVICE_MAIL_R2_BUCKET="ci-private-mail";
+ process.env.CHATVICE_MAIL_R2_ACCESS_KEY_ID="ci-key";
+ process.env.CHATVICE_MAIL_R2_SECRET_ACCESS_KEY="ci-secret";
+ delete process.env.CHATVICE_MAIL_CLAMAV_HOST;
+ const sent:string[]=[];
+ globalThis.fetch=async(input,init)=>{
+  sent.push(String(input));
+  assert.equal(init?.method,"PUT");
+  return new Response(null,{status:200});
+ };
+ try{
+  const inbound=await ingestIncomingMail({
+   eventId:"ci_with_attachment",from:"customer@example.org",
+   to:["hello@ci-alpha.example","hello@ci-beta.example"],
+   subject:"Inbound file",text:"See attachment"
+  });
+  assert.equal(inbound.messages.length,2);
+  const files=[{
+   providerId:"00000000-0000-4000-8000-000000000044",
+   filename:"invoice.pdf",mediaType:"application/pdf",
+   bytes:Buffer.from("private invoice")
+  }];
+  const created=await persistInboundMailAttachments(inbound.messages,files);
+  assert.equal(created.stored,2);
+  const again=await persistInboundMailAttachments(inbound.messages,files);
+  assert.equal(again.duplicates,2);
+  assert.equal(sent.length,2);
+  const result=await pool.query(`SELECT a.tenant_id,a.object_key,a.scan_status
+    FROM mail_attachments a WHERE a.provider_attachment_id=$1`,[files[0].providerId]);
+  assert.equal(result.rowCount,2);
+  assert.ok(result.rows.every((v:any)=>v.scan_status==="pending"));
+  assert.equal(new Set(result.rows.map((v:any)=>v.object_key)).size,2);
+  for(const v of result.rows)assert.ok(v.object_key.startsWith("mail/"+v.tenant_id+"/"));
+ }finally{
+  globalThis.fetch=oldFetch;
+  for(const k of vars){if(old[k]===undefined)delete process.env[k];else process.env[k]=old[k];}
  }
 });
