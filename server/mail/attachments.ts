@@ -101,7 +101,7 @@ function uploadLimiter(req:Request,res:Response,next:NextFunction){
   if(!p)return res.sendStatus(401);
   const key=p.tenantId+":"+p.userId, now=Date.now();
   if(bursts.size>4096){
-    for(const [k,v] of bursts){if(v.until<now)bursts.delete(k);}
+    for(const [k,v] of Array.from(bursts.entries())){if(v.until<now)bursts.delete(k);}
     if(bursts.size>4096)bursts.clear();
   }
   const previous=bursts.get(key),state=previous && previous.until>now
