@@ -207,7 +207,7 @@ test("mail draft attachments stay quarantined, tenant-locked and no-store until 
   const clean=await supertest(server).get("/api/mail/attachments/"+attachmentId+"/download")
     .set("x-ci-subject","merchantA");
   assert.equal(clean.status,200);
-  assert.equal(clean.text,"sensitive customer invoice");
+  assert.equal(Buffer.isBuffer(clean.body)?clean.body.toString("utf8"):clean.text,"sensitive customer invoice");
   assert.match(clean.headers["content-disposition"],/^attachment;/);
   assert.match(clean.headers["cache-control"],/no-store/);
   assert.equal(objectStore.size,1);
