@@ -144,3 +144,77 @@ test("unverified domain cannot be sent from, and verified domains cannot be doub
   assert.equal(attempt.status,409);
   await assert.rejects(()=>pool.query("INSERT INTO mail_domains(id,tenant_id,domain,verification_token,status) VALUES ($1,$2,'ci-alpha.example','forged','verified')",[randomUUID(),fixture.tenantB]),(err:any)=>err?.code==="23505");
 });
+
+test("mail draft attachments stay quarantined, tenant-locked and no-store until clean",async()=>{
+ const vars={
+  CHATVICE_MAIL_ATTACHMENTS_ENABLED:process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED,
+  CHATVICE_MAIL_R2_ACCOUNT_ID:process.env.CHATVICE_MAIL_R2_ACCOUNT_ID,
+  CHATVICE_MAIL_R2_BUCKET:process.env.CHATVICE_MAIL_R2_BUCKET,
+  CHATVICE_MAIL_R2_ACCESS_KEY_ID:process.env.CHATVICE_MAIL_R2_ACCESS_KEY_ID,
+  CHATVICE_MAIL_R2_SECRET_ACCESS_KEY:process.env.CHATVICE_MAIL_R2_SECRET_ACCESS_KEY,
+  CHATVICE_MAIL_CLAMAV_HOST:process.env.CHATVICE_MAIL_CLAMAV_HOST,
+ };
+ const oldFetch=globalThis.fetch;
+ process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED="true";
+ process.env.CHATVICE_MAIL_R2_ACCOUNT_ID="b".repeat(32);
+ process.env.CHATVICE_MAIL_R2_BUCKET="ci-private-mail";
+ process.env.CHATVICE_MAIL_R2_ACCESS_KEY_ID="ci-access";
+ process.env.CHATVICE_MAIL_R2_SECRET_ACCESS_KEY="ci-secret";
+ delete process.env.CHATVICE_MAIL_CLAMAV_HOST; // pending is the secure default
+ const content=Buffer.from("sensitive customer invoice");
+ const objectStore=new Map<string,Buffer>();
+ globalThis.fetch=async(input,init)=>{
+  const url=String(input);
+  assert.match(url,/^https:\/\/b{32}\.r2\.cloudflarestorage\.com\/ci-private-mail\/mail\//);
+  if(init?.method==="PUT"){
+    objectStore.set(url,Buffer.from(init.body as Uint8Array));
+    return new Response(null,{status:200});
+  }
+  if(init?.method==="DELETE"){
+    objectStore.delete(url);return new Response(null,{status:204});
+  }
+  const bytes=objectStore.get(url);
+  return bytes?new Response(bytes,{status:200,headers:{"content-length":String(bytes.length)}}):
+    new Response(null,{status:404});
+ };
+ try{
+  const make=await supertest(server).post("/api/mail/compose").set("x-ci-subject","merchantA")
+    .set("origin","http://test.local")
+    .send({mailboxId:fixture.boxA,to:["person@example.org"],subject:"Invoice",text:"Please review",draft:true});
+  assert.equal(make.status,201);
+  const messageId=make.body.id;
+  const forbidden=await supertest(server).post("/api/mail/messages/"+messageId+"/attachments")
+    .set("x-ci-subject","viewerA").set("origin","http://test.local")
+    .attach("file",content,"invoice.txt");
+  assert.equal(forbidden.status,404);
+  const result=await supertest(server).post("/api/mail/messages/"+messageId+"/attachments")
+    .set("x-ci-subject","merchantA").set("origin","http://test.local")
+    .attach("file",content,"invoice.txt");
+  assert.equal(result.status,201);
+  assert.equal(result.body.scanStatus,"pending");
+  const attachmentId=result.body.id;
+  const list=await supertest(server).get("/api/mail/messages/"+messageId+"/attachments")
+    .set("x-ci-subject","viewerA");
+  assert.equal(list.status,200);assert.equal(list.body[0].id,attachmentId);
+  assert.equal(Object.hasOwn(list.body[0],"object_key"),false);
+  const pending=await supertest(server).get("/api/mail/attachments/"+attachmentId+"/download")
+    .set("x-ci-subject","merchantA");
+  assert.equal(pending.status,423);
+  const cross=await supertest(server).get("/api/mail/attachments/"+attachmentId+"/download")
+    .set("x-ci-subject","merchantB");
+  assert.equal(cross.status,404);
+  await pool.query("UPDATE mail_attachments SET scan_status='clean' WHERE id=$1",[attachmentId]);
+  const clean=await supertest(server).get("/api/mail/attachments/"+attachmentId+"/download")
+    .set("x-ci-subject","merchantA");
+  assert.equal(clean.status,200);
+  assert.equal(clean.text,"sensitive customer invoice");
+  assert.match(clean.headers["content-disposition"],/^attachment;/);
+  assert.match(clean.headers["cache-control"],/no-store/);
+  assert.equal(objectStore.size,1);
+ }finally{
+  globalThis.fetch=oldFetch;
+  for(const [k,v] of Object.entries(vars)){
+   if(v===undefined)delete process.env[k];else process.env[k]=v;
+  }
+ }
+});
