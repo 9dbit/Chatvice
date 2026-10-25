@@ -77,8 +77,8 @@ test("mailbox listings honor tenant and supervisor membership",async()=>{
   assert.equal(member.status,200);assert.equal(member.body.length,1);
   const guest=await supertest(server).get("/api/mail/mailboxes");
   assert.equal(guest.status,401);
-  assert.match(guest.headers["cache-control"]||"","no-store");
-  assert.match(guest.headers["x-robots-tag"]||"","noindex");
+  assert.match(guest.headers["cache-control"]||"",/no-store/);
+  assert.match(guest.headers["x-robots-tag"]||"",/noindex/);
 });
 test("signed inbound routes strictly by verified recipients and deduplicates events",async()=>{
   const input={
