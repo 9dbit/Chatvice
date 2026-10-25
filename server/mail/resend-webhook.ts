@@ -5,6 +5,7 @@ import { fetchResendReceived } from "./provider";
 import { ingestIncomingMail } from "./ingest";
 
 const DELIVERY_STATES: Record<string,string|undefined> = {
+  "email.sent": "sent",
   "email.delivered": "delivered",
   "email.bounced": "bounced",
   "email.complained": "bounced",
@@ -14,14 +15,19 @@ type EventBody = {type?:unknown;data?:Record<string,unknown>};
 function safeAddresses(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((a):a is string=>typeof a==="string").slice(0,50) : [];
 }
-async function applyDeliveryEvent(eventType:string, providerEmailId:string, webhookId:string):Promise<void> {
+async function applyDeliveryEvent(
+  eventType:string, providerEmailId:string, webhookId:string,
+  taggedMessageId:string | undefined, rfcId:string | undefined,
+):Promise<void> {
   const state=DELIVERY_STATES[eventType];
   if(!state) return;
   const client=await pool.connect();
   try {
     await client.query("BEGIN");
     const q=await client.query(`SELECT id,tenant_id,status FROM mail_messages
-      WHERE provider_message_id=$1 AND direction='outbound' FOR UPDATE`,[providerEmailId]);
+      WHERE direction='outbound' AND (provider_message_id=$1 OR
+        ($2::uuid IS NOT NULL AND id=$2::uuid))
+      FOR UPDATE`,[providerEmailId,taggedMessageId||null]);
     for(const item of q.rows) {
       const event=await client.query(`INSERT INTO mail_delivery_events(id,tenant_id,message_id,provider_event_id,event_type)
         VALUES(gen_random_uuid(),$1,$2,$3,$4)
@@ -29,10 +35,13 @@ async function applyDeliveryEvent(eventType:string, providerEmailId:string, webh
         item.tenant_id,item.id,webhookId,eventType
       ]);
       if(!event.rowCount)continue;
-      if(item.status==="bounced" || item.status==="failed")continue;
-      await client.query(`UPDATE mail_messages SET status=$1,
-        delivered_at=CASE WHEN $1='delivered' THEN now() ELSE delivered_at END
-        WHERE id=$2 AND tenant_id=$3`,[state,item.id,item.tenant_id]);
+      const nextStatus=(item.status==="delivered" || item.status==="bounced" || item.status==="failed")
+        ? item.status : state;
+      await client.query(`UPDATE mail_messages SET
+        status=$1,provider_message_id=COALESCE(provider_message_id,$2),
+        rfc_message_id=COALESCE(rfc_message_id,$3),
+        delivered_at=CASE WHEN $1='delivered' THEN COALESCE(delivered_at,now()) ELSE delivered_at END
+        WHERE id=$4 AND tenant_id=$5`,[nextStatus,providerEmailId,rfcId||null,item.id,item.tenant_id]);
     }
     await client.query("COMMIT");
   } catch(err){ await client.query("ROLLBACK"); throw err; }
@@ -84,7 +93,13 @@ export function registerResendWebhook(app:Express):void {
       if(DELIVERY_STATES[type]){
         const id=data.email_id;
         if(typeof id!=="string" || id.length>128)return res.sendStatus(400);
-        await applyDeliveryEvent(type,id,webhookId);
+        const tags=data.tags;
+        const tagged=(tags && typeof tags==="object" && !Array.isArray(tags))
+          ? (tags as Record<string,unknown>).chatvice_id : undefined;
+        const taggedId=typeof tagged==="string" && /^[0-9a-f-]{36}$/i.test(tagged)?tagged:undefined;
+        const rfc=typeof data.message_id==="string" && /^<[^<>\\r\\n]{1,500}>$/.test(data.message_id)
+          ? data.message_id:undefined;
+        await applyDeliveryEvent(type,id,webhookId,taggedId,rfc);
       }
       return res.json({accepted:true});
     }catch(_err){
