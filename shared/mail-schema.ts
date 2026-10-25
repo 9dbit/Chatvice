@@ -104,12 +104,16 @@ export const mailAttachments=pgTable("mail_attachments",{
  tenantId:varchar("tenant_id",{length:32}).notNull().references(()=>merchants.id),
  messageId:uuid("message_id").notNull().references(()=>mailMessages.id,{onDelete:"cascade"}),
  objectKey:text("object_key").notNull(),
+ providerAttachmentId:text("provider_attachment_id"),
  originalFilename:text("original_filename").notNull(),
  mediaType:text("media_type").notNull().default("application/octet-stream"),
  sizeBytes:bigint("size_bytes",{mode:"number"}).notNull(),
  scanStatus:text("scan_status").notNull().default("pending"),
  createdAt:time("created_at").notNull().defaultNow(),
-},t=>[index("mail_attachments_message_idx").on(t.tenantId,t.messageId)]);
+},t=>[
+ index("mail_attachments_message_idx").on(t.tenantId,t.messageId),
+ uniqueIndex("mail_attachments_provider_dedup").on(t.messageId,t.providerAttachmentId).where(sql`${t.providerAttachmentId} IS NOT NULL`)
+]);
 export const mailDeliveryEvents=pgTable("mail_delivery_events",{
  id:uuid("id").primaryKey(),
  tenantId:varchar("tenant_id",{length:32}).notNull().references(()=>merchants.id),
