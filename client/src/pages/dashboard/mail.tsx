@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Inbox, Send, FileText, Archive, Trash2, Star, Mail, Plus, Search, Reply, ArrowLeft, Settings, UserRoundPlus, ShieldCheck } from "lucide-react";
+import { Inbox, Send, FileText, Archive, Trash2, Star, Mail, Plus, Search, Reply, ArrowLeft, Settings, UserRoundPlus, ShieldCheck, Sparkles } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 type Box = {id:string;local_part:string;domain:string;display_name:string};
@@ -25,11 +25,13 @@ export default function MailPage(){
  const [search,setSearch]=useState("");
  const [context,setContext]=useState<Context|null>(null);
  const [replyToId,setReplyToId]=useState<string|undefined>();
+ const [aiSummary,setAiSummary]=useState("");
+ const [aiLoading,setAiLoading]=useState(false);
  useEffect(()=>{apiRequest("GET","/api/mail/mailboxes").then(r=>r.json()).then((x:Box[])=>{setBoxes(x);if(x.length)setBox(x[0].id)}).catch(e=>setError(e.message))},[]);
  useEffect(()=>{if(!box)return;setLoading(true);setError("");setSelected("");apiRequest("GET",`/api/mail/threads?mailboxId=${encodeURIComponent(box)}&folder=${folder}`).then(r=>r.json()).then(setThreads).catch(e=>setError(e.message)).finally(()=>setLoading(false))},[box,folder]);
  useEffect(()=>{
   if(!selected){setMessages([]);setContext(null);return;}
-  setMessages([]);setContext(null);
+  setMessages([]);setContext(null);setAiSummary("");
   let active=true;
   Promise.all([
    apiRequest("GET",`/api/mail/threads/${selected}`).then(r=>r.json()),
@@ -45,6 +47,22 @@ export default function MailPage(){
   try{await apiRequest("POST","/api/mail/compose",{mailboxId:box,to:to.split(",").map(s=>s.trim()).filter(Boolean),subject,text:body,draft,replyToId});
    setCompose(false);setTo("");setSubject("");setBody("");setReplyToId(undefined);setFolder(draft?"drafts":"sent");
   }catch(e:any){setError(e.message)}finally{setSaving(false)}
+ }
+ async function aiTask(task:"summary"|"draft"){
+  if(!selected||!window.confirm("AI Mail sends a shortened email excerpt to an external AI provider. Common email addresses and phone numbers are redacted, but other personal information may remain. Continue?"))return;
+  setAiLoading(true);setError("");
+  try{
+   const res=await apiRequest("POST",`/api/mail/threads/${selected}/ai`,{task,acknowledgeExternalProcessing:true,tone:"professional"});
+   const data:{text:string}=await res.json();
+   if(task==="summary")setAiSummary(data.text);
+   else {
+    const incoming=messages.filter(m=>m.direction==="inbound").at(-1);
+    setReplyToId(incoming?.id);
+    setTo(incoming?.from_email||"");
+    setSubject(current?.subject?.startsWith("Re:")?current.subject:"Re: "+(current?.subject||""));
+    setBody(data.text);setCompose(true);
+   }
+  }catch(e:any){setError(e.message)}finally{setAiLoading(false)}
  }
  const filtered=threads.filter(t=>(t.subject+" "+t.from_email+" "+t.text_body).toLowerCase().includes(search.toLowerCase()));
  return <section className="flex flex-col min-h-[75vh] overflow-hidden rounded-2xl border border-white/10 bg-[#090b0f] text-white">
@@ -74,6 +92,11 @@ export default function MailPage(){
    <article className="flex-1 min-w-0 p-5">
     {selected?<><button className="md:hidden flex items-center gap-2 text-orange-400 mb-4" onClick={()=>setSelected("")}><ArrowLeft size={18}/> Back</button>
      <h2 className="text-xl font-semibold mb-5">{current?.subject||"Conversation"}</h2>
+     <div className="flex flex-wrap gap-2 mb-5">
+      <button disabled={aiLoading} onClick={()=>aiTask("summary")} className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-xs text-orange-300"><Sparkles size={14}/> AI Summary</button>
+      <button disabled={aiLoading} onClick={()=>aiTask("draft")} className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-xs text-orange-300"><Sparkles size={14}/> Draft Reply</button>
+     </div>
+     {aiSummary&&<div className="p-4 mb-5 bg-orange-500/10 border border-orange-500/20 rounded-xl"><p className="font-semibold text-orange-300 mb-2 text-sm">AI Summary · Review before use</p><p className="whitespace-pre-wrap text-sm text-white/75">{aiSummary}</p></div>}
      {messages.map(m=><div key={m.id} className="border-b border-white/10 mb-5 pb-5"><p className="font-medium">{m.from_email}</p><p className="text-xs text-white/40 mb-4">{new Date(m.created_at).toLocaleString()}</p><p className="whitespace-pre-wrap text-sm leading-7 text-white/80">{m.text_body}</p></div>)}
      <button onClick={()=>{
       const incoming=messages.filter(m=>m.direction==="inbound").at(-1);
