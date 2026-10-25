@@ -51,6 +51,7 @@ class PageErrorBoundary extends Component<
 }
 import DashboardOverview from "./overview";
 import MailPage from "./mail";
+import MailAdminPage from "./mail-admin";
 import SessionsPage from "./sessions";
 import KnowledgePage from "./knowledge";
 import TriggersPage from "./triggers";
@@ -90,7 +91,7 @@ import type { Merchant } from "@shared/schema";
 const pageTranslationKeys: Record<string, string> = {
   "": "dashboard.overview.title",
   "profile": "dashboard.profile.title",
-  "mail": "dashboard.mail.title",
+  "mail": "Chatvice Mail",
   "affiliate": "dashboard.affiliate.title",
   "agents": "dashboard.agents.title",
   "leads": "dashboard.leads.title",
@@ -206,6 +207,7 @@ export default function DashboardLayout() {
             <Switch>
               <Route path="/dashboard" component={DashboardOverview} />
               <Route path="/dashboard/profile" component={ProfilePage} />
+              <Route path="/dashboard/mail/admin" component={MailAdminPage} />
               <Route path="/dashboard/mail" component={MailPage} />
               <Route path="/dashboard/affiliate" component={AffiliatePage} />
               <Route path="/dashboard/agents" component={AgentsPage} />
