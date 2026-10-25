@@ -26,7 +26,7 @@ function addressArray(value: string[] | undefined): string[] {
 export async function ingestIncomingMail(data: IncomingMail): Promise<{saved:number;duplicate:number;unmatched:boolean}> {
   const from=normalizeEmail(data.from);
   const to=addressArray(data.to), cc=addressArray(data.cc), bcc=addressArray(data.bcc);
-  const recipients=[...new Set([...to,...cc,...bcc])];
+  const recipients=Array.from(new Set([...to,...cc,...bcc]));
   if (!from || !recipients.length || data.eventId.length>255 || data.eventId.length<1) {
     throw new Error("Invalid inbound email");
   }
