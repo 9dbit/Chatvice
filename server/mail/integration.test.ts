@@ -63,10 +63,10 @@ after(async()=>{
   await pool.end();
   await appPool.end();
 });
-test("fresh migration creates all seven mail tables without touching unrelated data",async()=>{
+test("fresh migration creates all eight mail tables without touching unrelated data",async()=>{
   const q=await pool.query(`SELECT count(*)::integer AS count FROM information_schema.tables
     WHERE table_schema='public' AND table_name LIKE 'mail_%'`);
-  assert.equal(q.rows[0].count,7);
+  assert.equal(q.rows[0].count,8);
 });
 test("mailbox listings honor tenant and supervisor membership",async()=>{
   const a=await supertest(server).get("/api/mail/mailboxes").set("x-ci-subject","merchantA");
