@@ -155,6 +155,9 @@ test("mail draft attachments stay quarantined, tenant-locked and no-store until 
   CHATVICE_MAIL_R2_ACCESS_KEY_ID:process.env.CHATVICE_MAIL_R2_ACCESS_KEY_ID,
   CHATVICE_MAIL_R2_SECRET_ACCESS_KEY:process.env.CHATVICE_MAIL_R2_SECRET_ACCESS_KEY,
   CHATVICE_MAIL_CLAMAV_HOST:process.env.CHATVICE_MAIL_CLAMAV_HOST,
+  CHATVICE_MAIL_OUTBOUND_ENABLED:process.env.CHATVICE_MAIL_OUTBOUND_ENABLED,
+  CHATVICE_MAIL_PROVIDER:process.env.CHATVICE_MAIL_PROVIDER,
+  RESEND_API_KEY:process.env.RESEND_API_KEY,
  };
  const oldFetch=globalThis.fetch;
  process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED="true";
@@ -213,6 +216,17 @@ test("mail draft attachments stay quarantined, tenant-locked and no-store until 
   assert.match(clean.headers["content-disposition"],/^attachment;/);
   assert.match(clean.headers["cache-control"],/no-store/);
   assert.equal(objectStore.size,1);
+  // This only queues a DB job. No external provider worker runs in CI.
+  process.env.CHATVICE_MAIL_OUTBOUND_ENABLED="true";
+  process.env.CHATVICE_MAIL_PROVIDER="resend";
+  process.env.RESEND_API_KEY="re_test_provider_ci";
+  const send=await supertest(server).post("/api/mail/drafts/"+messageId+"/send")
+    .set("x-ci-subject","merchantA").set("origin","http://test.local").send({});
+  assert.equal(send.status,200);
+  assert.equal(send.body.status,"queued");
+  const repeated=await supertest(server).post("/api/mail/drafts/"+messageId+"/send")
+    .set("x-ci-subject","merchantA").set("origin","http://test.local").send({});
+  assert.equal(repeated.status,404);
  }finally{
   globalThis.fetch=oldFetch;
   for(const [k,v] of Object.entries(vars)){
