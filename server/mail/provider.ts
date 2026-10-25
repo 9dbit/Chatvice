@@ -3,6 +3,7 @@ import { normalizeEmail } from "./security";
 type SendRequest = {
   id: string; from: string; to: string[]; cc: string[]; bcc: string[];
   subject: string; text: string; inReplyTo?: string | null;
+  attachments?: { filename:string; content:string }[];
 };
 export class MailProviderError extends Error {
   constructor(public readonly httpStatus: number, public readonly retryable: boolean) {
