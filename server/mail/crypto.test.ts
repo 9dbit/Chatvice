@@ -46,7 +46,7 @@ test("AAD rejects cross-tenant, cross-message and cross-purpose ciphertext swaps
     assert.throws(()=>decryptMailField(tenantA,idA,"message-subject",a));
     const parts=a.split(".");
     const last=parts[parts.length-1];
-    parts[parts.length-1]=last.slice(0,-1)+(last.endsWith("A")?"B":"A");
+    parts[parts.length-1]=(last.startsWith("A")?"B":"A")+last.slice(1);
     assert.throws(()=>decryptMailField(tenantA,idA,"message-text",parts.join(".")));
     assert.throws(()=>decryptMailField(tenantA,idA,"message-text","raw customer text"));
   }finally{
