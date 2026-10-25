@@ -19,7 +19,23 @@ jobs:
   mail-and-build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: chatvice_mail
+          POSTGRES_PASSWORD: mail_ci_password
+          POSTGRES_DB: chatvice_mail_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chatvice_mail -d chatvice_mail_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
+      DATABASE_URL: postgresql://chatvice_mail:mail_ci_password@127.0.0.1:5432/chatvice_mail_ci
+      CHATVICE_MAIL_INTEGRATION_DB: isolated-ci
       NODE_ENV: test
       CHATVICE_MAIL_ENABLED: "false"
       CHATVICE_MAIL_OUTBOUND_ENABLED: "false"
@@ -33,6 +49,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Verify mail security and provider tests
         run: npx tsx --test server/mail/security.test.ts
+      - name: Test mail tenant isolation on disposable PostgreSQL
+        run: npx tsx --test server/mail/integration.test.ts
       - name: Typecheck mail files (report existing app baseline separately)
         run: |
           npm run check > /tmp/chatvice-typecheck.log 2>&1 || TYPECHECK_FAILED=1
