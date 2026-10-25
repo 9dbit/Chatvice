@@ -47,6 +47,7 @@ before(async()=>{
   await pool.query(`INSERT INTO mail_memberships(id,tenant_id,mailbox_id,user_id,role)
     VALUES($1,$2,$3,$4,'viewer')`,[randomUUID(),fixture.tenantA,fixture.boxA,fixture.supervisor]);
   process.env.CHATVICE_MAIL_ENABLED="true";
+  process.env.CHATVICE_MAIL_ENCRYPTION_KEY="b".repeat(64);
   process.env.CHATVICE_MAIL_OUTBOUND_ENABLED="false";
   process.env.CHATVICE_MAIL_ALLOWED_ORIGINS="http://test.local";
   process.env.CHATVICE_MAIL_INBOUND_SECRET=secret;
@@ -71,6 +72,16 @@ test("fresh migration creates all eight mail tables without touching unrelated d
   const q=await pool.query(`SELECT count(*)::integer AS count FROM information_schema.tables
     WHERE table_schema='public' AND table_name LIKE 'mail_%'`);
   assert.equal(q.rows[0].count,8);
+});
+test("encryption is mandatory and mail API fails closed if master key disappears",async()=>{
+  const key=process.env.CHATVICE_MAIL_ENCRYPTION_KEY;
+  delete process.env.CHATVICE_MAIL_ENCRYPTION_KEY;
+  try {
+    const request=await supertest(server).get("/api/mail/mailboxes")
+      .set("x-ci-subject","merchantA");
+    assert.equal(request.status,503);
+    assert.equal(request.body.error,"Private mail encryption is not configured");
+  }finally{process.env.CHATVICE_MAIL_ENCRYPTION_KEY=key;}
 });
 test("mailbox listings honor tenant and supervisor membership",async()=>{
   const a=await supertest(server).get("/api/mail/mailboxes").set("x-ci-subject","merchantA");
@@ -100,6 +111,21 @@ test("signed inbound routes strictly by verified recipients and deduplicates eve
   assert.equal(first.status,202);assert.equal(first.body.saved,2);
   const again=await call();
   assert.equal(again.status,202);assert.equal(again.body.deduplicated,2);
+  const encrypted=await pool.query(`SELECT m.id,m.tenant_id,m.subject,m.text_body,t.subject AS thread_subject
+    FROM mail_messages m JOIN mail_threads t ON t.id=m.thread_id
+    WHERE m.source_event_id='normalized:ci_dupe_1'`);
+  assert.equal(encrypted.rows.length,2);
+  for(const row of encrypted.rows){
+    assert.ok(row.subject.startsWith("cvenc1."));
+    assert.ok(row.text_body.startsWith("cvenc1."));
+    assert.ok(row.thread_subject.startsWith("cvenc1."));
+    assert.equal(row.text_body.includes("Please send a quotation"),false);
+  }
+  const decrypted=await supertest(server).get("/api/mail/threads")
+    .query({mailboxId:fixture.boxA}).set("x-ci-subject","merchantA");
+  assert.equal(decrypted.status,200);
+  assert.equal(decrypted.body[0].subject,"Quote");
+  assert.equal(decrypted.body[0].text_body,"Please send a quotation");
   const count=await pool.query("SELECT mailbox_id,count(*)::integer AS n FROM mail_messages GROUP BY mailbox_id");
   assert.equal(count.rows.length,2);
   assert.ok(count.rows.every(x=>x.n===1));
