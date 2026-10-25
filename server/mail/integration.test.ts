@@ -1,0 +1,145 @@
+import test, { before, after } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { randomUUID, createHmac } from "node:crypto";
+import pg from "pg";
+import express from "express";
+import supertest from "supertest";
+import { ingestIncomingMail } from "./ingest";
+import { registerMailRoutes } from "./routes";
+import { pool as appPool } from "../db";
+
+const fixture = {
+  tenantA:"merchant_mail_ci_A",
+  tenantB:"merchant_mail_ci_B",
+  boxA:randomUUID(),
+  boxB:randomUUID(),
+  domainA:randomUUID(),
+  domainB:randomUUID(),
+  supervisor:"staff_mail_ci_A",
+};
+const secret="integration-test-inbound-secret-replace-only-ci";
+const pool=new pg.Pool({connectionString:process.env.DATABASE_URL});
+let server:ReturnType<typeof express>;
+before(async()=>{
+  if(!process.env.DATABASE_URL || process.env.CHATVICE_MAIL_INTEGRATION_DB!=="isolated-ci"){
+    throw new Error("Mail integration tests require isolated CI database and explicit guard");
+  }
+  // Only in disposable CI database, never against real Chatvice merchant data.
+  await pool.query("CREATE TABLE merchants (id varchar(32) PRIMARY KEY)");
+  await pool.query("CREATE TABLE supervisors (id varchar(32) PRIMARY KEY, merchant_id varchar(32) NOT NULL)");
+  await pool.query("CREATE TABLE leads (id varchar(32) PRIMARY KEY, merchant_id varchar(32) NOT NULL, customer_name text, customer_email text, stage text, score integer, source text, last_contact_at timestamp, created_at timestamp DEFAULT now(), updated_at timestamp DEFAULT now())");
+  await pool.query(readFileSync("migrations/20261026_chatvice_mail_v1.sql","utf8"));
+  await pool.query("INSERT INTO merchants(id) VALUES($1),($2)",[fixture.tenantA,fixture.tenantB]);
+  await pool.query("INSERT INTO supervisors(id,merchant_id) VALUES ($1,$2)",[fixture.supervisor,fixture.tenantA]);
+  await pool.query(`INSERT INTO mail_domains(id,tenant_id,domain,verification_token,status) VALUES
+    ($1,$2,'ci-alpha.example','ci_a','verified'),($3,$4,'ci-beta.example','ci_b','verified')`,[
+    fixture.domainA,fixture.tenantA,fixture.domainB,fixture.tenantB
+  ]);
+  await pool.query(`INSERT INTO mail_mailboxes(id,tenant_id,domain_id,local_part)
+    VALUES($1,$2,$3,'hello'),($4,$5,$6,'hello')`,[
+    fixture.boxA,fixture.tenantA,fixture.domainA,fixture.boxB,fixture.tenantB,fixture.domainB
+  ]);
+  await pool.query(`INSERT INTO mail_memberships(id,tenant_id,mailbox_id,user_id,role)
+    VALUES($1,$2,$3,$4,'viewer')`,[randomUUID(),fixture.tenantA,fixture.boxA,fixture.supervisor]);
+  process.env.CHATVICE_MAIL_ENABLED="true";
+  process.env.CHATVICE_MAIL_OUTBOUND_ENABLED="false";
+  process.env.CHATVICE_MAIL_ALLOWED_ORIGINS="http://test.local";
+  process.env.CHATVICE_MAIL_INBOUND_SECRET=secret;
+  server=express();
+  server.use(express.json({verify:(req,_res,buf)=>{(req as any).rawBody=buf}}));
+  server.use((req,_res,next)=>{
+    const subject=req.get("x-ci-subject");
+    let session:any;
+    if(subject==="merchantA")session={userType:"merchant",userId:fixture.tenantA,merchantId:fixture.tenantA};
+    else if(subject==="merchantB")session={userType:"merchant",userId:fixture.tenantB,merchantId:fixture.tenantB};
+    else if(subject==="viewerA")session={userType:"supervisor",userId:fixture.supervisor,merchantId:fixture.tenantA};
+    (req as any).session=session;
+    next();
+  });
+  registerMailRoutes(server);
+});
+after(async()=>{
+  await pool.end();
+  await appPool.end();
+});
+test("fresh migration creates all seven mail tables without touching unrelated data",async()=>{
+  const q=await pool.query(`SELECT count(*)::integer AS count FROM information_schema.tables
+    WHERE table_schema='public' AND table_name LIKE 'mail_%'`);
+  assert.equal(q.rows[0].count,7);
+});
+test("mailbox listings honor tenant and supervisor membership",async()=>{
+  const a=await supertest(server).get("/api/mail/mailboxes").set("x-ci-subject","merchantA");
+  assert.equal(a.status,200);assert.deepEqual(a.body.map((x:any)=>x.id),[fixture.boxA]);
+  const b=await supertest(server).get("/api/mail/mailboxes").set("x-ci-subject","merchantB");
+  assert.equal(b.status,200);assert.deepEqual(b.body.map((x:any)=>x.id),[fixture.boxB]);
+  const member=await supertest(server).get("/api/mail/mailboxes").set("x-ci-subject","viewerA");
+  assert.equal(member.status,200);assert.equal(member.body.length,1);
+  const guest=await supertest(server).get("/api/mail/mailboxes");
+  assert.equal(guest.status,401);
+  assert.match(guest.headers["cache-control"]||"","no-store");
+  assert.match(guest.headers["x-robots-tag"]||"","noindex");
+});
+test("signed inbound routes strictly by verified recipients and deduplicates events",async()=>{
+  const input={
+   eventId:"ci_dupe_1",from:"customer@example.org",
+   to:["hello@ci-alpha.example","hello@ci-beta.example"],
+   subject:"Quote",text:"Please send a quotation"
+  };
+  const raw=JSON.stringify(input);
+  const timestamp=String(Date.now());
+  const signature=createHmac("sha256",secret).update(timestamp+".").update(raw).digest("hex");
+  const call=()=>supertest(server).post("/api/mail/inbound")
+   .set("x-mail-timestamp",timestamp).set("x-mail-signature",signature)
+   .set("content-type","application/json").send(raw);
+  const first=await call();
+  assert.equal(first.status,202);assert.equal(first.body.saved,2);
+  const again=await call();
+  assert.equal(again.status,202);assert.equal(again.body.deduplicated,2);
+  const count=await pool.query("SELECT mailbox_id,count(*)::integer AS n FROM mail_messages GROUP BY mailbox_id");
+  assert.equal(count.rows.length,2);
+  assert.ok(count.rows.every(x=>x.n===1));
+  const forged=await supertest(server).post("/api/mail/inbound")
+   .set("x-mail-timestamp",timestamp).set("x-mail-signature","0".repeat(64))
+   .send(input);
+  assert.equal(forged.status,401);
+});
+test("tenant cannot read other tenant threads and viewer cannot write",async()=>{
+  const forbidden=await supertest(server).get("/api/mail/threads").query({mailboxId:fixture.boxB}).set("x-ci-subject","merchantA");
+  assert.equal(forbidden.status,403);
+  const allowed=await supertest(server).get("/api/mail/threads").query({mailboxId:fixture.boxA}).set("x-ci-subject","viewerA");
+  assert.equal(allowed.status,200);assert.equal(allowed.body.length,1);
+  const id=allowed.body[0].message_id;
+  const blocked=await supertest(server).patch("/api/mail/messages/"+id)
+   .set("x-ci-subject","viewerA").set("origin","http://test.local").send({isRead:true});
+  assert.equal(blocked.status,404);
+  const changed=await supertest(server).patch("/api/mail/messages/"+id)
+   .set("x-ci-subject","merchantA").set("origin","http://test.local").send({isRead:true});
+  assert.equal(changed.status,200);
+  const cross=await supertest(server).patch("/api/mail/messages/"+id)
+   .set("x-ci-subject","merchantB").set("origin","http://test.local").send({isRead:false});
+  assert.equal(cross.status,404);
+});
+test("mutating mail APIs reject missing and untrusted origins",async()=>{
+  const noOrigin=await supertest(server).post("/api/mail/compose")
+   .set("x-ci-subject","merchantA").send({mailboxId:fixture.boxA,to:["contact@example.org"],subject:"hello",text:"hi"});
+  assert.equal(noOrigin.status,403);
+  const badOrigin=await supertest(server).post("/api/mail/compose")
+   .set("x-ci-subject","merchantA").set("origin","https://attacker.example")
+   .send({mailboxId:fixture.boxA,to:["contact@example.org"],subject:"hello",text:"hi"});
+  assert.equal(badOrigin.status,403);
+  const noOutbound=await supertest(server).post("/api/mail/compose")
+   .set("x-ci-subject","merchantA").set("origin","http://test.local")
+   .send({mailboxId:fixture.boxA,to:["contact@example.org"],subject:"hello",text:"hi"});
+  assert.equal(noOutbound.status,503);
+});
+test("unverified domain cannot be sent from, and verified domains cannot be double claimed",async()=>{
+  const pend=randomUUID(), box=randomUUID();
+  await pool.query("INSERT INTO mail_domains(id,tenant_id,domain,verification_token) VALUES ($1,$2,'ci-pending.example','p')",[pend,fixture.tenantA]);
+  await pool.query("INSERT INTO mail_mailboxes(id,tenant_id,domain_id,local_part) VALUES($1,$2,$3,'no-reply')",[box,fixture.tenantA,pend]);
+  const attempt=await supertest(server).post("/api/mail/compose")
+   .set("x-ci-subject","merchantA").set("origin","http://test.local")
+   .send({mailboxId:box,to:["contact@example.org"],subject:"hello",text:"hi"});
+  assert.equal(attempt.status,409);
+  await assert.rejects(()=>pool.query("INSERT INTO mail_domains(id,tenant_id,domain,verification_token,status) VALUES ($1,$2,'ci-alpha.example','forged','verified')",[randomUUID(),fixture.tenantB]),(err:any)=>err?.code==="23505");
+});
