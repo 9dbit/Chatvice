@@ -23,7 +23,10 @@ function addressArray(value: string[] | undefined): string[] {
  * attacker-provided tenant or mailbox ID. A message to two permitted inboxes
  * gets two tenant-scoped copies; duplicates are suppressed per mailbox.
  */
-export async function ingestIncomingMail(data: IncomingMail): Promise<{saved:number;duplicate:number;unmatched:boolean}> {
+export type IngestedMessageRef = {id:string;tenantId:string;mailboxId:string};
+export async function ingestIncomingMail(data: IncomingMail): Promise<{
+  saved:number;duplicate:number;unmatched:boolean;messages:IngestedMessageRef[]
+}> {
   const from=normalizeEmail(data.from);
   const to=addressArray(data.to), cc=addressArray(data.cc), bcc=addressArray(data.bcc);
   const recipients=Array.from(new Set([...to,...cc,...bcc]));
@@ -40,12 +43,14 @@ export async function ingestIncomingMail(data: IncomingMail): Promise<{saved:num
       ))
   `,[recipients]);
   let saved=0, duplicate=0;
+  const messages:IngestedMessageRef[]=[];
   for(const box of boxes.rows) {
     const client=await pool.connect();
     try {
       await client.query("BEGIN");
       const exists=await client.query("SELECT id FROM mail_messages WHERE mailbox_id=$1 AND source_event_id=$2 LIMIT 1",[box.id,data.eventId]);
-      if(exists.rowCount) { await client.query("COMMIT"); duplicate++; continue; }
+      if(exists.rowCount) { await client.query("COMMIT"); duplicate++;
+        messages.push({id:exists.rows[0].id,tenantId:box.tenant_id,mailboxId:box.id}); continue; }
       let thread:string|undefined;
       if(data.inReplyTo) {
         const prior=await client.query(`SELECT thread_id FROM mail_messages WHERE tenant_id=$1 AND mailbox_id=$2 AND rfc_message_id=$3 LIMIT 1`,[box.tenant_id,box.id,data.inReplyTo]);
@@ -65,11 +70,16 @@ export async function ingestIncomingMail(data: IncomingMail): Promise<{saved:num
           JSON.stringify(bcc),data.subject.slice(0,250),data.text.slice(0,500000),
           data.html?.slice(0,1000000)||null
         ]);
-      if(!q.rowCount) { await client.query("ROLLBACK"); duplicate++; continue; }
+      if(!q.rowCount) { await client.query("ROLLBACK"); duplicate++;
+        const original=await client.query("SELECT id FROM mail_messages WHERE mailbox_id=$1 AND source_event_id=$2",[box.id,data.eventId]);
+        if(original.rows[0])messages.push({id:original.rows[0].id,tenantId:box.tenant_id,mailboxId:box.id});
+        continue;
+      }
       await client.query("UPDATE mail_threads SET updated_at=now() WHERE id=$1 AND tenant_id=$2",[thread,box.tenant_id]);
       await client.query("COMMIT"); saved++;
+      messages.push({id,tenantId:box.tenant_id,mailboxId:box.id});
     } catch(err) { await client.query("ROLLBACK"); throw err; }
     finally {client.release();}
   }
-  return {saved,duplicate,unmatched:boxes.rowCount===0};
+  return {saved,duplicate,unmatched:boxes.rowCount===0,messages};
 }
