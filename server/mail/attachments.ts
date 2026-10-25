@@ -170,6 +170,7 @@ export function registerMailAttachmentRoutes(app:Express):void{
       if(!trustedObjectKey(a.object_key,a.tenant_id,a.message_id))return reportError(res);
       const data=await getPrivateAttachment(a.object_key);
       const verdict=noActiveAttachment(a.original_filename)?await scanMailAttachment(data):"blocked";
+      if(verdict==="blocked")await deletePrivateAttachment(a.object_key).catch(()=>{});
       await pool.query("UPDATE mail_attachments SET scan_status=$1 WHERE id=$2 AND tenant_id=$3",
         [verdict,a.id,a.tenant_id]);
       res.json({scanStatus:verdict});
