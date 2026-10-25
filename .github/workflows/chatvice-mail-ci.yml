@@ -9,6 +9,8 @@ on:
       - "client/src/components/app-sidebar.tsx"
       - "server/index.ts"
       - "migrations/20261026_chatvice_mail_v1.sql"
+      - "migrations/20261026_chatvice_mail_attachments_v2.sql"
+      - "shared/mail-schema.ts"
       - ".github/workflows/chatvice-mail-ci.yml"
   push:
     branches:
@@ -48,7 +50,7 @@ jobs:
       - name: Install from lockfile
         run: npm ci --no-audit --no-fund
       - name: Verify mail security and provider tests
-        run: npx tsx --test server/mail/security.test.ts server/mail/privacy.test.ts
+        run: npx tsx --test server/mail/security.test.ts server/mail/privacy.test.ts server/mail/attachment-security.test.ts
       - name: Test mail tenant isolation on disposable PostgreSQL
         run: npx tsx --test server/mail/integration.test.ts
       - name: Typecheck mail files (report existing app baseline separately)
