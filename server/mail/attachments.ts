@@ -1,14 +1,15 @@
 import type { Express, Request, Response } from "express";
 import multer from "multer";
-import { randomUUID } from "node:crypto";
 import { pool } from "../db";
 import { cleanMailFilename, type ResendReceivedAttachment } from "./resend-attachments";
 import { scanMailAttachment } from "./scanner";
 import {
   MAX_MAIL_ATTACHMENT_BYTES, getPrivateAttachment, putPrivateAttachment,
   newPrivateAttachmentKey, attachmentKeyFromProviderId, isMailObjectStorageConfigured,
+  deletePrivateAttachment,
 } from "./object-store";
 import type { IngestedMessageRef } from "./ingest";
+import { registerAttachment, MailAttachmentPolicyError } from "./attachment-quota";
 
 function principal(req:Request):{tenantId:string;userId:string;merchant:boolean}|null{
   const s=req.session as any;
@@ -80,15 +81,12 @@ export async function persistInboundMailAttachments(
     const scan=noActiveAttachment(file.filename)?await scanMailAttachment(file.bytes):"blocked";
     // Malicious content must NEVER be written to retrievable object storage.
     if(scan!=="blocked")await putPrivateAttachment(key,file.bytes);
-    const result=await pool.query(`INSERT INTO mail_attachments
-      (id,tenant_id,message_id,object_key,original_filename,media_type,size_bytes,scan_status,provider_attachment_id)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)
-      ON CONFLICT (message_id,provider_attachment_id) WHERE provider_attachment_id IS NOT NULL
-      DO NOTHING RETURNING id`,[
-      randomUUID(),message.tenantId,message.id,key,file.filename,file.mediaType,
-      file.bytes.length,scan,file.providerId
-    ]);
-    if(result.rowCount)stored++;else duplicates++;
+    const result=await registerAttachment({
+      tenantId:message.tenantId,messageId:message.id,key,filename:file.filename,
+      mediaType:file.mediaType,length:file.bytes.length,status:scan,
+      providerId:file.providerId,expectedMessageStatus:"received"
+    });
+    if(result==="created")stored++;else duplicates++;
   }
   return {stored,duplicates};
 }
@@ -121,25 +119,27 @@ export function registerMailAttachmentRoutes(app:Express):void{
       const filename=cleanMailFilename(req.file.originalname);
       const content=req.file.buffer;
       const key=newPrivateAttachmentKey(auth!.tenantId,req.params.id);
+      let uploaded=false;
       try{
         const scan=noActiveAttachment(filename)?await scanMailAttachment(content):"blocked";
-        if(scan!=="blocked")await putPrivateAttachment(key,content);
-        // Recheck after remote upload to avoid attaching a file to a message
-        // already handed over to the provider while the upload was in progress.
-        const stillDraft=await checkMessage(req,req.params.id,true);
-        if(stillDraft?.status!=="draft"){
-          if(scan!=="blocked")await import("./object-store").then(m=>m.deletePrivateAttachment(key));
-          return res.status(409).json({error:"Draft is no longer editable"});
-        }
-        const id=randomUUID();
-        await pool.query(`INSERT INTO mail_attachments
-          (id,tenant_id,message_id,object_key,original_filename,media_type,size_bytes,scan_status)
-          VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,[
-          id,auth!.tenantId,req.params.id,key,filename,
-          (req.file?.mimetype||"application/octet-stream").slice(0,100),content.length,scan
+        if(scan!=="blocked"){await putPrivateAttachment(key,content);uploaded=true;}
+        await registerAttachment({
+          tenantId:auth!.tenantId,messageId:req.params.id,key,filename,
+          mediaType:(req.file?.mimetype||"application/octet-stream").slice(0,100),
+          length:content.length,status:scan,expectedMessageStatus:"draft"
+        });
+        const record=await pool.query(`SELECT id FROM mail_attachments
+          WHERE tenant_id=$1 AND message_id=$2 AND object_key=$3 LIMIT 1`,[
+          auth!.tenantId,req.params.id,key
         ]);
-        return res.status(201).json({id,filename,sizeBytes:content.length,scanStatus:scan});
-      }catch{return reportError(res);}
+        return res.status(201).json({id:record.rows[0]?.id,filename,sizeBytes:content.length,scanStatus:scan});
+      }catch(err){
+        // Random draft object keys cannot be shared with another valid upload.
+        if(uploaded)await deletePrivateAttachment(key).catch(()=>{});
+        if(err instanceof MailAttachmentPolicyError)
+          return res.status(409).json({error:err.reason});
+        return reportError(res);
+      }
     });
   });
   app.get("/api/mail/attachments/:id/download",async(req,res)=>{
