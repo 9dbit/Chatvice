@@ -1,4 +1,4 @@
-import { Component, type ReactNode } from "react";
+import { Component, useEffect, type ReactNode } from "react";
 import { Route, Switch, useLocation, Redirect, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -156,6 +156,15 @@ export default function DashboardLayout() {
     enabled: !!merchantId,
   });
 
+  const isMailPath = location === "/dashboard/mail" || location.startsWith("/dashboard/mail/");
+  const privateMailDocument = !!(window as any).__CHATVICE_PRIVATE_MAIL_DOCUMENT__;
+  // In-app navigation cannot remove previously executed GTM/analytics scripts.
+  // Show no mailbox DOM until a fresh tracker-free HTML document has loaded.
+  useEffect(() => {
+    if (isMailPath && !privateMailDocument) window.location.replace(location);
+  }, [isMailPath, privateMailDocument, location]);
+  if (isMailPath && !privateMailDocument) return null;
+
   if (!merchantId) {
     return <Redirect to="/login" />;
   }
@@ -248,7 +257,7 @@ export default function DashboardLayout() {
             </Switch>
             </PageErrorBoundary>
           </main>
-          <AIHelpBubble />
+          {!isMailPath && <AIHelpBubble />}
         </div>
       </div>
     </SidebarProvider>
