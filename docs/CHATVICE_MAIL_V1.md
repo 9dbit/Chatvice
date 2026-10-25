@@ -109,3 +109,12 @@ The Resend API key must support sending AND receiving according to provider perm
 4. Run CI and test real inbound and outbound messages with safe attachments and scanner failures.
 5. Verify operator/member access, email privacy headers, original sender references, bounded upload, no email data in analytics and rollback.
 6. Keep production email and Mail feature flags untouched until all gates pass.
+
+## Encryption at rest (added in Mail V1)
+
+- Chatvice Mail now requires a stable `CHATVICE_MAIL_ENCRYPTION_KEY` before any Mail API, inbound webhook or outbound worker can operate. The key is **64 hex characters** (32 cryptographically random bytes); keep it in Railway's secret variable storage and a separate encrypted recovery vault.
+- Mail message subject, plain text body, HTML body (when present) and thread subject are encrypted before PostgreSQL inserts/updates using AES-256-GCM and random IVs. Each tenant has an HKDF-derived subkey; message ID and field label are included as authenticated associated data. Swapped, modified or wrong-tenant ciphertext is rejected.
+- Mail lists, thread readers, AI (only when consented), and the sending worker decrypt on the server after mailbox/tenant checks. `/api/mail` fails closed if the key is unavailable.
+- **Not end-to-end encryption:** this protects database snapshots/accidental DB access, not the provider or a compromised authenticated app server. Sender/recipient email addresses and status metadata are still stored as plaintext for routing and CRM matching. Private attachments use R2 access controls and malware scanning but currently **do not yet have application-layer encryption**; consider an envelope-key/KMS-based implementation before broad public launch.
+- This development branch has no old Mail data. Never enable encrypted Mail over old plaintext Mail records without an explicit one-time migration plan.
+- There is no automated key rotation in V1. Back up this exact secret securely before ingesting real customer messages, since losing it permanently loses access to encrypted content.
