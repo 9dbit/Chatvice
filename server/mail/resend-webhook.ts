@@ -3,6 +3,8 @@ import { pool } from "../db";
 import { verifyResendSignature, extractReplyHeader } from "./security";
 import { fetchResendReceived } from "./provider";
 import { ingestIncomingMail } from "./ingest";
+import { loadResendReceivedAttachments } from "./resend-attachments";
+import { persistInboundMailAttachments } from "./attachments";
 
 const DELIVERY_STATES: Record<string,string|undefined> = {
   "email.sent": "sent",
@@ -71,12 +73,17 @@ export function registerResendWebhook(app:Express):void {
         if(typeof id!=="string" || !/^[a-z0-9_-]{8,128}$/i.test(id))return res.sendStatus(400);
         const key=process.env.RESEND_API_KEY;
         if(!key) return res.sendStatus(503);
-        // Do not acknowledge emails with attachments until a PRIVATE storage
-        // adapter is configured, so the provider can retry and retain originals.
-        const metadataAttachments=data.attachments;
-        if(Array.isArray(metadataAttachments) && metadataAttachments.length>0) return res.sendStatus(503);
         const received=await fetchResendReceived(id,key) as Record<string,unknown>;
-        if(Array.isArray(received.attachments) && received.attachments.length>0)return res.sendStatus(503);
+        // Load provider attachment bytes with strict SSRF and size limits BEFORE
+        // acknowledging the event. If storage is unavailable, returning 503
+        // allows a provider retry instead of silently dropping customer files.
+        const attachments=await loadResendReceivedAttachments(id,key);
+        const declared=(Array.isArray(received.attachments)?received.attachments:
+          Array.isArray(data.attachments)?data.attachments:[]);
+        if(declared.length>0 && attachments.length===0)
+          return res.status(503).json({error:"Attachment inventory mismatch"});
+        if(attachments.length && process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED!=="true")
+          return res.status(503).json({error:"Private attachments not enabled"});
         const from=received.from??data.from;
         if(typeof from!=="string")return res.sendStatus(400);
         const text=typeof received.text==="string"?received.text:"";
@@ -88,7 +95,9 @@ export function registerResendWebhook(app:Express):void {
           html, messageId:typeof received.message_id==="string"?received.message_id:null,
           inReplyTo:extractReplyHeader(received.headers),
         });
-        return res.json({accepted:true,saved:result.saved,deduplicated:result.duplicate});
+        const files=await persistInboundMailAttachments(result.messages,attachments);
+        return res.json({accepted:true,saved:result.saved,deduplicated:result.duplicate,
+          attachmentsStored:files.stored,attachmentsDeduplicated:files.duplicates});
       }
       if(DELIVERY_STATES[type]){
         const id=data.email_id;
