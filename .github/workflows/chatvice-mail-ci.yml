@@ -1,0 +1,39 @@
+name: Chatvice Mail Engine CI
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "server/mail/**"
+      - "client/src/pages/dashboard/mail.tsx"
+      - "client/src/pages/dashboard/layout.tsx"
+      - "client/src/components/app-sidebar.tsx"
+      - "server/index.ts"
+      - "migrations/20261026_chatvice_mail_v1.sql"
+      - ".github/workflows/chatvice-mail-ci.yml"
+  push:
+    branches:
+      - "feature/chatvice-mail-engine-20261026"
+permissions:
+  contents: read
+jobs:
+  mail-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: test
+      CHATVICE_MAIL_ENABLED: "false"
+      CHATVICE_MAIL_OUTBOUND_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install from lockfile
+        run: npm ci --no-audit --no-fund
+      - name: Verify mail security and provider tests
+        run: npx tsx --test server/mail/security.test.ts
+      - name: Typecheck application
+        run: npm run check
+      - name: Build production bundles
+        run: npm run build
