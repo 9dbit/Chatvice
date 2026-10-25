@@ -1,6 +1,5 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import multer from "multer";
-import rateLimit from "express-rate-limit";
 import { pool } from "../db";
 import { cleanMailFilename, type ResendReceivedAttachment } from "./resend-attachments";
 import { scanMailAttachment } from "./scanner";
@@ -94,10 +93,24 @@ export async function persistInboundMailAttachments(
 const upload=multer({storage:multer.memoryStorage(),limits:{
   fileSize:MAX_MAIL_ATTACHMENT_BYTES,files:1,fields:2,parts:3,fieldSize:2048
 }});
-const uploadLimiter=rateLimit({windowMs:60_000,limit:12,
-  standardHeaders:"draft-7",legacyHeaders:false,
-  message:{error:"Too many attachment upload attempts"}
-});
+// Per-worker burst guard. Mailbox quota is enforced transactionally in PostgreSQL.
+// A distributed limiter should replace this when deploying multiple replicas.
+const bursts=new Map<string,{count:number;until:number}>();
+function uploadLimiter(req:Request,res:Response,next:NextFunction){
+  const p=principal(req);
+  if(!p)return res.sendStatus(401);
+  const key=p.tenantId+":"+p.userId, now=Date.now();
+  if(bursts.size>4096){
+    for(const [k,v] of bursts){if(v.until<now)bursts.delete(k);}
+    if(bursts.size>4096)bursts.clear();
+  }
+  const previous=bursts.get(key),state=previous && previous.until>now
+    ?{count:previous.count+1,until:previous.until}
+    :{count:1,until:now+60000};
+  bursts.set(key,state);
+  if(state.count>12)return res.status(429).json({error:"Too many attachment uploads"});
+  next();
+}
 export function registerMailAttachmentRoutes(app:Express):void{
   app.get("/api/mail/messages/:id/attachments",async(req,res)=>{
     if(!validId(req.params.id))return res.sendStatus(400);
