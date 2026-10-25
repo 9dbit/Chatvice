@@ -7,6 +7,8 @@ import express from "express";
 import supertest from "supertest";
 import { ingestIncomingMail } from "./ingest";
 import { registerMailRoutes } from "./routes";
+import { registerAttachment, MailAttachmentPolicyError } from "./attachment-quota";
+import { newPrivateAttachmentKey } from "./object-store";
 import { pool as appPool } from "../db";
 
 const fixture = {
@@ -216,5 +218,46 @@ test("mail draft attachments stay quarantined, tenant-locked and no-store until 
   for(const [k,v] of Object.entries(vars)){
    if(v===undefined)delete process.env[k];else process.env[k]=v;
   }
+ }
+});
+
+test("mailbox storage and message attachment caps are enforced inside PostgreSQL transaction",async()=>{
+ const draft=await supertest(server).post("/api/mail/compose").set("x-ci-subject","merchantB")
+  .set("origin","http://test.local")
+  .send({mailboxId:fixture.boxB,to:["test@example.org"],subject:"Quota test",text:"test",draft:true});
+ assert.equal(draft.status,201);
+ const messageId=draft.body.id as string;
+ await pool.query("UPDATE mail_mailboxes SET quota_bytes=64 WHERE id=$1",[fixture.boxB]);
+ try{
+  for(let n=0;n<8;n++){
+   const result=await registerAttachment({
+    tenantId:fixture.tenantB,messageId,
+    key:newPrivateAttachmentKey(fixture.tenantB,messageId),
+    filename:"file.txt",mediaType:"text/plain",length:4,
+    status:"pending",expectedMessageStatus:"draft"
+   });
+   assert.equal(result,"created");
+  }
+  await assert.rejects(()=>registerAttachment({
+   tenantId:fixture.tenantB,messageId,
+   key:newPrivateAttachmentKey(fixture.tenantB,messageId),
+   filename:"ninth.txt",mediaType:"text/plain",length:4,
+   status:"pending",expectedMessageStatus:"draft"
+  }),e=>e instanceof MailAttachmentPolicyError);
+  const count=await pool.query("SELECT count(*)::integer AS n FROM mail_attachments WHERE message_id=$1",[messageId]);
+  assert.equal(count.rows[0].n,8);
+  const second=await supertest(server).post("/api/mail/compose").set("x-ci-subject","merchantB")
+    .set("origin","http://test.local")
+    .send({mailboxId:fixture.boxB,to:["test@example.org"],subject:"Mailbox quota",text:"test",draft:true});
+  assert.equal(second.status,201);
+  await pool.query("UPDATE mail_mailboxes SET quota_bytes=33 WHERE id=$1",[fixture.boxB]);
+  await assert.rejects(()=>registerAttachment({
+    tenantId:fixture.tenantB,messageId:second.body.id,
+    key:newPrivateAttachmentKey(fixture.tenantB,second.body.id),
+    filename:"extra.txt",mediaType:"text/plain",length:2,
+    status:"pending",expectedMessageStatus:"draft"
+   }),e=>e instanceof MailAttachmentPolicyError);
+ }finally{
+  await pool.query("UPDATE mail_mailboxes SET quota_bytes=1073741824 WHERE id=$1",[fixture.boxB]);
  }
 });
