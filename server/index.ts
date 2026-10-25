@@ -253,6 +253,12 @@ app.use((req, res, next) => {
   app.use("/dashboard/mail", (_req, res, next) => {
     res.setHeader("X-Robots-Tag", "noindex, nofollow, nosnippet, noarchive");
     res.setHeader("Cache-Control", "private, no-store");
+    // Mail is a sensitive UI: no external scripts, analytics, framed embeds,
+    // remotely hosted fonts/images or active third-party network requests.
+    res.setHeader("Content-Security-Policy",
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+      "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; " +
+      "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
     next();
   });
 
