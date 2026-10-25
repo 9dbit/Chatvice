@@ -7,6 +7,7 @@ import { ingestIncomingMail } from "./ingest";
 import { registerResendWebhook } from "./resend-webhook";
 import { registerMailAdminRoutes } from "./admin";
 import { registerMailAIRoutes } from "./ai";
+import { registerMailAttachmentRoutes } from "./attachments";
 
 const email = z.string().email().max(320).transform(v => v.toLowerCase());
 const uuid = z.string().uuid();
@@ -97,6 +98,7 @@ export function registerMailRoutes(app: Express) {
   registerResendWebhook(app);
   app.use("/api/mail",protect);
   registerMailAIRoutes(app);
+  registerMailAttachmentRoutes(app);
   app.get("/api/mail/mailboxes",wrap(async(req,res)=>{
     const p=principal(req)!;
     const q=await pool.query(`SELECT b.id,b.local_part,b.display_name,d.domain,b.enabled
