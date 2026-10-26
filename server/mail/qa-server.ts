@@ -1,5 +1,6 @@
 import express, { type Request, type Response, type NextFunction } from "express";
-import { authenticateQaHeaders, issueQaSessionCookie } from "./qa-auth";
+import { authenticateQaHeaders, issueQaSessionCookie, verifyQaSessionCookie } from "./qa-auth";
+import { renderQaLoginPage } from "./qa-login";
 import { resolve } from "node:path";
 import { pool } from "../db";
 import { isMailEncryptionReady } from "./crypto";
@@ -54,6 +55,11 @@ async function requireQA(req:Request,res:Response,next:NextFunction):Promise<voi
       authorization:req.get("authorization"),cookie:req.get("cookie")
     },secret,basicPasswordHash,now);
     if(!auth){
+      // Mobile browsers should see our form, not an HTTP Basic popup.
+      if(req.method==="GET" && !req.originalUrl.startsWith("/api/") && req.accepts("html")){
+        res.redirect(302,"/login");
+        return;
+      }
       if(authFailures.size>4096){
         for(const [ip,state] of Array.from(authFailures.entries())){
           if(state.until<=now)authFailures.delete(ip);
@@ -62,7 +68,6 @@ async function requireQA(req:Request,res:Response,next:NextFunction):Promise<voi
       }
       const count=previous&&previous.until>now?previous.count+1:1;
       authFailures.set(key,{count,until:now+60000});
-      res.setHeader("WWW-Authenticate",'Basic realm="Chatvice Mail Isolated QA", charset="UTF-8"');
       res.status(401).json({error:"QA authorization required"});
       return;
     }
@@ -93,6 +98,50 @@ app.use(express.json({
  limit:"2mb",
  verify:(req,_res,buf)=>{req.rawBody=Buffer.from(buf);}
 }));
+
+app.use(express.urlencoded({extended:false,limit:"4kb",parameterLimit:4}));
+app.get("/login",(req,res)=>{
+  if(verifyQaSessionCookie(req.get("cookie"),secret))
+    return res.redirect(302,"/dashboard/mail");
+  res.setHeader("Content-Security-Policy",
+    "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
+  res.type("html").send(renderQaLoginPage(req.query.error==="1"));
+});
+app.post("/qa/login",async(req,res)=>{
+  const key=req.ip||req.socket.remoteAddress||"unknown",now=Date.now();
+  const previous=authFailures.get(key);
+  if(previous && previous.until>now && previous.count>=12){
+    res.setHeader("Retry-After","60");
+    return res.status(429).type("text").send("Too many login attempts. Try again in one minute.");
+  }
+  const origin=req.get("origin");
+  const currentHost=req.get("host");
+  if(origin && (!currentHost || origin!=="https://"+currentHost))
+    return res.sendStatus(403);
+  const username=typeof req.body?.username==="string"?req.body.username:"";
+  const password=typeof req.body?.password==="string"?req.body.password:"";
+  let verified=false;
+  if(username==="mailqa" && password.length>0 && password.length<=256){
+    const authorization="Basic "+Buffer.from(username+":"+password,"utf8").toString("base64");
+    try{
+      verified=(await authenticateQaHeaders({authorization},secret,basicPasswordHash,now))==="basic";
+    }catch{ return res.sendStatus(503); }
+  }
+  if(!verified){
+    const count=previous&&previous.until>now?previous.count+1:1;
+    authFailures.set(key,{count,until:now+60000});
+    return res.redirect(303,"/login?error=1");
+  }
+  authFailures.delete(key);
+  res.setHeader("Set-Cookie",issueQaSessionCookie(secret,now));
+  return res.redirect(303,"/dashboard/mail");
+});
+app.post("/qa/logout",(_req,res)=>{
+  res.setHeader("Set-Cookie",
+    "__Host-chatvice_mail_qa=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Strict");
+  res.redirect(303,"/login");
+});
+
 app.use("/api/mail",requireQA);
 registerMailRoutes(app);
 
