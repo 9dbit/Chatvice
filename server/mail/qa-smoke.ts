@@ -16,7 +16,12 @@ export async function runMailQaSmoke(port:number):Promise<{checks:number}> {
     ...init,headers:{...(authorized?{Authorization:"Bearer "+token}:{}),Origin:origin,...init.headers},
     signal:AbortSignal.timeout(45000)
   });
-  const anonymous=await call("/dashboard/mail",{},false);check(anonymous.status===401,"anonymous-ui");
+  const anonymous=await call("/dashboard/mail",{redirect:"manual"},false);
+  check(anonymous.status===302 && anonymous.headers.get("location")==="/login","anonymous-login-redirect");
+  const login=await call("/login",{},false);
+  check(login.status===200 && (await login.text()).includes('action="/qa/login"'),"browser-login-form");
+  const noApi=await call("/api/mail/mailboxes",{},false);
+  check(noApi.status===401,"anonymous-api-blocked");
   const html=await call("/dashboard/mail");check(html.status===200,"authenticated-ui");
   check((html.headers.get("content-security-policy")||"").includes("frame-ancestors 'none'"),"private-csp");
   check((html.headers.get("cache-control")||"").includes("no-store"),"private-cache");
