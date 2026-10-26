@@ -1,4 +1,5 @@
 import { normalizeEmail } from "./security";
+import {MAX_MAIL_ATTACHMENT_BYTES,MAX_MAIL_ATTACHMENTS,MAX_MAIL_MESSAGE_ATTACHMENT_BYTES} from "../../shared/mail-policy";
 
 type SendRequest = {
   id: string; from: string; to: string[]; cc: string[]; bcc: string[];
@@ -23,6 +24,22 @@ export async function sendResendMail(message: SendRequest, apiKey: string): Prom
   };
   if (message.inReplyTo && /^<[^<>\r\n]{1,500}>$/.test(message.inReplyTo)) {
     body.headers = { "In-Reply-To": message.inReplyTo };
+  }
+  if(message.attachments?.length){
+    if(message.attachments.length>MAX_MAIL_ATTACHMENTS)throw new MailProviderError(0,false);
+    let total=0;
+    body.attachments=message.attachments.map(file=>{
+      if(typeof file.filename!=="string" || !file.filename.length || file.filename.length>180 ||
+         /[\\/\x00-\x1f\x7f]/.test(file.filename) || typeof file.content!=="string" ||
+         file.content.length>Math.ceil(MAX_MAIL_ATTACHMENT_BYTES/3)*4 ||
+         file.content.length%4!==0)
+        throw new MailProviderError(0,false);
+      const bytes=Buffer.from(file.content,"base64");total+=bytes.length;
+      if(!bytes.length || bytes.length>MAX_MAIL_ATTACHMENT_BYTES ||
+         bytes.toString("base64")!==file.content || total>MAX_MAIL_MESSAGE_ATTACHMENT_BYTES)
+        throw new MailProviderError(0,false);
+      return {filename:file.filename,content:file.content};
+    });
   }
   let response: Response;
   try {

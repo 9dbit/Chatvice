@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Paperclip, FileDown, RefreshCcw, ShieldAlert, ShieldCheck, Upload } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { MAX_MAIL_ATTACHMENT_BYTES } from "@shared/mail-policy";
 
 type Attachment = {
   id:string;original_filename:string;media_type:string;
@@ -26,7 +27,7 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
   finally{setBusy(false)}
  };
  async function upload(file:File){
-  if(file.size>8*1024*1024){setError("File limit: 8 MB");return;}
+  if(file.size>MAX_MAIL_ATTACHMENT_BYTES){setError("File limit: 16 MiB");return;}
   await perform(async()=>{
     const data=new FormData();data.set("file",file,file.name);
     const response=await fetch(`/api/mail/messages/${encodeURIComponent(messageId)}/attachments`,{

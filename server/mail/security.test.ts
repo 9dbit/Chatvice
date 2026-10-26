@@ -71,3 +71,43 @@ test("Resend inbound fetch uses fixed provider hostname and rejects unsafe IDs",
   await assert.rejects(()=>fetchResendReceived("../private","re_exampleKey12345"));
  } finally {globalThis.fetch=old;}
 });
+
+test("outbound serializes exact attachment bytes and rejects malformed attachment payloads before transport",async()=>{
+ const old=globalThis.fetch;let calls=0;
+ const original=Buffer.from([0,255,128,13,10,0,65]);
+ const message={id:"00000000-0000-4000-8000-000000000055",from:"hello@chatvice.app",to:["test@example.com"],cc:[],bcc:[],subject:"File",text:"Synthetic",attachments:[{filename:"invoice.bin",content:original.toString("base64")}]};
+ globalThis.fetch=async(_input,init)=>{
+  calls++;const body=JSON.parse(String(init?.body));
+  assert.equal(body.attachments.length,1);
+  assert.equal(body.attachments[0].filename,"invoice.bin");
+  assert.deepEqual(Buffer.from(body.attachments[0].content,"base64"),original);
+  return new Response('{"id":"attachment-provider-fixture"}',{status:200});
+ };
+ try{
+  assert.equal(await sendResendMail(message,"re_synthetic_attachment_key"),"attachment-provider-fixture");
+  assert.equal(calls,1);
+  for(const attachment of [{filename:"bad.txt",content:"invalid!"},{filename:"bad\\r\\nname.txt",content:"YQ=="},{filename:"empty.txt",content:""}]){
+   await assert.rejects(()=>sendResendMail({...message,attachments:[attachment]},"re_synthetic_attachment_key"),
+    (e:unknown)=>e instanceof MailProviderError && !e.retryable);
+  }
+  assert.equal(calls,1);
+ }finally{globalThis.fetch=old;}
+});
+
+test("large outbound attachments retain all bytes and the aggregate budget cannot be bypassed",async()=>{
+ const old=globalThis.fetch;let calls=0;
+ const bytes=Buffer.alloc(8477526,65),encoded=bytes.toString("base64");
+ const mail={id:"00000000-0000-4000-8000-000000000056",from:"hello@chatvice.app",to:["test@example.com"],cc:[],bcc:[],subject:"Large synthetic file",text:"Synthetic",attachments:[{filename:"large.bin",content:encoded}]};
+ globalThis.fetch=async(_input,init)=>{
+  calls++;const body=JSON.parse(String(init?.body));
+  assert.equal(body.attachments[0].content.length,encoded.length);
+  assert.deepEqual(Buffer.from(body.attachments[0].content,"base64"),bytes);
+  return new Response('{"id":"large-provider-fixture"}',{status:200});
+ };
+ try{
+  assert.equal(await sendResendMail(mail,"re_large_synthetic_key"),"large-provider-fixture");
+  await assert.rejects(()=>sendResendMail({...mail,attachments:[...mail.attachments,{filename:"second.bin",content:encoded}]},"re_large_synthetic_key"),
+   (e:unknown)=>e instanceof MailProviderError && !e.retryable);
+  assert.equal(calls,1);
+ }finally{globalThis.fetch=old;}
+});

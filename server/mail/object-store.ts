@@ -1,8 +1,8 @@
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { encryptMailBinary, decryptMailBinary, MAIL_BINARY_OVERHEAD } from "./crypto";
 
-export const MAX_MAIL_ATTACHMENT_BYTES = 8 * 1024 * 1024;
-export const MAX_MAIL_ATTACHMENTS = 8;
+import { MAX_MAIL_ATTACHMENT_BYTES, MAX_MAIL_ATTACHMENTS } from "../../shared/mail-policy";
+export { MAX_MAIL_ATTACHMENT_BYTES, MAX_MAIL_ATTACHMENTS } from "../../shared/mail-policy";
 
 type PrivateStorageSettings = {
   bucket:string; accessKeyId:string; secretAccessKey:string;

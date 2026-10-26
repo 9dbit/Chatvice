@@ -67,3 +67,7 @@ database/object snapshot combination before production release.
 - Preserve and verify every Hostinger source, import with per-message/attachment hashes and folder/date/flag reconciliation, identify master, and complete delta reconciliation.
 - Create isolated production only after review and secure backup; rehearse database/object/key restore and app rollback. An available Railway rollback button is not a restore rehearsal.
 - Change root MX/SPF/DKIM/DMARC only after all preceding gates pass. Do not delete Hostinger until integrity and rollback retention are confirmed.
+
+## Large-file and outbound payload contract
+
+The shared file ceiling is 16 MiB, with the existing 16 MiB aggregate decoded attachment ceiling and eight-file cap retained. This accommodates the observed 8,477,526-byte legacy attachment without unbounded buffers. Browser and private-store limits share one policy. The adapter explicitly serializes filename/base64 attachment pairs, rejects malformed or over-budget data before transport, and has a byte-for-byte payload regression. Resend documents 40 MB after attachment Base64 encoding: https://resend.com/docs/api-reference/emails/send-email. The historical large source still requires a successful export; synthetic size coverage is not a claim that it has been imported.

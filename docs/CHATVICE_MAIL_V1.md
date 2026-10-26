@@ -98,7 +98,7 @@ The Resend API key must support sending AND receiving according to provider perm
 - ClamAV: `CHATVICE_MAIL_CLAMAV_HOST` (private Railway network) and `CHATVICE_MAIL_CLAMAV_PORT=3310`. If unavailable or scanning fails, scan status remains `pending`. Pending/blocked attachments cannot be downloaded or sent.
 - `POST /api/mail/messages/:id/attachments` uploads one file to a draft. `GET /api/mail/messages/:id/attachments` lists safe metadata. `GET /api/mail/attachments/:id/download` requires a session and clean scan status. `POST /api/mail/attachments/:id/rescan` allows an authorized operator to retry.
 - `PATCH /api/mail/drafts/:id` edits a saved draft; `POST /api/mail/drafts/:id/send` queues a draft only when every attachment is clean. Outbound worker reads clean attachments privately from R2 and sends as provider base64 payloads.
-- Limits: 8 MiB per file, at most 8 attachments, and maximum 16 MiB total payload. Current draft upload quota accounting and automatic retention/garbage collection require additional hardening.
+- Limits: 16 MiB per file, at most 8 attachments, and maximum 16 MiB total decoded attachment payload. Current draft upload quota accounting and automatic retention/garbage collection require additional hardening.
 - Never switch the main domain MX solely to test attachments. Use a disposable provider test domain/subdomain; verify signed inbound event, safe file, blocked EICAR, scanner outage, provider retry, duplicate event and tenant separation.
 - Unit tests: `server/mail/attachment-security.test.ts`. DB integration: `server/mail/integration.test.ts` with disposable PostgreSQL.
 
