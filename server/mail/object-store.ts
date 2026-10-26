@@ -3,19 +3,44 @@ import { createHash, createHmac, randomUUID } from "node:crypto";
 export const MAX_MAIL_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 export const MAX_MAIL_ATTACHMENTS = 8;
 
-type R2Settings = {
-  accountId: string; bucket: string; accessKeyId: string; secretAccessKey: string;
+type PrivateStorageSettings = {
+  bucket:string; accessKeyId:string; secretAccessKey:string;
+  hostname:string; region:string; addressStyle:"path"|"virtual-host";
 };
-function settings(): R2Settings {
-  const accountId = process.env.CHATVICE_MAIL_R2_ACCOUNT_ID || "";
-  const bucket = process.env.CHATVICE_MAIL_R2_BUCKET || "";
-  const accessKeyId = process.env.CHATVICE_MAIL_R2_ACCESS_KEY_ID || "";
-  const secretAccessKey = process.env.CHATVICE_MAIL_R2_SECRET_ACCESS_KEY || "";
-  if (!/^[a-f\d]{32}$/i.test(accountId) || !/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket) ||
-      !accessKeyId || !secretAccessKey) {
-    throw new Error("Private Mail object storage is not configured");
+function settings():PrivateStorageSettings {
+  const customEndpoint=(process.env.CHATVICE_MAIL_S3_ENDPOINT||"").trim();
+  if(customEndpoint){
+    let url:URL;
+    try{url=new URL(customEndpoint);}catch{throw new Error("Invalid private storage endpoint");}
+    if(url.protocol!=="https:" || url.pathname!=="/" || url.search || url.hash ||
+       url.username || url.password || url.port ||
+       !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(url.hostname)){
+      throw new Error("Private storage endpoint must be a clean HTTPS origin");
+    }
+    const bucket=process.env.CHATVICE_MAIL_S3_BUCKET||"";
+    const accessKeyId=process.env.CHATVICE_MAIL_S3_ACCESS_KEY_ID||"";
+    const secretAccessKey=process.env.CHATVICE_MAIL_S3_SECRET_ACCESS_KEY||"";
+    const region=process.env.CHATVICE_MAIL_S3_REGION||"auto";
+    const style=process.env.CHATVICE_MAIL_S3_URL_STYLE||"path";
+    if(!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket) ||
+       !/^[a-z0-9-]{2,32}$/.test(region) ||
+       !["path","virtual-host"].includes(style) ||
+       !accessKeyId || !secretAccessKey)throw new Error("Private S3 storage is not configured");
+    return {
+      bucket,accessKeyId,secretAccessKey,region,
+      addressStyle:style as "path"|"virtual-host",
+      hostname:style==="virtual-host"?bucket+"."+url.hostname:url.hostname,
+    };
   }
-  return {accountId:accountId.toLowerCase(),bucket,accessKeyId,secretAccessKey};
+  const accountId=process.env.CHATVICE_MAIL_R2_ACCOUNT_ID||"";
+  const bucket=process.env.CHATVICE_MAIL_R2_BUCKET||"";
+  const accessKeyId=process.env.CHATVICE_MAIL_R2_ACCESS_KEY_ID||"";
+  const secretAccessKey=process.env.CHATVICE_MAIL_R2_SECRET_ACCESS_KEY||"";
+  if(!/^[a-f\d]{32}$/i.test(accountId) ||
+     !/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket) ||
+     !accessKeyId || !secretAccessKey)throw new Error("Private Mail R2 storage is not configured");
+  return {bucket,accessKeyId,secretAccessKey,region:"auto",
+    addressStyle:"path",hostname:accountId.toLowerCase()+".r2.cloudflarestorage.com"};
 }
 export function isMailObjectStorageConfigured(): boolean {
   try { settings(); return true; } catch { return false; }
@@ -43,17 +68,17 @@ export function attachmentKeyFromProviderId(tenantId:string,messageId:string,pro
   const digest=sha256(providerId);
   return `mail/${tenantId}/${messageId}/${digest}`;
 }
-function authorization(method: "PUT"|"GET"|"DELETE", key: string, body: Buffer, config: R2Settings, now:Date){
+function authorization(method: "PUT"|"GET"|"DELETE", key: string, body: Buffer, config: PrivateStorageSettings, now:Date){
   const date=now.toISOString().replace(/[-:]|\.\d{3}/g,"");
-  const day=date.slice(0,8), host=`${config.accountId}.r2.cloudflarestorage.com`;
-  const uri=encodedPath(key,config.bucket);
+  const day=date.slice(0,8),host=config.hostname;
+  const uri=encodedPath(key,config.addressStyle==="path"?config.bucket:"");
   const payloadHash=sha256(body);
   const signedHeaders="host;x-amz-content-sha256;x-amz-date";
   const canonicalHeaders=`host:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${date}\n`;
   const canonicalRequest=`${method}\n${uri}\n\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
-  const scope=`${day}/auto/s3/aws4_request`;
+  const scope=`${day}/${config.region}/s3/aws4_request`;
   const stringToSign=`AWS4-HMAC-SHA256\n${date}\n${scope}\n${sha256(canonicalRequest)}`;
-  const signingKey=hmac(hmac(hmac(hmac("AWS4"+config.secretAccessKey,day),"auto"),"s3"),"aws4_request");
+  const signingKey=hmac(hmac(hmac(hmac("AWS4"+config.secretAccessKey,day),config.region),"s3"),"aws4_request");
   const signature=hmac(signingKey,stringToSign).toString("hex");
   return {
     url:`https://${host}${uri}`,
