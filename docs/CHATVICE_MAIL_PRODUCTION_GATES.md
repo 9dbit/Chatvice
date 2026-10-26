@@ -17,6 +17,40 @@ below have actual evidence. Existing Chatvice production and Hostinger remain li
 
 For a brand-new isolated application database, use `node scripts/mail-app-schema.mjs` as pre-deploy with `CHATVICE_MAIL_SCHEMA_INSTALL=reviewed-isolated-only`, the exact `CHATVICE_MAIL_SCHEMA_EXPECTED_HOST`, and explicit `CHATVICE_MAIL_INITIAL_TENANT`. It creates the minimal standalone tenant/CRM tables and all reviewed Mail migrations in one transaction, records SHA-256 migration history, refuses unmanaged/nonempty databases, and checks history on every repeat. It creates no password or public signup. This installer is separately tested on disposable PostgreSQL; do not point it at the main Chatvice database.
 
+## Independent application image
+
+`Dockerfile.mail-app` packages the independent Mail application. Build it explicitly
+with `docker build --file Dockerfile.mail-app --tag chatvice-mail-app:review .`.
+It is separate from `Dockerfile.mail-qa`; selecting or building this file does not
+change a Railway service, create credentials, enable outbound mail or perform a
+production deployment.
+
+The image contains the compiled private frontend/server, the guarded schema installer,
+all three reviewed migrations and the compiled offline identity command
+`node dist/mail-provision-user.mjs`. It uses the same exact locked database/schema
+dependencies as QA and runs as `node`. Main app sources, attached assets, development
+dependencies, the QA server and the disposable QA bootstrap are excluded from the
+runtime. HTTP/application modules are bundled explicitly; a new unrelated main-app
+dependency cannot silently become an uninstalled runtime dependency.
+
+For a reviewed new Mail service, select this Dockerfile, use `/health`, start
+`node dist/mail-app-server.cjs` and configure the exact isolated app origin, stable
+session/encryption keys and isolated database listed above. Run the guarded schema
+installer as a pre-deploy step only after verifying its expected host and empty
+database. Provision the first identity separately: the compiled command previews
+by default and uses the existing `MAIL_PROVISION_*` environment variables; only
+`--apply` writes an account. The password stays in the operator's secret environment.
+Neither the image nor schema installer embeds an initial login.
+
+`scripts/mail-app-container-smoke.mjs` boots this actual image on a new disposable
+CI database. It verifies wrong-host refusal, packaged migration history, preview
+without account creation, offline account creation, tracker-free UI/assets,
+main-app cookie denial, cross-origin login denial, independent secure sessions,
+session persistence after a runtime restart, logout revocation and disabled
+provider/AI/attachment features. It also verifies the non-root runtime, source/QA
+exclusion and a 350 MiB image ceiling. Passing this test does not prove delivery,
+real browser acceptance behind the target TLS proxy or production recovery.
+
 ## Attachment encryption compatibility
 
 New private objects use authenticated AES-256-GCM envelopes bound to their complete

@@ -8,10 +8,19 @@ on:
       - "scripts/mail-qa-bootstrap.mjs"
       - "scripts/mail-workspace-smoke.mjs"
       - "scripts/mail-qa-container-smoke.mjs"
+      - "scripts/mail-app-container-smoke.mjs"
+      - "scripts/mail-app-schema.mjs"
+      - "scripts/mail-provision-user.ts"
+      - "script/build-mail-app.ts"
+      - "Dockerfile.mail-app"
+      - "Dockerfile.mail-app.dockerignore"
       - "Dockerfile.mail-qa"
       - "Dockerfile.mail-qa.dockerignore"
       - "config/mail-qa-runtime/**"
       - "client/mail-qa.html"
+      - "client/mail-app.html"
+      - "client/src/mail-app-main.tsx"
+      - "vite.mail-app.config.ts"
       - "client/src/mail-qa-main.tsx"
       - "client/src/mail-qa.css"
       - "vite.mail-qa.config.ts"
@@ -25,6 +34,7 @@ on:
       - "server/index.ts"
       - "migrations/20261026_chatvice_mail_v1.sql"
       - "migrations/20261026_chatvice_mail_attachments_v2.sql"
+      - "migrations/20261027_chatvice_mail_login.sql"
       - "shared/mail-schema.ts"
       - "shared/mail-recipients.ts"
       - ".github/workflows/chatvice-mail-ci.yml"
@@ -118,6 +128,12 @@ jobs:
         env:
           POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: node --import tsx scripts/mail-qa-container-smoke.mjs
+      - name: Build independent Mail application runtime image
+        run: docker build --file Dockerfile.mail-app --tag chatvice-mail-app:ci .
+      - name: Verify actual independent Mail app and persistent login on disposable PostgreSQL
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: node scripts/mail-app-container-smoke.mjs
       - name: Verify no third-party scripts in QA entry document
         run: |
           test -f dist/mail-qa/mail-qa.html

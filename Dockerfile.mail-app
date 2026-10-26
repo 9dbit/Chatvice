@@ -1,0 +1,27 @@
+# Independent Mail app only. Select explicitly; this does not deploy or replace QA.
+FROM node:22-bookworm-slim AS build
+WORKDIR /build
+ENV PUPPETEER_SKIP_DOWNLOAD=true PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
+COPY client ./client
+COPY server ./server
+COPY shared ./shared
+COPY script/build-mail-app.ts ./script/build-mail-app.ts
+COPY scripts/mail-provision-user.ts ./scripts/mail-provision-user.ts
+COPY tsconfig.json tailwind.config.ts postcss.config.js vite.mail-app.config.ts ./
+RUN node --import tsx script/build-mail-app.ts
+
+FROM node:22-bookworm-slim AS runtime
+ENV NODE_ENV=production PORT=5000
+WORKDIR /app
+# The independent app and QA share the same exact locked runtime dependency set.
+COPY config/mail-qa-runtime/package.json config/mail-qa-runtime/package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund && npm cache clean --force
+COPY --from=build --chown=node:node /build/dist/mail-app ./dist/mail-app
+COPY --from=build --chown=node:node /build/dist/mail-app-server.cjs /build/dist/mail-provision-user.mjs ./dist/
+COPY --chown=node:node scripts/mail-app-schema.mjs ./scripts/mail-app-schema.mjs
+COPY --chown=node:node migrations/20261026_chatvice_mail_v1.sql migrations/20261026_chatvice_mail_attachments_v2.sql migrations/20261027_chatvice_mail_login.sql ./migrations/
+USER node
+EXPOSE 5000
+CMD ["node", "dist/mail-app-server.cjs"]
