@@ -53,8 +53,9 @@ export async function loadResendReceivedAttachments(emailId:string,key:string):P
     });
   }catch{throw new Error("Provider attachment inventory unavailable");}
   if(!result.ok)throw new Error("Provider attachment inventory unavailable");
-  const data=await result.json() as {data?:unknown};
+  const data=await result.json() as {data?:unknown;has_more?:unknown};
   if(!Array.isArray(data.data))throw new Error("Unexpected provider attachment inventory");
+  if(data.has_more===true)throw new Error("Provider attachment inventory is incomplete");
   if(data.data.length>MAX_MAIL_ATTACHMENTS)throw new Error("Too many inbound attachments");
   const out:ResendReceivedAttachment[]=[];let total=0;
   for(const item of data.data){
