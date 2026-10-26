@@ -124,6 +124,8 @@ export function registerMailAttachmentRoutes(app:Express):void{
     }catch{reportError(res);}
   });
   app.post("/api/mail/messages/:id/attachments",uploadLimiter,async(req,res)=>{
+    if(process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED!=="true")
+      return res.status(503).json({error:"Private attachment uploads are disabled"});
     if(!validId(req.params.id))return res.sendStatus(400);
     let auth:Awaited<ReturnType<typeof checkMessage>>;
     try{auth=await checkMessage(req,req.params.id,true);}
@@ -180,6 +182,8 @@ export function registerMailAttachmentRoutes(app:Express):void{
     }catch{return reportError(res);}
   });
   app.post("/api/mail/attachments/:id/rescan",async(req,res)=>{
+    if(process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED!=="true")
+      return res.status(503).json({error:"Attachment scanning is disabled"});
     if(!validId(req.params.id))return res.sendStatus(400);
     try{
       const a=await allowedAttachment(req,req.params.id,true);
@@ -195,3 +199,4 @@ export function registerMailAttachmentRoutes(app:Express):void{
     }catch{return reportError(res);}
   });
 }
+

@@ -145,6 +145,22 @@ test("receiving never borrows a sending-only provider credential",async()=>{
   }
 });
 
+test("disabled attachment feature rejects uploads before reading multipart bytes",async()=>{
+  const old=process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED;
+  process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED="false";
+  const fetchBefore=globalThis.fetch;let network=0;
+  globalThis.fetch=async()=>{network++;throw new Error("Disabled attachments must not access storage");};
+  try{
+    const r=await supertest(server).post(`/api/mail/messages/${randomUUID()}/attachments`)
+      .set("x-ci-subject","merchantA").set("Origin","http://test.local")
+      .attach("file",Buffer.from("synthetic bytes"),"disabled.txt");
+    assert.equal(r.status,503);assert.equal(network,0);
+  }finally{
+    globalThis.fetch=fetchBefore;
+    if(old===undefined)delete process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED;else process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED=old;
+  }
+});
+
 test("fresh migrations create all eleven mail tables without touching unrelated data",async()=>{
   const q=await pool.query(`SELECT count(*)::integer AS count FROM information_schema.tables
     WHERE table_schema='public' AND table_name LIKE 'mail_%'`);
