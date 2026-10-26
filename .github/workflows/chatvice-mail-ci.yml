@@ -10,7 +10,6 @@ on:
       - "scripts/mail-qa-container-smoke.mjs"
       - "Dockerfile.mail-qa"
       - "Dockerfile.mail-qa.dockerignore"
-      - "railway.mail-qa.json"
       - "config/mail-qa-runtime/**"
       - "client/mail-qa.html"
       - "client/src/mail-qa-main.tsx"

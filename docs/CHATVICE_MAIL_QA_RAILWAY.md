@@ -23,10 +23,12 @@ into a non-root Node runtime. Its separately locked dependencies are `pg`,
 development dependencies are excluded from the runtime. No database/provider secret
 is needed during the Docker build.
 
-`railway.mail-qa.json` selects that Dockerfile. It must be selected **only** on
-`Chatvice-Mail-QA` after the CI image test passes. Existing Chatvice production and
-other staging services must retain their own build settings. Do not accept the
-environment's unrelated five-change staged patch to apply this setting.
+Select `Dockerfile.mail-qa` directly through the `dockerfilePath` setting **only**
+on `Chatvice-Mail-QA` after the CI image test passes. Railway confirmed the resulting
+builder is `DOCKERFILE`. The Config as Code file selector is deprecated by the
+current Railway API; do not add a legacy railway.json selector for this service.
+Existing Chatvice production and other staging services retain their own settings.
+Do not accept the environment's unrelated five-change staged patch.
 
 CI builds the actual image, enforces an image size below 350 MiB and boots it
 against a separate freshly created disposable PostgreSQL database. It verifies
@@ -35,6 +37,12 @@ To/CC/BCC handling, disabled sending, absent source assets and a non-root proces
 The database/container are removed afterward; this is not a production rollout.
 
 The older Railpack build/start values below remain the fallback configuration.
+
+Verified on 27 October 2026: upgrade commit `093e50c3` passed CI run
+`40378991568`: 53 tests, browser workspace checks, encrypted database restore,
+all three builds and the actual container smoke. Runtime image measured
+257,869,209 bytes (about 246 MiB). The direct QA Dockerfile setting was applied;
+a newly deployed revision still requires Railway health/login/smoke verification.
 
 - Source: `9dbit/Chatvice` branch `feature/chatvice-mail-engine-20261026`
 - Build: `npx tsx script/build-mail-qa.ts`
