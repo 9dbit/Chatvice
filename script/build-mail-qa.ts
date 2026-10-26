@@ -3,7 +3,7 @@ import { build as esbuild } from "esbuild";
 import { rm, readFile } from "node:fs/promises";
 
 const bundled=new Set([
-  "express","pg","drizzle-orm","zod","multer","openai",
+  "express","drizzle-orm","zod","multer","openai",
   "cookie-parser","date-fns","nanoid"
 ]);
 async function main(){
