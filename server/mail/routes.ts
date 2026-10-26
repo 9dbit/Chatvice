@@ -141,11 +141,16 @@ export function registerMailRoutes(app: Express) {
        (SELECT 1 FROM mail_memberships x WHERE x.mailbox_id=b.id AND x.tenant_id=$1 AND x.user_id=$4)))
       ORDER BY m.created_at ASC`,[p.tenantId,id,p.isMerchant,p.userId]);
     if(!q.rowCount) return res.sendStatus(404);
+    // Expose the smallest field set to the client. No internal event IDs,
+    // provider identifiers, retry/lock metadata, encrypted HTML or BCC lists.
     res.json(q.rows.map(m=>({
-      ...m,
+      id:m.id,thread_id:m.thread_id,direction:m.direction,
+      folder:m.folder,status:m.status,from_email:m.from_email,
+      to_emails:m.to_emails,cc_emails:m.cc_emails,
       subject:decryptMailField(p.tenantId,m.id,"message-subject",m.subject),
       text_body:decryptMailField(p.tenantId,m.id,"message-text",m.text_body),
-      html_body:m.html_body ? decryptMailField(p.tenantId,m.id,"message-html",m.html_body) : null
+      is_read:m.is_read,is_starred:m.is_starred,
+      created_at:m.created_at,received_at:m.received_at
     })));
   }));
   app.post("/api/mail/compose",wrap(async(req,res)=>{
