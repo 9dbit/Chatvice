@@ -40,6 +40,18 @@ bearer token, rejects browser Origin requests, and keeps the archive key in its
 process/child environment. Shut it down after export. Protect and back up the key
 separately; a local archive is not proof of a Cloudflare R2 copy or database import.
 
+`scripts/mail-backup.mjs seal|open` wraps a pg_dump stream in a separate
+authenticated backup envelope, bounded to 512 MiB. `open` authenticates the entire
+dump before releasing restore bytes. CI restores a dump into a separate disposable
+PostgreSQL database and compares all 14 table row sets by count and SHA-256.
+This is a synthetic rehearsal; it does not establish production backup coverage,
+R2 restoration, external key recovery or successful application rollback.
+
+Once encrypted attachments exist, never roll back to an unversioned plaintext
+object reader. A rollback target must retain the new envelope reader (commit
+8d2022f or later) and the original encryption key; rehearse that exact image and
+database/object snapshot combination before production release.
+
 ## Verified baseline and outstanding release gates
 
 - QA baseline commit `be5aff16ad29ead0a135b0770e6812add32e01b3`: GitHub run `40267853550` success.

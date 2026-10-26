@@ -59,9 +59,19 @@ jobs:
       - name: Install from lockfile
         run: npm ci --no-audit --no-fund
       - name: Verify mail security and provider tests
-        run: npx tsx --test server/mail/security.test.ts server/mail/privacy.test.ts server/mail/attachment-security.test.ts server/mail/crypto.test.ts server/mail/binary-crypto.test.ts server/mail/password.test.ts
+        run: npx tsx --test server/mail/security.test.ts server/mail/privacy.test.ts server/mail/attachment-security.test.ts server/mail/crypto.test.ts server/mail/binary-crypto.test.ts server/mail/password.test.ts server/mail/backup.test.ts
       - name: Test mail tenant isolation on disposable PostgreSQL
         run: npx tsx --test server/mail/integration.test.ts
+      - name: Rehearse encrypted PostgreSQL backup and restore on disposable CI
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          export CHATVICE_MAIL_BACKUP_KEY="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')"
+          docker exec "$POSTGRES_CONTAINER" pg_dump -U chatvice_mail -Fc chatvice_mail_ci | node scripts/mail-backup.mjs seal > /tmp/chatvice-mail-backup.cvm
+          docker exec "$POSTGRES_CONTAINER" createdb -U chatvice_mail chatvice_mail_restore_ci
+          node scripts/mail-backup.mjs open < /tmp/chatvice-mail-backup.cvm | docker exec -i "$POSTGRES_CONTAINER" pg_restore -U chatvice_mail --no-owner --exit-on-error -d chatvice_mail_restore_ci
+          node scripts/mail-restore-verify.mjs
       - name: Verify fail-closed QA bootstrap on disposable databases
         run: npx tsx --test server/mail/qa-bootstrap.test.ts
       - name: Typecheck mail files (report existing app baseline separately)
