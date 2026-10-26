@@ -53,13 +53,20 @@ and backend together; no schema migration or provider activation is required.
 
 ## Validation
 
-- Local: 21 existing security/provider/crypto/privacy/password tests passed.
-- Main Chatvice build, standalone QA build and independent-login Mail build passed.
-- Repository TypeScript check retains 280 existing diagnostics; no Mail diagnostics
-  were observed at the local upgrade checkpoint.
+- Commit `4bdd6b37558d54d9c5e2da8ab4879cf431465559`, CI run `40380578473`:
+  56 tests passed (33 security/unit/QA-auth, 19 PostgreSQL integration, two QA
+  bootstrap and two isolated-schema tests). Main Chatvice, standalone QA and
+  independent-login Mail builds passed.
+- Repository TypeScript check retains 280 existing diagnostics; the Mail-specific
+  diagnostic gate passed.
+- A real Docker image passed bootstrap, first-party browser login/session,
+  protected UI/assets, anonymous denial, encrypted CC/BCC draft storage and
+  disabled-outbound checks. Its runtime excludes source assets, runs as a
+  non-root user and measured 257,869,295 bytes (about 246 MiB).
 - `node scripts/mail-workspace-smoke.mjs` tests the actual compiled React bundle
   with synthetic API fixtures: navigation, filters, pagination, local search,
-  archive/restore, star/read, draft save/edit, unsaved-close protection, disabled
+  archive/restore, star/read, recipient-free draft save/edit, CC/BCC persistence,
+  Reply All, queue retry without duplication, unsaved-close protection, disabled
   sending, mobile overflow, stale response isolation, viewer access and safe text.
   Set `CHATVICE_MAIL_BROWSER_PATH` for an existing Chrome executable or install
   Playwright Chromium. Optional `CHATVICE_MAIL_SMOKE_OUTPUT` writes synthetic previews.
