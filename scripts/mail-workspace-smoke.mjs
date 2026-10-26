@@ -88,8 +88,12 @@ try{
  await page.getByRole('button',{name:'A new space for better conversations',exact:false}).click();
  await page.getByRole('button',{name:'Move to inbox',exact:true}).click();
  await page.getByRole('button',{name:/^Inbox/}).click();
+ const starredResponse=page.waitForResponse(response=>{
+  const u=new URL(response.url());return u.pathname==='/api/mail/threads'&&u.searchParams.get('filter')==='starred';
+ });
  await page.getByRole('button',{name:'Starred',exact:true}).click();
- assert.ok(await page.getByRole('button',{name:'A new space for better conversations',exact:false}).count());
+ await starredResponse;
+ await page.getByRole('button',{name:'A new space for better conversations',exact:false}).waitFor();
  await page.getByRole('button',{name:'All',exact:true}).click();
  await page.getByRole('button',{name:'Next page',exact:true}).click();
  await page.getByRole('button',{name:'Second page conversation',exact:false}).waitFor();
