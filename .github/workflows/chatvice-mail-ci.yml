@@ -4,6 +4,12 @@ on:
     branches: [main]
     paths:
       - "server/mail/**"
+      - "script/build-mail-qa.ts"
+      - "scripts/mail-qa-bootstrap.mjs"
+      - "client/mail-qa.html"
+      - "client/src/mail-qa-main.tsx"
+      - "client/src/mail-qa.css"
+      - "vite.mail-qa.config.ts"
       - "client/src/pages/dashboard/mail.tsx"
       - "client/src/pages/dashboard/mail-admin.tsx"
       - "client/src/pages/dashboard/mail-attachments.tsx"
@@ -68,3 +74,13 @@ jobs:
           fi
       - name: Build production bundles
         run: npm run build
+      - name: Build isolated Mail QA web app
+        run: npx tsx script/build-mail-qa.ts
+      - name: Verify no third-party scripts in QA entry document
+        run: |
+          test -f dist/mail-qa/mail-qa.html
+          test -f dist/mail-qa-server.cjs
+          if grep -Ei 'googletagmanager|google-analytics|meta-pixel|fbq\(|fonts.googleapis.com' dist/mail-qa/mail-qa.html; then
+            echo "::error::Tracker detected in private Mail QA HTML"
+            exit 1
+          fi
