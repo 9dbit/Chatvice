@@ -1,9 +1,9 @@
 import { randomBytes,scrypt as scryptCallback,timingSafeEqual } from "node:crypto";
-import { promisify } from "node:util";
-const scrypt=promisify(scryptCallback);
 const options={N:32768,r:8,p:1,maxmem:64*1024*1024};
 async function derive(password:string,salt:Buffer):Promise<Buffer>{
-  return await scrypt(password,salt,32,options) as Buffer;
+  return await new Promise<Buffer>((resolve,reject)=>{
+    scryptCallback(password,salt,32,options,(error,derived)=>error?reject(error):resolve(derived));
+  });
 }
 export async function hashMailPassword(password:string):Promise<string>{
   if(typeof password!=="string" || password.length<16 || password.length>256)
@@ -19,3 +19,4 @@ export async function verifyMailPassword(password:unknown,encoded:unknown):Promi
   const expected=match?Buffer.from(match[2],"hex"):Buffer.alloc(32);
   return timingSafeEqual(derived,expected) && !!match;
 }
+
