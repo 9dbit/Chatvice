@@ -10,6 +10,7 @@ import { scanMailAttachment } from "./scanner";
 import { loadResendReceivedAttachments, cleanMailFilename } from "./resend-attachments";
 
 const vars=[
+  "CHATVICE_MAIL_ENCRYPTION_KEY",
   "CHATVICE_MAIL_R2_ACCOUNT_ID","CHATVICE_MAIL_R2_BUCKET",
   "CHATVICE_MAIL_R2_ACCESS_KEY_ID","CHATVICE_MAIL_R2_SECRET_ACCESS_KEY",
   "CHATVICE_MAIL_ATTACHMENT_DOWNLOAD_HOSTS",
@@ -24,6 +25,7 @@ function reset(){
 }
 test("R2 object store uses server-only SigV4, fixed host, no public URL, and bounded binary content",async()=>{
  const oldFetch=globalThis.fetch;
+ process.env.CHATVICE_MAIL_ENCRYPTION_KEY="e".repeat(64);
  process.env.CHATVICE_MAIL_R2_ACCOUNT_ID="a".repeat(32);
  process.env.CHATVICE_MAIL_R2_BUCKET="chatvice-private-mail";
  process.env.CHATVICE_MAIL_R2_ACCESS_KEY_ID="access-for-test";
@@ -31,6 +33,7 @@ test("R2 object store uses server-only SigV4, fixed host, no public URL, and bou
  const content=Buffer.from("Private invoice");
  const key=newPrivateAttachmentKey("tenant_a","00000000-0000-4000-8000-000000000001");
  const requests:string[]=[];
+ let stored=Buffer.alloc(0);
  globalThis.fetch=async(input,init)=>{
   const uri=String(input);requests.push(uri);
   const u=new URL(uri);
@@ -42,12 +45,14 @@ test("R2 object store uses server-only SigV4, fixed host, no public URL, and bou
   assert.match(headers.get("authorization")||"",/SignedHeaders=host;x-amz-content-sha256;x-amz-date/);
   if(init?.method==="PUT"){
    const sent=Buffer.from(init.body as Uint8Array);
-   assert.deepEqual(sent,content);
-   assert.equal(headers.get("x-amz-content-sha256"),createHash("sha256").update(content).digest("hex"));
+   stored=sent;
+   assert.equal(sent.subarray(0,8).toString(),"CVMAILB1");
+   assert.equal(sent.includes(content),false);
+   assert.equal(headers.get("x-amz-content-sha256"),createHash("sha256").update(sent).digest("hex"));
    return new Response(null,{status:200});
   }
   if(init?.method==="DELETE")return new Response(null,{status:204});
-  return new Response(content,{status:200,headers:{"content-length":String(content.length)}});
+  return new Response(stored,{status:200,headers:{"content-length":String(stored.length)}});
  };
  try{
   await putPrivateAttachment(key,content);
@@ -117,11 +122,13 @@ test("Resend attachment retrieval allows only explicit HTTPS CDN hosts and enfor
 test("virtual-host S3 endpoint signs bucket in hostname with single-slash object path",async()=>{
  const oldFetch=globalThis.fetch;
  const names=[
+  "CHATVICE_MAIL_ENCRYPTION_KEY",
   "CHATVICE_MAIL_S3_ENDPOINT","CHATVICE_MAIL_S3_BUCKET",
   "CHATVICE_MAIL_S3_REGION","CHATVICE_MAIL_S3_URL_STYLE",
   "CHATVICE_MAIL_S3_ACCESS_KEY_ID","CHATVICE_MAIL_S3_SECRET_ACCESS_KEY"
  ] as const;
  const old=Object.fromEntries(names.map(k=>[k,process.env[k]]));
+ process.env.CHATVICE_MAIL_ENCRYPTION_KEY="e".repeat(64);
  process.env.CHATVICE_MAIL_S3_ENDPOINT="https://t3.storageapi.dev";
  process.env.CHATVICE_MAIL_S3_BUCKET="mail-qa-safe";
  process.env.CHATVICE_MAIL_S3_REGION="auto";
@@ -130,6 +137,7 @@ test("virtual-host S3 endpoint signs bucket in hostname with single-slash object
  process.env.CHATVICE_MAIL_S3_SECRET_ACCESS_KEY="qa-secret";
  let requests=0;
  const value=Buffer.from("private QA test file");
+ let stored=Buffer.alloc(0);
  globalThis.fetch=async(input,init)=>{
   requests++;
   const uri=new URL(String(input));
@@ -139,8 +147,9 @@ test("virtual-host S3 endpoint signs bucket in hostname with single-slash object
   assert.equal(init?.redirect,"manual");
   const h=new Headers(init?.headers);
   assert.match(h.get("authorization")||"",/Credential=qa-access\/\d{8}\/auto\/s3\/aws4_request/);
-  assert.equal(h.get("x-amz-content-sha256"),createHash("sha256").update(init?.method==="PUT"?value:Buffer.alloc(0)).digest("hex"));
-  if(init?.method==="GET")return new Response(value,{status:200});
+  if(init?.method==="PUT")stored=Buffer.from(init.body as Uint8Array);
+  assert.equal(h.get("x-amz-content-sha256"),createHash("sha256").update(init?.method==="PUT"?stored:Buffer.alloc(0)).digest("hex"));
+  if(init?.method==="GET")return new Response(stored,{status:200});
   return new Response(null,{status:init?.method==="DELETE"?204:200});
  };
  try{
@@ -156,3 +165,4 @@ test("virtual-host S3 endpoint signs bucket in hostname with single-slash object
   for(const k of names){if(old[k]===undefined)delete process.env[k];else process.env[k]=old[k];}
  }
 });
+

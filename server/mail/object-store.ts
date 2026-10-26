@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomUUID } from "node:crypto";
+import { encryptMailBinary, decryptMailBinary, MAIL_BINARY_OVERHEAD } from "./crypto";
 
 export const MAX_MAIL_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 export const MAX_MAIL_ATTACHMENTS = 8;
@@ -94,8 +95,9 @@ export async function putPrivateAttachment(key:string, data:Buffer):Promise<void
   if (!Buffer.isBuffer(data) || !data.length || data.length>MAX_MAIL_ATTACHMENT_BYTES)
     throw new Error("Mail attachment exceeds private upload policy");
   const config=settings();
-  const signed=authorization("PUT",key,data,config,new Date());
-  const result=await fetch(signed.url,{method:"PUT",headers:signed.headers,body:new Uint8Array(data),
+  const encrypted=encryptMailBinary(key,data);
+  const signed=authorization("PUT",key,encrypted,config,new Date());
+  const result=await fetch(signed.url,{method:"PUT",headers:signed.headers,body:new Uint8Array(encrypted),
     redirect:"manual",signal:AbortSignal.timeout(20000)});
   if(!result.ok) throw new Error("Private object upload failed");
 }
@@ -106,7 +108,7 @@ export async function getPrivateAttachment(key:string):Promise<Buffer>{
     signal:AbortSignal.timeout(20000)});
   if(result.status!==200 || !result.body)throw new Error("Private object unavailable");
   const advertised=Number(result.headers.get("content-length")||0);
-  if(advertised>MAX_MAIL_ATTACHMENT_BYTES){await result.body.cancel();throw new Error("Private object exceeds download policy");}
+  if(advertised>MAX_MAIL_ATTACHMENT_BYTES+MAIL_BINARY_OVERHEAD){await result.body.cancel();throw new Error("Private object exceeds download policy");}
   const reader=result.body.getReader();
   let size=0;const chunks:Buffer[]=[];
   try{
@@ -114,11 +116,11 @@ export async function getPrivateAttachment(key:string):Promise<Buffer>{
       const {done,value}=await reader.read();
       if(done)break;
       size+=value.byteLength;
-      if(size>MAX_MAIL_ATTACHMENT_BYTES)throw new Error("Private object exceeds download policy");
+      if(size>MAX_MAIL_ATTACHMENT_BYTES+MAIL_BINARY_OVERHEAD)throw new Error("Private object exceeds download policy");
       chunks.push(Buffer.from(value));
     }
   }catch(err){await reader.cancel().catch(()=>{});throw err;}
-  return Buffer.concat(chunks,size);
+  return decryptMailBinary(key,Buffer.concat(chunks,size));
 }
 export async function deletePrivateAttachment(key:string):Promise<void>{
   const config=settings();
@@ -127,3 +129,4 @@ export async function deletePrivateAttachment(key:string):Promise<void>{
     redirect:"manual",signal:AbortSignal.timeout(15000)});
   if(!result.ok && result.status!==404)throw new Error("Private object deletion failed");
 }
+

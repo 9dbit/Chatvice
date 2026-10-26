@@ -32,7 +32,22 @@ export default function MailPage(){
  const [draftSaved,setDraftSaved]=useState(false);
  const [reload,setReload]=useState(0);
  useEffect(()=>{apiRequest("GET","/api/mail/mailboxes").then(r=>r.json()).then((x:Box[])=>{setBoxes(x);if(x.length)setBox(x[0].id)}).catch(e=>setError(e.message))},[]);
- useEffect(()=>{if(!box)return;setLoading(true);setError("");setSelected("");apiRequest("GET",`/api/mail/threads?mailboxId=${encodeURIComponent(box)}&folder=${folder}`).then(r=>r.json()).then(setThreads).catch(e=>setError(e.message)).finally(()=>setLoading(false))},[box,folder,reload]);
+ useEffect(()=>{
+  if(!box)return;
+  let active=true;setLoading(true);setError("");setSelected("");setThreads([]);
+  apiRequest("GET",`/api/mail/threads?mailboxId=${encodeURIComponent(box)}&folder=${folder}`)
+   .then(r=>r.json()).then(x=>{if(active)setThreads(x)})
+   .catch(e=>{if(active)setError(e.message)})
+   .finally(()=>{if(active)setLoading(false)});
+  return ()=>{active=false};
+ },[box,folder,reload]);
+ function changeMailbox(next:string){
+  if(saving || next===box)return;
+  if(compose&&!window.confirm("Switching mailboxes closes the current editor. Saved drafts stay in the original mailbox. Continue?"))return;
+  setCompose(false);setDraftId(undefined);setDraftSaved(false);setReplyToId(undefined);
+  setTo("");setSubject("");setBody("");setMessages([]);setContext(null);setAiSummary("");
+  setBox(next);
+ }
  useEffect(()=>{
   if(!selected){setMessages([]);setContext(null);return;}
   setMessages([]);setContext(null);setAiSummary("");
@@ -98,7 +113,7 @@ export default function MailPage(){
   {error&&<div role="alert" className="bg-red-950/40 px-5 py-3 text-red-300 text-sm">{error}</div>}
   <div className="flex flex-col md:flex-row flex-1 min-h-[65vh]">
    <nav className="md:w-48 shrink-0 border-b md:border-b-0 md:border-r border-white/10 p-3">
-    <select aria-label="Mailbox" value={box} onChange={e=>setBox(e.target.value)} className="bg-white/10 text-white w-full rounded-lg p-2 text-xs mb-5">
+    <select aria-label="Mailbox" value={box} disabled={saving} onChange={e=>changeMailbox(e.target.value)} className="bg-white/10 text-white w-full rounded-lg p-2 text-xs mb-5">
     {boxes.map(b=><option className="bg-neutral-900" key={b.id} value={b.id}>{b.local_part}@{b.domain}</option>)}</select>
     {folders.map(f=><button key={f.name} onClick={()=>setFolder(f.name)} className={`w-full flex items-center gap-3 p-3 rounded-xl text-sm text-left ${folder===f.name?"bg-orange-500/15 text-orange-400":"text-white/60 hover:bg-white/5"}`}><f.icon size={17}/>{f.label}</button>)}
     {!boxes.length&&<p className="text-xs text-white/40 px-3 mt-4">No mailbox assigned. Configure one in Mail Admin.</p>}
@@ -169,3 +184,4 @@ export default function MailPage(){
   </div></div>}
  </section>;
 }
+

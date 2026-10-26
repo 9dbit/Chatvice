@@ -11,6 +11,8 @@ import { registerAttachment, MailAttachmentPolicyError } from "./attachment-quot
 import { persistInboundMailAttachments } from "./attachments";
 import { newPrivateAttachmentKey } from "./object-store";
 import { pool as appPool } from "../db";
+import {registerMailLogin,MAIL_COOKIE} from "./login";
+import {hashMailPassword} from "./password";
 
 const fixture = {
   tenantA:"merchant_mail_ci_A",
@@ -68,10 +70,62 @@ after(async()=>{
   await pool.end();
   await appPool.end();
 });
-test("fresh migration creates all eight mail tables without touching unrelated data",async()=>{
+
+test("isolated login uses host-only sessions, live mailbox permissions and immediate revocation",async()=>{
+  await pool.query(readFileSync("migrations/20261027_chatvice_mail_login.sql","utf8"));
+  const loginId=randomUUID(),otherId=randomUUID(),password="Synthetic-password-for-ci-12345";
+  const hash=await hashMailPassword(password);
+  await pool.query(`INSERT INTO mail_login_users(id,tenant_id,user_id,email,password_hash,is_admin)
+    VALUES($1,$2,$3,'viewer@ci-alpha.example',$4,false),
+    ($5,$6,$6,'owner@ci-beta.example',$4,true)`,[
+    loginId,fixture.tenantA,fixture.supervisor,hash,otherId,fixture.tenantB
+  ]);
+  const app=express();app.set("trust proxy",1);app.use(express.json());
+  registerMailLogin(app,appPool,"https://mail-ci.example","f".repeat(64));
+  registerMailRoutes(app);
+  const unauth=await supertest(app).get("/api/mail/mailboxes");assert.equal(unauth.status,401);
+  const forbidden=await supertest(app).post("/api/mail-auth/login").set("Origin","https://evil.example")
+    .send({email:"viewer@ci-alpha.example",password});assert.equal(forbidden.status,403);
+  const signIn=async(email:string)=>supertest(app).post("/api/mail-auth/login")
+    .set("Origin","https://mail-ci.example").send({email,password});
+  const response=await signIn("viewer@ci-alpha.example");assert.equal(response.status,200);
+  const setCookie=String(response.headers["set-cookie"]?.[0]||"");
+  assert.match(setCookie,/^__Host-chatvice_mail=[a-f0-9]{64};/);
+  for(const flag of ["Secure","HttpOnly","SameSite=Strict","Path=/"])assert.ok(setCookie.includes(flag));
+  assert.equal(setCookie.includes("Domain="),false);
+  const cookie=setCookie.split(";")[0];
+  const stored=await pool.query("SELECT token_hash FROM mail_login_sessions WHERE login_id=$1",[loginId]);
+  assert.equal(stored.rowCount,1);assert.notEqual(stored.rows[0].token_hash,cookie.split("=")[1]);
+  const boxes=await supertest(app).get("/api/mail/mailboxes").set("Cookie",cookie);
+  assert.equal(boxes.status,200);assert.deepEqual(boxes.body.map((x:any)=>x.id),[fixture.boxA]);
+  const foreign=await supertest(app).get("/api/mail/threads?mailboxId="+fixture.boxB).set("Cookie",cookie);
+  assert.equal(foreign.status,403);
+  // Engine writes require its own explicit trusted origin and viewer cannot compose.
+  const oldOrigin=process.env.CHATVICE_MAIL_ALLOWED_ORIGINS;
+  process.env.CHATVICE_MAIL_ALLOWED_ORIGINS="https://mail-ci.example";
+  try{
+    const denied=await supertest(app).post("/api/mail/compose").set("Cookie",cookie)
+      .set("Origin","https://mail-ci.example").send({mailboxId:fixture.boxA,to:["test@example.com"],draft:true});
+    assert.equal(denied.status,403);
+    const admin=await supertest(app).get("/api/mail/domains").set("Cookie",cookie);assert.equal(admin.status,403);
+  }finally{process.env.CHATVICE_MAIL_ALLOWED_ORIGINS=oldOrigin;}
+  const duplicateCookie=await supertest(app).get("/api/mail-auth/session").set("Cookie",cookie+"; "+cookie);
+  assert.equal(duplicateCookie.status,401);
+  await pool.query("UPDATE mail_login_users SET credential_version=credential_version+1 WHERE id=$1",[loginId]);
+  assert.equal((await supertest(app).get("/api/mail-auth/session").set("Cookie",cookie)).status,401);
+  const owner=await signIn("owner@ci-beta.example");assert.equal(owner.status,200);
+  const ownerCookie=String(owner.headers["set-cookie"]?.[0]).split(";")[0];
+  const own=await supertest(app).get("/api/mail/mailboxes").set("Cookie",ownerCookie);
+  assert.equal(own.status,200);assert.deepEqual(own.body.map((x:any)=>x.id),[fixture.boxB]);
+  const logout=await supertest(app).post("/api/mail-auth/logout").set("Cookie",ownerCookie)
+    .set("Origin","https://mail-ci.example");assert.equal(logout.status,200);
+  assert.equal((await supertest(app).get("/api/mail-auth/session").set("Cookie",ownerCookie)).status,401);
+  assert.equal(MAIL_COOKIE,"__Host-chatvice_mail");
+});
+test("fresh migrations create all eleven mail tables without touching unrelated data",async()=>{
   const q=await pool.query(`SELECT count(*)::integer AS count FROM information_schema.tables
     WHERE table_schema='public' AND table_name LIKE 'mail_%'`);
-  assert.equal(q.rows[0].count,8);
+  assert.equal(q.rows[0].count,11);
 });
 test("encryption is mandatory and mail API fails closed if master key disappears",async()=>{
   const key=process.env.CHATVICE_MAIL_ENCRYPTION_KEY;
@@ -346,3 +400,4 @@ test("inbound attachments reconcile on webhook replay without cross-tenant copie
   for(const k of vars){if(old[k]===undefined)delete process.env[k];else process.env[k]=old[k];}
  }
 });
+

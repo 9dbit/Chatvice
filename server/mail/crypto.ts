@@ -31,6 +31,39 @@ function deriveKey(tenantId:string):Buffer {
   key.fill(0);
   return Buffer.from(material);
 }
+
+// Binary objects use a separate version/purpose from database fields. Binding
+// the complete private key prevents moving ciphertext to another attachment.
+const BINARY_MAGIC=Buffer.from("CVMAILB1");
+export const MAIL_BINARY_OVERHEAD=BINARY_MAGIC.length+12+16;
+function binaryScope(objectKey:string):{tenant:string;aad:Buffer}{
+  const match=/^mail\/([a-zA-Z0-9_-]{1,32})\/([0-9a-f-]{36})\/([a-zA-Z0-9_-]{1,128})$/i.exec(objectKey);
+  if(!match)throw new Error("Invalid binary mail scope");
+  return {tenant:match[1],aad:Buffer.from("chatvice-mail|binary|v1|"+objectKey)};
+}
+export function encryptMailBinary(objectKey:string,value:Buffer):Buffer{
+  if(!Buffer.isBuffer(value) || !value.length)throw new Error("Invalid binary mail content");
+  const scope=binaryScope(objectKey),key=deriveKey(scope.tenant),iv=randomBytes(12);
+  try{
+    const cipher=createCipheriv("aes-256-gcm",key,iv);
+    cipher.setAAD(scope.aad);
+    const data=Buffer.concat([cipher.update(value),cipher.final()]);
+    return Buffer.concat([BINARY_MAGIC,iv,cipher.getAuthTag(),data]);
+  }finally{key.fill(0);}
+}
+export function decryptMailBinary(objectKey:string,value:Buffer):Buffer{
+  const scope=binaryScope(objectKey);
+  if(!Buffer.isBuffer(value) || value.length<=MAIL_BINARY_OVERHEAD ||
+     !value.subarray(0,BINARY_MAGIC.length).equals(BINARY_MAGIC))
+    throw new Error("Encrypted mail object required; legacy objects require migration");
+  const offset=BINARY_MAGIC.length,key=deriveKey(scope.tenant);
+  try{
+    const decipher=createDecipheriv("aes-256-gcm",key,value.subarray(offset,offset+12));
+    decipher.setAAD(scope.aad);
+    decipher.setAuthTag(value.subarray(offset+12,offset+28));
+    return Buffer.concat([decipher.update(value.subarray(MAIL_BINARY_OVERHEAD)),decipher.final()]);
+  }finally{key.fill(0);}
+}
 function associated(tenantId:string,recordId:string,field:MailSecretField){
   if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(recordId) ||
       !PURPOSES.includes(field))throw new Error("Invalid mail encryption scope");
@@ -68,3 +101,4 @@ export function decryptMailField(
     return Buffer.concat([decipher.update(data),decipher.final()]).toString("utf8");
   }finally{key.fill(0);}
 }
+

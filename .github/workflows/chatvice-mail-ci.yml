@@ -59,7 +59,7 @@ jobs:
       - name: Install from lockfile
         run: npm ci --no-audit --no-fund
       - name: Verify mail security and provider tests
-        run: npx tsx --test server/mail/security.test.ts server/mail/privacy.test.ts server/mail/attachment-security.test.ts server/mail/crypto.test.ts
+        run: npx tsx --test server/mail/security.test.ts server/mail/privacy.test.ts server/mail/attachment-security.test.ts server/mail/crypto.test.ts server/mail/binary-crypto.test.ts server/mail/password.test.ts
       - name: Test mail tenant isolation on disposable PostgreSQL
         run: npx tsx --test server/mail/integration.test.ts
       - name: Verify fail-closed QA bootstrap on disposable databases
@@ -67,7 +67,7 @@ jobs:
       - name: Typecheck mail files (report existing app baseline separately)
         run: |
           npm run check > /tmp/chatvice-typecheck.log 2>&1 || TYPECHECK_FAILED=1
-          if grep -E '(server/mail/|client/src/pages/dashboard/mail(-admin)?\.tsx)' /tmp/chatvice-typecheck.log; then
+          if grep -E '(server/mail/|client/src/mail-(app|qa)-main\.tsx|script/build-mail-|vite.mail-|client/src/pages/dashboard/mail(-admin|-attachments)?\.tsx)' /tmp/chatvice-typecheck.log; then
             echo "::error::New mail TypeScript diagnostics detected"
             exit 1
           fi
@@ -79,6 +79,8 @@ jobs:
         run: npm run build
       - name: Build isolated Mail QA web app
         run: npx tsx script/build-mail-qa.ts
+      - name: Build isolated Mail app with independent login
+        run: npx tsx script/build-mail-app.ts
       - name: Verify no third-party scripts in QA entry document
         run: |
           test -f dist/mail-qa/mail-qa.html
@@ -87,3 +89,4 @@ jobs:
             echo "::error::Tracker detected in private Mail QA HTML"
             exit 1
           fi
+
