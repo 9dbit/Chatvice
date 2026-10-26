@@ -507,3 +507,68 @@ test("workspace capabilities expose booleans only and mailbox roles match write 
  assert.ok(owned.body.every(b=>b.can_write===true));
  assert.equal((await supertest(server).get("/api/mail/capabilities")).status,401);
 });
+
+test("recipient-free drafts save privately and BCC is exposed only to authorized draft editors",async()=>{
+ const made=await supertest(server).post('/api/mail/compose').set('x-ci-subject','merchantA')
+  .set('origin','http://test.local').send({mailboxId:fixture.boxA,subject:'Notes before addressing',text:'Private draft',draft:true});
+ assert.equal(made.status,201);
+ const id=made.body.id,thread=made.body.threadId;
+ const read=(subject:string)=>supertest(server).get(`/api/mail/drafts/${id}`).set('x-ci-subject',subject);
+ const owner=await read('merchantA');
+ assert.equal(owner.status,200);assert.deepEqual(owner.body.to,[]);assert.equal(owner.body.text,'Private draft');
+ assert.equal((await read('viewerA')).status,404);assert.equal((await read('merchantB')).status,404);
+ assert.equal((await supertest(server).get(`/api/mail/drafts/${id}`)).status,401);
+ const patch=await supertest(server).patch(`/api/mail/drafts/${id}`).set('x-ci-subject','merchantA')
+  .set('origin','http://test.local').send({to:['person@example.org'],cc:['reviewer@example.org'],bcc:['hidden@example.org']});
+ assert.equal(patch.status,200);
+ const edit=await read('merchantA');
+ assert.deepEqual(edit.body.cc,['reviewer@example.org']);assert.deepEqual(edit.body.bcc,['hidden@example.org']);
+ assert.equal(edit.body.mailboxId,fixture.boxA);assert.match(edit.headers['cache-control'],/no-store/);
+ const preview=await supertest(server).get(`/api/mail/threads/${thread}`).set('x-ci-subject','viewerA');
+ assert.equal(preview.status,200);assert.equal(Object.hasOwn(preview.body[0],'bcc_emails'),false);
+ assert.equal(JSON.stringify(preview.body).includes('hidden@example.org'),false);
+ await pool.query("UPDATE mail_memberships SET role='member' WHERE mailbox_id=$1 AND user_id=$2",[fixture.boxA,fixture.supervisor]);
+ try{assert.equal((await read('viewerA')).status,200);}
+ finally{await pool.query("UPDATE mail_memberships SET role='viewer' WHERE mailbox_id=$1 AND user_id=$2",[fixture.boxA,fixture.supervisor]);}
+ await pool.query('UPDATE mail_mailboxes SET enabled=false WHERE id=$1',[fixture.boxA]);
+ try{assert.equal((await read('merchantA')).status,404);}
+ finally{await pool.query('UPDATE mail_mailboxes SET enabled=true WHERE id=$1',[fixture.boxA]);}
+});
+
+test("clearing draft recipients preserves content and cannot queue until To is valid",async()=>{
+ const variables=['CHATVICE_MAIL_OUTBOUND_ENABLED','CHATVICE_MAIL_PROVIDER','RESEND_API_KEY'];
+ const previous=Object.fromEntries(variables.map(k=>[k,process.env[k]]));
+ process.env.CHATVICE_MAIL_OUTBOUND_ENABLED='true';process.env.CHATVICE_MAIL_PROVIDER='resend';
+ process.env.RESEND_API_KEY='re_synthetic_queue_only';
+ try{
+  const made=await supertest(server).post('/api/mail/compose').set('x-ci-subject','merchantA')
+   .set('origin','http://test.local').send({mailboxId:fixture.boxA,to:['old@example.org'],cc:['copy@example.org'],bcc:['private@example.org'],text:'Keep me',draft:true});
+  assert.equal(made.status,201);
+  const id=made.body.id;
+  const clearing=await supertest(server).patch(`/api/mail/drafts/${id}`).set('x-ci-subject','merchantA')
+   .set('origin','http://test.local').send({to:[],cc:[],bcc:[]});
+  assert.equal(clearing.status,200);
+  const editor=await supertest(server).get(`/api/mail/drafts/${id}`).set('x-ci-subject','merchantA');
+  assert.deepEqual(editor.body.to,[]);assert.deepEqual(editor.body.cc,[]);assert.deepEqual(editor.body.bcc,[]);assert.equal(editor.body.text,'Keep me');
+  const send=()=>supertest(server).post(`/api/mail/drafts/${id}/send`).set('x-ci-subject','merchantA').set('origin','http://test.local').send({});
+  assert.equal((await send()).status,409);
+  const saved=await pool.query('SELECT status,folder FROM mail_messages WHERE id=$1',[id]);
+  assert.deepEqual(saved.rows[0],{status:'draft',folder:'drafts'});
+  const direct=await supertest(server).post('/api/mail/compose').set('x-ci-subject','merchantA')
+   .set('origin','http://test.local').send({mailboxId:fixture.boxA,text:'Not a draft',draft:false});
+  assert.equal(direct.status,400);
+  await supertest(server).patch(`/api/mail/drafts/${id}`).set('x-ci-subject','merchantA')
+   .set('origin','http://test.local').send({to:['valid@example.org'],cc:['copy@example.org'],bcc:['hidden@example.org']}).expect(200);
+  assert.equal((await send()).status,200); // queue only; no external worker or message
+  assert.equal((await send()).status,404);
+  assert.equal((await supertest(server).get(`/api/mail/drafts/${id}`).set('x-ci-subject','merchantA')).status,404);
+ }finally{for(const k of variables){if(previous[k]===undefined)delete process.env[k];else process.env[k]=previous[k];}}
+});
+
+test("reply-address aliases are listed only for authorized mailbox memberships",async()=>{
+ await pool.query("INSERT INTO mail_aliases(id,tenant_id,domain_id,mailbox_id,local_part) VALUES($1,$2,$3,$4,'reply-team')",[randomUUID(),fixture.tenantA,fixture.domainA,fixture.boxA]);
+ const member=await supertest(server).get('/api/mail/mailboxes').set('x-ci-subject','viewerA');
+ assert.equal(member.status,200);assert.ok(member.body[0].aliases.includes('reply-team@ci-alpha.example'));
+ const other=await supertest(server).get('/api/mail/mailboxes').set('x-ci-subject','merchantB');
+ assert.equal(JSON.stringify(other.body).includes('reply-team@ci-alpha.example'),false);
+});

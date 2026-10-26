@@ -14,6 +14,28 @@ Existing `Chatvice-staging`, its PostgreSQL, and all five previous uncommitted s
 
 ### Build / start
 
+#### Minimal Mail-only container
+
+`Dockerfile.mail-qa` builds the same QA frontend/backend in a build stage, then
+copies only the compiled Mail bundle, guarded bootstrap and reviewed QA migrations
+into a non-root Node runtime. Its separately locked dependencies are `pg`,
+`drizzle-zod` and their required peers. Source assets, browser downloads and main-app
+development dependencies are excluded from the runtime. No database/provider secret
+is needed during the Docker build.
+
+`railway.mail-qa.json` selects that Dockerfile. It must be selected **only** on
+`Chatvice-Mail-QA` after the CI image test passes. Existing Chatvice production and
+other staging services must retain their own build settings. Do not accept the
+environment's unrelated five-change staged patch to apply this setting.
+
+CI builds the actual image, enforces an image size below 350 MiB and boots it
+against a separate freshly created disposable PostgreSQL database. It verifies
+guarded bootstrap, health, authenticated UI/assets, anonymous denial, draft
+To/CC/BCC handling, disabled sending, absent source assets and a non-root process.
+The database/container are removed afterward; this is not a production rollout.
+
+The older Railpack build/start values below remain the fallback configuration.
+
 - Source: `9dbit/Chatvice` branch `feature/chatvice-mail-engine-20261026`
 - Build: `npx tsx script/build-mail-qa.ts`
 - Pre-deploy: `node scripts/mail-qa-bootstrap.mjs`
@@ -21,8 +43,12 @@ Existing `Chatvice-staging`, its PostgreSQL, and all five previous uncommitted s
 - Healthcheck: `GET /health`
 - Isolated React UI: `/dashboard/mail` and `/dashboard/mail/admin`
 - QA HTML has no Google Tag Manager, Facebook/Meta Pixel, external marketing scripts, or Google Fonts.
-- HTTP Basic QA login username: `mailqa`. Password is the **sealed Railway variable** `CHATVICE_MAIL_QA_TOKEN`; do not paste it in chat, commits or logs.
-- The QA HTTP API also accepts `Authorization: Bearer <same QA token>`.
+- First-party QA login is `/login`, username `mailqa`. The browser password is
+  checked against `CHATVICE_MAIL_QA_BASIC_PASSWORD_HASH`; its plaintext is not stored
+  in application code. Successful login issues a short-lived Secure/HttpOnly cookie.
+- The separate server-side `CHATVICE_MAIL_QA_TOKEN` authenticates QA API Bearer
+  requests and signs QA sessions. Do not use it as the browser password or paste
+  either credential in chat, commits or logs.
 
 ### Secrets & flags
 
@@ -39,6 +65,7 @@ CHATVICE_MAIL_ATTACHMENTS_ENABLED=false
 CHATVICE_MAIL_PROVIDER=disabled
 CHATVICE_MAIL_ALLOWED_ORIGINS=https://<verified-railway-qa-domain>
 CHATVICE_MAIL_QA_TOKEN=<64-hex-secure-secret>
+CHATVICE_MAIL_QA_BASIC_PASSWORD_HASH=<scrypt1.salt.digest-generated-privately>
 CHATVICE_MAIL_ENCRYPTION_KEY=<64-hex-secure-secret>
 ```
 

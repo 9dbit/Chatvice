@@ -29,6 +29,13 @@ and backend together; no schema migration or provider activation is required.
 - Reader requests are canceled when switching conversation/mailbox. Synthetic browser
   tests deliberately delay a response to verify that it does not repopulate another
   mailbox's reader. Email markup is displayed as plain text.
+- Compose supports To/CC/BCC, and can save a draft before To is filled. Queueing
+  still requires a valid To recipient and an enabled provider. Clearing recipient
+  fields updates the saved draft rather than silently retaining hidden addresses.
+- Reply All deduplicates addresses, excludes the current mailbox and its aliases,
+  and never adds BCC recipients. Normal Reply addresses only the sender.
+- Complete draft recipients are loaded from the writer-only draft editor API.
+  Thread reading continues to omit BCC, including for read-only mailbox members.
 
 ## API additions
 
@@ -40,6 +47,9 @@ and backend together; no schema migration or provider activation is required.
 - `PATCH /api/mail/threads/:id`: requires `mailboxId` and `sourceFolder`, plus
   `isRead`, `isStarred` and/or `folder`. Mutations require an allowed Origin and live
   enabled mailbox with owner/member access. Draft folder moves are rejected.
+- `GET /api/mail/drafts/:id`: writer-only, enabled-mailbox, tenant-scoped draft data
+  including To/CC/BCC and decrypted subject/body. It refuses queued/sent messages.
+- Mailbox listing adds only that mailbox's aliases for correct Reply All exclusion.
 
 ## Validation
 

@@ -27,6 +27,7 @@ try{
  page.setDefaultTimeout(15000);
  page.setDefaultNavigationTimeout(15000);
  let viewer=false,folder='inbox',read=false,starred=false,draft=null,patches=0,composeCalls=0;
+ let sendingAvailable=false,queueCalls=0;
  let delayThread=false,delayCompose=false;
  const errors=[];
  page.on('pageerror',error=>errors.push(error.message));
@@ -34,8 +35,8 @@ try{
   const url=new URL(route.request().url());
   const method=route.request().method(),path=url.pathname;
   const fulfill=(body,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
-  if(path==='/api/mail/capabilities')return fulfill({admin:!viewer,outbound:false,ai:false,attachments:false});
-  if(path==='/api/mail/mailboxes')return fulfill([{id:box,local_part:'hello',domain:'studio.example.invalid',display_name:'Studio',enabled:true,can_write:!viewer},{id:otherBox,local_part:'team',domain:'studio.example.invalid',display_name:'Team',enabled:true,can_write:!viewer}]);
+  if(path==='/api/mail/capabilities')return fulfill({admin:!viewer,outbound:sendingAvailable,ai:false,attachments:false});
+  if(path==='/api/mail/mailboxes')return fulfill([{id:box,local_part:'hello',domain:'studio.example.invalid',display_name:'Studio',enabled:true,can_write:!viewer,aliases:['sales@studio.example.invalid']},{id:otherBox,local_part:'team',domain:'studio.example.invalid',display_name:'Team',enabled:true,can_write:!viewer,aliases:[]}]);
   if(path.endsWith('/stats'))return fulfill([{folder,total:2,unread:read?0:1},{folder:'drafts',total:draft?1:0,unread:0}]);
   if(path==='/api/mail/threads'){
    const activeFolder=url.searchParams.get('folder'),filter=url.searchParams.get('filter');
@@ -56,7 +57,7 @@ try{
   if(path.endsWith('/context'))return fulfill({sender:'amelia@example.invalid',lead:null});
   if(path===`/api/mail/threads/${thread}`){
    if(delayThread)await wait(350);
-   return fulfill([{id:message,direction:'inbound',status:'received',from_email:base.from_email,to_emails:['hello@studio.example.invalid'],subject:base.subject,text_body:'Hi team,\n\nCould you share the details for our next project?\n\n<img src=x onerror=alert(1)>\n\nThank you,\nAmelia',created_at:base.created_at,is_read:read,is_starred:starred}]);
+   return fulfill([{id:message,direction:'inbound',status:'received',from_email:base.from_email,to_emails:['hello@studio.example.invalid','sales@studio.example.invalid','partner@example.invalid'],cc_emails:['reviewer@example.invalid','partner@example.invalid'],subject:base.subject,text_body:'Hi team,\n\nCould you share the details for our next project?\n\n<img src=x onerror=alert(1)>\n\nThank you,\nAmelia',created_at:base.created_at,is_read:read,is_starred:starred}]);
   }
   if(path===`/api/mail/threads/${thread2}`)return fulfill([{id:'draft-message',status:'draft',direction:'outbound',from_email:'hello@studio.example.invalid',to_emails:draft?.to||[],subject:draft?.subject||'',text_body:draft?.text||'',created_at:base.created_at,is_read:true,is_starred:false}]);
   if(path==='/api/mail/compose'){
@@ -65,6 +66,10 @@ try{
    return fulfill({id:'draft-message',status:'draft'},201);
   }
   if(path==='/api/mail/drafts/draft-message'&&method==='PATCH'){draft=route.request().postDataJSON();return fulfill({id:'draft-message',status:'draft'});}
+  if(path==='/api/mail/drafts/draft-message'&&method==='GET')return fulfill({id:'draft-message',mailboxId:box,to:draft?.to||[],cc:draft?.cc||[],bcc:draft?.bcc||[],subject:draft?.subject||'',text:draft?.text||''});
+  if(path==='/api/mail/drafts/draft-message/send'&&method==='POST'){
+   queueCalls++;return queueCalls===1?fulfill({error:'Temporary provider failure'},503):fulfill({id:'draft-message',status:'queued'});
+  }
   return fulfill({error:'Unexpected test request: '+path},404);
  });
  await page.goto(origin+'/dashboard/mail');
@@ -78,6 +83,12 @@ try{
  assert.equal(await page.locator('.mail-message-body img').count(),0);
  assert.ok(await page.locator('.mail-message-body').innerText().then(t=>t.includes('<img')));
  await screen(page,'mail-conversation');
+ await page.getByRole('button',{name:'Reply all',exact:true}).click();
+ assert.equal(await page.getByLabel('Recipients',{exact:true}).inputValue(),'amelia@example.invalid, partner@example.invalid');
+ assert.equal(await page.getByLabel('CC recipients',{exact:true}).inputValue(),'reviewer@example.invalid');
+ assert.equal(await page.getByLabel('BCC recipients',{exact:true}).inputValue(),'');
+ page.once('dialog',dialog=>dialog.accept());
+ await page.getByRole('button',{name:'Close',exact:true}).click();
  await page.getByRole('button',{name:'Star conversation',exact:true}).click();
  await page.getByRole('button',{name:'Remove star',exact:true}).waitFor();
  await page.getByRole('button',{name:'Mark read',exact:true}).click();
@@ -102,15 +113,20 @@ try{
  await page.getByText('No matches on this page',{exact:true}).waitFor();
  await page.getByRole('button',{name:'Clear search',exact:true}).first().click();
  await page.getByRole('button',{name:'Compose',exact:false}).click();
- await page.getByLabel('Recipients',{exact:true}).fill('client@example.invalid');
  await page.getByLabel('Subject',{exact:true}).fill('Project follow-up');
  await page.getByLabel('Message',{exact:true}).fill('Thank you for getting in touch.');
+ await page.getByRole('button',{name:'CC / BCC',exact:true}).click();
+ await page.getByLabel('CC recipients',{exact:true}).fill('reviewer@example.invalid');
+ await page.getByLabel('BCC recipients',{exact:true}).fill('hidden@example.invalid');
  assert.equal(await page.getByRole('button',{name:'Queue send',exact:true}).isDisabled(),true);
  await screen(page,'mail-compose');
  delayCompose=true;
  await page.getByRole('button',{name:'Save draft',exact:true}).click();
  await page.getByText('Draft saved privately',{exact:true}).waitFor();
  assert.equal(composeCalls,1);
+ assert.deepEqual(draft.to,[],'a draft must save before a To recipient exists');
+ assert.deepEqual(draft.cc,['reviewer@example.invalid']);assert.deepEqual(draft.bcc,['hidden@example.invalid']);
+ await page.getByLabel('Recipients',{exact:true}).fill('client@example.invalid');
  await page.getByLabel('Message',{exact:true}).fill('An unsaved change');
  page.once('dialog',dialog=>dialog.dismiss());
  await page.getByRole('button',{name:'Close',exact:true}).click();
@@ -123,7 +139,10 @@ try{
  await page.getByRole('button',{name:/^Drafts/}).click();
  await page.getByRole('button',{name:'Project follow-up',exact:false}).click();
  await page.getByRole('button',{name:'Continue editing',exact:true}).click();
+ await page.getByRole('dialog').waitFor();
  assert.equal(await page.getByLabel('Message',{exact:true}).inputValue(),'An unsaved change');
+ assert.equal(await page.getByLabel('CC recipients',{exact:true}).inputValue(),'reviewer@example.invalid');
+ assert.equal(await page.getByLabel('BCC recipients',{exact:true}).inputValue(),'hidden@example.invalid');
  await page.getByRole('button',{name:'Close',exact:true}).click();
  await page.getByRole('button',{name:/^Inbox/}).click();
  await page.setViewportSize({width:390,height:844});
@@ -148,9 +167,21 @@ try{
  assert.equal(await page.getByRole('button',{name:'Remove star',exact:true}).isDisabled(),true);
  assert.equal(await page.getByRole('button',{name:/^Reply to/}).count(),0);
  assert.equal(await page.getByRole('button',{name:'Add to CRM',exact:true}).count(),0);
+ viewer=false;sendingAvailable=true;
+ await page.reload();
+ await page.getByRole('button',{name:'Compose',exact:false}).click();
+ await page.getByLabel('Recipients',{exact:true}).fill('client@example.invalid');
+ await page.getByLabel('Subject',{exact:true}).fill('Queue retry');
+ await page.getByLabel('Message',{exact:true}).fill('No duplicate outbound message.');
+ await page.getByRole('button',{name:'Queue send',exact:true}).click();
+ await page.getByRole('alert').filter({hasText:'Temporary provider failure'}).waitFor();
+ assert.equal(composeCalls,2);
+ await page.getByRole('button',{name:'Queue send',exact:true}).click();
+ await page.getByRole('status').filter({hasText:'Message queued.'}).waitFor();
+ assert.equal(composeCalls,2,'a queue retry must retain its saved draft ID');assert.equal(queueCalls,2);
  assert.equal(patches,4);
  assert.deepEqual(errors,[]);
- console.log('PASS: browser workspace contracts (navigation, filters, pagination, archive/restore, star/read, draft edit, unsaved changes, disabled sending, mobile, stale response isolation, read-only access, safe rendering). Synthetic data only.');
+ console.log('PASS: browser workspace contracts (navigation, filters, pagination, archive/restore, star/read, recipient-free drafts, CC/BCC persistence, reply-all, queue retry without duplication, unsaved changes, disabled sending, mobile, stale response isolation, read-only access, safe rendering). Synthetic data only.');
 }finally{
  await browser?.close();
  await new Promise(done=>server.close(done));

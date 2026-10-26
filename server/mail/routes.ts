@@ -15,11 +15,11 @@ const uuid = z.string().uuid();
 const small = z.string().max(250);
 const addressList = z.array(email).max(50);
 const compose = z.object({
-  mailboxId: uuid, to: addressList.min(1), cc: addressList.default([]),
+  mailboxId: uuid, to: addressList.default([]), cc: addressList.default([]),
   bcc: addressList.default([]), subject: small.default(""),
   text: z.string().max(500000).default(""), replyToId: uuid.optional(),
   draft: z.boolean().default(false)
-});
+}).refine(d=>d.draft || d.to.length>0,{message:"Add at least one To recipient before sending",path:["to"]});
 type Principal = { tenantId: string; userId: string; isMerchant: boolean };
 
 function principal(req: Request): Principal | null {
@@ -113,6 +113,9 @@ export function registerMailRoutes(app: Express) {
   app.get("/api/mail/mailboxes",wrap(async(req,res)=>{
     const p=principal(req)!;
     const q=await pool.query(`SELECT b.id,b.local_part,b.display_name,d.domain,b.enabled,
+       COALESCE((SELECT jsonb_agg(a.local_part || '@' || ad.domain ORDER BY a.local_part)
+         FROM mail_aliases a JOIN mail_domains ad ON ad.id=a.domain_id AND ad.tenant_id=$1
+         WHERE a.mailbox_id=b.id AND a.tenant_id=$1),'[]'::jsonb) AS aliases,
        ($2::boolean OR EXISTS (SELECT 1 FROM mail_memberships w WHERE
          w.mailbox_id=b.id AND w.tenant_id=$1 AND w.user_id=$3
          AND w.role IN ('owner','member'))) AS can_write
@@ -242,11 +245,31 @@ export function registerMailRoutes(app: Express) {
       await client.query("COMMIT"); res.status(201).json({id,threadId,status:d.draft?"draft":"queued"});
     } catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
   }));
+  // Draft editing needs the complete recipient set, including BCC. Keep it
+  // separate from the read-only thread API and recheck writer permissions.
+  app.get("/api/mail/drafts/:id",wrap(async(req,res)=>{
+    const p=principal(req)!;
+    const id=uuid.parse(req.params.id);
+    const q=await pool.query(`SELECT m.id,m.mailbox_id,m.to_emails,m.cc_emails,m.bcc_emails,
+      m.subject,m.text_body FROM mail_messages m
+      WHERE m.id=$1 AND m.tenant_id=$2 AND m.direction='outbound'
+        AND m.status='draft' AND m.folder='drafts'
+        AND EXISTS(SELECT 1 FROM mail_mailboxes b WHERE b.id=m.mailbox_id
+          AND b.tenant_id=$2 AND b.enabled=true AND ($3::boolean OR EXISTS(
+            SELECT 1 FROM mail_memberships x WHERE x.mailbox_id=b.id
+              AND x.tenant_id=$2 AND x.user_id=$4 AND x.role IN('owner','member'))))`,
+      [id,p.tenantId,p.isMerchant,p.userId]);
+    if(!q.rowCount)return res.sendStatus(404);
+    const m=q.rows[0];
+    res.json({id:m.id,mailboxId:m.mailbox_id,to:m.to_emails,cc:m.cc_emails,bcc:m.bcc_emails,
+      subject:decryptMailField(p.tenantId,m.id,"message-subject",m.subject),
+      text:decryptMailField(p.tenantId,m.id,"message-text",m.text_body)});
+  }));
   app.patch("/api/mail/drafts/:id",wrap(async(req,res)=>{
     const p=principal(req)!;
     const id=uuid.parse(req.params.id);
     const data=z.object({
-      to:addressList.min(1).optional(),cc:addressList.optional(),bcc:addressList.optional(),
+      to:addressList.optional(),cc:addressList.optional(),bcc:addressList.optional(),
       subject:small.optional(),text:z.string().max(500000).optional()
     }).refine(x=>Object.keys(x).length>0).parse(req.body);
     const q=await pool.query(`UPDATE mail_messages m SET
@@ -282,7 +305,7 @@ export function registerMailRoutes(app: Express) {
     const c=await pool.connect();
     try{
       await c.query("BEGIN");
-      const q=await c.query(`SELECT m.id,m.mailbox_id FROM mail_messages m
+      const q=await c.query(`SELECT m.id,m.mailbox_id,m.to_emails FROM mail_messages m
         JOIN mail_mailboxes b ON b.id=m.mailbox_id AND b.tenant_id=m.tenant_id
         JOIN mail_domains d ON d.id=b.domain_id AND d.tenant_id=m.tenant_id
         WHERE m.id=$1 AND m.tenant_id=$2 AND m.direction='outbound'
@@ -293,6 +316,11 @@ export function registerMailRoutes(app: Express) {
               AND mm.role IN('owner','member')))
         FOR UPDATE OF m`,[id,p.tenantId,p.isMerchant,p.userId]);
       if(!q.rowCount){await c.query("ROLLBACK");return res.sendStatus(404);}
+      const recipients=addressList.min(1).safeParse(q.rows[0].to_emails);
+      if(!recipients.success){
+        await c.query("ROLLBACK");
+        return res.status(409).json({error:"Add at least one valid To recipient before sending"});
+      }
       const pending=await c.query(`SELECT count(*)::integer AS total,
         count(*) FILTER(WHERE scan_status<>'clean')::integer AS blocked
         FROM mail_attachments WHERE message_id=$1 AND tenant_id=$2`,[id,p.tenantId]);

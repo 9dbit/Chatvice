@@ -7,6 +7,11 @@ on:
       - "script/build-mail-qa.ts"
       - "scripts/mail-qa-bootstrap.mjs"
       - "scripts/mail-workspace-smoke.mjs"
+      - "scripts/mail-qa-container-smoke.mjs"
+      - "Dockerfile.mail-qa"
+      - "Dockerfile.mail-qa.dockerignore"
+      - "railway.mail-qa.json"
+      - "config/mail-qa-runtime/**"
       - "client/mail-qa.html"
       - "client/src/mail-qa-main.tsx"
       - "client/src/mail-qa.css"
@@ -22,6 +27,7 @@ on:
       - "migrations/20261026_chatvice_mail_v1.sql"
       - "migrations/20261026_chatvice_mail_attachments_v2.sql"
       - "shared/mail-schema.ts"
+      - "shared/mail-recipients.ts"
       - ".github/workflows/chatvice-mail-ci.yml"
   push:
     branches:
@@ -61,7 +67,7 @@ jobs:
       - name: Install from lockfile
         run: npm ci --no-audit --no-fund
       - name: Verify mail security and provider tests
-        run: npx tsx --test server/mail/qa-login.test.ts server/mail/qa-auth.test.ts server/mail/security.test.ts server/mail/privacy.test.ts server/mail/attachment-security.test.ts server/mail/crypto.test.ts server/mail/binary-crypto.test.ts server/mail/password.test.ts server/mail/backup.test.ts
+        run: npx tsx --test server/mail/qa-login.test.ts server/mail/qa-auth.test.ts server/mail/security.test.ts server/mail/privacy.test.ts server/mail/attachment-security.test.ts server/mail/crypto.test.ts server/mail/binary-crypto.test.ts server/mail/password.test.ts server/mail/backup.test.ts server/mail/recipients.test.ts
       - name: Test mail tenant isolation on disposable PostgreSQL
         run: npx tsx --test server/mail/integration.test.ts
       - name: Rehearse encrypted PostgreSQL backup and restore on disposable CI
@@ -81,7 +87,7 @@ jobs:
       - name: Typecheck mail files (report existing app baseline separately)
         run: |
           npm run check > /tmp/chatvice-typecheck.log 2>&1 || TYPECHECK_FAILED=1
-          if grep -E '(server/mail/|client/src/mail-(app|qa)-main\.tsx|script/build-mail-|vite.mail-|client/src/pages/dashboard/mail(-admin|-attachments)?\.tsx)' /tmp/chatvice-typecheck.log; then
+          if grep -E '(server/mail/|shared/mail-|client/src/mail-(app|qa)-main\.tsx|script/build-mail-|vite.mail-|client/src/pages/dashboard/mail(-admin|-attachments)?\.tsx)' /tmp/chatvice-typecheck.log; then
             echo "::error::New mail TypeScript diagnostics detected"
             exit 1
           fi
@@ -107,6 +113,12 @@ jobs:
           name: mail-workspace-preview
           path: ${{ runner.temp }}/mail-workspace-preview
           retention-days: 7
+      - name: Build minimal Mail QA runtime image
+        run: docker build --file Dockerfile.mail-qa --tag chatvice-mail-qa:ci .
+      - name: Verify actual Mail QA container on disposable PostgreSQL
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: node --import tsx scripts/mail-qa-container-smoke.mjs
       - name: Verify no third-party scripts in QA entry document
         run: |
           test -f dist/mail-qa/mail-qa.html

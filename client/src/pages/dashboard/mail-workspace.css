@@ -22,3 +22,4 @@
 @media(min-width:801px){.mail-workspace{height:calc(100dvh - 104px);min-height:720px;max-height:1080px}.mail-grid{min-height:0;overflow:hidden}.mail-sidebar,.mail-thread-list,.mail-reader{min-height:0}.mail-thread-scroll{height:0;min-height:0}.mail-reader-content{flex:1;min-height:0;max-height:none}.mail-reader-empty{min-height:0}.mail-sidebar-footer{padding-top:18px}}
 @media(max-width:800px){.mail-thread-list{height:calc(100dvh - 290px);min-height:440px;max-height:700px}.mail-thread-scroll{height:0;min-height:0}}
 .mail-filter-tabs button{min-height:44px}
+.mail-copy-toggle{flex-shrink:0;white-space:nowrap;min-height:44px;padding:0 8px;color:#f2b07b;font-size:10px;border-radius:7px}.mail-copy-toggle:hover{background:#fb923c0c}.mail-reply-actions{display:flex;gap:10px;flex-wrap:wrap}

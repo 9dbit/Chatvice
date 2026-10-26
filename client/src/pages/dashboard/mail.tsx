@@ -1,22 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
-import { Inbox, Send, FileText, Archive, Trash2, Star, Mail, Plus, Search, Reply, ArrowLeft, Settings, UserRoundPlus, ShieldCheck, Sparkles, RefreshCw, ChevronLeft, ChevronRight, MailOpen, Check, LockKeyhole, AlertCircle } from "lucide-react";
+import { Inbox, Send, FileText, Archive, Trash2, Star, Mail, Plus, Search, Reply, ReplyAll, ArrowLeft, Settings, UserRoundPlus, ShieldCheck, Sparkles, RefreshCw, ChevronLeft, ChevronRight, MailOpen, Check, LockKeyhole, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import MailAttachments from "./mail-attachments";
+import { mailReplyRecipients, parseMailRecipients } from "@shared/mail-recipients";
 import "./mail-workspace.css";
 
-type Box = {id:string;local_part:string;domain:string;display_name:string;enabled:boolean;can_write:boolean};
+type Box = {id:string;local_part:string;domain:string;display_name:string;enabled:boolean;can_write:boolean;aliases?:string[]};
 type Thread = {id:string;subject:string;from_email:string;text_body:string;created_at:string;is_read:boolean;is_starred:boolean;message_count:number};
-type Message = {id:string;status:string;direction:string;from_email:string;to_emails:string[];subject:string;text_body:string;created_at:string;is_read:boolean;is_starred:boolean};
+type Message = {id:string;status:string;direction:string;from_email:string;to_emails:string[];cc_emails?:string[];subject:string;text_body:string;created_at:string;is_read:boolean;is_starred:boolean};
 type Context = {sender:string|null;lead:{id:string;customer_name:string|null;customer_email:string;stage:string;score:number;source:string}|null};
 type Capabilities = {admin:boolean;outbound:boolean;ai:boolean;attachments:boolean};
 type Stat = {folder:string;total:number;unread:number};
-type Editor = {to:string;subject:string;body:string;draftId?:string;replyToId?:string};
+type Editor = {to:string;cc:string;bcc:string;subject:string;body:string;draftId?:string;replyToId?:string};
+type SavedDraft = {id:string;mailboxId:string;to:string[];cc:string[];bcc:string[];subject:string;text:string};
 type Change = {isRead?:boolean;isStarred?:boolean;folder?:string};
 const folders=[{name:"inbox",label:"Inbox",icon:Inbox},{name:"sent",label:"Sent",icon:Send},{name:"drafts",label:"Drafts",icon:FileText},{name:"archive",label:"Archive",icon:Archive},{name:"spam",label:"Spam",icon:AlertCircle},{name:"trash",label:"Trash",icon:Trash2}];
 const PAGE_SIZE=40;
-const blankEditor=():Editor=>({to:"",subject:"",body:""});
-const snapshot=(e:Editor)=>JSON.stringify([e.to,e.subject,e.body]);
+const blankEditor=():Editor=>({to:"",cc:"",bcc:"",subject:"",body:""});
+const snapshot=(e:Editor)=>JSON.stringify([e.to,e.cc,e.bcc,e.subject,e.body]);
 async function request<T>(url:string,method="GET",data?:unknown,signal?:AbortSignal):Promise<T>{
  const response=await fetch(url,{method,credentials:"same-origin",cache:"no-store",signal,
   headers:data===undefined?undefined:{"Content-Type":"application/json"},
@@ -42,6 +44,7 @@ export default function MailPage(){
  const [error,setError]=useState(""),[notice,setNotice]=useState(""),[search,setSearch]=useState("");
  const [editor,setEditor]=useState<Editor|null>(null),[savedSnapshot,setSavedSnapshot]=useState("");
  const [saving,setSaving]=useState(false),[acting,setActing]=useState(false),[aiLoading,setAiLoading]=useState(false);
+ const [openingDraft,setOpeningDraft]=useState(false),[showCopies,setShowCopies]=useState(false);
  const [aiSummary,setAiSummary]=useState(""),[reload,setReload]=useState(0);
  const searchRef=useRef<HTMLInputElement>(null),selectionRef=useRef("");
  selectionRef.current=selected?.id||"";
@@ -51,6 +54,9 @@ export default function MailPage(){
  const folderLabel=folders.find(f=>f.name===folder)?.label||"Inbox";
  const folderStat=stats.find(s=>s.folder===folder);
  const incoming=messages.filter(m=>m.direction==="inbound").at(-1);
+ const ownAddresses=currentBox?[`${currentBox.local_part}@${currentBox.domain}`,...(currentBox.aliases||[])]:[];
+ const replyAllRecipients=incoming?mailReplyRecipients(incoming,ownAddresses,true):{to:[],cc:[]};
+ const hasReplyAll=replyAllRecipients.to.length+replyAllRecipients.cc.length>1;
  const visible=threads.filter(t=>(t.subject+" "+t.from_email+" "+t.text_body).toLowerCase().includes(search.toLowerCase()));
  useEffect(()=>{
   const abort=new AbortController();
@@ -96,7 +102,16 @@ export default function MailPage(){
  function openEditor(next:Editor){
   if(!canWrite||saving)return;
   if(dirty&&!window.confirm("Discard your unsaved changes and open another message?"))return;
-  setEditor(next);setSavedSnapshot(snapshot(next.draftId?next:blankEditor()));setError("");setNotice("");
+  setEditor(next);setShowCopies(Boolean(next.cc||next.bcc));setSavedSnapshot(snapshot(next.draftId?next:blankEditor()));setError("");setNotice("");
+ }
+ async function openDraft(id:string){
+  if(!canWrite||saving||openingDraft)return;
+  const target=selectionRef.current;setOpeningDraft(true);setError("");
+  try{
+   const draft=await request<SavedDraft>(`/api/mail/drafts/${id}`);
+   if(selectionRef.current!==target||draft.mailboxId!==box)return;
+   openEditor({draftId:draft.id,to:draft.to.join(", "),cc:draft.cc.join(", "),bcc:draft.bcc.join(", "),subject:draft.subject,body:draft.text});
+  }catch(e:any){if(selectionRef.current===target)setError(e.message);}finally{setOpeningDraft(false);}
  }
  useEffect(()=>{
   if(!dirty)return;
@@ -137,16 +152,16 @@ export default function MailPage(){
  }
  async function submit(draft:boolean){
   if(!editor||!box||!canWrite||saving)return;
-  if(!editor.to.trim()){setError("Add at least one recipient before saving.");return;}
+  if(!draft&&!parseMailRecipients(editor.to).length){setError("Add at least one To recipient before sending.");return;}
   if(!draft&&!cap.outbound)return;
   const value=editor;setSaving(true);setError("");
-  const to=value.to.split(",").map(x=>x.trim()).filter(Boolean);
+  const recipients={to:parseMailRecipients(value.to),cc:parseMailRecipients(value.cc),bcc:parseMailRecipients(value.bcc)};
   try{
    let id=value.draftId;
    if(id){
-    await request(`/api/mail/drafts/${id}`,"PATCH",{to,subject:value.subject,text:value.body});
+    await request(`/api/mail/drafts/${id}`,"PATCH",{...recipients,subject:value.subject,text:value.body});
    }else{
-    const created=await request<{id:string}>("/api/mail/compose","POST",{mailboxId:box,to,subject:value.subject,text:value.body,draft:true,replyToId:value.replyToId});
+    const created=await request<{id:string}>("/api/mail/compose","POST",{mailboxId:box,...recipients,subject:value.subject,text:value.body,draft:true,replyToId:value.replyToId});
     id=created.id;
    }
    // Keep the saved message ID if queuing fails; a retry must not create a
@@ -157,9 +172,10 @@ export default function MailPage(){
    setReload(x=>x+1);
   }catch(e:any){setError(e.message);}finally{setSaving(false);}
  }
- function reply(text=""){
+ function reply(text="",all=false){
   if(!incoming||!selected)return;
-  openEditor({to:incoming.from_email,subject:/^re:/i.test(selected.subject)?selected.subject:`Re: ${selected.subject}`,body:text,replyToId:incoming.id});
+  const recipients=mailReplyRecipients(incoming,ownAddresses,all);
+  openEditor({to:recipients.to.join(", "),cc:recipients.cc.join(", "),bcc:"",subject:/^re:/i.test(selected.subject)?selected.subject:`Re: ${selected.subject}`,body:text,replyToId:incoming.id});
  }
  async function aiTask(task:"summary"|"draft"){
   if(!selected||aiLoading)return;
@@ -227,12 +243,12 @@ export default function MailPage(){
       {cap.ai&&<div className="mail-ai-actions"><button className="mail-button" disabled={aiLoading||reading} onClick={()=>aiTask("summary")}><Sparkles size={14}/> Summarize</button>{canWrite&&incoming&&<button className="mail-button" disabled={aiLoading||reading} onClick={()=>aiTask("draft")}><Sparkles size={14}/> Draft a reply</button>}</div>}
       {aiSummary&&<div className="mail-ai-summary"><strong>AI summary · Review before use</strong><p>{aiSummary}</p></div>}
       {reading?<div className="mail-reading" role="status">Loading conversation…</div>:messages.map(m=><section className="mail-message" key={m.id}>
-       <div className="mail-message-header"><span className="mail-avatar">{m.from_email.slice(0,1).toUpperCase()}</span><div><h3>{m.from_email}</h3><p>To {m.to_emails.join(", ")}</p></div><div className="mail-message-date"><time dateTime={m.created_at}>{new Date(m.created_at).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}</time><span className={`mail-delivery ${m.status==="failed"||m.status==="bounced"?"failed":""}`}>{m.status}</span></div></div>
+       <div className="mail-message-header"><span className="mail-avatar">{m.from_email.slice(0,1).toUpperCase()}</span><div><h3>{m.from_email}</h3><p>To {m.to_emails.join(", ")||"(No recipients yet)"}</p>{Boolean(m.cc_emails?.length)&&<p>CC {m.cc_emails?.join(", ")}</p>}</div><div className="mail-message-date"><time dateTime={m.created_at}>{new Date(m.created_at).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}</time><span className={`mail-delivery ${m.status==="failed"||m.status==="bounced"?"failed":""}`}>{m.status}</span></div></div>
        <p className="mail-message-body">{m.text_body||"This message has no plain-text content."}</p>
        {cap.attachments&&<MailAttachments messageId={m.id} compact/>}
-       {m.status==="draft"&&canWrite&&<button className="mail-button" onClick={()=>openEditor({draftId:m.id,to:m.to_emails.join(", "),subject:m.subject,body:m.text_body})}><FileText size={15}/> Continue editing</button>}
+       {m.status==="draft"&&canWrite&&<button className="mail-button" disabled={openingDraft} onClick={()=>openDraft(m.id)}><FileText size={15}/>{openingDraft?"Opening draft…":"Continue editing"}</button>}
       </section>)}
-      {!reading&&incoming&&canWrite&&<button className="mail-button mail-reply" onClick={()=>reply()}><Reply size={17}/> Reply to {incoming.from_email.split("@")[0]}</button>}
+      {!reading&&incoming&&canWrite&&<div className="mail-reply-actions"><button className="mail-button mail-reply" onClick={()=>reply()}><Reply size={17}/> Reply to {incoming.from_email.split("@")[0]}</button>{hasReplyAll&&<button className="mail-button mail-reply" onClick={()=>reply("",true)}><ReplyAll size={17}/> Reply all</button>}</div>}
       {context?.sender&&<aside className="mail-contact"><div><span className="mail-eyebrow">CUSTOMER 360</span><h3>{context.lead?.customer_name||context.sender}</h3><p>{context.lead?`${context.lead.stage} · Lead score ${context.lead.score??0}/100`:"Connect this conversation with your customer records."}</p></div>{context.lead?<span className="mail-linked"><Check size={13}/> CRM linked</span>:canWrite&&<button className="mail-button" disabled={acting} onClick={convertLead}><UserRoundPlus size={15}/> Add to CRM</button>}</aside>}
      </div>
     </>:<div className="mail-reader-empty"><div className="mail-empty-orbit"><Mail size={36}/><span><ShieldCheck size={17}/></span></div><span className="mail-eyebrow">MAKE ROOM FOR FOCUS</span><h2>Good conversations<br/>start here.</h2><p>Select a conversation to read, reply,<br/>and keep your customers connected.</p><div><span><LockKeyhole size={13}/> Private mailboxes</span><span><UserRoundPlus size={13}/> Connected to CRM</span></div>{canWrite&&<button className="mail-button" onClick={()=>openEditor(blankEditor())}><Plus size={16}/> Start a conversation</button>}</div>}
@@ -240,13 +256,14 @@ export default function MailPage(){
   </div>
   <Dialog open={Boolean(editor)} onOpenChange={open=>{if(!open)closeEditor();}}><DialogContent className="mail-composer sm:max-w-2xl" onInteractOutside={event=>event.preventDefault()} onEscapeKeyDown={event=>{event.preventDefault();closeEditor();}}>
    <DialogTitle>{editor?.draftId?"Edit draft":"New message"}</DialogTitle><DialogDescription>From {currentBox?.local_part}@{currentBox?.domain}</DialogDescription>
-   {editor&&<><label className="mail-compose-field">To<input autoFocus aria-label="Recipients" placeholder="address@example.com, another@example.com" disabled={saving} value={editor.to} onChange={e=>setEditor({...editor,to:e.target.value})}/></label>
+   {editor&&<><label className="mail-compose-field">To<input autoFocus aria-label="Recipients" placeholder="address@example.com, another@example.com" disabled={saving} value={editor.to} onChange={e=>setEditor({...editor,to:e.target.value})}/>{!showCopies&&<button className="mail-copy-toggle" type="button" disabled={saving} onClick={()=>setShowCopies(true)}>CC / BCC</button>}</label>
+    {showCopies&&<><label className="mail-compose-field">CC<input aria-label="CC recipients" placeholder="Copy recipients" disabled={saving} value={editor.cc} onChange={e=>setEditor({...editor,cc:e.target.value})}/></label><label className="mail-compose-field">BCC<input aria-label="BCC recipients" placeholder="Hidden from other recipients" disabled={saving} value={editor.bcc} onChange={e=>setEditor({...editor,bcc:e.target.value})}/></label></>}
     <label className="mail-compose-field">Subject<input aria-label="Subject" placeholder="Give your message a subject" disabled={saving} value={editor.subject} onChange={e=>setEditor({...editor,subject:e.target.value})}/></label>
     <textarea className="mail-compose-body" aria-label="Message" placeholder="Write something thoughtful…" disabled={saving} value={editor.body} onChange={e=>setEditor({...editor,body:e.target.value})}/>
     {error&&<div className="mail-alert" role="alert">{error}</div>}
     {cap.attachments&&(editor.draftId?<div className="mail-compose-attachments"><MailAttachments key={editor.draftId} messageId={editor.draftId} allowUpload={!saving}/></div>:<p className="mail-compose-help">Save a draft to add private attachments.</p>)}
     {!cap.outbound&&<p className="mail-compose-help"><LockKeyhole size={13}/> Sending is unavailable for this workspace. You can save drafts.</p>}
-    <footer className="mail-compose-footer"><span role="status">{saving?"Saving…":editor.draftId&&!dirty?"Draft saved privately":dirty?"Unsaved changes":"Private message"}</span><button className="mail-button" disabled={saving||!editor.to.trim()} onClick={()=>submit(true)}><FileText size={15}/> Save draft</button><button className="mail-button mail-primary" title={!cap.outbound?"Sending is not configured for this workspace":undefined} disabled={saving||!editor.to.trim()||!cap.outbound} onClick={()=>submit(false)}><Send size={15}/> Queue send</button></footer>
+    <footer className="mail-compose-footer"><span role="status">{saving?"Saving…":editor.draftId&&!dirty?"Draft saved privately":dirty?"Unsaved changes":"Private message"}</span><button className="mail-button" disabled={saving} onClick={()=>submit(true)}><FileText size={15}/> Save draft</button><button className="mail-button mail-primary" title={!cap.outbound?"Sending is not configured for this workspace":undefined} disabled={saving||!parseMailRecipients(editor.to).length||!cap.outbound} onClick={()=>submit(false)}><Send size={15}/> Queue send</button></footer>
    </>}
   </DialogContent></Dialog>
  </section>;
