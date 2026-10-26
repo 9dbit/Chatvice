@@ -55,7 +55,7 @@ function encodedPath(key: string, bucket: string): string {
     throw new Error("Invalid private object key");
   }
   // Encode each segment independently; never permit query fragments or URL traversal.
-  return "/" + [bucket,...key.split("/")].map(encodeURIComponent).join("/");
+  return "/" + (bucket?[bucket,...key.split("/")]:key.split("/")).map(encodeURIComponent).join("/");
 }
 export function newPrivateAttachmentKey(tenantId: string, messageId: string): string {
   if (!/^[a-zA-Z0-9_-]{1,32}$/.test(tenantId) || !/^[0-9a-f-]{36}$/i.test(messageId))
