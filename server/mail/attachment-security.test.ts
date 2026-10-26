@@ -113,3 +113,46 @@ test("Resend attachment retrieval allows only explicit HTTPS CDN hosts and enfor
   await assert.rejects(()=>loadResendReceivedAttachments("00000000-0000-4000-8000-000000000008","re_test_for_inbound"),/allowlisted/);
  }finally{globalThis.fetch=oldFetch;reset();}
 });
+
+test("virtual-host S3 endpoint signs bucket in hostname with single-slash object path",async()=>{
+ const oldFetch=globalThis.fetch;
+ const names=[
+  "CHATVICE_MAIL_S3_ENDPOINT","CHATVICE_MAIL_S3_BUCKET",
+  "CHATVICE_MAIL_S3_REGION","CHATVICE_MAIL_S3_URL_STYLE",
+  "CHATVICE_MAIL_S3_ACCESS_KEY_ID","CHATVICE_MAIL_S3_SECRET_ACCESS_KEY"
+ ] as const;
+ const old=Object.fromEntries(names.map(k=>[k,process.env[k]]));
+ process.env.CHATVICE_MAIL_S3_ENDPOINT="https://t3.storageapi.dev";
+ process.env.CHATVICE_MAIL_S3_BUCKET="mail-qa-safe";
+ process.env.CHATVICE_MAIL_S3_REGION="auto";
+ process.env.CHATVICE_MAIL_S3_URL_STYLE="virtual-host";
+ process.env.CHATVICE_MAIL_S3_ACCESS_KEY_ID="qa-access";
+ process.env.CHATVICE_MAIL_S3_SECRET_ACCESS_KEY="qa-secret";
+ let requests=0;
+ const value=Buffer.from("private QA test file");
+ globalThis.fetch=async(input,init)=>{
+  requests++;
+  const uri=new URL(String(input));
+  assert.equal(uri.origin,"https://mail-qa-safe.t3.storageapi.dev");
+  assert.match(uri.pathname,/^\/mail\/tenant_a\//);
+  assert.equal(uri.pathname.startsWith("//"),false);
+  assert.equal(init?.redirect,"manual");
+  const h=new Headers(init?.headers);
+  assert.match(h.get("authorization")||"",/Credential=qa-access\/\d{8}\/auto\/s3\/aws4_request/);
+  assert.equal(h.get("x-amz-content-sha256"),createHash("sha256").update(init?.method==="PUT"?value:Buffer.alloc(0)).digest("hex"));
+  if(init?.method==="GET")return new Response(value,{status:200});
+  return new Response(null,{status:init?.method==="DELETE"?204:200});
+ };
+ try{
+  const key=newPrivateAttachmentKey("tenant_a","00000000-0000-4000-8000-000000000001");
+  await putPrivateAttachment(key,value);
+  assert.deepEqual(await getPrivateAttachment(key),value);
+  await deletePrivateAttachment(key);
+  assert.equal(requests,3);
+  process.env.CHATVICE_MAIL_S3_ENDPOINT="http://127.0.0.1:1234";
+  await assert.rejects(()=>putPrivateAttachment(key,value),/clean HTTPS origin/);
+ }finally{
+  globalThis.fetch=oldFetch;
+  for(const k of names){if(old[k]===undefined)delete process.env[k];else process.env[k]=old[k];}
+ }
+});
