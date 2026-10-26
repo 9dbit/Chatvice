@@ -1,5 +1,5 @@
 import express, { type Request, type Response, type NextFunction } from "express";
-import { timingSafeEqual } from "node:crypto";
+import { authenticateQaHeaders, issueQaSessionCookie } from "./qa-auth";
 import { resolve } from "node:path";
 import { pool } from "../db";
 import { isMailEncryptionReady } from "./crypto";
@@ -16,8 +16,11 @@ import {runMailQaSmoke} from "./qa-smoke";
 const qaRole=process.env.CHATVICE_MAIL_QA_ROLE;
 const envName=(process.env.RAILWAY_ENVIRONMENT_NAME||"").toLowerCase();
 const secret=process.env.CHATVICE_MAIL_QA_TOKEN || "";
+const basicPasswordHash=process.env.CHATVICE_MAIL_QA_BASIC_PASSWORD_HASH || "";
 if(qaRole!=="isolated-chatvice-mail" || envName!=="cutover-staging" ||
-   !/^[0-9a-f]{64}$/i.test(secret) || !process.env.DATABASE_URL ||
+   !/^[0-9a-f]{64}$/i.test(secret) ||
+   !/^scrypt1\.[0-9a-f]{32}\.[0-9a-f]{64}$/i.test(basicPasswordHash) ||
+   !process.env.DATABASE_URL ||
    !isMailEncryptionReady() || process.env.CHATVICE_MAIL_ENABLED!=="true" ||
    process.env.CHATVICE_MAIL_OUTBOUND_ENABLED==="true" ||
    process.env.CHATVICE_MAIL_AI_ENABLED==="true") {
@@ -36,29 +39,44 @@ app.use((_req,res,next)=>{
  res.setHeader("Cross-Origin-Resource-Policy","same-origin");
  next();
 });
-function authorized(req:Request):boolean{
- const header=req.get("authorization")||"";
- const expected=Buffer.from(secret,"utf8");
- let actual="";
- if(header.startsWith("Basic ")){
-   let basic="";
-   try{basic=Buffer.from(header.slice(6),"base64").toString("utf8");}
-   catch{return false;}
-   if(!basic.startsWith("mailqa:"))return false;
-   actual=basic.slice("mailqa:".length);
- }else if(header.startsWith("Bearer "))actual=header.slice(7);
- const supplied=Buffer.from(actual,"utf8");
- return expected.length===supplied.length && timingSafeEqual(expected,supplied);
-}
-function requireQA(req:Request,res:Response,next:NextFunction){
- if(!authorized(req)){
-  res.setHeader("WWW-Authenticate",'Basic realm="Chatvice Mail Isolated QA", charset="UTF-8"');
-  return res.status(401).json({error:"QA authorization required"});
- }
- (req as any).session={
-  userType:"merchant",userId:"qa_mail_merchant",merchantId:"qa_mail_merchant"
- };
- next();
+// Per-proxy-client failed-authentication limit protects the scrypt verifier.
+const authFailures=new Map<string,{count:number;until:number}>();
+async function requireQA(req:Request,res:Response,next:NextFunction):Promise<void>{
+  const key=req.ip||req.socket.remoteAddress||"unknown",now=Date.now();
+  const previous=authFailures.get(key);
+  if(previous && previous.until>now && previous.count>=12){
+    res.setHeader("Retry-After","60");
+    res.status(429).json({error:"Too many QA login attempts"});
+    return;
+  }
+  try{
+    const auth=await authenticateQaHeaders({
+      authorization:req.get("authorization"),cookie:req.get("cookie")
+    },secret,basicPasswordHash,now);
+    if(!auth){
+      if(authFailures.size>4096){
+        for(const [ip,state] of Array.from(authFailures.entries())){
+          if(state.until<=now)authFailures.delete(ip);
+        }
+        if(authFailures.size>4096)authFailures.clear();
+      }
+      const count=previous&&previous.until>now?previous.count+1:1;
+      authFailures.set(key,{count,until:now+60000});
+      res.setHeader("WWW-Authenticate",'Basic realm="Chatvice Mail Isolated QA", charset="UTF-8"');
+      res.status(401).json({error:"QA authorization required"});
+      return;
+    }
+    authFailures.delete(key);
+    // Browser Basic auth is exchanged once for a short-lived HttpOnly cookie.
+    // This prevents repeat login prompts on /api/mail/ and asset requests.
+    if(auth==="basic")res.setHeader("Set-Cookie",issueQaSessionCookie(secret,now));
+    (req as any).session={
+      userType:"merchant",userId:"qa_mail_merchant",merchantId:"qa_mail_merchant"
+    };
+    next();
+  }catch{
+    res.status(503).json({error:"QA authentication temporarily unavailable"});
+  }
 }
 let smokeStatus="disabled";
 async function qaHealth(_req:Request,res:Response){
@@ -85,7 +103,8 @@ const csp=[
  "font-src 'self' data:","frame-ancestors 'none'","form-action 'self'"
 ].join("; ");
 const assetPath=resolve("dist/mail-qa/assets");
-app.use("/assets",requireQA,(_req,res,next)=>{res.setHeader("Content-Security-Policy",csp);next();},
+// Public static bundles contain no secrets. Keep HTML and APIs authenticated.
+app.use("/assets",(_req,res,next)=>{res.setHeader("Content-Security-Policy",csp);next();},
  express.static(assetPath,{index:false,immutable:false,maxAge:0,etag:false}));
 app.get(["/","/dashboard/mail","/dashboard/mail/admin"],requireQA,(req,res)=>{
  res.setHeader("Content-Security-Policy",csp);
