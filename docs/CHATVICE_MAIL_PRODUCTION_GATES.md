@@ -12,6 +12,7 @@ below have actual evidence. Existing Chatvice production and Hostinger remain li
 - Webmail login supports independent identities with memberships in multiple mailboxes. It does not provide IMAP/SMTP client compatibility.
 - Passwords use random-salt scrypt; sessions store keyed token hashes, expire after eight hours and check live enabled/credential-version state on every request. Host-only `__Host-chatvice_mail` cookie is Secure, HttpOnly, SameSite=Strict. Main-app cookies are not accepted.
 - Persistent atomic login request limits apply per source IP and account. AI stays disabled.
+- `RESEND_API_KEY` is for sending and should be restricted to the Mail domain. Inbound retrieval requires a separate `RESEND_RECEIVING_API_KEY`; it never falls back to a sending key. The provider dashboard currently offers Full access for receiving API reads, so isolate its account or review that broader scope explicitly. Do not reuse the existing Pentagon credential.
 - `scripts/mail-provision-user.ts` previews by default. It requires the exact expected database hostname, existing tenant, and (for nonadmins) existing supervisor plus mailbox membership. Only `--apply` creates credentials. Password comes from a secret environment variable, never an argument or chat. No public signup/reset endpoint exists.
 
 ## Attachment encryption compatibility

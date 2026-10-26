@@ -122,6 +122,29 @@ test("isolated login uses host-only sessions, live mailbox permissions and immed
   assert.equal((await supertest(app).get("/api/mail-auth/session").set("Cookie",ownerCookie)).status,401);
   assert.equal(MAIL_COOKIE,"__Host-chatvice_mail");
 });
+test("receiving never borrows a sending-only provider credential",async()=>{
+  const names=["CHATVICE_MAIL_PROVIDER","RESEND_API_KEY","RESEND_RECEIVING_API_KEY","RESEND_WEBHOOK_SECRET"];
+  const previous=Object.fromEntries(names.map(k=>[k,process.env[k]]));
+  const oldFetch=globalThis.fetch;let calls=0;
+  process.env.CHATVICE_MAIL_PROVIDER="resend";
+  process.env.RESEND_API_KEY="re_sending_only_fixture";
+  delete process.env.RESEND_RECEIVING_API_KEY;
+  const key=Buffer.alloc(32,7),id="msg_receiving_guard",timestamp=String(Math.floor(Date.now()/1000));
+  process.env.RESEND_WEBHOOK_SECRET="whsec_"+key.toString("base64");
+  const payload=JSON.stringify({type:"email.received",data:{email_id:"12345678"}});
+  const signature="v1,"+createHmac("sha256",key).update(id+"."+timestamp+".").update(payload).digest("base64");
+  globalThis.fetch=async()=>{calls++;throw new Error("Sending key must not be used for reads");};
+  try{
+    const r=await supertest(server).post("/api/mail/provider/resend/webhook")
+      .set("Content-Type","application/json").set("svix-id",id).set("svix-timestamp",timestamp)
+      .set("svix-signature",signature).send(payload);
+    assert.equal(r.status,503);assert.equal(calls,0);
+  }finally{
+    globalThis.fetch=oldFetch;
+    for(const k of names){if(previous[k]===undefined)delete process.env[k];else process.env[k]=previous[k];}
+  }
+});
+
 test("fresh migrations create all eleven mail tables without touching unrelated data",async()=>{
   const q=await pool.query(`SELECT count(*)::integer AS count FROM information_schema.tables
     WHERE table_schema='public' AND table_name LIKE 'mail_%'`);

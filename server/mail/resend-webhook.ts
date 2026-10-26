@@ -71,7 +71,7 @@ export function registerResendWebhook(app:Express):void {
       if(type==="email.received") {
         const id=data.email_id;
         if(typeof id!=="string" || !/^[a-z0-9_-]{8,128}$/i.test(id))return res.sendStatus(400);
-        const key=process.env.RESEND_API_KEY;
+        const key=process.env.RESEND_RECEIVING_API_KEY;
         if(!key) return res.sendStatus(503);
         const received=await fetchResendReceived(id,key) as Record<string,unknown>;
         // Load provider attachment bytes with strict SSRF and size limits BEFORE
@@ -117,3 +117,4 @@ export function registerResendWebhook(app:Express):void {
     }
   });
 }
+
