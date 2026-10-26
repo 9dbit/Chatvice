@@ -6,12 +6,14 @@ on:
       - "server/mail/**"
       - "script/build-mail-qa.ts"
       - "scripts/mail-qa-bootstrap.mjs"
+      - "scripts/mail-workspace-smoke.mjs"
       - "client/mail-qa.html"
       - "client/src/mail-qa-main.tsx"
       - "client/src/mail-qa.css"
       - "vite.mail-qa.config.ts"
       - "script/build-mail-qa.ts"
       - "client/src/pages/dashboard/mail.tsx"
+      - "client/src/pages/dashboard/mail-workspace.css"
       - "client/src/pages/dashboard/mail-admin.tsx"
       - "client/src/pages/dashboard/mail-attachments.tsx"
       - "client/src/pages/dashboard/layout.tsx"
@@ -91,6 +93,18 @@ jobs:
         run: npx tsx script/build-mail-qa.ts
       - name: Build isolated Mail app with independent login
         run: npx tsx script/build-mail-app.ts
+      - name: Install browser for synthetic Mail workspace tests
+        run: npx playwright install --with-deps chromium
+      - name: Verify Mail workspace interactions on desktop and mobile
+        env:
+          CHATVICE_MAIL_SMOKE_OUTPUT: ${{ runner.temp }}/mail-workspace-preview
+        run: node scripts/mail-workspace-smoke.mjs
+      - name: Save synthetic Mail previews
+        uses: actions/upload-artifact@v4
+        with:
+          name: mail-workspace-preview
+          path: ${{ runner.temp }}/mail-workspace-preview
+          retention-days: 7
       - name: Verify no third-party scripts in QA entry document
         run: |
           test -f dist/mail-qa/mail-qa.html

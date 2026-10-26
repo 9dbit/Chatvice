@@ -401,3 +401,70 @@ test("inbound attachments reconcile on webhook replay without cross-tenant copie
  }
 });
 
+test("workspace pagination, unread and starred filters aggregate every message in a conversation",async()=>{
+ const box=randomUUID();
+ await pool.query("INSERT INTO mail_mailboxes(id,tenant_id,domain_id,local_part) VALUES($1,$2,$3,'workspace-list')",[box,fixture.tenantA,fixture.domainA]);
+ for(let n=0;n<43;n++)await ingestIncomingMail({eventId:`workspace-list-${n}`,from:"customer@example.org",to:["workspace-list@ci-alpha.example"],subject:`Conversation ${n}`,text:`Message ${n}`,messageId:`<workspace-${n}@ci.example>`});
+ await ingestIncomingMail({eventId:"workspace-list-reply",from:"customer@example.org",to:["workspace-list@ci-alpha.example"],subject:"Re: Conversation 0",text:"Latest reply",inReplyTo:"<workspace-0@ci.example>"});
+ await pool.query("UPDATE mail_messages SET is_read=true WHERE mailbox_id=$1",[box]);
+ await pool.query("UPDATE mail_messages SET is_read=false,is_starred=true WHERE mailbox_id=$1 AND source_event_id='workspace-list-0'",[box]);
+ const list=(query:Record<string,unknown>)=>supertest(server).get("/api/mail/threads").query({mailboxId:box,...query}).set("x-ci-subject","merchantA");
+ const first=await list({limit:40}),last=await list({limit:40,offset:40});
+ assert.equal(first.status,200);assert.equal(last.status,200);
+ assert.equal(first.body.length,40);assert.equal(last.body.length,3);
+ assert.equal(new Set([...first.body,...last.body].map(t=>t.id)).size,43);
+ const unread=await list({filter:"unread"}),starred=await list({filter:"starred"});
+ assert.equal(unread.status,200);assert.equal(unread.body.length,1);
+ assert.equal(unread.body[0].message_count,2);
+ assert.equal(unread.body[0].is_read,false);assert.equal(unread.body[0].is_starred,true);
+ assert.equal(unread.body[0].text_body,"Latest reply");
+ assert.equal(starred.body[0].id,unread.body[0].id);
+ const stats=await supertest(server).get(`/api/mail/mailboxes/${box}/stats`).set("x-ci-subject","merchantA");
+ assert.equal(stats.status,200);assert.deepEqual(stats.body,[{folder:"inbox",total:43,unread:1}]);
+ const denied=await supertest(server).get(`/api/mail/mailboxes/${box}/stats`).set("x-ci-subject","merchantB");
+ assert.equal(denied.status,404);
+ assert.equal((await list({filter:"unknown"})).status,400);
+});
+
+test("conversation actions are origin-, tenant-, mailbox- and permission-scoped and preserve drafts",async()=>{
+ const incoming=await ingestIncomingMail({eventId:"workspace-action",from:"customer@example.org",to:["hello@ci-alpha.example"],subject:"Action test",text:"Preserve this email",messageId:"<workspace-action@ci.example>"});
+ const messageId=incoming.messages[0].id;
+ const row=await pool.query("SELECT thread_id FROM mail_messages WHERE id=$1",[messageId]);
+ const threadId=row.rows[0].thread_id;
+ const action=(subject:string,data:Record<string,unknown>,origin="http://test.local")=>supertest(server).patch(`/api/mail/threads/${threadId}`).set("x-ci-subject",subject).set("origin",origin).send({mailboxId:fixture.boxA,sourceFolder:"inbox",...data});
+ assert.equal((await action("viewerA",{isRead:true})).status,404);
+ assert.equal((await action("merchantB",{isRead:true})).status,404);
+ assert.equal((await action("merchantA",{isRead:true},"https://attacker.example")).status,403);
+ assert.equal((await action("merchantA",{mailboxId:fixture.boxB,isRead:true})).status,404);
+ const draft=await supertest(server).post("/api/mail/compose").set("x-ci-subject","merchantA").set("origin","http://test.local").send({mailboxId:fixture.boxA,to:["customer@example.org"],subject:"Reply",text:"Still editing",draft:true,replyToId:messageId});
+ assert.equal(draft.status,201);
+ const changed=await action("merchantA",{folder:"archive",isRead:true,isStarred:true});
+ assert.equal(changed.status,200);assert.equal(changed.body.updated,1);
+ const result=await pool.query("SELECT folder,status,is_read,is_starred,text_body FROM mail_messages WHERE id=$1",[messageId]);
+ assert.equal(result.rows[0].folder,"archive");assert.equal(result.rows[0].status,"received");
+ assert.equal(result.rows[0].is_read,true);assert.equal(result.rows[0].is_starred,true);
+ assert.ok(result.rows[0].text_body.startsWith("cvenc1."));
+ const stillDraft=await pool.query("SELECT folder,status FROM mail_messages WHERE id=$1",[draft.body.id]);
+ assert.deepEqual(stillDraft.rows[0],{folder:"drafts",status:"draft"});
+ assert.equal((await action("merchantA",{sourceFolder:"drafts",folder:"trash"})).status,409);
+ assert.equal((await action("merchantA",{sourceFolder:"archive",folder:"trash"})).status,200);
+ assert.equal((await action("merchantA",{sourceFolder:"trash",folder:"inbox"})).status,200);
+ assert.equal((await action("merchantA",{sourceFolder:"inbox",folder:"sent"})).status,400);
+ await pool.query("UPDATE mail_mailboxes SET enabled=false WHERE id=$1",[fixture.boxA]);
+ try{assert.equal((await action("merchantA",{isRead:false})).status,404);}
+ finally{await pool.query("UPDATE mail_mailboxes SET enabled=true WHERE id=$1",[fixture.boxA]);}
+});
+
+test("workspace capabilities expose booleans only and mailbox roles match write permission",async()=>{
+ const owner=await supertest(server).get("/api/mail/capabilities").set("x-ci-subject","merchantA");
+ const viewer=await supertest(server).get("/api/mail/capabilities").set("x-ci-subject","viewerA");
+ assert.equal(owner.status,200);assert.equal(owner.body.admin,true);assert.equal(owner.body.outbound,false);
+ assert.equal(viewer.body.admin,false);
+ assert.deepEqual(Object.keys(owner.body).sort(),["admin","ai","attachments","outbound"]);
+ assert.ok(Object.values(owner.body).every(value=>typeof value==="boolean"));
+ const boxes=await supertest(server).get("/api/mail/mailboxes").set("x-ci-subject","viewerA");
+ assert.equal(boxes.body[0].can_write,false);
+ const owned=await supertest(server).get("/api/mail/mailboxes").set("x-ci-subject","merchantA");
+ assert.ok(owned.body.every(b=>b.can_write===true));
+ assert.equal((await supertest(server).get("/api/mail/capabilities")).status,401);
+});

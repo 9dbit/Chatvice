@@ -101,13 +101,36 @@ export function registerMailRoutes(app: Express) {
   app.use("/api/mail",protect);
   registerMailAIRoutes(app);
   registerMailAttachmentRoutes(app);
+  app.get("/api/mail/capabilities",wrap(async(req,res)=>{
+    res.json({
+      admin:principal(req)!.isMerchant,
+      outbound:process.env.CHATVICE_MAIL_OUTBOUND_ENABLED==="true" &&
+        process.env.CHATVICE_MAIL_PROVIDER==="resend" && Boolean(process.env.RESEND_API_KEY),
+      ai:process.env.CHATVICE_MAIL_AI_ENABLED==="true" && Boolean(process.env.CHATVICE_MAIL_AI_API_KEY),
+      attachments:process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED==="true"
+    });
+  }));
   app.get("/api/mail/mailboxes",wrap(async(req,res)=>{
     const p=principal(req)!;
-    const q=await pool.query(`SELECT b.id,b.local_part,b.display_name,d.domain,b.enabled
+    const q=await pool.query(`SELECT b.id,b.local_part,b.display_name,d.domain,b.enabled,
+       ($2::boolean OR EXISTS (SELECT 1 FROM mail_memberships w WHERE
+         w.mailbox_id=b.id AND w.tenant_id=$1 AND w.user_id=$3
+         AND w.role IN ('owner','member'))) AS can_write
        FROM mail_mailboxes b JOIN mail_domains d ON d.id=b.domain_id
        WHERE b.tenant_id=$1 AND ($2::boolean OR EXISTS
        (SELECT 1 FROM mail_memberships m WHERE m.mailbox_id=b.id AND m.user_id=$3 AND m.tenant_id=$1))
        ORDER BY d.domain,b.local_part`,[p.tenantId,p.isMerchant,p.userId]);
+    res.json(q.rows);
+  }));
+  app.get("/api/mail/mailboxes/:id/stats",wrap(async(req,res)=>{
+    const p=principal(req)!;
+    const box=uuid.parse(req.params.id);
+    if(!await canAccess(p,box))return res.sendStatus(404);
+    const q=await pool.query(`SELECT folder,count(*)::integer AS total,
+      count(*) FILTER(WHERE NOT is_read)::integer AS unread
+      FROM (SELECT folder,thread_id,bool_and(is_read) AS is_read
+        FROM mail_messages WHERE tenant_id=$1 AND mailbox_id=$2
+        GROUP BY folder,thread_id) threads GROUP BY folder`,[p.tenantId,box]);
     res.json(q.rows);
   }));
   app.get("/api/mail/threads",wrap(async(req,res)=>{
@@ -117,19 +140,51 @@ export function registerMailRoutes(app: Express) {
     const folder=z.enum(["inbox","sent","drafts","archive","spam","trash"]).default("inbox").parse(req.query.folder);
     const limit=z.coerce.number().int().min(1).max(100).default(40).parse(req.query.limit);
     const offset=z.coerce.number().int().min(0).max(100000).default(0).parse(req.query.offset);
+    const filter=z.enum(["all","unread","starred"]).default("all").parse(req.query.filter);
     const q=await pool.query(`SELECT t.id,t.subject,t.updated_at,
-       m.id AS message_id,m.from_email,m.text_body,m.is_read,m.is_starred,m.created_at,m.status
+       m.id AS message_id,m.from_email,m.text_body,s.is_read,s.is_starred,
+       s.message_count,m.created_at,m.status
        FROM mail_threads t JOIN LATERAL
        (SELECT id,from_email,text_body,is_read,is_starred,created_at,status FROM mail_messages
         WHERE tenant_id=$1 AND mailbox_id=$2 AND thread_id=t.id AND folder=$3
-        ORDER BY created_at DESC LIMIT 1) m ON true
+        ORDER BY created_at DESC,id DESC LIMIT 1) m ON true
+       JOIN LATERAL (SELECT bool_and(is_read) AS is_read,bool_or(is_starred) AS is_starred,
+         count(*)::integer AS message_count FROM mail_messages
+         WHERE tenant_id=$1 AND mailbox_id=$2 AND thread_id=t.id AND folder=$3) s ON true
        WHERE t.tenant_id=$1 AND t.mailbox_id=$2
-       ORDER BY m.created_at DESC LIMIT $4 OFFSET $5`,[p.tenantId,box,folder,limit,offset]);
+         AND ($6='all' OR ($6='unread' AND NOT s.is_read) OR ($6='starred' AND s.is_starred))
+       ORDER BY m.created_at DESC,t.id DESC LIMIT $4 OFFSET $5`,[p.tenantId,box,folder,limit,offset,filter]);
     res.json(q.rows.map(r=>({
       ...r,
       subject:decryptMailField(p.tenantId,r.id,"thread-subject",r.subject),
       text_body:decryptMailField(p.tenantId,r.message_id,"message-text",r.text_body).slice(0,220)
     })));
+  }));
+  app.patch("/api/mail/threads/:id",wrap(async(req,res)=>{
+    const p=principal(req)!;
+    const id=uuid.parse(req.params.id);
+    const folders=z.enum(["inbox","sent","drafts","archive","spam","trash"]);
+    const d=z.object({mailboxId:uuid,sourceFolder:folders,
+      isRead:z.boolean().optional(),isStarred:z.boolean().optional(),
+      folder:z.enum(["inbox","archive","spam","trash"]).optional()
+    }).refine(x=>x.isRead!==undefined || x.isStarred!==undefined || x.folder!==undefined).parse(req.body);
+    if(!await canAccess(p,d.mailboxId,true))return res.sendStatus(404);
+    // Keep editable drafts in their folder. This endpoint never deletes content
+    // or changes delivery status, even when moving a conversation to Trash.
+    if(d.folder && d.sourceFolder==="drafts")return res.status(409).json({error:"Drafts must stay in Drafts until sent"});
+    const q=await pool.query(`UPDATE mail_messages m SET
+      is_read=COALESCE($5,m.is_read),is_starred=COALESCE($6,m.is_starred),
+      folder=COALESCE($7,m.folder)
+      WHERE m.tenant_id=$1 AND m.mailbox_id=$2 AND m.thread_id=$3 AND m.folder=$4
+        AND ($7::text IS NULL OR m.status<>'draft')
+        AND EXISTS(SELECT 1 FROM mail_mailboxes b WHERE b.id=m.mailbox_id
+          AND b.tenant_id=$1 AND b.enabled=true AND ($8::boolean OR EXISTS(
+            SELECT 1 FROM mail_memberships x WHERE x.mailbox_id=b.id
+            AND x.tenant_id=$1 AND x.user_id=$9 AND x.role IN('owner','member'))))
+      RETURNING m.id`,[p.tenantId,d.mailboxId,id,d.sourceFolder,d.isRead??null,
+        d.isStarred??null,d.folder??null,p.isMerchant,p.userId]);
+    if(!q.rowCount)return res.sendStatus(404);
+    res.json({updated:q.rowCount});
   }));
   app.get("/api/mail/threads/:id",wrap(async(req,res)=>{
     const p=principal(req)!;

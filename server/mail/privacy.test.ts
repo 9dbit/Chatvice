@@ -27,7 +27,7 @@ test("inbox must never render untrusted HTML as raw markup",()=>{
  const inbox=read("client/src/pages/dashboard/mail.tsx");
  assert.equal(inbox.includes("dangerouslySetInnerHTML"),false);
  assert.equal(inbox.includes(".innerHTML"),false);
- assert.match(inbox,/\{m\.text_body\}/);
+ assert.match(inbox,/\{m\.text_body\|\|/);
  const mailRoute=read("server/mail/routes.ts");
  assert.match(mailRoute,/CHATVICE_MAIL_ALLOWED_ORIGINS/);
  assert.match(mailRoute,/CHATVICE_MAIL_OUTBOUND_ENABLED/);
@@ -39,5 +39,5 @@ test("AI requires explicit per-action consent and does not auto send",()=>{
  assert.match(ai,/redactCommonPII/);
  const ui=read("client/src/pages/dashboard/mail.tsx");
  assert.match(ui,/window\.confirm\(/);
- assert.match(ui,/requiresHumanReview|setBody\(data\.text\)/);
+ assert.match(ui,/else reply\(data\.text\)/);
 });
