@@ -10,6 +10,7 @@ on:
       - "client/src/mail-qa-main.tsx"
       - "client/src/mail-qa.css"
       - "vite.mail-qa.config.ts"
+      - "script/build-mail-qa.ts"
       - "client/src/pages/dashboard/mail.tsx"
       - "client/src/pages/dashboard/mail-admin.tsx"
       - "client/src/pages/dashboard/mail-attachments.tsx"
@@ -61,6 +62,8 @@ jobs:
         run: npx tsx --test server/mail/security.test.ts server/mail/privacy.test.ts server/mail/attachment-security.test.ts server/mail/crypto.test.ts
       - name: Test mail tenant isolation on disposable PostgreSQL
         run: npx tsx --test server/mail/integration.test.ts
+      - name: Verify fail-closed QA bootstrap on disposable databases
+        run: npx tsx --test server/mail/qa-bootstrap.test.ts
       - name: Typecheck mail files (report existing app baseline separately)
         run: |
           npm run check > /tmp/chatvice-typecheck.log 2>&1 || TYPECHECK_FAILED=1
