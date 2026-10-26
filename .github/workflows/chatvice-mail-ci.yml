@@ -76,6 +76,8 @@ jobs:
           node scripts/mail-restore-verify.mjs
       - name: Verify fail-closed QA bootstrap on disposable databases
         run: npx tsx --test server/mail/qa-bootstrap.test.ts
+      - name: Verify guarded isolated app schema installation
+        run: npx tsx --test server/mail/app-schema.test.ts
       - name: Typecheck mail files (report existing app baseline separately)
         run: |
           npm run check > /tmp/chatvice-typecheck.log 2>&1 || TYPECHECK_FAILED=1

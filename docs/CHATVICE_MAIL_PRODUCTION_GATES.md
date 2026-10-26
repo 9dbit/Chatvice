@@ -15,6 +15,8 @@ below have actual evidence. Existing Chatvice production and Hostinger remain li
 - `RESEND_API_KEY` is for sending and should be restricted to the Mail domain. Inbound retrieval requires a separate `RESEND_RECEIVING_API_KEY`; it never falls back to a sending key. The provider dashboard currently offers Full access for receiving API reads, so isolate its account or review that broader scope explicitly. Do not reuse the existing Pentagon credential.
 - `scripts/mail-provision-user.ts` previews by default. It requires the exact expected database hostname, existing tenant, and (for nonadmins) existing supervisor plus mailbox membership. Only `--apply` creates credentials. Password comes from a secret environment variable, never an argument or chat. No public signup/reset endpoint exists.
 
+For a brand-new isolated application database, use `node scripts/mail-app-schema.mjs` as pre-deploy with `CHATVICE_MAIL_SCHEMA_INSTALL=reviewed-isolated-only`, the exact `CHATVICE_MAIL_SCHEMA_EXPECTED_HOST`, and explicit `CHATVICE_MAIL_INITIAL_TENANT`. It creates the minimal standalone tenant/CRM tables and all reviewed Mail migrations in one transaction, records SHA-256 migration history, refuses unmanaged/nonempty databases, and checks history on every repeat. It creates no password or public signup. This installer is separately tested on disposable PostgreSQL; do not point it at the main Chatvice database.
+
 ## Attachment encryption compatibility
 
 New private objects use authenticated AES-256-GCM envelopes bound to their complete
