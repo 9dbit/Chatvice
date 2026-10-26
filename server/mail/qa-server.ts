@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { pool } from "../db";
 import { isMailEncryptionReady } from "./crypto";
 import { registerMailRoutes } from "./routes";
+import {runMailQaSmoke} from "./qa-smoke";
 
 /**
  * Dedicated isolated preview. NOT the regular Chatvice app; no marketing pixel,
@@ -59,11 +60,12 @@ function requireQA(req:Request,res:Response,next:NextFunction){
  };
  next();
 }
+let smokeStatus="disabled";
 async function qaHealth(_req:Request,res:Response){
  try{
   const q=await pool.query("SELECT id FROM chatvice_mail_qa_bootstrap WHERE id=1");
   res.status(q.rowCount===1?200:503).json({
-   status:q.rowCount===1?"ok":"not_initialized",service:"chatvice-mail-qa"
+   status:q.rowCount===1?"ok":"not_initialized",service:"chatvice-mail-qa",smoke:smokeStatus
   });
  }catch{res.status(503).json({status:"unavailable",service:"chatvice-mail-qa"});}
 }
@@ -94,7 +96,17 @@ app.use((_req,res)=>res.sendStatus(404));
 const port=Number(process.env.PORT||"5000");
 const server=app.listen(port,"0.0.0.0",()=>{
  console.log("[Mail QA] isolated preview server listening");
+ if(process.env.CHATVICE_MAIL_QA_SMOKE==="true"){
+  smokeStatus="running";
+  void runMailQaSmoke(port).then(result=>{
+   smokeStatus="passed";console.log("[Mail QA smoke] "+JSON.stringify({status:"passed",...result}));
+  }).catch(error=>{
+   smokeStatus="failed";
+   console.warn("[Mail QA smoke] "+JSON.stringify({status:"failed",check:error instanceof Error?error.message:"unknown"}));
+  });
+ }
 });
 function shutdown(){server.close(()=>pool.end().finally(()=>process.exit(0)));}
 process.once("SIGTERM",shutdown);
 process.once("SIGINT",shutdown);
+

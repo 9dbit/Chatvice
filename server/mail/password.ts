@@ -19,4 +19,3 @@ export async function verifyMailPassword(password:unknown,encoded:unknown):Promi
   const expected=match?Buffer.from(match[2],"hex"):Buffer.alloc(32);
   return timingSafeEqual(derived,expected) && !!match;
 }
-
