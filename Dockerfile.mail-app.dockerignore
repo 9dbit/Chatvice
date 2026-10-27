@@ -16,6 +16,7 @@
 !scripts/
 !scripts/mail-provision-user.ts
 !scripts/mail-app-schema.mjs
+!scripts/mail-delivery-staging-login-smoke.mjs
 !migrations/
 !migrations/20261026_chatvice_mail_v1.sql
 !migrations/20261026_chatvice_mail_attachments_v2.sql

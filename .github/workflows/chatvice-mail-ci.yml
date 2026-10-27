@@ -13,6 +13,7 @@ on:
       - "scripts/mail-qa-container-smoke.mjs"
       - "scripts/mail-app-container-smoke.mjs"
       - "scripts/mail-app-schema.mjs"
+      - "scripts/mail-delivery-staging-login-smoke.mjs"
       - "scripts/mail-provision-user.ts"
       - "script/build-mail-app.ts"
       - "Dockerfile.mail-app"

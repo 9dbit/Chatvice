@@ -21,6 +21,7 @@ RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund && npm cache clean -
 COPY --from=build --chown=node:node /build/dist/mail-app ./dist/mail-app
 COPY --from=build --chown=node:node /build/dist/mail-app-server.cjs /build/dist/mail-provision-user.mjs ./dist/
 COPY --chown=node:node scripts/mail-app-schema.mjs ./scripts/mail-app-schema.mjs
+COPY --chown=node:node scripts/mail-delivery-staging-login-smoke.mjs ./scripts/mail-delivery-staging-login-smoke.mjs
 COPY --chown=node:node migrations/20261026_chatvice_mail_v1.sql migrations/20261026_chatvice_mail_attachments_v2.sql migrations/20261027_chatvice_mail_login.sql migrations/20261027_chatvice_mail_delivery_recipients_v3.sql ./migrations/
 USER node
 EXPOSE 5000
