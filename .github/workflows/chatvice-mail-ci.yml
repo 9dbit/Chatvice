@@ -38,6 +38,7 @@ on:
       - "migrations/20261026_chatvice_mail_v1.sql"
       - "migrations/20261026_chatvice_mail_attachments_v2.sql"
       - "migrations/20261027_chatvice_mail_login.sql"
+      - "migrations/20261027_chatvice_mail_delivery_recipients_v3.sql"
       - "shared/mail-schema.ts"
       - "shared/mail-recipients.ts"
       - "shared/mail-*.ts"
@@ -80,7 +81,7 @@ jobs:
       - name: Install from lockfile
         run: npm ci --no-audit --no-fund
       - name: Verify mail security and provider tests
-        run: npx tsx --test server/mail/qa-login.test.ts server/mail/qa-auth.test.ts server/mail/security.test.ts server/mail/message-text.test.ts server/mail/privacy.test.ts server/mail/attachment-security.test.ts server/mail/crypto.test.ts server/mail/binary-crypto.test.ts server/mail/password.test.ts server/mail/backup.test.ts server/mail/recipients.test.ts
+        run: npx tsx --test server/mail/qa-login.test.ts server/mail/qa-auth.test.ts server/mail/security.test.ts server/mail/delivery.test.ts server/mail/message-text.test.ts server/mail/privacy.test.ts server/mail/attachment-security.test.ts server/mail/crypto.test.ts server/mail/binary-crypto.test.ts server/mail/password.test.ts server/mail/backup.test.ts server/mail/recipients.test.ts
       - name: Test mail tenant isolation on disposable PostgreSQL
         run: npx tsx --test server/mail/integration.test.ts
       - name: Rehearse encrypted PostgreSQL backup and restore on disposable CI

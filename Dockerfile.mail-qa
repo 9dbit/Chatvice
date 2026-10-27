@@ -19,7 +19,7 @@ RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund && npm cache clean -
 COPY --from=build --chown=node:node /build/dist/mail-qa ./dist/mail-qa
 COPY --from=build --chown=node:node /build/dist/mail-qa-server.cjs ./dist/mail-qa-server.cjs
 COPY --chown=node:node scripts/mail-qa-bootstrap.mjs ./scripts/mail-qa-bootstrap.mjs
-COPY --chown=node:node migrations/20261026_chatvice_mail_v1.sql migrations/20261026_chatvice_mail_attachments_v2.sql ./migrations/
+COPY --chown=node:node migrations/20261026_chatvice_mail_v1.sql migrations/20261026_chatvice_mail_attachments_v2.sql migrations/20261027_chatvice_mail_delivery_recipients_v3.sql ./migrations/
 USER node
 EXPOSE 5000
 CMD ["node", "dist/mail-qa-server.cjs"]

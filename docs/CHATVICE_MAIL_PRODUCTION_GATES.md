@@ -8,14 +8,14 @@ below have actual evidence. Existing Chatvice production and Hostinger remain li
 - Build: `npx tsx script/build-mail-app.ts`; start `node dist/mail-app-server.cjs`.
 - Dedicated service, database and private R2 bucket. No main Chatvice jobs/routes or marketing entry document.
 - Required: `CHATVICE_MAIL_APP_ROLE=isolated-mail`, exact HTTPS `CHATVICE_MAIL_APP_ORIGIN`, identical `CHATVICE_MAIL_ALLOWED_ORIGINS`, stable encryption key and separate 64-hex `CHATVICE_MAIL_SESSION_SECRET`.
-- Apply additive `migrations/20261027_chatvice_mail_login.sql` after Mail v1/v2 only on the isolated Mail DB after backup. QA bootstrap must be disabled.
+- Apply the reviewed login and delivery-recipient migrations after Mail v1/v2 only on the isolated Mail DB after backup. QA bootstrap must be disabled. The delivery migration adds opaque recipient evidence and clears unsupported legacy multi-recipient delivery summaries to `sent`; it never requeues mail or changes message bodies.
 - Webmail login supports independent identities with memberships in multiple mailboxes. It does not provide IMAP/SMTP client compatibility.
 - Passwords use random-salt scrypt; sessions store keyed token hashes, expire after eight hours and check live enabled/credential-version state on every request. Host-only `__Host-chatvice_mail` cookie is Secure, HttpOnly, SameSite=Strict. Main-app cookies are not accepted.
 - Persistent atomic login request limits apply per source IP and account. AI stays disabled.
 - `RESEND_API_KEY` is for sending and should be restricted to the Mail domain. Inbound retrieval requires a separate `RESEND_RECEIVING_API_KEY`; it never falls back to a sending key. The provider dashboard currently offers Full access for receiving API reads, so isolate its account or review that broader scope explicitly. Do not reuse the existing Pentagon credential.
 - `scripts/mail-provision-user.ts` previews by default. It requires the exact expected database hostname, existing tenant, and (for nonadmins) existing supervisor plus mailbox membership. Only `--apply` creates credentials. Password comes from a secret environment variable, never an argument or chat. No public signup/reset endpoint exists.
 
-For a brand-new isolated application database, use `node scripts/mail-app-schema.mjs` as pre-deploy with `CHATVICE_MAIL_SCHEMA_INSTALL=reviewed-isolated-only`, the exact `CHATVICE_MAIL_SCHEMA_EXPECTED_HOST`, and explicit `CHATVICE_MAIL_INITIAL_TENANT`. It creates the minimal standalone tenant/CRM tables and all reviewed Mail migrations in one transaction, records SHA-256 migration history, refuses unmanaged/nonempty databases, and checks history on every repeat. It creates no password or public signup. This installer is separately tested on disposable PostgreSQL; do not point it at the main Chatvice database.
+For a brand-new isolated application database, use `node scripts/mail-app-schema.mjs` as pre-deploy with `CHATVICE_MAIL_SCHEMA_INSTALL=reviewed-isolated-only`, the exact `CHATVICE_MAIL_SCHEMA_EXPECTED_HOST`, and explicit `CHATVICE_MAIL_INITIAL_TENANT`. It creates the minimal standalone tenant/CRM tables and all reviewed Mail migrations in one transaction, records SHA-256 migration history, refuses unmanaged/nonempty databases, and checks history on every repeat. It creates no password or public signup. The installer can also advance only the exact immutable three-migration Mail release to the reviewed fourth migration under the same expected-host, tenant, transaction and history guards. Unknown, incomplete, altered or unmanaged histories are refused. This installer is separately tested on disposable PostgreSQL; do not point it at the main Chatvice database.
 
 ## Independent application image
 
@@ -26,7 +26,7 @@ change a Railway service, create credentials, enable outbound mail or perform a
 production deployment.
 
 The image contains the compiled private frontend/server, the guarded schema installer,
-all three reviewed migrations and the compiled offline identity command
+all four reviewed migrations and the compiled offline identity command
 `node dist/mail-provision-user.mjs`. It uses the same exact locked database/schema
 dependencies as QA and runs as `node`. Main app sources, attached assets, development
 dependencies, the QA server and the disposable QA bootstrap are excluded from the
@@ -105,3 +105,21 @@ database/object snapshot combination before production release.
 ## Large-file and outbound payload contract
 
 The shared file ceiling is 16 MiB, with the existing 16 MiB aggregate decoded attachment ceiling and eight-file cap retained. This accommodates the observed 8,477,526-byte legacy attachment without unbounded buffers. Browser and private-store limits share one policy. The adapter explicitly serializes filename/base64 attachment pairs, rejects malformed or over-budget data before transport, and has a byte-for-byte payload regression. Resend documents 40 MB after attachment Base64 encoding: https://resend.com/docs/api-reference/emails/send-email. The historical large source still requires a successful export; synthetic size coverage is not a claim that it has been imported.
+
+## Per-recipient delivery acceptance
+
+Resend outcome webhooks identify individual recipients in `data.to`. A message
+may be marked delivered only when signed evidence covers every unique To/CC/BCC
+recipient. A later CC/BCC bounce or complaint must remain visible as a delivery
+issue even after an earlier recipient was delivered. Late sent events must not
+downgrade final recipient outcomes or revive an expired send.
+
+Recipient evidence stored in delivery events uses keyed, tenant/message-bound
+opaque values; private BCC addresses and event keys must not appear in thread
+responses. Replay deduplication and mixed-recipient order must be tested with
+signed events on disposable PostgreSQL before real multi-recipient testing.
+
+The separate delivery staging application is currently private with outbound, AI
+and attachments disabled. A successful private deployment proves application/DB
+startup only. Provider authentication, test-domain DNS, signed ingress, test-login
+provisioning and actual message/attachment receipt remain acceptance gates.

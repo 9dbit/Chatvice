@@ -3,6 +3,40 @@
 Scope: read-only discovery for Chatvice Mail staging. No provider key values,
 passwords, cookies or DNS changes are recorded here.
 
+## Delivery staging continuation — 27 October 2026
+
+A current Chrome session on the Mac can read the authenticated Cloudflare DNS
+page for `chatvice.app`. Searching `qa-mail` returned no records. Resend redirected
+to its login page. Automatic approval review rejected Google sign-in because
+the prior permission covered read-only inspection of an existing provider session;
+explicit sign-in approval is pending. No provider key values were read. A fresh
+TRADEVICEPC check still found no existing browser debugging port or pipe.
+
+Real provider testing must use the independent Mail application. The synthetic QA
+server rejects outbound activation, does not run the outbox worker, and requires
+QA authentication before its `/api/mail` routes. The independent application
+exempts only signed provider ingress from browser login and starts the worker.
+
+`Chatvice-Mail-Delivery-Staging` was created only in `cutover-staging`, pinned to
+`2905f020d67000b08b2871ef904145cd7a4f8efe`, and built with `Dockerfile.mail-app`.
+Deployment `adca86c2-f32f-495e-bcd9-5a12f7a79578` succeeded. Its logs confirm atomic
+initialization of the new isolated `Postgres-gFVb` database, runtime start and
+database connectivity. No login identity was created. Fresh independent encryption
+and session keys are stored only as Railway service variables.
+
+A separate private Railway S3 bucket, `chatvice-mail-delivery-staging-private`,
+was created for this staging service. Storage/scanner references are configured
+for its next deployment, while attachments, outbound and AI remain disabled.
+This is not production Cloudflare R2 acceptance. The service has no public domain;
+its allowed origin is deliberately `https://delivery-staging.invalid` until a real
+staging URL is approved and configured. Public URL creation was denied while the
+service was unconfigured; explicit approval for exposing the now-configured staging
+service has been requested.
+
+No real message was sent. Root DNS, production and the unrelated five-change
+staging patch remain unchanged. Actual sending, receiving, reply correlation and
+attachment receipt still require dedicated provider configuration and test evidence.
+
 ## Railway locations verified
 
 Project: Chatvice `40970ac6-3ce6-4d31-8d6a-555d2dd6fecf`.

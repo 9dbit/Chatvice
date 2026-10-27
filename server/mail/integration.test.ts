@@ -37,6 +37,7 @@ before(async()=>{
   await pool.query("CREATE TABLE leads (id varchar(32) PRIMARY KEY, merchant_id varchar(32) NOT NULL, customer_name text, customer_email text, stage text, score integer, source text, last_contact_at timestamp, created_at timestamp DEFAULT now(), updated_at timestamp DEFAULT now())");
   await pool.query(readFileSync("migrations/20261026_chatvice_mail_v1.sql","utf8"));
   await pool.query(readFileSync("migrations/20261026_chatvice_mail_attachments_v2.sql","utf8"));
+  await pool.query(readFileSync("migrations/20261027_chatvice_mail_delivery_recipients_v3.sql","utf8"));
   await pool.query("INSERT INTO merchants(id) VALUES($1),($2)",[fixture.tenantA,fixture.tenantB]);
   await pool.query("INSERT INTO supervisors(id,merchant_id) VALUES ($1,$2)",[fixture.supervisor,fixture.tenantA]);
   await pool.query(`INSERT INTO mail_domains(id,tenant_id,domain,verification_token,status) VALUES
@@ -730,4 +731,90 @@ test("authorized readers receive text for HTML-only mail without exposing raw HT
  const plainThread=await pool.query("SELECT thread_id FROM mail_messages WHERE id=$1",[plain.messages[0].id]);
  const response=await supertest(server).get("/api/mail/threads/"+plainThread.rows[0].thread_id).set("x-ci-subject","merchantA");
  assert.equal(response.status,200);assert.equal(response.body[0].text_body,plainText);
+});
+
+test("recipient delivery evidence covers To, CC and BCC without leaking private addresses",async()=>{
+ const names=["CHATVICE_MAIL_PROVIDER","RESEND_WEBHOOK_SECRET"];
+ const previous=Object.fromEntries(names.map(k=>[k,process.env[k]]));
+ const signingKey=Buffer.alloc(32,17);
+ process.env.CHATVICE_MAIL_PROVIDER="resend";
+ process.env.RESEND_WEBHOOK_SECRET="whsec_"+signingKey.toString("base64");
+ const to="delivery-to@example.org",cc="delivery-copy@example.org",bcc="hidden-delivery@example.org";
+ type Draft={id:string;threadId:string;providerId:string};
+ try{
+  const make=async(status="sent"):Promise<Draft>=>{
+   const response=await supertest(server).post("/api/mail/compose").set("x-ci-subject","merchantA")
+    .set("origin","http://test.local").send({mailboxId:fixture.boxA,to:[to,to.toUpperCase()],
+     cc:[cc,to],bcc:[bcc],subject:"Synthetic recipient delivery",text:"Synthetic delivery evidence only",draft:true});
+   assert.equal(response.status,201);
+   const providerId="recipient-provider-"+randomUUID();
+   await pool.query(`UPDATE mail_messages SET status=$1,folder='sent',provider_message_id=$2
+    WHERE id=$3 AND tenant_id=$4 AND mailbox_id=$5`,[status,providerId,response.body.id,fixture.tenantA,fixture.boxA]);
+   return {id:response.body.id,threadId:response.body.threadId,providerId};
+  };
+  const state=async(draft:Draft)=>(await pool.query('SELECT status FROM mail_messages WHERE id=$1',[draft.id])).rows[0].status;
+  const sendEvent=async(draft:Draft,type:string,recipients?:string[],eventId="recipient-event-"+randomUUID())=>{
+   const timestamp=String(Math.floor(Date.now()/1000));
+   const payload=JSON.stringify({type,data:{email_id:draft.providerId,...(recipients===undefined?{}:{to:recipients})}});
+   const signature="v1,"+createHmac("sha256",signingKey).update(eventId+"."+timestamp+".").update(payload).digest("base64");
+   const response=await supertest(server).post("/api/mail/provider/resend/webhook")
+    .set("content-type","application/json").set("svix-id",eventId)
+    .set("svix-timestamp",timestamp).set("svix-signature",signature).send(payload);
+   assert.equal(response.status,200);
+   return state(draft);
+  };
+  const noLeak=async(draft:Draft)=>{
+   const outcome=(await pool.query('SELECT status,delivered_at FROM mail_messages WHERE id=$1',[draft.id])).rows[0];
+   if(outcome.status==='delivered')assert.ok(outcome.delivered_at);else assert.equal(outcome.delivered_at,null);
+   const response=await supertest(server).get('/api/mail/threads/'+draft.threadId).set('x-ci-subject','merchantA');
+   assert.equal(response.status,200);
+   const serialized=JSON.stringify(response.body);
+   for(const field of ['bcc_emails','recipient_keys','provider_event_id'])assert.equal(field in response.body[0],false);
+   assert.equal(serialized.includes(bcc),false);
+   const events=await pool.query('SELECT provider_event_id,event_type,recipient_keys FROM mail_delivery_events WHERE message_id=$1',[draft.id]);
+   assert.equal(JSON.stringify(events.rows).includes(bcc),false);
+   for(const event of events.rows)for(const key of event.recipient_keys)assert.match(key,/^[a-f0-9]{64}$/);
+   return events.rows;
+  };
+  // Deduplication spans To/CC duplicates, distinct events for the same recipient,
+  // and literal Svix replay. None can stand in for another expected address.
+  const all=await make(),firstEvent="recipient-replayed-"+randomUUID();
+  assert.equal(await sendEvent(all,'email.delivered',[to],firstEvent),'sent');
+  assert.equal(await sendEvent(all,'email.delivered',[to],firstEvent),'sent');
+  assert.equal(await sendEvent(all,'email.delivered',[to.toUpperCase()]),'sent');
+  assert.equal(await sendEvent(all,'email.delivered',[cc]),'sent');
+  const partial=await noLeak(all);
+  assert.equal(partial.filter(event=>event.provider_event_id===firstEvent).length,1);
+  assert.ok(partial.every(event=>event.recipient_keys.length===1));
+  assert.equal(await sendEvent(all,'email.delivered',[bcc]),'delivered');
+  await noLeak(all);
+  // A BCC bounce remains visible at the aggregate level even after every
+  // recipient had delivered evidence, regardless of signed event order.
+  for(const bounceFirst of [false,true]){
+   const mixed=await make();
+   if(bounceFirst)assert.equal(await sendEvent(mixed,'email.bounced',[bcc]),'bounced');
+   await sendEvent(mixed,'email.delivered',[to]);
+   await sendEvent(mixed,'email.delivered',[cc]);
+   assert.equal(await sendEvent(mixed,'email.delivered',[bcc]),bounceFirst?'bounced':'delivered');
+   const bounceEvent="recipient-bounce-"+randomUUID();
+   assert.equal(await sendEvent(mixed,'email.bounced',[bcc],bounceEvent),'bounced');
+   assert.equal(await sendEvent(mixed,'email.bounced',[bcc],bounceEvent),'bounced');
+   const events=await noLeak(mixed);
+   assert.equal(events.filter(event=>event.provider_event_id===bounceEvent).length,1);
+  }
+  const unattributed=await make();
+  assert.equal(await sendEvent(unattributed,'email.delivered'),'sent');
+  assert.equal(await sendEvent(unattributed,'email.delivered',['unrelated@example.org']),'sent');
+  assert.equal(await sendEvent(unattributed,'email.delivered',[to,cc]),'sent');
+  assert.equal(await sendEvent(unattributed,'email.delivered',[bcc]),'delivered');
+  const unknownEvents=await noLeak(unattributed);
+  assert.equal(unknownEvents.filter(event=>event.recipient_keys.length===0).length,2);
+  const expired=await make('failed');
+  assert.equal(await sendEvent(expired,'email.sent',[to,cc,bcc]),'failed');
+  assert.equal(await sendEvent(expired,'email.delivered',[to]),'failed');
+  assert.equal(await sendEvent(expired,'email.delivered',[cc,bcc]),'delivered');
+  await noLeak(expired);
+ }finally{
+  for(const name of names){if(previous[name]===undefined)delete process.env[name];else process.env[name]=previous[name];}
+ }
 });

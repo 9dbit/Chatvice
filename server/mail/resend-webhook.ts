@@ -5,48 +5,46 @@ import { fetchResendReceived } from "./provider";
 import { ingestIncomingMail } from "./ingest";
 import { loadResendReceivedAttachments } from "./resend-attachments";
 import { persistInboundMailAttachments } from "./attachments";
+import {aggregateMailDeliveryStatus,mailDeliveryRecipientEvidence,MAIL_DELIVERY_STATES} from "./delivery";
 
-const DELIVERY_STATES: Record<string,string|undefined> = {
-  "email.sent": "sent",
-  "email.delivered": "delivered",
-  "email.bounced": "bounced",
-  "email.complained": "bounced",
-  "email.failed": "failed",
-};
 type EventBody = {type?:unknown;data?:Record<string,unknown>};
 function safeAddresses(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((a):a is string=>typeof a==="string").slice(0,50) : [];
 }
 async function applyDeliveryEvent(
   eventType:string, providerEmailId:string, webhookId:string,
-  taggedMessageId:string | undefined, rfcId:string | undefined,
+  taggedMessageId:string | undefined, rfcId:string | undefined,recipients:unknown,
 ):Promise<void> {
-  const state=DELIVERY_STATES[eventType];
+  const state=MAIL_DELIVERY_STATES[eventType];
   if(!state) return;
   const client=await pool.connect();
   try {
     await client.query("BEGIN");
-    const q=await client.query(`SELECT id,tenant_id,status FROM mail_messages
+    const q=await client.query(`SELECT id,tenant_id,status,to_emails,cc_emails,bcc_emails FROM mail_messages
       WHERE direction='outbound' AND (provider_message_id=$1 OR
         ($2::uuid IS NOT NULL AND id=$2::uuid))
       FOR UPDATE`,[providerEmailId,taggedMessageId||null]);
     for(const item of q.rows) {
-      const event=await client.query(`INSERT INTO mail_delivery_events(id,tenant_id,message_id,provider_event_id,event_type)
-        VALUES(gen_random_uuid(),$1,$2,$3,$4)
+      const evidence=mailDeliveryRecipientEvidence(item.tenant_id,item.id,
+        {to:item.to_emails,cc:item.cc_emails,bcc:item.bcc_emails},recipients);
+      const event=await client.query(`INSERT INTO mail_delivery_events(id,tenant_id,message_id,provider_event_id,event_type,recipient_keys)
+        VALUES(gen_random_uuid(),$1,$2,$3,$4,$5::text[])
         ON CONFLICT(message_id,provider_event_id) DO NOTHING RETURNING id`,[
-        item.tenant_id,item.id,webhookId,eventType
+        item.tenant_id,item.id,webhookId,eventType,evidence.eventKeys
       ]);
       if(!event.rowCount)continue;
-      // A worker may expire an ambiguous send before a delayed provider result.
-      // Only final delivery evidence may reconcile a failed message; late sent
-      // events must not resurrect it or downgrade a final delivery result.
-      const terminal=item.status==="delivered" || item.status==="bounced";
-      const failedWithoutFinal=item.status==="failed" && state!=="delivered" && state!=="bounced";
-      const nextStatus=terminal || failedWithoutFinal?item.status:state;
+      // Outcome events are per recipient. Keep the existing message lock while
+      // folding persisted opaque evidence so concurrent events cannot hide a
+      // later CC/BCC failure behind an earlier recipient's delivery.
+      const history=await client.query<{event_type:string;recipient_keys:string[]}>(`
+        SELECT event_type,recipient_keys FROM mail_delivery_events
+        WHERE message_id=$1 AND tenant_id=$2`,[item.id,item.tenant_id]);
+      const nextStatus=aggregateMailDeliveryStatus(item.status,evidence.expectedKeys,
+        history.rows.map(row=>({eventType:row.event_type,recipientKeys:row.recipient_keys})));
       await client.query(`UPDATE mail_messages SET
         status=$1,provider_message_id=COALESCE(provider_message_id,$2),
         rfc_message_id=COALESCE(rfc_message_id,$3),
-        delivered_at=CASE WHEN $1='delivered' THEN COALESCE(delivered_at,now()) ELSE delivered_at END
+        delivered_at=CASE WHEN $1='delivered' THEN COALESCE(delivered_at,now()) ELSE NULL END
         WHERE id=$4 AND tenant_id=$5`,[nextStatus,providerEmailId,rfcId||null,item.id,item.tenant_id]);
     }
     await client.query("COMMIT");
@@ -103,7 +101,7 @@ export function registerResendWebhook(app:Express):void {
         return res.json({accepted:true,saved:result.saved,deduplicated:result.duplicate,
           attachmentsStored:files.stored,attachmentsDeduplicated:files.duplicates});
       }
-      if(DELIVERY_STATES[type]){
+      if(MAIL_DELIVERY_STATES[type]){
         const id=data.email_id;
         if(typeof id!=="string" || id.length>128)return res.sendStatus(400);
         const tags=data.tags;
@@ -111,7 +109,7 @@ export function registerResendWebhook(app:Express):void {
           ? (tags as Record<string,unknown>).chatvice_id : undefined;
         const taggedId=typeof tagged==="string" && /^[0-9a-f-]{36}$/i.test(tagged)?tagged:undefined;
         const rfc=isMailMessageId(data.message_id)?data.message_id:undefined;
-        await applyDeliveryEvent(type,id,webhookId,taggedId,rfc);
+        await applyDeliveryEvent(type,id,webhookId,taggedId,rfc,data.to);
       }
       return res.json({accepted:true});
     }catch(_err){

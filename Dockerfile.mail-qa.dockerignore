@@ -18,6 +18,7 @@
 !migrations/
 !migrations/20261026_chatvice_mail_v1.sql
 !migrations/20261026_chatvice_mail_attachments_v2.sql
+!migrations/20261027_chatvice_mail_delivery_recipients_v3.sql
 !config/
 !config/mail-qa-runtime/
 !config/mail-qa-runtime/package.json

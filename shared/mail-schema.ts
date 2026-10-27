@@ -121,5 +121,6 @@ export const mailDeliveryEvents=pgTable("mail_delivery_events",{
  messageId:uuid("message_id").notNull().references(()=>mailMessages.id,{onDelete:"cascade"}),
  providerEventId:text("provider_event_id").notNull(),
  eventType:text("event_type").notNull(),
+ recipientKeys:text("recipient_keys").array().notNull().default(sql`'{}'::text[]`),
  createdAt:time("created_at").notNull().defaultNow(),
 },t=>[unique("mail_delivery_events_message_id_provider_event_id_key").on(t.messageId,t.providerEventId)]);
