@@ -223,3 +223,64 @@ Resume from the connected Chrome Work session with Resend and Cloudflare tabs
 available. Inspect the already registered QA domain, complete its issued DNS
 records, then provision dedicated provider credentials and signed webhook ingress.
 Do not treat successful application startup as successful email delivery.
+
+## Public delivery-staging endpoint — 27 October 2026, 23:35 WIB
+
+Continuation now has browser side-panel metadata identifying the selected Resend
+domain tab. Nevertheless the Browser control connector still returns the same
+originating-browser-context error before any runtime command executes. No live
+provider dashboard inspection or configuration was possible. The owner has
+already followed the side-panel step; do not keep asking them to repeat it.
+
+The independently secured Mail application now has a Railway HTTPS staging URL:
+
+https://chatvice-mail-delivery-staging-cutover-staging.up.railway.app
+
+Only service `d446f23c-2730-49e5-8e3d-6751ebe46afa` in `cutover-staging`
+was configured. Railway domain `6754e823-9780-4378-b68f-69b546de4006`
+routes to port 5000. Both `CHATVICE_MAIL_APP_ORIGIN` and
+`CHATVICE_MAIL_ALLOWED_ORIGINS` are set to the exact HTTPS URL above.
+`PORT=5000`; outbound, attachments and AI are explicitly false; the provider
+is explicitly disabled. No provider credential was created, copied or exposed.
+
+Deployment `92b7901c-e035-4136-a343-26b484291ac3`, retaining application commit
+`7ffbf51aa4f5f807ff5c674fa36e127439e22f84`, reached **SUCCESS** at
+2026-10-27T16:35:40Z. No production application or customer database was changed.
+
+Nine live HTTP checks passed after that deployment:
+- `GET /health`: 200, status ok / service chatvice-mail.
+- `GET /login`: 200.
+- Anonymous `GET /api/mail-auth/session`, `/api/mail/mailboxes` and
+  `/api/mail/domains`: 401 each.
+- `POST /api/mail/provider/resend/webhook`: 503 while provider disabled.
+- Login POST with unrelated Origin, or without Origin: 403 each.
+- Login POST with configured Origin and empty credentials: 401, proving the
+  correct-origin request reaches credential validation without authenticating.
+- All nine responses include no-store and noindex headers.
+
+This is network/authentication-boundary acceptance only. No test identity was
+provisioned, no authenticated browser login was performed, and no signed real
+provider event or email was tested.
+
+Fresh Google Public DNS queries returned:
+- Apex `chatvice.app` MX: Cloudflare route1/route2/route3.
+- NXDOMAIN for `qa-mail.chatvice.app` MX/TXT,
+  `resend._domainkey.qa-mail.chatvice.app` TXT, and
+  `send.qa-mail.chatvice.app` MX/TXT.
+These queried selectors do not replace the actual DNS values/labels issued by
+the provider; inspect the existing Resend QA domain before creating records.
+
+The concrete webhook destination for subsequent Resend configuration is:
+
+https://chatvice-mail-delivery-staging-cutover-staging.up.railway.app/api/mail/provider/resend/webhook
+
+It is currently intentionally disabled (503); do not register live receiving
+traffic until the separate receiving key, webhook signing secret, test-domain
+DNS, test mailboxes and private attachment path are ready. Replace the temporary
+sending-key reference with a dedicated domain-restricted key. Store credential
+values only in Railway service variables, not this document or chat.
+
+Read-back confirmed the domain and successful deployment. The unrelated pending
+patch `2bfcd815-6772-40d1-a8b0-93670c9bc0e8` retains exactly five changes;
+Delivery Staging has no pending staged changes. No root MX/DNS modification,
+Hostinger deletion, customer email send or history import occurred.
