@@ -4,6 +4,13 @@ import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import express from 'express';
 import { chromium } from '@playwright/test';
+import { tsImport } from 'tsx/esm/api';
+
+// Use the real server-side converter. The API fixture deliberately exposes only
+// its plain-text result, matching the reader endpoint's private field contract.
+const {readableMailText}=await tsImport('../server/mail/message-text.ts',import.meta.url);
+const htmlOnlyBody=`<!doctype html><html><head><style>@font-face{font-family:tracking;src:url(https://mail-tracker.example.invalid/font)}p{background:url(https://mail-tracker.example.invalid/background)}</style><link rel="stylesheet" href="https://mail-tracker.example.invalid/style.css"></head><body><p>Hello &amp; welcome &#x1f642;.</p><p>Second paragraph.<br>Next line with &lt;strong&gt;literal markup&lt;/strong&gt;.</p><p><a href="https://mail-tracker.example.invalid/link">Read project details</a></p><script>window.__mailHtmlExecuted=true;fetch('https://mail-tracker.example.invalid/script')</script><img src="https://mail-tracker.example.invalid/pixel" onerror="window.__mailHtmlExecuted=true"><iframe src="https://mail-tracker.example.invalid/frame"></iframe></body></html>`;
+const htmlOnlyText=readableMailText('',htmlOnlyBody);
 
 const app=express();
 app.use('/assets',express.static(resolve('dist/mail-qa/assets')));
@@ -30,7 +37,10 @@ try{
  let sendingAvailable=false,queueCalls=0;
  let delayThread=false,delayCompose=false;
  const errors=[];
+ const trackingRequests=[];
  page.on('pageerror',error=>errors.push(error.message));
+ page.on('request',request=>{if(new URL(request.url()).hostname==='mail-tracker.example.invalid')trackingRequests.push(request.url());});
+ await page.route('https://mail-tracker.example.invalid/**',route=>route.abort());
  await page.route('**/api/mail/**',async route=>{
   const url=new URL(route.request().url());
   const method=route.request().method(),path=url.pathname;
@@ -57,7 +67,8 @@ try{
   if(path.endsWith('/context'))return fulfill({sender:'amelia@example.invalid',lead:null});
   if(path===`/api/mail/threads/${thread}`){
    if(delayThread)await wait(350);
-   return fulfill([{id:message,direction:'inbound',status:'received',from_email:base.from_email,to_emails:['hello@studio.example.invalid','sales@studio.example.invalid','partner@example.invalid'],cc_emails:['reviewer@example.invalid','partner@example.invalid'],subject:base.subject,text_body:'Hi team,\n\nCould you share the details for our next project?\n\n<img src=x onerror=alert(1)>\n\nThank you,\nAmelia',created_at:base.created_at,is_read:read,is_starred:starred}]);
+   return fulfill([{id:message,direction:'inbound',status:'received',from_email:base.from_email,to_emails:['hello@studio.example.invalid','sales@studio.example.invalid','partner@example.invalid'],cc_emails:['reviewer@example.invalid','partner@example.invalid'],subject:base.subject,text_body:'Hi team,\n\nCould you share the details for our next project?\n\n<img src=x onerror=alert(1)>\n\nThank you,\nAmelia',created_at:base.created_at,is_read:read,is_starred:starred},
+    {id:'html-only-message',direction:'inbound',status:'received',from_email:base.from_email,to_emails:['hello@studio.example.invalid','sales@studio.example.invalid','partner@example.invalid'],cc_emails:['reviewer@example.invalid','partner@example.invalid'],subject:base.subject,text_body:htmlOnlyText,created_at:base.created_at,is_read:read,is_starred:starred}]);
   }
   if(path===`/api/mail/threads/${thread2}`)return fulfill([{id:'draft-message',status:'draft',direction:'outbound',from_email:'hello@studio.example.invalid',to_emails:draft?.to||[],subject:draft?.subject||'',text_body:draft?.text||'',created_at:base.created_at,is_read:true,is_starred:false}]);
   if(path==='/api/mail/compose'){
@@ -81,7 +92,11 @@ try{
  await page.getByRole('button',{name:'A new space for better conversations',exact:false}).click();
  await page.getByRole('heading',{name:'amelia@example.invalid',exact:true}).first().waitFor();
  assert.equal(await page.locator('.mail-message-body img').count(),0);
- assert.ok(await page.locator('.mail-message-body').innerText().then(t=>t.includes('<img')));
+ assert.ok(await page.locator('.mail-message-body').first().innerText().then(t=>t.includes('<img')));
+ assert.equal(await page.locator('.mail-message-body').nth(1).innerText(),'Hello & welcome 🙂.\n\nSecond paragraph.\nNext line with <strong>literal markup</strong>.\n\nRead project details');
+ assert.equal(await page.locator('.mail-message-body script,.mail-message-body iframe,.mail-message-body style,.mail-message-body a,.mail-message-body strong').count(),0);
+ assert.equal(await page.evaluate(()=>window.__mailHtmlExecuted),undefined);
+ assert.deepEqual(trackingRequests,[],'HTML-only text must not load pixels, fonts, styles or frames');
  await screen(page,'mail-conversation');
  await page.getByRole('button',{name:'Reply all',exact:true}).click();
  assert.equal(await page.getByLabel('Recipients',{exact:true}).inputValue(),'amelia@example.invalid, partner@example.invalid');
@@ -181,7 +196,8 @@ try{
  assert.equal(composeCalls,2,'a queue retry must retain its saved draft ID');assert.equal(queueCalls,2);
  assert.equal(patches,4);
  assert.deepEqual(errors,[]);
- console.log('PASS: browser workspace contracts (navigation, filters, pagination, archive/restore, star/read, recipient-free drafts, CC/BCC persistence, reply-all, queue retry without duplication, unsaved changes, disabled sending, mobile, stale response isolation, read-only access, safe rendering). Synthetic data only.');
+ assert.deepEqual(trackingRequests,[]);
+ console.log('PASS: browser workspace contracts (navigation, filters, pagination, archive/restore, star/read, recipient-free drafts, CC/BCC persistence, reply-all, queue retry without duplication, unsaved changes, disabled sending, mobile, stale response isolation, read-only access, HTML-only text without tracking or script execution, safe rendering). Synthetic data only.');
 }finally{
  await browser?.close();
  await new Promise(done=>server.close(done));

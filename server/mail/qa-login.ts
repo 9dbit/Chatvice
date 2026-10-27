@@ -1,4 +1,11 @@
 /** Static, tracker-free login form for the synthetic Mail QA environment. */
+export const QA_LOGIN_HEADERS={
+  // A no-referrer document makes non-CORS form navigation serialize Origin as
+  // null. Preserve the origin for our same-site form while leaking no referrer
+  // to other sites; the server can keep rejecting null/unrelated origins.
+  "Referrer-Policy":"same-origin",
+  "Content-Security-Policy":"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+} as const;
 export function renderQaLoginPage(error=false):string {
   const alert=error?
     '<p class="error" role="alert">Login gagal. Periksa username dan password.</p>':"";

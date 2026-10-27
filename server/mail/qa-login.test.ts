@@ -10,10 +10,10 @@ test("private QA login is a first-party form with a real password field and no t
   assert.match(html,/value="mailqa"/);
   assert.doesNotMatch(html,/googletagmanager|google-analytics|meta-pixel|fonts\.googleapis\.com/i);
   assert.doesNotMatch(html,/<script/i);
-  assert.doesNotMatch(html,/#Chatadmin1/);
+  assert.doesNotMatch(html,/name="password"[^>]*\bvalue=/i);
 });
 test("login failure message is generic and never echoes credentials",()=>{
   const html=renderQaLoginPage(true);
   assert.match(html,/role="alert"/);
-  assert.doesNotMatch(html,/#Chatadmin1/);
+  assert.doesNotMatch(html,/name="password"[^>]*\bvalue=/i);
 });

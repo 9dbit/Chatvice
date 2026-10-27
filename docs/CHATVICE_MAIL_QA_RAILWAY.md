@@ -1,5 +1,11 @@
 # Chatvice Mail isolated QA on Railway
 
+The first-party `/login` form uses `Referrer-Policy: same-origin`. This preserves
+the browser's Origin on its form POST so the strict origin check can accept the
+QA site; null and unrelated origins remain rejected. Other private documents
+retain their no-referrer policy. `scripts/mail-qa-login-browser.mjs` verifies the
+actual form navigation on desktop/mobile and rejection of an unrelated site.
+
 ## Environment isolation
 
 **Railway project:** Chatvice `40970ac6-3ce6-4d31-8d6a-555d2dd6fecf`

@@ -244,7 +244,7 @@ export default function MailPage(){
       {aiSummary&&<div className="mail-ai-summary"><strong>AI summary · Review before use</strong><p>{aiSummary}</p></div>}
       {reading?<div className="mail-reading" role="status">Loading conversation…</div>:messages.map(m=><section className="mail-message" key={m.id}>
        <div className="mail-message-header"><span className="mail-avatar">{m.from_email.slice(0,1).toUpperCase()}</span><div><h3>{m.from_email}</h3><p>To {m.to_emails.join(", ")||"(No recipients yet)"}</p>{Boolean(m.cc_emails?.length)&&<p>CC {m.cc_emails?.join(", ")}</p>}</div><div className="mail-message-date"><time dateTime={m.created_at}>{new Date(m.created_at).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}</time><span className={`mail-delivery ${m.status==="failed"||m.status==="bounced"?"failed":""}`}>{m.status}</span></div></div>
-       <p className="mail-message-body">{m.text_body||"This message has no plain-text content."}</p>
+       <p className="mail-message-body">{m.text_body||"This message has no readable text content."}</p>
        {cap.attachments&&<MailAttachments messageId={m.id} compact/>}
        {m.status==="draft"&&canWrite&&<button className="mail-button" disabled={openingDraft} onClick={()=>openDraft(m.id)}><FileText size={15}/>{openingDraft?"Opening draft…":"Continue editing"}</button>}
       </section>)}

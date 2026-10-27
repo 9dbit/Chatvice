@@ -49,6 +49,7 @@ try{
  const redirect=await fetch(origin+'/dashboard/mail',{redirect:'manual',headers:{Accept:'text/html'}});
  assert.equal(redirect.status,302);assert.equal(redirect.headers.get('location'),'/login');
  const loginPage=await fetch(origin+'/login');assert.equal(loginPage.status,200);
+ assert.equal(loginPage.headers.get('referrer-policy'),'same-origin');
  assert.ok((await loginPage.text()).includes('/qa/login'));
  const login=await fetch(origin+'/qa/login',{method:'POST',redirect:'manual',
   headers:{Origin:origin.replace('http:','https:'),'Content-Type':'application/x-www-form-urlencoded'},

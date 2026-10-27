@@ -9,6 +9,7 @@ import { registerMailAdminRoutes } from "./admin";
 import { registerMailAIRoutes } from "./ai";
 import { registerMailAttachmentRoutes } from "./attachments";
 import { encryptMailField, decryptMailField, isMailEncryptionReady } from "./crypto";
+import { readableMailText } from "./message-text";
 
 const email = z.string().email().max(320).transform(v => v.toLowerCase());
 const uuid = z.string().uuid();
@@ -201,15 +202,18 @@ export function registerMailRoutes(app: Express) {
     if(!q.rowCount) return res.sendStatus(404);
     // Expose the smallest field set to the client. No internal event IDs,
     // provider identifiers, retry/lock metadata, encrypted HTML or BCC lists.
-    res.json(q.rows.map(m=>({
+    res.json(q.rows.map(m=>{
+      const text=decryptMailField(p.tenantId,m.id,"message-text",m.text_body);
+      return {
       id:m.id,thread_id:m.thread_id,direction:m.direction,
       folder:m.folder,status:m.status,from_email:m.from_email,
       to_emails:m.to_emails,cc_emails:m.cc_emails,
       subject:decryptMailField(p.tenantId,m.id,"message-subject",m.subject),
-      text_body:decryptMailField(p.tenantId,m.id,"message-text",m.text_body),
+      text_body:text.trim()?text:readableMailText(text,
+        m.html_body?decryptMailField(p.tenantId,m.id,"message-html",m.html_body):""),
       is_read:m.is_read,is_starred:m.is_starred,
       created_at:m.created_at,received_at:m.received_at
-    })));
+    }}));
   }));
   app.post("/api/mail/compose",wrap(async(req,res)=>{
     const p=principal(req)!;

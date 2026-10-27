@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHmac, randomBytes } from "node:crypto";
-import { verifyNormalizedInboundSignature, verifyResendSignature, normalizeEmail, extractReplyHeader } from "./security";
+import { verifyNormalizedInboundSignature, verifyResendSignature, normalizeEmail, extractReplyHeader, isMailMessageId } from "./security";
 import { sendResendMail, MailProviderError, fetchResendReceived } from "./provider";
 
 test("normalized inbound HMAC must sign the exact raw JSON bytes", () => {
@@ -32,6 +32,15 @@ test("email address parsing and header extraction are bounded and non-executable
  assert.equal(normalizeEmail("foo\r\nBcc:attacker@example.com"),null);
  assert.equal(normalizeEmail("not-an-email"),null);
  assert.equal(extractReplyHeader({"In-Reply-To":"<hello@example.com>"}),"<hello@example.com>");
+});
+test("RFC Message-IDs accept ordinary r/n characters and reject actual CR/LF",()=>{
+ for(const id of ["<return-message@resend.dev>","<rn@provider.example>","<"+"n".repeat(500)+">"])
+  assert.equal(isMailMessageId(id),true);
+ for(const id of ["<message\r@provider.example>","<message\n@provider.example>",
+  "<message@provider.example>\r","<message@provider.example>\n","<message@provider.example>\r\n",
+  "<message\r\nBcc:other@example.org>","<>no-envelope","<nested<id>>","<>",
+  "<"+"n".repeat(501)+">",undefined,42])
+  assert.equal(isMailMessageId(id),false);
 });
 test("Resend outbound signs stable idempotency key without exposing API key in message",async()=>{
  const old=globalThis.fetch;

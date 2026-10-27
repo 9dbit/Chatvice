@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { pool } from "../db";
-import { verifyResendSignature, extractReplyHeader } from "./security";
+import { verifyResendSignature, extractReplyHeader, isMailMessageId } from "./security";
 import { fetchResendReceived } from "./provider";
 import { ingestIncomingMail } from "./ingest";
 import { loadResendReceivedAttachments } from "./resend-attachments";
@@ -37,8 +37,12 @@ async function applyDeliveryEvent(
         item.tenant_id,item.id,webhookId,eventType
       ]);
       if(!event.rowCount)continue;
-      const nextStatus=(item.status==="delivered" || item.status==="bounced" || item.status==="failed")
-        ? item.status : state;
+      // A worker may expire an ambiguous send before a delayed provider result.
+      // Only final delivery evidence may reconcile a failed message; late sent
+      // events must not resurrect it or downgrade a final delivery result.
+      const terminal=item.status==="delivered" || item.status==="bounced";
+      const failedWithoutFinal=item.status==="failed" && state!=="delivered" && state!=="bounced";
+      const nextStatus=terminal || failedWithoutFinal?item.status:state;
       await client.query(`UPDATE mail_messages SET
         status=$1,provider_message_id=COALESCE(provider_message_id,$2),
         rfc_message_id=COALESCE(rfc_message_id,$3),
@@ -106,8 +110,7 @@ export function registerResendWebhook(app:Express):void {
         const tagged=(tags && typeof tags==="object" && !Array.isArray(tags))
           ? (tags as Record<string,unknown>).chatvice_id : undefined;
         const taggedId=typeof tagged==="string" && /^[0-9a-f-]{36}$/i.test(tagged)?tagged:undefined;
-        const rfc=typeof data.message_id==="string" && /^<[^<>\\r\\n]{1,500}>$/.test(data.message_id)
-          ? data.message_id:undefined;
+        const rfc=isMailMessageId(data.message_id)?data.message_id:undefined;
         await applyDeliveryEvent(type,id,webhookId,taggedId,rfc);
       }
       return res.json({accepted:true});

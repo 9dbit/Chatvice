@@ -1,6 +1,6 @@
 import express, { type Request, type Response, type NextFunction } from "express";
 import { authenticateQaHeaders, issueQaSessionCookie, verifyQaSessionCookie } from "./qa-auth";
-import { renderQaLoginPage } from "./qa-login";
+import { renderQaLoginPage, QA_LOGIN_HEADERS } from "./qa-login";
 import { resolve } from "node:path";
 import { pool } from "../db";
 import { isMailEncryptionReady } from "./crypto";
@@ -103,8 +103,7 @@ app.use(express.urlencoded({extended:false,limit:"4kb",parameterLimit:4}));
 app.get("/login",(req,res)=>{
   if(verifyQaSessionCookie(req.get("cookie"),secret))
     return res.redirect(302,"/dashboard/mail");
-  res.setHeader("Content-Security-Policy",
-    "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
+  res.set(QA_LOGIN_HEADERS);
   res.type("html").send(renderQaLoginPage(req.query.error==="1"));
 });
 app.post("/qa/login",async(req,res)=>{

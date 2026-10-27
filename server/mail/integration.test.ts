@@ -13,6 +13,7 @@ import { newPrivateAttachmentKey } from "./object-store";
 import { pool as appPool } from "../db";
 import {registerMailLogin,MAIL_COOKIE} from "./login";
 import {hashMailPassword} from "./password";
+import {processMailOutboxOnce} from "./outbox";
 
 const fixture = {
   tenantA:"merchant_mail_ci_A",
@@ -66,6 +67,7 @@ before(async()=>{
   });
   registerMailRoutes(server);
 });
+
 after(async()=>{
   await pool.end();
   await appPool.end();
@@ -571,4 +573,161 @@ test("reply-address aliases are listed only for authorized mailbox memberships",
  assert.equal(member.status,200);assert.ok(member.body[0].aliases.includes('reply-team@ci-alpha.example'));
  const other=await supertest(server).get('/api/mail/mailboxes').set('x-ci-subject','merchantB');
  assert.equal(JSON.stringify(other.body).includes('reply-team@ci-alpha.example'),false);
+});
+
+test("signed delivery webhooks retain RFC Message-IDs for reply threading and deduplicate replay",async()=>{
+ const names=["CHATVICE_MAIL_PROVIDER","RESEND_WEBHOOK_SECRET"];
+ const previous=Object.fromEntries(names.map(k=>[k,process.env[k]]));
+ const key=Buffer.alloc(32,9),providerId="delivery-thread-provider-fixture";
+ const rfcId="<return-message@resend.dev>";
+ process.env.CHATVICE_MAIL_PROVIDER="resend";
+ process.env.RESEND_WEBHOOK_SECRET="whsec_"+key.toString("base64");
+ try{
+  const draft=await supertest(server).post("/api/mail/compose").set("x-ci-subject","merchantA")
+   .set("origin","http://test.local").send({mailboxId:fixture.boxA,to:["customer@example.org"],
+    subject:"Reply threading regression",text:"Synthetic outgoing mail",draft:true});
+  assert.equal(draft.status,201);
+  const {id,threadId}=draft.body;
+  // Synthetic provider acceptance only: no outbox worker or external message runs.
+  await pool.query(`UPDATE mail_messages SET status='sent',folder='sent',provider_message_id=$1
+   WHERE id=$2 AND tenant_id=$3 AND mailbox_id=$4`,[providerId,id,fixture.tenantA,fixture.boxA]);
+  const eventId="msg_delivery_thread_regression",timestamp=String(Math.floor(Date.now()/1000));
+  const payload=JSON.stringify({type:"email.delivered",data:{email_id:providerId,message_id:rfcId}});
+  const signature="v1,"+createHmac("sha256",key).update(eventId+"."+timestamp+".").update(payload).digest("base64");
+  const deliver=()=>supertest(server).post("/api/mail/provider/resend/webhook")
+   .set("content-type","application/json").set("svix-id",eventId)
+   .set("svix-timestamp",timestamp).set("svix-signature",signature).send(payload);
+  assert.equal((await deliver()).status,200);
+  assert.equal((await deliver()).status,200);
+  const stored=await pool.query(`SELECT rfc_message_id,status FROM mail_messages
+   WHERE id=$1 AND tenant_id=$2 AND mailbox_id=$3`,[id,fixture.tenantA,fixture.boxA]);
+  assert.deepEqual(stored.rows[0],{rfc_message_id:rfcId,status:"delivered"});
+  const events=await pool.query(`SELECT count(*)::integer AS n FROM mail_delivery_events
+   WHERE message_id=$1 AND tenant_id=$2 AND provider_event_id=$3`,[id,fixture.tenantA,eventId]);
+  assert.equal(events.rows[0].n,1);
+  const reply=await ingestIncomingMail({eventId:"resend:reply-thread-regression",from:"customer@example.org",
+   to:["hello@ci-alpha.example"],subject:"Re: Reply threading regression",text:"Synthetic incoming reply",
+   messageId:"<inbound-return@customer.example>",inReplyTo:rfcId});
+  assert.equal(reply.saved,1);
+  const conversation=await pool.query(`SELECT thread_id FROM mail_messages
+   WHERE id=$1 AND tenant_id=$2 AND mailbox_id=$3`,[reply.messages[0].id,fixture.tenantA,fixture.boxA]);
+  assert.equal(conversation.rows[0].thread_id,threadId);
+ }finally{
+  for(const name of names){if(previous[name]===undefined)delete process.env[name];else process.env[name]=previous[name];}
+ }
+});
+
+test("outbox expires old jobs without transport, preserves active leases and reconciles final provider evidence",async()=>{
+ const names=["CHATVICE_MAIL_OUTBOUND_ENABLED","CHATVICE_MAIL_PROVIDER","RESEND_API_KEY","RESEND_WEBHOOK_SECRET"];
+ const previous=Object.fromEntries(names.map(k=>[k,process.env[k]]));
+ const oldFetch=globalThis.fetch,sentIds:string[]=[];
+ const key=Buffer.alloc(32,11);
+ process.env.CHATVICE_MAIL_OUTBOUND_ENABLED="true";
+ process.env.CHATVICE_MAIL_PROVIDER="resend";
+ process.env.RESEND_API_KEY="re_synthetic_worker_fixture";
+ process.env.RESEND_WEBHOOK_SECRET="whsec_"+key.toString("base64");
+ globalThis.fetch=async(input,init)=>{
+  assert.equal(String(input),"https://api.resend.com/emails");
+  const body=JSON.parse(String(init?.body));
+  const id=body.tags.find((tag:{name:string})=>tag.name==="chatvice_id").value;
+  sentIds.push(id);
+  return new Response(JSON.stringify({id:"synthetic-provider-"+id}),{status:200});
+ };
+ try{
+  const cases:Record<string,{id:string;threadId:string}>={};
+  for(const name of ["oldQueued","oldSending","oldWithoutLease","activeSending","recentWaiting","fresh"]){
+   const draft=await supertest(server).post("/api/mail/compose").set("x-ci-subject","merchantA")
+    .set("origin","http://test.local").send({mailboxId:fixture.boxA,to:["customer@example.org"],
+     subject:"Outbox regression "+name,text:"Synthetic worker fixture",draft:true});
+   assert.equal(draft.status,201);
+   cases[name]={id:draft.body.id,threadId:draft.body.threadId};
+  }
+  await pool.query(`UPDATE mail_messages SET status='queued',folder='sent',
+    queued_at=now()-interval '24 hours',next_attempt_at=now()+interval '1 day'
+    WHERE id=$1 AND tenant_id=$2 AND mailbox_id=$3`,[cases.oldQueued.id,fixture.tenantA,fixture.boxA]);
+  await pool.query(`UPDATE mail_messages SET status='sending',folder='sent',
+    queued_at=now()-interval '24 hours',lock_acquired_at=now()-interval '4 minutes'
+    WHERE id=$1 AND tenant_id=$2 AND mailbox_id=$3`,[cases.oldSending.id,fixture.tenantA,fixture.boxA]);
+  await pool.query(`UPDATE mail_messages SET status='sending',folder='sent',
+    queued_at=now()-interval '24 hours',lock_acquired_at=NULL
+    WHERE id=$1 AND tenant_id=$2 AND mailbox_id=$3`,[cases.oldWithoutLease.id,fixture.tenantA,fixture.boxA]);
+  const lease=await pool.query(`UPDATE mail_messages SET status='sending',folder='sent',
+    queued_at=now()-interval '24 hours',lock_acquired_at=now()
+    WHERE id=$1 AND tenant_id=$2 AND mailbox_id=$3 RETURNING lock_acquired_at`,[
+     cases.activeSending.id,fixture.tenantA,fixture.boxA]);
+  await pool.query(`UPDATE mail_messages SET status='queued',folder='sent',
+    next_attempt_at=now()+interval '1 day'
+    WHERE id=$1 AND tenant_id=$2 AND mailbox_id=$3`,[cases.recentWaiting.id,fixture.tenantA,fixture.boxA]);
+  await pool.query(`UPDATE mail_messages SET status='queued',folder='sent',
+    next_attempt_at=now()-interval '1 day'
+    WHERE id=$1 AND tenant_id=$2 AND mailbox_id=$3`,[cases.fresh.id,fixture.tenantA,fixture.boxA]);
+  const result=await processMailOutboxOnce();
+  assert.ok(result.failed>=3);assert.ok(result.sent>=1);
+  assert.ok(sentIds.includes(cases.fresh.id));
+  for(const name of ["oldQueued","oldSending","oldWithoutLease","activeSending","recentWaiting"])
+   assert.equal(sentIds.includes(cases[name].id),false);
+  const stored=await pool.query(`SELECT id,status,lock_acquired_at,retry_count FROM mail_messages
+    WHERE tenant_id=$1 AND mailbox_id=$2 AND id=ANY($3::uuid[])`,[
+     fixture.tenantA,fixture.boxA,Object.values(cases).map(item=>item.id)]);
+  const rows=new Map(stored.rows.map(row=>[row.id,row]));
+  for(const name of ["oldQueued","oldSending","oldWithoutLease"]){
+   assert.equal(rows.get(cases[name].id)?.status,"failed");
+   assert.equal(rows.get(cases[name].id)?.lock_acquired_at,null);
+   assert.equal(rows.get(cases[name].id)?.retry_count,0);
+  }
+  assert.equal(rows.get(cases.activeSending.id)?.status,"sending");
+  assert.deepEqual(rows.get(cases.activeSending.id)?.lock_acquired_at,lease.rows[0].lock_acquired_at);
+  assert.equal(rows.get(cases.activeSending.id)?.retry_count,0);
+  assert.equal(rows.get(cases.recentWaiting.id)?.status,"queued");
+  assert.equal(rows.get(cases.fresh.id)?.status,"sent");
+  const visible=await supertest(server).get(`/api/mail/threads/${cases.oldQueued.threadId}`)
+   .set("x-ci-subject","merchantA");
+  assert.equal(visible.status,200);assert.equal(visible.body[0].status,"failed");
+  const delivery=async(name:string,type:string)=>{
+   const eventId="msg_"+randomUUID(),timestamp=String(Math.floor(Date.now()/1000));
+   const payload=JSON.stringify({type,data:{email_id:"late-provider-"+cases[name].id,
+    tags:{chatvice_id:cases[name].id},message_id:"<late-return@resend.dev>"}});
+   const signature="v1,"+createHmac("sha256",key).update(eventId+"."+timestamp+".")
+    .update(payload).digest("base64");
+   const response=await supertest(server).post("/api/mail/provider/resend/webhook")
+    .set("content-type","application/json").set("svix-id",eventId)
+    .set("svix-timestamp",timestamp).set("svix-signature",signature).send(payload);
+   assert.equal(response.status,200);
+   const state=await pool.query(`SELECT status FROM mail_messages
+    WHERE id=$1 AND tenant_id=$2 AND mailbox_id=$3`,[cases[name].id,fixture.tenantA,fixture.boxA]);
+   return state.rows[0].status;
+  };
+  assert.equal(await delivery("oldQueued","email.sent"),"failed");
+  assert.equal(await delivery("oldQueued","email.delivered"),"delivered");
+  assert.equal(await delivery("oldQueued","email.sent"),"delivered");
+  assert.equal(await delivery("oldSending","email.bounced"),"bounced");
+  assert.equal(await delivery("oldSending","email.sent"),"bounced");
+ }finally{
+  globalThis.fetch=oldFetch;
+  for(const name of names){if(previous[name]===undefined)delete process.env[name];else process.env[name]=previous[name];}
+ }
+});
+
+test("authorized readers receive text for HTML-only mail without exposing raw HTML",async()=>{
+ const eventId="ci-html-only-"+randomUUID();
+ const html='<p>Hello &amp; welcome.</p><p>Second paragraph.<br>Next line.</p><a href="https://mail-tracker.example.invalid/link">Project details</a><script>globalThis.__mailHtmlExecuted=true</script><img src="https://mail-tracker.example.invalid/pixel"><iframe src="https://mail-tracker.example.invalid/frame">Hidden frame</iframe>';
+ const result=await ingestIncomingMail({eventId,from:"html-sender@example.org",to:["hello@ci-alpha.example"],subject:"HTML-only message",text:" \n\t",html});
+ assert.equal(result.saved,1);
+ const stored=await pool.query("SELECT thread_id,text_body,html_body FROM mail_messages WHERE id=$1",[result.messages[0].id]);
+ assert.ok(stored.rows[0].html_body.startsWith("cvenc1."));
+ assert.equal(stored.rows[0].html_body.includes("mail-tracker.example.invalid"),false);
+ const path="/api/mail/threads/"+stored.rows[0].thread_id;
+ for(const subject of ["merchantA","viewerA"]){
+  const response=await supertest(server).get(path).set("x-ci-subject",subject);
+  assert.equal(response.status,200);
+  assert.equal(response.body[0].text_body,"Hello & welcome.\n\nSecond paragraph.\nNext line.\n\nProject details");
+  assert.equal("html_body" in response.body[0],false);
+  assert.equal(JSON.stringify(response.body).includes("mail-tracker.example.invalid"),false);
+ }
+ assert.equal((await supertest(server).get(path).set("x-ci-subject","merchantB")).status,404);
+ const plainText="  Keep original text and spacing.\n\n<strong>Literal markup</strong>  ";
+ const plain=await ingestIncomingMail({eventId:eventId+"-plain",from:"html-sender@example.org",to:["hello@ci-alpha.example"],subject:"Both body formats",text:plainText,html:"<p>Different HTML body</p>"});
+ const plainThread=await pool.query("SELECT thread_id FROM mail_messages WHERE id=$1",[plain.messages[0].id]);
+ const response=await supertest(server).get("/api/mail/threads/"+plainThread.rows[0].thread_id).set("x-ci-subject","merchantA");
+ assert.equal(response.status,200);assert.equal(response.body[0].text_body,plainText);
 });

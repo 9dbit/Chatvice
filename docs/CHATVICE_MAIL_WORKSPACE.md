@@ -36,6 +36,17 @@ and backend together; no schema migration or provider activation is required.
   and never adds BCC recipients. Normal Reply addresses only the sender.
 - Complete draft recipients are loaded from the writer-only draft editor API.
   Thread reading continues to omit BCC, including for read-only mailbox members.
+- HTML-only messages now have readable plain text. The reader API converts the
+  decrypted HTML on the server only when the original plain-text body is empty.
+  It omits raw HTML and skips scripts, styling, embedded content, images and URL
+  attributes. Input, parser depth/child count and output are bounded; abbreviated
+  content is visibly marked. The browser continues to render escaped text only.
+- Delivery webhooks retain valid RFC Message-IDs, including ordinary `r`/`n`
+  characters, so a reply can resolve to the original thread. CR/LF is rejected.
+- Outbox jobs outside the 23-hour automatic retry window become visibly failed
+  without transport. An active sending lease is preserved. A signed final provider
+  result may later reconcile the failure to delivered/bounced; a late sent event
+  cannot revive it. Review an ambiguous failure before creating a new message.
 
 ## API additions
 

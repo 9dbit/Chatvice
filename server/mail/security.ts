@@ -47,6 +47,9 @@ export function normalizeEmail(value: unknown): string | null {
   if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$/i.test(addr)) return null;
   return addr.length <= 320 ? addr : null;
 }
+export function isMailMessageId(value: unknown): value is string {
+  return typeof value === "string" && /^<[^<>\r\n]{1,500}>$/.test(value);
+}
 export function extractReplyHeader(headers: unknown): string | undefined {
   if (!headers || typeof headers !== "object") return;
   const entries = Object.entries(headers as Record<string, unknown>);

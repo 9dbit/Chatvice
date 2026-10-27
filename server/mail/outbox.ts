@@ -18,6 +18,22 @@ export async function processMailOutboxOnce():Promise<{processed:number;sent:num
   running=true;
   let processed=0,sent=0,failed=0;
   try {
+    // Never retry after the provider's deduplication window. Expire stale work
+    // visibly, while leaving a live sending lease to its current worker.
+    const expired=await pool.query(`
+      WITH stale AS (
+        SELECT id FROM mail_messages
+        WHERE direction='outbound' AND status IN ('queued','sending')
+          AND queued_at <= now()-interval '23 hours'
+          AND (status='queued' OR (status='sending' AND
+            (lock_acquired_at IS NULL OR lock_acquired_at < now()-interval '3 minutes')))
+        ORDER BY queued_at ASC,id ASC
+        LIMIT 100 FOR UPDATE SKIP LOCKED
+      ) UPDATE mail_messages m SET status='failed',lock_acquired_at=NULL
+        FROM stale WHERE m.id=stale.id RETURNING m.id
+    `);
+    processed+=expired.rowCount||0;
+    failed+=expired.rowCount||0;
     const q=await pool.query<Queued>(`
       WITH claim AS (
         SELECT m.id FROM mail_messages m

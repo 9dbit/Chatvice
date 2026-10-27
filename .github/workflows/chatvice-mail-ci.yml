@@ -3,10 +3,13 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - "package.json"
+      - "package-lock.json"
       - "server/mail/**"
       - "script/build-mail-qa.ts"
       - "scripts/mail-qa-bootstrap.mjs"
       - "scripts/mail-workspace-smoke.mjs"
+      - "scripts/mail-qa-login-browser.mjs"
       - "scripts/mail-qa-container-smoke.mjs"
       - "scripts/mail-app-container-smoke.mjs"
       - "scripts/mail-app-schema.mjs"
@@ -37,6 +40,7 @@ on:
       - "migrations/20261027_chatvice_mail_login.sql"
       - "shared/mail-schema.ts"
       - "shared/mail-recipients.ts"
+      - "shared/mail-*.ts"
       - ".github/workflows/chatvice-mail-ci.yml"
   push:
     branches:
@@ -76,7 +80,7 @@ jobs:
       - name: Install from lockfile
         run: npm ci --no-audit --no-fund
       - name: Verify mail security and provider tests
-        run: npx tsx --test server/mail/qa-login.test.ts server/mail/qa-auth.test.ts server/mail/security.test.ts server/mail/privacy.test.ts server/mail/attachment-security.test.ts server/mail/crypto.test.ts server/mail/binary-crypto.test.ts server/mail/password.test.ts server/mail/backup.test.ts server/mail/recipients.test.ts
+        run: npx tsx --test server/mail/qa-login.test.ts server/mail/qa-auth.test.ts server/mail/security.test.ts server/mail/message-text.test.ts server/mail/privacy.test.ts server/mail/attachment-security.test.ts server/mail/crypto.test.ts server/mail/binary-crypto.test.ts server/mail/password.test.ts server/mail/backup.test.ts server/mail/recipients.test.ts
       - name: Test mail tenant isolation on disposable PostgreSQL
         run: npx tsx --test server/mail/integration.test.ts
       - name: Rehearse encrypted PostgreSQL backup and restore on disposable CI
@@ -115,7 +119,9 @@ jobs:
       - name: Verify Mail workspace interactions on desktop and mobile
         env:
           CHATVICE_MAIL_SMOKE_OUTPUT: ${{ runner.temp }}/mail-workspace-preview
-        run: node scripts/mail-workspace-smoke.mjs
+        run: node --import tsx scripts/mail-workspace-smoke.mjs
+      - name: Verify real browser Origin on QA login form navigation
+        run: node --import tsx scripts/mail-qa-login-browser.mjs
       - name: Save synthetic Mail previews
         uses: actions/upload-artifact@v4
         with:
