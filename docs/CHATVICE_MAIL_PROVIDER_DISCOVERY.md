@@ -106,3 +106,43 @@ and a signed webhook secret. An unrelated product's credential must not be reuse
 
 Live provider metadata and dedicated credentials remain unverified. No real
 message was sent, root MX changed, production key reused or legacy mailbox removed.
+
+## Resend account confirmation and safe staging wiring — 27 October 2026
+
+The owner confirmed that the existing Resend workspace uses the Google account
+`markstudios.seo@gmail.com` and includes Chatvice. This identifies the intended
+provider workspace but is **not** an authenticated dashboard session or proof of
+key permissions.
+
+Verified and completed:
+- `Chatvice-Mail-Delivery-Staging` in `cutover-staging` now defines
+  `RESEND_API_KEY=${{Chatvice-staging.RESEND_API_KEY}}` as a Railway
+  same-environment reference. No token value was read, exposed or copied into
+  source code. This is a *temporary wiring* to the existing Chatvice staging
+  sending key and **not** provider authentication acceptance.
+- `CHATVICE_MAIL_OUTBOUND_ENABLED` remains disabled; there was no deployment,
+  provider send, webhook registration, DNS change or production mutation.
+- An independent public resolver returned Cloudflare Email Routing MX at the
+  `chatvice.app` apex, an SES feedback MX on `send.chatvice.app`, a
+  `resend._domainkey.chatvice.app` TXT public key, and apex DMARC
+  `v=DMARC1; p=none`. Public DNS does not prove Resend's own verified-domain
+  status or the current mailbox forwarding destination.
+- Existing `qa-mail.chatvice.app` provider registration is documented above
+  as Not Started. Prefer completing that **existing** test subdomain rather
+  than changing the root domain's MX or adding duplicate domains.
+
+Unblocked next actions once authorized in the named Resend account:
+1. Inspect Chatvice sending-domain verification and the existing QA-domain
+   registration, without exposing signing/API credentials.
+2. Create a dedicated, domain-restricted **Sending access** key for Mail
+   staging and replace the temporary Railway cross-service reference.
+3. Create a **separate** receiving-capable API key, review its broader access
+   scope, register signed webhook with `email.received` and the required
+   delivery-status events. Store `RESEND_RECEIVING_API_KEY` and
+   `RESEND_WEBHOOK_SECRET` only as Railway secrets.
+4. Verify `qa-mail.chatvice.app` records (SPF/DKIM/MX as actually issued by
+   Resend), using Cloudflare's authenticated DNS UI. Do **not** alter apex
+   `chatvice.app` MX.
+5. Expose the independent delivery staging URL only with review and run real
+   controlled send, receive, attachment and signed-event tests. Keep customer
+   traffic and root-domain cutover disabled until all acceptance gates pass.
