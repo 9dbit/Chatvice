@@ -157,3 +157,30 @@ database connectivity. The unrelated five pending `Chatvice-staging`
 changes remain untouched. This is **not** a successful provider API call,
 webhook delivery or real mail send. Dedicated scoped credentials, receiving
 access and signed webhook configuration are still release gates.
+
+## Owner-confirmed Resend Chrome tab, 27 October 2026
+
+The owner opened and authenticated the existing Resend page at
+`https://resend.com/domains/12a480c4-31d5-4bca-91a0-9f0ee36ae658`.
+A read-only browser tab inspection confirmed workspace `markstudios.seo`,
+`chatvice.app` domain status **Verified**, region **Tokyo (ap-northeast-1)**,
+and the banner **Domain verified: Your domain is ready to send emails**.
+`Resend Forge` is **Disabled**, which is not a blocker for the existing
+verified sending-domain configuration. Resend displays DNS provider
+**Hostinger** in its UI; the public authoritative MX check separately shows
+Cloudflare Email Routing, so do not assume that Resend's displayed provider
+is the active DNS control plane.
+
+**Important scope:** Resend Verified here demonstrates the sending domain
+is configured. It does not demonstrate inbound receiving, a working
+webhook, mail app mailbox provisioning, or email delivery. No API key,
+webhook secret, message body, or customer details were exposed in this check.
+The connected Browser tool in Chat mode has **read-only access** to the
+open tab. Further changes require ChatGPT **Work mode** (browser control)
+or an explicit authenticated connector operation; do not imply dashboard
+settings have been edited from Chat mode.
+
+Next safely in Work: inspect the existing `qa-mail.chatvice.app` domain,
+API key scope and webhook configuration; create isolated staging credentials,
+verify test-domain DNS without changing apex MX, then run one controlled
+end-to-end send/receive/reply/attachment test and preserve rollback evidence.
