@@ -146,3 +146,14 @@ Unblocked next actions once authorized in the named Resend account:
 5. Expose the independent delivery staging URL only with review and run real
    controlled send, receive, attachment and signed-event tests. Keep customer
    traffic and root-domain cutover disabled until all acceptance gates pass.
+
+### Staging redeploy verification
+
+The Mail Delivery Staging service was redeployed specifically to load the
+same-environment `RESEND_API_KEY` reference (not to activate delivery).
+Deployment `8b3e4b76-7db1-4151-832b-78cd0c480f97` returned **SUCCESS**
+and `/health` passed. The running server reports isolated app start and
+database connectivity. The unrelated five pending `Chatvice-staging`
+changes remain untouched. This is **not** a successful provider API call,
+webhook delivery or real mail send. Dedicated scoped credentials, receiving
+access and signed webhook configuration are still release gates.
