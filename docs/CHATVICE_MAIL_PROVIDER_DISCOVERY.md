@@ -184,3 +184,42 @@ Next safely in Work: inspect the existing `qa-mail.chatvice.app` domain,
 API key scope and webhook configuration; create isolated staging credentials,
 verify test-domain DNS without changing apex MX, then run one controlled
 end-to-end send/receive/reply/attachment test and preserve rollback evidence.
+
+## Work continuation verification — 27 October 2026
+
+The continuation request was received in Work mode. The connected Browser control
+entry point returned: "Browser access requires the originating browser context.
+Open ChatGPT in the browser with the connected extension and try again."
+This is a connection-context limitation, not evidence that Resend is logged out.
+The previously verified sending-domain observation above remains historical;
+neither Resend nor Cloudflare dashboard state was refreshed in this session.
+A fresh plugin-directory search for Resend/Cloudflare returned no matching plugin.
+
+Read-only GitHub/Railway verification completed:
+- PR #19 remains a draft on `feature/chatvice-mail-engine-20261026`.
+- Delivery Staging service `d446f23c-2730-49e5-8e3d-6751ebe46afa`, environment
+  `08a3efa0-8a70-44db-a2fb-ca46ddb84b95`, is live at deployment
+  `8b3e4b76-7db1-4151-832b-78cd0c480f97` with status **SUCCESS**.
+- Service configuration remains pinned to
+  `7ffbf51aa4f5f807ff5c674fa36e127439e22f84` using `Dockerfile.mail-app`.
+  GitHub Actions run `40443921664` for that commit is completed/success.
+- Runtime logs confirm reviewed migration history is current, the isolated app
+  is listening, and the database pool connected.
+- No generated/custom public domain or TCP proxy is attached to Delivery Staging.
+- The service lists `RESEND_API_KEY`; it does not list
+  `RESEND_RECEIVING_API_KEY` or `RESEND_WEBHOOK_SECRET`. Secret values and
+  scopes were not read or inferred from variable names. Sending remains disabled
+  according to the previous checkpoint; no enabling change was made here.
+- The unrelated staging patch `2bfcd815-6772-40d1-a8b0-93670c9bc0e8`
+  still has exactly five changes, none belonging to Delivery Staging.
+- Chatvice production deployment remains
+  `ea39e7b8-2323-494a-ae8e-95b4f6529d98`, status **SUCCESS**.
+
+Only this evidence record was updated. No provider settings, API keys, Railway
+variables, deployments, DNS/MX records or mailboxes were changed; no email was sent.
+Provider delivery and history-import acceptance remain incomplete.
+
+Resume from the connected Chrome Work session with Resend and Cloudflare tabs
+available. Inspect the already registered QA domain, complete its issued DNS
+records, then provision dedicated provider credentials and signed webhook ingress.
+Do not treat successful application startup as successful email delivery.
