@@ -1,7 +1,85 @@
-# Mail provider discovery — 27 October 2026
+# Mail provider discovery and staging setup
 
-Scope: read-only discovery for Chatvice Mail staging. No provider key values,
-passwords, cookies or DNS changes are recorded here.
+Scope: Chatvice Mail staging provider evidence. No provider secret values,
+passwords or cookies are recorded here. Dated older checkpoints below describe
+the state at that time; the latest continuation supersedes their setup status.
+
+## RDC / SPARK continuation — 28 October 2026, 01:00 WIB
+
+The user-directed RDC connection on SPARK successfully controlled the existing
+authenticated Chrome session. Resend workspace `markstudios.seo` contains the
+verified root `chatvice.app` domain. The older `qa-mail.chatvice.app` registration
+was not accessible in that workspace. Resend's add-domain flow reported that it
+belongs to another team and that claiming it would revoke that team's access.
+No ownership-verification DNS was added and no transfer was completed. The
+unverified claim flow is `2996826e-f937-40a8-860d-2a47a3e76459`; do not complete
+that claim as part of this staging setup.
+
+A separate test domain `qa-mail-staging.chatvice.app` was registered in the
+authenticated workspace, domain ID `aced36ba-4db2-4869-8f64-35428c9726b7`, Tokyo
+(`ap-northeast-1`). Resend recorded **Verified** at 00:47 WIB; sending and receiving
+are enabled at the provider. Its Forge infrastructure is enabled. No tracking
+subdomain was configured. The application's provider and outbound flags remain off.
+
+Four provider-issued records were saved in the existing Cloudflare zone:
+
+| Type | Relative name | Target/content | Other settings |
+| --- | --- | --- | --- |
+| TXT | `resend._domainkey.qa-mail-staging` | Resend-issued DKIM public key, matched against the dashboard | Auto TTL |
+| CNAME | `rsend.qa-mail-staging` | `rsend-apne1.forge.rmta.net` | DNS only, Auto TTL |
+| CNAME | `send.qa-mail-staging` | `send.forge.rmta.net` | DNS only, Auto TTL |
+| MX | `qa-mail-staging` | `receive-apne1.forge.rmta.net` | Priority 10, Auto TTL |
+
+Cloudflare's actual saved rows, Google Public DNS answers and Resend's record
+statuses agree. All four records are **Verified** in Resend. Fresh apex MX answers
+remain `8 route1.mx.cloudflare.net`, `39 route2.mx.cloudflare.net` and
+`80 route3.mx.cloudflare.net`. No apex record or existing mail route was changed.
+
+### Credential checkpoint and explicit approval boundary
+
+- Created `Chatvice Mail Staging Sending 20261028` with **Sending access** restricted
+  to **qa-mail-staging.chatvice.app**. The selected permission and domain were
+  checked before submission; the key list then confirmed the new sending key.
+  Its one-time key dialog remains open in Chrome. Do not create a duplicate key.
+- Automatic approval review rejected creation of
+  `Chatvice Mail Staging Receiving 20261028` with **Full access**, because the
+  account-wide privilege requires explicit user authorization. That key was
+  **not created**. Sending-only access cannot perform the required receiving reads.
+- Automatic approval review also rejected writing the new sending secret to
+  Railway, because transferring a secret to that service requires explicit user
+  authorization. The `set_variables` call did **not** execute. The existing
+  `RESEND_API_KEY` reference is therefore not replaced or accepted as isolated.
+- No credential values were placed in source, this record or the PR. No existing
+  key was reused, rotated or revoked. Do not bypass either rejected action through
+  another API, browser flow or existing credential; obtain explicit approval first.
+- Resend's Webhooks page reports **No webhooks yet**. No live webhook was registered,
+  and `RESEND_RECEIVING_API_KEY` / `RESEND_WEBHOOK_SECRET` remain absent on Delivery
+  Staging. No test message was sent.
+
+The concrete next credential operation is to create the separate receiving key
+with its reviewed account-wide scope and store the dedicated sending key,
+receiving key and generated webhook signing secret only on
+`Chatvice-Mail-Delivery-Staging` (`d446f23c-2730-49e5-8e3d-6751ebe46afa`) in
+`cutover-staging` (`08a3efa0-8a70-44db-a2fb-ca46ddb84b95`), project
+`40970ac6-3ce6-4d31-8d6a-555d2dd6fecf`. Register the webhook initially disabled at:
+
+https://chatvice-mail-delivery-staging-cutover-staging.up.railway.app/api/mail/provider/resend/webhook
+
+Required implemented events are `email.received`, `email.sent`, `email.delivered`,
+`email.bounced`, `email.complained` and `email.failed`. Keep live ingress disabled
+until credentials, application domain ownership, test mailboxes and private
+attachment acceptance are ready. Then perform controlled send/receive/reply and
+attachment tests. Provider DNS verification alone is not delivery acceptance.
+
+The latest Delivery Staging deployment remains
+`af7ba903-9c6b-4c90-8bf4-fef5b54ee699` (**SUCCESS**), implementation `169b767e`.
+Its prior 23-check HTTPS/database login probe and cleanup evidence are recorded in
+[the login checkpoint](CHATVICE_MAIL_DELIVERY_STAGING_LOGIN.md). No permanent test
+login or mailbox is provisioned. No Railway deployment, production mutation,
+Hostinger deletion or history import occurred during this RDC provider setup.
+The unrelated staged patch `2bfcd815-6772-40d1-a8b0-93670c9bc0e8` is unchanged;
+the current API groups its prior fields as two entries (`resource.update` and
+`ENABLE_BACKGROUND_JOBS` `variable.set`), both on `Chatvice-staging`.
 
 ## Delivery staging continuation — 27 October 2026
 
