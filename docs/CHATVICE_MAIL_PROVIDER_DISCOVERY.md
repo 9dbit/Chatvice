@@ -4,6 +4,26 @@ Scope: Chatvice Mail staging provider evidence. No provider secret values,
 passwords or cookies are recorded here. Dated older checkpoints below describe
 the state at that time; the latest continuation supersedes their setup status.
 
+## Credential approval applied — 28 October 2026
+
+The user explicitly approved the Full access receiving key and storage of the
+sending/receiving/webhook secrets on Mail Delivery Staging. This supersedes the
+approval blockers in the older checkpoint below.
+
+- Existing domain-restricted sending key installed as `RESEND_API_KEY`.
+- Created `Chatvice Mail Staging Receiving 20261028` (Full access) and installed
+  it as `RESEND_RECEIVING_API_KEY`.
+- Created webhook `c1413829-97d6-4947-82c7-f49e1704f101` for the exact staging
+  endpoint below, with received/sent/delivered/bounced/complained/failed events.
+  A subsequent provider API read confirmed its status is **disabled**.
+- Stored its signing secret as `RESEND_WEBHOOK_SECRET`. Railway read-back confirms
+  all three variable names on service `d446f23c-2730-49e5-8e3d-6751ebe46afa`
+  in `cutover-staging`; values are withheld by the connector.
+- All writes used `skipDeploys=true`: these settings apply on the next deployment.
+  No new deployment or real email test occurred. Mailbox provisioning, application
+  domain verification and private attachment acceptance still precede live ingress.
+- No secrets are included in this checkpoint. Root DNS and production remain unchanged.
+
 ## RDC / SPARK continuation — 28 October 2026, 01:00 WIB
 
 The user-directed RDC connection on SPARK successfully controlled the existing
