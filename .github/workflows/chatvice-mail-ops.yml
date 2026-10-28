@@ -1,0 +1,50 @@
+name: Chatvice Mail Cloud Operations Checks
+on:
+  push:
+    branches: [feature/chatvice-mail-engine-20261026, main]
+    paths:
+      - scripts/mail-cloud-ops.py
+      - scripts/mail-delivery-acceptance.py
+      - scripts/test_mail_cloud_ops.py
+      - Dockerfile.mail-ops*
+      - .github/workflows/chatvice-mail-ops.yml
+  pull_request:
+    paths:
+      - scripts/mail-cloud-ops.py
+      - scripts/mail-delivery-acceptance.py
+      - scripts/test_mail_cloud_ops.py
+      - Dockerfile.mail-ops*
+      - .github/workflows/chatvice-mail-ops.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  safety-and-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m unittest discover -s scripts -p test_mail_cloud_ops.py -v
+      - name: Build isolated operator image
+        run: docker build -f Dockerfile.mail-ops -t chatvice-mail-ops:ci .
+      - name: Prove production is refused without credentials
+        run: |
+          set +e
+          docker run --rm -e RAILWAY_PROJECT_ID=production chatvice-mail-ops:ci > result.json
+          status=$?
+          set -e
+          test "$status" = 1
+          python -c 'import json; d=json.load(open("result.json")); assert d == {"result":"blocked","reason":"railway-scope-denied"}'
+      - name: Public staging health (manual run only)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python - <<'PY'
+          import json, urllib.request
+          url = 'https://chatvice-mail-delivery-staging-cutover-staging.up.railway.app/health'
+          with urllib.request.urlopen(url, timeout=30) as response:
+              assert json.load(response) == {'status': 'ok', 'service': 'chatvice-mail'}
+          print('Staging health passed')
+          PY

@@ -28,6 +28,7 @@ class Session:
     def __init__(self):
         self.headers = {}
         self.opener = urllib.request.build_opener(
+            NoRedirect(),
             urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
     def request(self, method, url, timeout, **kwargs):
@@ -54,11 +55,19 @@ class Session:
         with response:
             return Response(response)
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 BASE = 'https://chatvice-mail-delivery-staging-cutover-staging.up.railway.app'
 DOMAIN = 'qa-mail-staging.chatvice.app'
-credential_file = Path(os.environ['MAIL_ACCEPTANCE_CREDENTIAL_FILE'])
 state_file = Path(os.environ['MAIL_ACCEPTANCE_STATE_FILE'])
-credentials = json.loads(credential_file.read_text())
+if os.environ.get('CHATVICE_MAIL_QA_OPERATOR_PASSWORD'):
+    credentials = {'email': 'qa-operator@' + DOMAIN,
+                   'password': os.environ['CHATVICE_MAIL_QA_OPERATOR_PASSWORD']}
+else:
+    credentials = json.loads(Path(os.environ['MAIL_ACCEPTANCE_CREDENTIAL_FILE']).read_text())
 assert credentials['email'] == 'qa-operator@' + DOMAIN
 state = json.loads(state_file.read_text()) if state_file.exists() else {}
 session = Session()
@@ -66,7 +75,12 @@ session.headers['Origin'] = BASE
 
 
 def save():
-    state_file.write_text(json.dumps(state, indent=2) + '\n')
+    temporary = state_file.with_suffix('.tmp')
+    with temporary.open('w') as output:
+        output.write(json.dumps(state, indent=2) + '\n')
+        output.flush()
+        os.fsync(output.fileno())
+    os.replace(temporary, state_file)
 
 
 def call(method, path, expected=200, **kwargs):
@@ -100,7 +114,9 @@ mode = sys.argv[1]
 call('POST', '/api/mail-auth/login', json=credentials)
 try:
     check(call('GET', '/api/mail-auth/session').json().get('admin') is True, 'operator-login')
-    if mode == 'setup':
+    if mode == 'login':
+        pass
+    elif mode == 'setup':
         domains = call('GET', '/api/mail/domains').json()
         domain = next((d for d in domains if d['domain'] == DOMAIN), None)
         if not domain:
@@ -165,6 +181,8 @@ try:
                 save()
             message = state['reply']
         if not state.get(mode + '-queued'):
+            if state.get(mode + '-attempted'):
+                raise RuntimeError('Ambiguous send attempt: inspect message status before retrying')
             draft = call('GET', f"/api/mail/drafts/{message['id']}").json()
             recipient = ('qa-inbox' if mode == 'send' else 'qa-sender') + '@' + DOMAIN
             assert draft['to'] == [recipient] and not draft['cc'] and not draft['bcc']
@@ -173,6 +191,9 @@ try:
             expected_local = 'qa-sender' if mode == 'send' else 'qa-inbox'
             assert any(b['id'] == draft['mailboxId'] and b['domain'] == DOMAIN
                        and b['local_part'] == expected_local for b in boxes)
+            # Write intent before transport; a lost response must never auto-requeue.
+            state[mode + '-attempted'] = message['id']
+            save()
             result = call('POST', f"/api/mail/drafts/{message['id']}/send", 200, json={}).json()
             state[mode + '-queued'] = result
             save()
@@ -181,10 +202,13 @@ try:
         sent = call('GET', '/api/mail/threads/' + state['clean']['threadId']).json()
         print(json.dumps({'outbound': [{'id': m['id'], 'status': m['status'], 'direction': m['direction']} for m in sent]}))
         inbound = call('GET', '/api/mail/threads', params={'mailboxId': state['qa-inbox'], 'folder': 'inbox'}).json()
-        expected = next((m for m in inbound if m['subject'].startswith('Chatvice QA delivery ')), None)
+        original = next(m for m in sent if m['id'] == state['clean']['id'])
+        expected = next((m for m in inbound if m['subject'] == original['subject']), None)
         if expected:
             messages = call('GET', '/api/mail/threads/' + expected['id']).json()
-            state['inbound'] = next(m for m in messages if m['direction'] == 'inbound')
+            state['inbound'] = next(m for m in messages if m['direction'] == 'inbound'
+                                    and m['subject'] == original['subject']
+                                    and m['from_email'] == 'qa-sender@' + DOMAIN)
             # Keep only identifiers/status in the persisted evidence.
             state['inbound'] = {k: state['inbound'][k] for k in ['id', 'thread_id', 'status']}
             save()
@@ -195,7 +219,9 @@ try:
                 data = call('GET', f"/api/mail/attachments/{attachment['id']}/download").content
                 check(data == b'Chatvice staging attachment integrity test, 2026-10-28.\n', 'received-attachment-roundtrip')
             print(json.dumps({'inbound': state['inbound'], 'attachments': len(attachments)}))
-        if any(m['direction'] == 'inbound' for m in sent):
+        if state.get('reply-queued') and any(m['direction'] == 'inbound'
+                 and m['from_email'] == 'qa-inbox@' + DOMAIN
+                 and m['text_body'] == 'Controlled QA reply.' for m in sent):
             check(True, 'reply-correlated-to-original-thread')
         if any(m['id'] == state['clean']['id'] and m['status'] == 'delivered' for m in sent):
             check(True, 'signed-delivery-confirmed')

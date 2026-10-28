@@ -3,6 +3,10 @@
 This run targets only the isolated Railway Mail Delivery Staging origin and
 `qa-mail-staging.chatvice.app`. It does not test or change production routing.
 
+For operation without a desktop, use the [Railway cloud job](CHATVICE_MAIL_CLOUD_OPERATIONS.md).
+It obtains the operator password through a Railway reference variable and persists
+nonsecret acceptance state on its volume. Local credential files are optional.
+
 `scripts/mail-delivery-acceptance.py` uses Python 3's standard library. Supply a
 private credential JSON file containing `email` and `password`; the operator email
 must be `qa-operator@qa-mail-staging.chatvice.app`. Keep the file outside the repo,
