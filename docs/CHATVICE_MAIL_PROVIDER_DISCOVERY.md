@@ -4,6 +4,34 @@ Scope: Chatvice Mail staging provider evidence. No provider secret values,
 passwords or cookies are recorded here. Dated older checkpoints below describe
 the state at that time; the latest continuation supersedes their setup status.
 
+## Desktop-independent cloud operations — 28 October 2026, 20:12 WIB
+
+`Chatvice-Mail-Cloud-Ops` now runs in Railway cutover-staging from reviewed commit
+`27c68cbdb67dc482d487f26f477cf4ac02a4fc2a`. First deployment
+`3c81c6aa-fdd2-461f-a1b3-d0bb285207a3` reached SUCCESS and emitted
+`preflight/completed`: application health passed and the existing QA operator
+logged in and out using a Railway secret reference, with no desktop/browser.
+Nonsecret state persists on a dedicated 100 MB volume. The receiving key is also
+referenced within the cloud job; no secret values were retrieved or printed.
+
+Second deployment `b8e9ad2e-92af-4350-99e9-52470fa44e96` reached SUCCESS and
+completed the real Resend API read at 20:13 WIB: exact webhook endpoint and six
+event subscriptions matched; its status remains **disabled**. The volume retained
+the acceptance checks across deployments. Job config was then restored to
+`preflight` / send gate `disabled` without another deployment.
+
+[Cloud operations CI 40693950290](https://github.com/9dbit/Chatvice/actions/runs/40693950290)
+passed nine guard tests, the real operator image build, and production-scope refusal.
+The manual-only public health step was skipped on the PR event; Railway performed
+the live health/login check above.
+
+The remaining infrastructure input is `CLOUDFLARE_DNS_API_TOKEN` plus
+`CLOUDFLARE_ZONE_ID`. Preflight confirmed both absent, and the public TXT remains
+absent. The job can publish the exact TXT, verify ownership, inspect/control the
+existing webhook and run guarded delivery acceptance after the gates are met.
+SPARK/TradevicePC are no longer required for these operations. See the
+[cloud runbook](CHATVICE_MAIL_CLOUD_OPERATIONS.md) for the one-time setup.
+
 ## Mailbox and attachment acceptance — 28 October 2026
 
 Delivery Staging deployment `63276a5d-0015-4b6b-a8eb-1deae12f272c` reached
@@ -31,15 +59,16 @@ TXT in Cloudflare before invoking the application verify endpoint:
 | --- | --- | --- |
 | TXT | `_chatvice-mail.qa-mail-staging.chatvice.app` | `chatvice-verify=7483e769-a364-43b3-b67e-f6cb6e5a9dbc` |
 
-RDC reported SPARK offline twice during this run. Its authenticated Chrome session
-is required for this DNS write. No DNS validation was bypassed. The Resend domain
+RDC reported SPARK offline twice during this earlier run. At that checkpoint the
+DNS write depended on its Chrome session; the cloud job above replaces that dependency.
+No DNS validation was bypassed. The Resend domain
 remains the previously verified sending/receiving domain, but that does not replace
 Chatvice's own TXT ownership gate.
 
 Runtime provider and private attachments are configured; outbound and AI remain
 off. The provider webhook remains disabled at its last verified provider state;
-no provider mutation or email send occurred in this continuation. After SPARK is
-online, publish the TXT, run `verify`, enable the existing signed webhook, enable
+no provider mutation or email send occurred in this earlier continuation. With the
+cloud token configured, publish the TXT, run `verify`, enable the existing signed webhook, enable
 staging outbound, and run the controlled `send` / `status` / `reply` acceptance.
 Verify the exact Resend attachment download host if ingestion refuses a new CDN.
 

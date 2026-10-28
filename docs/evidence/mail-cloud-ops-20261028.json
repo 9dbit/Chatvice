@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-28",
+  "sourceCommit": "27c68cbdb67dc482d487f26f477cf4ac02a4fc2a",
+  "projectId": "40970ac6-3ce6-4d31-8d6a-555d2dd6fecf",
+  "environmentId": "08a3efa0-8a70-44db-a2fb-ca46ddb84b95",
+  "serviceId": "f6bc0735-5751-444d-bdf6-cd7bc9446271",
+  "volumeId": "3d92cc90-e340-4919-b063-4aeae6bf945b",
+  "deployments": [
+    {"id": "3c81c6aa-fdd2-461f-a1b3-d0bb285207a3", "action": "preflight", "status": "SUCCESS", "result": "completed", "loginLogout": "passed", "health": "passed"},
+    {"id": "b8e9ad2e-92af-4350-99e9-52470fa44e96", "action": "webhook-check", "status": "SUCCESS", "result": "completed", "endpointAndEvents": "matched", "webhookStatus": "disabled"}
+  ],
+  "ciRun": 40693950290,
+  "ciResult": "success",
+  "guardTests": 9,
+  "operatorContainerBuild": "passed",
+  "productionScopeRefusal": "passed",
+  "productionServiceInstance": false,
+  "publicJobDomain": false,
+  "scheduled": false,
+  "configActionAfterRun": "preflight",
+  "sendGateAfterRun": "disabled",
+  "credentialsExported": false,
+  "cloudflareTokenPresent": false,
+  "cloudflareZoneIdPresent": false,
+  "publicOwnershipTxtPresent": false,
+  "applicationDomainStatus": "pending",
+  "emailSent": false,
+  "unrelatedStagedPatch": "2bfcd815-6772-40d1-a8b0-93670c9bc0e8",
+  "unrelatedStagedPatchApplied": false
+}

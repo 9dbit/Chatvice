@@ -8,9 +8,12 @@ and the approved dedicated sending/receiving keys plus webhook secret are instal
 on isolated Delivery Staging. Deployment `63276a5d-0015-4b6b-a8eb-1deae12f272c`
 succeeded; operator login, two QA mailboxes and seven attachment/auth checks passed,
 as did three public HTTP boundaries. The application's separate TXT ownership
-record still needs publishing through SPARK, which is offline. Outbound remains
+record still needs publishing. The new cloud operator job has passed real login
+and health checks without desktop access; DNS publishing now requires the scoped
+Cloudflare API token and Zone ID on that job. Outbound remains
 off and the Resend webhook remains disabled; real delivery is not yet accepted.
 See [the exact remaining DNS and delivery actions](CHATVICE_MAIL_PROVIDER_DISCOVERY.md).
+See [cloud operation and one-time token setup](CHATVICE_MAIL_CLOUD_OPERATIONS.md).
 
 ## Independent application
 
