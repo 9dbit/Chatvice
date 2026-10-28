@@ -3,13 +3,14 @@
 Mail is not production-ready until delivery, data preservation and restore gates
 below have actual evidence. Existing Chatvice production and Hostinger remain live.
 
-Latest provider checkpoint (28 October 2026): the independent
-`qa-mail-staging.chatvice.app` domain and all four Cloudflare records are verified
-for sending/receiving in Resend. A domain-restricted sending key exists, but
-automatic approval review blocked its transfer to Railway and creation of the
-separate Full access receiving key pending explicit authorization. No webhook or
-real email has been tested; application provider/outbound/attachments remain off.
-See the [RDC / SPARK setup and exact remaining actions](CHATVICE_MAIL_PROVIDER_DISCOVERY.md#rdc--spark-continuation--28-october-2026-0100-wib).
+Latest provider checkpoint (28 October 2026): Resend's QA domain is verified,
+and the approved dedicated sending/receiving keys plus webhook secret are installed
+on isolated Delivery Staging. Deployment `63276a5d-0015-4b6b-a8eb-1deae12f272c`
+succeeded; operator login, two QA mailboxes and seven attachment/auth checks passed,
+as did three public HTTP boundaries. The application's separate TXT ownership
+record still needs publishing through SPARK, which is offline. Outbound remains
+off and the Resend webhook remains disabled; real delivery is not yet accepted.
+See [the exact remaining DNS and delivery actions](CHATVICE_MAIL_PROVIDER_DISCOVERY.md).
 
 ## Independent application
 

@@ -4,6 +4,54 @@ Scope: Chatvice Mail staging provider evidence. No provider secret values,
 passwords or cookies are recorded here. Dated older checkpoints below describe
 the state at that time; the latest continuation supersedes their setup status.
 
+## Mailbox and attachment acceptance — 28 October 2026
+
+Delivery Staging deployment `63276a5d-0015-4b6b-a8eb-1deae12f272c` reached
+**SUCCESS** at 01:56 UTC (08:56 WIB). Its reported source is `b7e7cac`; GitHub
+comparison against accepted implementation `169b767e` confirms only documentation
+changed. The existing compiled offline provisioner created the isolated QA admin
+`qa-operator@qa-mail-staging.chatvice.app`. Its random password is managed only by
+Railway's `CHATVICE_MAIL_QA_OPERATOR_PASSWORD` and the temporary operator test
+process. No password is included here. The temporary provisioning password value
+was cleared in service config after success. Schema-only pre-deploy was restored
+and read back; do not replay this deployment's old provisioning snapshot.
+
+Authenticated HTTPS setup created `qa-sender@qa-mail-staging.chatvice.app` and
+`qa-inbox@qa-mail-staging.chatvice.app`. Seven operator checks passed: admin login,
+ClamAV clean verdict, private-storage byte roundtrip, anonymous download denial,
+EICAR blocked verdict, blocked download denial and outbound-disabled enforcement.
+Three public boundary checks passed: health 200, anonymous mailbox API 401 and
+unsigned provider webhook 401; all returned no-store/noindex. The test sessions
+were logged out. The clean and quarantined samples remain separate unsent drafts.
+
+The application's domain ownership check is still **pending**. Add this public
+TXT in Cloudflare before invoking the application verify endpoint:
+
+| Type | Full host | Content |
+| --- | --- | --- |
+| TXT | `_chatvice-mail.qa-mail-staging.chatvice.app` | `chatvice-verify=7483e769-a364-43b3-b67e-f6cb6e5a9dbc` |
+
+RDC reported SPARK offline twice during this run. Its authenticated Chrome session
+is required for this DNS write. No DNS validation was bypassed. The Resend domain
+remains the previously verified sending/receiving domain, but that does not replace
+Chatvice's own TXT ownership gate.
+
+Runtime provider and private attachments are configured; outbound and AI remain
+off. The provider webhook remains disabled at its last verified provider state;
+no provider mutation or email send occurred in this continuation. After SPARK is
+online, publish the TXT, run `verify`, enable the existing signed webhook, enable
+staging outbound, and run the controlled `send` / `status` / `reply` acceptance.
+Verify the exact Resend attachment download host if ingestion refuses a new CDN.
+
+The unrelated pending staging patch is unchanged. Production and apex MX were not
+modified. The earlier redeploy failed on an old smoke pre-deploy snapshot, and a
+same-source reconnect was skipped by watch patterns; the scoped variable-triggered
+deployment above is the accepted result. Initial automatic review of source
+reconnection was resolved after confirming this service has no production instance.
+
+See [the operator procedure](CHATVICE_MAIL_DELIVERY_ACCEPTANCE.md) and
+[resumable nonsecret evidence](evidence/mail-delivery-staging-20261028.json).
+
 ## Credential approval applied — 28 October 2026
 
 The user explicitly approved the Full access receiving key and storage of the
