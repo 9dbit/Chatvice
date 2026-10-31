@@ -53,6 +53,7 @@ import {
   Hotel,
   Rocket,
   ShoppingBag,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -127,9 +128,11 @@ const iconMap: Record<string, any> = {
   HardDrive,
   Sparkles,
   Calendar,
+  Mail,
 };
 
 const menuItemsMap: Record<string, MenuItem> = {
+  "mail": { id: "mail", title: "Chatvice Mail", url: "/dashboard/mail", icon: Mail, permission: "overview" },
   "overview": { id: "overview", title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, permission: "overview" },
   "profile": { id: "profile", title: "Profile", url: "/dashboard/profile", icon: User, permission: "overview" },
   "agents": { id: "agents", title: "Agents", url: "/dashboard/agents", icon: Bot, permission: "agents" },
@@ -163,6 +166,7 @@ const menuItemsMap: Record<string, MenuItem> = {
 };
 
 const menuItemTranslationKeys: Record<string, string> = {
+  "mail": "Chatvice Mail",
   "overview": "dashboard.items.overview",
   "profile": "dashboard.items.profile",
   "agents": "dashboard.items.agents",
@@ -196,6 +200,7 @@ const menuItemTranslationKeys: Record<string, string> = {
 
 const defaultMainMenuItems: MenuItem[] = [
   menuItemsMap["overview"],
+  menuItemsMap["mail"],
   menuItemsMap["profile"],
   menuItemsMap["affiliate"],
   menuItemsMap["agents"],
@@ -234,6 +239,7 @@ const defaultManagementItems: MenuItem[] = [
 ];
 
 const defaultGroupForItem: Record<string, "main" | "widgetSetting" | "messageSetting" | "management"> = {
+  "mail": "main",
   "overview": "main",
   "profile": "main",
   "affiliate": "main",

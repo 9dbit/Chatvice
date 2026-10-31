@@ -1,0 +1,53 @@
+{
+  "checks": {
+    "operator-login": true,
+    "clamav-clean": true,
+    "private-storage-roundtrip": true,
+    "anonymous-download-denied": true,
+    "clamav-eicar-blocked": true,
+    "blocked-download-denied": true,
+    "outbound-disabled-before-acceptance": true
+  },
+  "domain": {
+    "id": "076244e0-0549-474a-a8fd-6e6a1001429d",
+    "domain": "qa-mail-staging.chatvice.app",
+    "status": "pending"
+  },
+  "qa-sender": "1cd5fb98-4649-45bf-bc99-82891c859c8e",
+  "qa-inbox": "c85ca846-8cac-4619-9fd1-fa229444f2d4",
+  "dns": {
+    "type": "TXT",
+    "host": "_chatvice-mail.qa-mail-staging.chatvice.app",
+    "value": "chatvice-verify=7483e769-a364-43b3-b67e-f6cb6e5a9dbc",
+    "status": "pending"
+  },
+  "clean": {
+    "id": "b5133606-ddd0-45b9-94f4-995acec0b5c0",
+    "threadId": "6d6a6e1f-b63e-4361-b250-26c16505bf5e",
+    "status": "draft"
+  },
+  "attachment": {
+    "id": "49ab7de9-56ed-4d0a-9b4f-c199a21c7597",
+    "filename": "chatvice-qa.txt",
+    "sizeBytes": 56,
+    "scanStatus": "clean"
+  },
+  "quarantine": {
+    "id": "e2558a02-3dd7-4d10-a453-feb66245d73b",
+    "threadId": "fe6d78be-5cba-4677-8544-e246e788fd11",
+    "status": "draft"
+  },
+  "blocked": {
+    "id": "80f806c6-0c79-4b37-9b6d-17df013eeced",
+    "filename": "eicar-qa.txt",
+    "sizeBytes": 68,
+    "scanStatus": "blocked"
+  },
+  "deployment": "63276a5d-0015-4b6b-a8eb-1deae12f272c",
+  "publicBoundaryChecks": {
+    "health": 200,
+    "anonymousMailbox": 401,
+    "unsignedWebhook": 401,
+    "allNoStoreNoIndex": true
+  }
+}

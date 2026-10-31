@@ -1,4 +1,4 @@
-import { Component, type ReactNode } from "react";
+import { Component, useEffect, type ReactNode } from "react";
 import { Route, Switch, useLocation, Redirect, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -50,6 +50,8 @@ class PageErrorBoundary extends Component<
   }
 }
 import DashboardOverview from "./overview";
+import MailPage from "./mail";
+import MailAdminPage from "./mail-admin";
 import SessionsPage from "./sessions";
 import KnowledgePage from "./knowledge";
 import TriggersPage from "./triggers";
@@ -89,6 +91,7 @@ import type { Merchant } from "@shared/schema";
 const pageTranslationKeys: Record<string, string> = {
   "": "dashboard.overview.title",
   "profile": "dashboard.profile.title",
+  "mail": "Chatvice Mail",
   "affiliate": "dashboard.affiliate.title",
   "agents": "dashboard.agents.title",
   "leads": "dashboard.leads.title",
@@ -153,6 +156,15 @@ export default function DashboardLayout() {
     enabled: !!merchantId,
   });
 
+  const isMailPath = location === "/dashboard/mail" || location.startsWith("/dashboard/mail/");
+  const privateMailDocument = !!(window as any).__CHATVICE_PRIVATE_MAIL_DOCUMENT__;
+  // In-app navigation cannot remove previously executed GTM/analytics scripts.
+  // Show no mailbox DOM until a fresh tracker-free HTML document has loaded.
+  useEffect(() => {
+    if (isMailPath && !privateMailDocument) window.location.replace(location);
+  }, [isMailPath, privateMailDocument, location]);
+  if (isMailPath && !privateMailDocument) return null;
+
   if (!merchantId) {
     return <Redirect to="/login" />;
   }
@@ -204,6 +216,8 @@ export default function DashboardLayout() {
             <Switch>
               <Route path="/dashboard" component={DashboardOverview} />
               <Route path="/dashboard/profile" component={ProfilePage} />
+              <Route path="/dashboard/mail/admin" component={MailAdminPage} />
+              <Route path="/dashboard/mail" component={MailPage} />
               <Route path="/dashboard/affiliate" component={AffiliatePage} />
               <Route path="/dashboard/agents" component={AgentsPage} />
               <Route path="/dashboard/sources" component={SourcesPage} />
@@ -243,7 +257,7 @@ export default function DashboardLayout() {
             </Switch>
             </PageErrorBoundary>
           </main>
-          <AIHelpBubble />
+          {!isMailPath && <AIHelpBubble />}
         </div>
       </div>
     </SidebarProvider>

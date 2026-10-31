@@ -4,6 +4,8 @@ import fs from "fs";
 import crypto from "crypto";
 import cookieParser from "cookie-parser";
 import { registerRoutes, cleanupStaleVisitorSessions } from "./routes";
+import { registerMailRoutes } from "./mail/routes";
+import { startMailOutboxWorker } from "./mail/outbox";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { execSync } from "child_process";
@@ -236,6 +238,8 @@ app.use((req, res, next) => {
   await seedMasterAdminFromEnv();
 
   await registerRoutes(httpServer, app);
+  // Mail routes are registered after session middleware and before static catch-all.
+  registerMailRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -243,6 +247,19 @@ app.use((req, res, next) => {
 
     res.status(status).json({ message });
     throw err;
+  });
+
+  // Mail UI must never be search indexed or publicly cached.
+  app.use("/dashboard/mail", (_req, res, next) => {
+    res.setHeader("X-Robots-Tag", "noindex, nofollow, nosnippet, noarchive");
+    res.setHeader("Cache-Control", "private, no-store");
+    // Mail is a sensitive UI: no external scripts, analytics, framed embeds,
+    // remotely hosted fonts/images or active third-party network requests.
+    res.setHeader("Content-Security-Policy",
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+      "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; " +
+      "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
+    next();
   });
 
   // importantly only setup vite in development and after
@@ -288,6 +305,8 @@ app.use((req, res, next) => {
       
       // Start background sync job for crawled links (every 60 minutes)
       startBackgroundSync();
+      // Opt-in only. Does not send mail unless enabled AND provider key is configured.
+      startMailOutboxWorker();
     },
   );
 })().catch((error) => {

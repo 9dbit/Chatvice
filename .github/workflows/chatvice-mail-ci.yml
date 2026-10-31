@@ -1,0 +1,153 @@
+name: Chatvice Mail Engine CI
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "server/mail/**"
+      - "script/build-mail-qa.ts"
+      - "scripts/mail-qa-bootstrap.mjs"
+      - "scripts/mail-workspace-smoke.mjs"
+      - "scripts/mail-qa-login-browser.mjs"
+      - "scripts/mail-qa-container-smoke.mjs"
+      - "scripts/mail-app-container-smoke.mjs"
+      - "scripts/mail-app-schema.mjs"
+      - "scripts/mail-delivery-staging-login-smoke.mjs"
+      - "scripts/mail-provision-user.ts"
+      - "script/build-mail-app.ts"
+      - "Dockerfile.mail-app"
+      - "Dockerfile.mail-app.dockerignore"
+      - "Dockerfile.mail-qa"
+      - "Dockerfile.mail-qa.dockerignore"
+      - "config/mail-qa-runtime/**"
+      - "client/mail-qa.html"
+      - "client/mail-app.html"
+      - "client/src/mail-app-main.tsx"
+      - "vite.mail-app.config.ts"
+      - "client/src/mail-qa-main.tsx"
+      - "client/src/mail-qa.css"
+      - "vite.mail-qa.config.ts"
+      - "script/build-mail-qa.ts"
+      - "client/src/pages/dashboard/mail.tsx"
+      - "client/src/pages/dashboard/mail-workspace.css"
+      - "client/src/pages/dashboard/mail-admin.tsx"
+      - "client/src/pages/dashboard/mail-attachments.tsx"
+      - "client/src/pages/dashboard/layout.tsx"
+      - "client/src/components/app-sidebar.tsx"
+      - "server/index.ts"
+      - "migrations/20261026_chatvice_mail_v1.sql"
+      - "migrations/20261026_chatvice_mail_attachments_v2.sql"
+      - "migrations/20261027_chatvice_mail_login.sql"
+      - "migrations/20261027_chatvice_mail_delivery_recipients_v3.sql"
+      - "shared/mail-schema.ts"
+      - "shared/mail-recipients.ts"
+      - "shared/mail-*.ts"
+      - ".github/workflows/chatvice-mail-ci.yml"
+  push:
+    branches:
+      - "feature/chatvice-mail-engine-20261026"
+permissions:
+  contents: read
+jobs:
+  mail-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: chatvice_mail
+          POSTGRES_PASSWORD: mail_ci_password
+          POSTGRES_DB: chatvice_mail_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chatvice_mail -d chatvice_mail_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://chatvice_mail:mail_ci_password@127.0.0.1:5432/chatvice_mail_ci
+      CHATVICE_MAIL_INTEGRATION_DB: isolated-ci
+      NODE_ENV: test
+      CHATVICE_MAIL_ENABLED: "false"
+      CHATVICE_MAIL_OUTBOUND_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install from lockfile
+        run: npm ci --no-audit --no-fund
+      - name: Verify mail security and provider tests
+        run: npx tsx --test server/mail/qa-login.test.ts server/mail/qa-auth.test.ts server/mail/security.test.ts server/mail/delivery.test.ts server/mail/message-text.test.ts server/mail/privacy.test.ts server/mail/attachment-security.test.ts server/mail/crypto.test.ts server/mail/binary-crypto.test.ts server/mail/password.test.ts server/mail/backup.test.ts server/mail/recipients.test.ts
+      - name: Test mail tenant isolation on disposable PostgreSQL
+        run: npx tsx --test server/mail/integration.test.ts
+      - name: Rehearse encrypted PostgreSQL backup and restore on disposable CI
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          export CHATVICE_MAIL_BACKUP_KEY="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')"
+          docker exec "$POSTGRES_CONTAINER" pg_dump -U chatvice_mail -Fc chatvice_mail_ci | node scripts/mail-backup.mjs seal > /tmp/chatvice-mail-backup.cvm
+          docker exec "$POSTGRES_CONTAINER" createdb -U chatvice_mail chatvice_mail_restore_ci
+          node scripts/mail-backup.mjs open < /tmp/chatvice-mail-backup.cvm | docker exec -i "$POSTGRES_CONTAINER" pg_restore -U chatvice_mail --no-owner --exit-on-error -d chatvice_mail_restore_ci
+          node scripts/mail-restore-verify.mjs
+      - name: Verify fail-closed QA bootstrap on disposable databases
+        run: npx tsx --test server/mail/qa-bootstrap.test.ts
+      - name: Verify guarded isolated app schema installation
+        run: npx tsx --test server/mail/app-schema.test.ts
+      - name: Typecheck mail files (report existing app baseline separately)
+        run: |
+          npm run check > /tmp/chatvice-typecheck.log 2>&1 || TYPECHECK_FAILED=1
+          if grep -E '(server/mail/|shared/mail-|client/src/mail-(app|qa)-main\.tsx|script/build-mail-|vite.mail-|client/src/pages/dashboard/mail(-admin|-attachments)?\.tsx)' /tmp/chatvice-typecheck.log; then
+            echo "::error::New mail TypeScript diagnostics detected"
+            exit 1
+          fi
+          if [ "${TYPECHECK_FAILED:-0}" = "1" ]; then
+            echo "::warning::Existing Chatvice-wide TypeScript errors remain (not introduced by Mail)."
+            echo "Baseline error count: $(grep -c 'error TS' /tmp/chatvice-typecheck.log || true)"
+          fi
+      - name: Build production bundles
+        run: npm run build
+      - name: Build isolated Mail QA web app
+        run: npx tsx script/build-mail-qa.ts
+      - name: Build isolated Mail app with independent login
+        run: npx tsx script/build-mail-app.ts
+      - name: Install browser for synthetic Mail workspace tests
+        run: npx playwright install --with-deps chromium
+      - name: Verify Mail workspace interactions on desktop and mobile
+        env:
+          CHATVICE_MAIL_SMOKE_OUTPUT: ${{ runner.temp }}/mail-workspace-preview
+        run: node --import tsx scripts/mail-workspace-smoke.mjs
+      - name: Verify real browser Origin on QA login form navigation
+        run: node --import tsx scripts/mail-qa-login-browser.mjs
+      - name: Save synthetic Mail previews
+        uses: actions/upload-artifact@v4
+        with:
+          name: mail-workspace-preview
+          path: ${{ runner.temp }}/mail-workspace-preview
+          retention-days: 7
+      - name: Build minimal Mail QA runtime image
+        run: docker build --file Dockerfile.mail-qa --tag chatvice-mail-qa:ci .
+      - name: Verify actual Mail QA container on disposable PostgreSQL
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: node --import tsx scripts/mail-qa-container-smoke.mjs
+      - name: Build independent Mail application runtime image
+        run: docker build --file Dockerfile.mail-app --tag chatvice-mail-app:ci .
+      - name: Verify actual independent Mail app and persistent login on disposable PostgreSQL
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: node scripts/mail-app-container-smoke.mjs
+      - name: Verify no third-party scripts in QA entry document
+        run: |
+          test -f dist/mail-qa/mail-qa.html
+          test -f dist/mail-qa-server.cjs
+          if grep -Ei 'googletagmanager|google-analytics|meta-pixel|fbq\(|fonts.googleapis.com' dist/mail-qa/mail-qa.html; then
+            echo "::error::Tracker detected in private Mail QA HTML"
+            exit 1
+          fi
+

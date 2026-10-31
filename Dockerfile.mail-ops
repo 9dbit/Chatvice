@@ -1,0 +1,7 @@
+FROM python:3.13-slim
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 MAIL_ACCEPTANCE_STATE_FILE=/state/acceptance.json
+COPY scripts/mail-cloud-ops.py scripts/mail-delivery-acceptance.py ./scripts/
+COPY docs/evidence/mail-delivery-staging-20261028.json ./docs/evidence/
+# One-shot job with a Railway volume. No listening socket, cron or restart loop.
+CMD ["python", "scripts/mail-cloud-ops.py"]
