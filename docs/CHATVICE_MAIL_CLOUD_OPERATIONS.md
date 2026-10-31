@@ -65,7 +65,15 @@ No GitHub access token or Railway API token needs to be placed in the job.
 | `storage` | Existing antivirus/private-storage tests; requires staging outbound OFF |
 | `send` | Queue the existing clean draft to the QA inbox only |
 | `status` | Read delivery, received attachment and reply correlation evidence |
+| `wait` | Poll the existing QA exchange for up to two minutes using one login, then log out; never sends mail |
 | `reply` | Queue a reply from QA inbox to QA sender only |
+
+Use `wait` after the reply has been queued instead of repeatedly invoking `status`.
+Completion requires fresh original and reply delivery evidence, one correlated
+reply, and exact attachment bytes. Only MIME terminal line endings are normalized
+for the controlled reply; changed content, spaces and duplicate replies fail.
+TXT verification accepts the exact challenge either raw or with one presentation
+quote pair. Conflicting values are still refused without overwriting DNS.
 
 `send` and `reply` additionally require `MAIL_ACCEPTANCE_ALLOW_SEND=qa-domain-only`.
 The application outbound flag remains a separate explicit control on Delivery

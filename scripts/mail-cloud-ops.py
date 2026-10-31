@@ -22,7 +22,7 @@ ENVIRONMENT = '08a3efa0-8a70-44db-a2fb-ca46ddb84b95'
 EVENTS = {'email.received', 'email.sent', 'email.delivered', 'email.bounced',
           'email.complained', 'email.failed'}
 ROOT = Path(__file__).resolve().parent.parent
-ACTIONS = {'preflight', 'dns', 'verify', 'storage', 'status', 'send', 'reply',
+ACTIONS = {'preflight', 'dns', 'verify', 'storage', 'status', 'wait', 'send', 'reply',
            'webhook-check', 'webhook-enable', 'webhook-disable'}
 
 
@@ -96,10 +96,16 @@ def challenge():
     return dns['value']
 
 
+def txt_matches(content, expected):
+    # Providers may return the TXT presentation form with one pair of quotes.
+    # Do not strip arbitrary characters, whitespace or malformed quoting.
+    return isinstance(content, str) and content in (expected, '"' + expected + '"')
+
+
 def public_dns():
     data = api('GET', 'https://dns.google/resolve?' + urllib.parse.urlencode(
         {'name': HOST, 'type': 'TXT'}))
-    return any(row.get('type') == 16 and row.get('data', '').strip('"') == challenge()
+    return any(row.get('type') == 16 and txt_matches(row.get('data'), challenge())
                for row in data.get('Answer', []))
 
 
@@ -119,7 +125,7 @@ def publish_dns():
     records = result['result']
     value = challenge()
     if records:
-        require(all(r['type'] == 'TXT' and r['content'] == value for r in records),
+        require(all(r['type'] == 'TXT' and txt_matches(r['content'], value) for r in records),
                 'dns-conflict-no-overwrite')
     else:
         result = api('POST', root + '/dns_records', token,
@@ -127,7 +133,7 @@ def publish_dns():
         require(result.get('success') is True, 'cloudflare-create-failed')
     result = api('GET', records_url, token)
     require(result.get('success') and any(r['type'] == 'TXT' and r['name'] == HOST
-               and r['content'] == value for r in result['result']), 'dns-readback-failed')
+               and txt_matches(r['content'], value) for r in result['result']), 'dns-readback-failed')
     emit(dns_record='verified-in-cloudflare', public_dns_ready=public_dns())
 
 
