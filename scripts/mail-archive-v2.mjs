@@ -1,4 +1,4 @@
-/** Read-only CVMARCH2 recovery verification. No network, DB writes or plaintext output. */
+/** Read-only CVMARCH2 recovery. No network, DB writes or plaintext CLI output. */
 import {createDecipheriv, createHash} from 'node:crypto';
 import {open, lstat} from 'node:fs/promises';
 import {constants} from 'node:fs';
@@ -31,7 +31,7 @@ function decrypt(bytes,key,aad){
   return Buffer.concat([cipher.update(bytes.subarray(36)),cipher.final()]);
 }
 
-export async function verifyMailArchiveV2({directory,keyHex,mailboxes}){
+async function readArchive({directory,keyHex,mailboxes},collectSources=false){
   demand(typeof directory==='string'&&directory.length>0,'archive-directory');
   demand(typeof keyHex==='string'&&/^[a-f0-9]{64}$/.test(keyHex),'archive-key');
   demand(Array.isArray(mailboxes)&&mailboxes.length>0&&mailboxes.length<=100&&
@@ -64,7 +64,7 @@ export async function verifyMailArchiveV2({directory,keyHex,mailboxes}){
       const scope=box.address+'|'+folder.path;
       demand(!declared.has(scope),'archive-duplicate-folder');declared.set(scope,folder.count);
     }
-    const identities=new Set(),objects=new Set();let bytes=0;
+    const identities=new Set(),objects=new Set(),sources=new Map();let bytes=0;
     for(const record of manifest.records){
       demand(mailboxes.includes(record.mailbox)&&typeof record.folder==='string'&&
         declared.has(record.mailbox+'|'+record.folder)&&Number.isSafeInteger(record.uid)&&
@@ -79,6 +79,7 @@ export async function verifyMailArchiveV2({directory,keyHex,mailboxes}){
       identities.add(identity);objects.add(record.object);
       const source=decrypt(await readBounded(root,record.object,record.size+36),key,record.aad);
       demand(source.length===record.size&&sha(source)===record.sha256,'archive-integrity');
+      if(collectSources)sources.set(record.object,source);
       bytes+=source.length;demand(bytes<=MAX_TOTAL,'archive-total-limit');
       counts[record.mailbox]++;
       const scope=record.mailbox+'|'+record.folder;actual.set(scope,(actual.get(scope)||0)+1);
@@ -89,12 +90,18 @@ export async function verifyMailArchiveV2({directory,keyHex,mailboxes}){
     demand((await readBounded(root,'LATEST',100)).toString('utf8')===pointer,'archive-snapshot-changed');
     try{await lstat(join(root,'running.lock'));throw Error('archive-running');}
     catch(error){if(error.code!=='ENOENT')throw error;}
-    return {verified:true,messages:manifest.total,bytes,mailboxCounts:counts,
+    const report={verified:true,messages:manifest.total,bytes,mailboxCounts:counts,
       sourceInventoryStable:manifest.source_inventory_stable,
       encryptedManifestSha256:sha(encryptedManifest),
       independentOffsiteCopy:false,mailboxDatabaseImported:false};
+    return collectSources?{report,manifest,sources}:report;
   }finally{key.fill(0);}
 }
+
+export const verifyMailArchiveV2=options=>readArchive(options);
+// Bounded to 60 MiB. Nothing is returned until every source and the final
+// snapshot pointer/lock have passed verification. Caller must clear buffers.
+export const readMailArchiveV2=options=>readArchive(options,true);
 
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
   try{
