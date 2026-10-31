@@ -6,6 +6,7 @@ on:
       - scripts/mail-cloud-ops.py
       - scripts/mail-delivery-acceptance.py
       - scripts/test_mail_cloud_ops.py
+      - scripts/mail-archive-v2*.mjs
       - Dockerfile.mail-ops*
       - .github/workflows/chatvice-mail-ops.yml
   pull_request:
@@ -13,6 +14,7 @@ on:
       - scripts/mail-cloud-ops.py
       - scripts/mail-delivery-acceptance.py
       - scripts/test_mail_cloud_ops.py
+      - scripts/mail-archive-v2*.mjs
       - Dockerfile.mail-ops*
       - .github/workflows/chatvice-mail-ops.yml
   workflow_dispatch:
@@ -28,6 +30,11 @@ jobs:
         with:
           python-version: '3.13'
       - run: python -m unittest discover -s scripts -p test_mail_cloud_ops.py -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify encrypted archive recovery and corruption rejection
+        run: node --test scripts/mail-archive-v2.test.mjs
       - name: Build isolated operator image
         run: docker build -f Dockerfile.mail-ops -t chatvice-mail-ops:ci .
       - name: Prove production is refused without credentials
