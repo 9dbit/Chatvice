@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createCipheriv,createHash,randomBytes,randomUUID} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
-import {prepareArchivedMessage,buildMailImportPlan,sealMailImportPlan} from './mail-import-plan.mjs';
+import {prepareArchivedMessage,buildMailImportPlan,sealMailImportPlan,readSealedMailPlan,providerMetadataSha256} from './mail-import-plan.mjs';
 import {readMailArchiveV2} from './mail-archive-v2.mjs';
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const mailbox='one@example.invalid';
@@ -87,11 +87,11 @@ test('bad message metadata produces explicit blocked plan without skipping it',a
  assert.equal(summary.ready,false);assert.equal(summary.blocked,1);assert.equal(summary.planned,0);assert.equal(plan.blocked.length,1);
  assert.deepEqual(summary.blockedReasons,{'metadata-date':1});
 });
-test('encrypted plan is private, verified, idempotent and rejects conflicting replacement',async t=>{
+test('encrypted plans are private, verified, idempotent and retain changed revisions',async t=>{
  const f=await archive(t),{plan}=await buildMailImportPlan(f),one=await sealMailImportPlan({...f,plan}),two=await sealMailImportPlan({...f,plan});
  assert.equal(one.encryptedPlanSha256,two.encryptedPlanSha256);assert.equal(two.reused,true);
  const file=join(f.directory,one.name),data=await readFile(file);assert.equal(data.includes(Buffer.from('Private body')),false);assert.equal((await stat(file)).mode&0o777,0o600);
- const changed=structuredClone(plan);changed.rows[0].text='changed';await assert.rejects(sealMailImportPlan({...f,plan:changed}),/plan-existing-conflict/);
+ const changed=structuredClone(plan);changed.rows[0].text='changed';const next=await sealMailImportPlan({...f,plan:changed});assert.notEqual(next.name,one.name);assert.equal((await readSealedMailPlan({...f,name:one.name})).rows[0].text,plan.rows[0].text);
  data[data.length-1]^=1;await writeFile(file,data);await assert.rejects(sealMailImportPlan({...f,plan}));
 });
 test('wrong archive key and symlink plan destination are refused',async t=>{
@@ -104,4 +104,38 @@ test('CLI emits only aggregate evidence, not mail content or secret values',asyn
  const f=await archive(t);const r=spawnSync(process.execPath,['scripts/mail-import-plan.mjs'],{encoding:'utf8',env:{...process.env,MAIL_ARCHIVE_DIRECTORY:f.directory,MAIL_ARCHIVE_KEY:f.keyHex,MAIL_ARCHIVE_MAILBOXES:JSON.stringify(f.mailboxes)}});
  assert.equal(r.status,0,r.stderr);const out=JSON.parse(r.stdout);assert.equal(out.ready,true);
  for(const privateText of ['Private body','hidden@example.invalid',f.keyHex])assert.equal((r.stdout+r.stderr).includes(privateText),false);
+});
+
+test('size mismatch needs exact provider hash proof tied to source and original metadata',async()=>{
+ const bytes=Buffer.from('binary-proof'),f=mimeAttachment(bytes),provider={...f.meta,sizeBytes:bytes.length+1},r={...record(f.raw),attachments:[provider]};
+ const proof={sourceObject:r.object,sourceSha256:r.sha256,providerAttachmentId:provider.id,providerMetadataSha256:providerMetadataSha256(provider),decodedSizeBytes:bytes.length,decodedSha256:sha(bytes)};
+ await assert.rejects(prepareArchivedMessage(f.raw,r,folder),/attachment-mismatch/);
+ const row=await prepareArchivedMessage(f.raw,r,folder,{},[proof]);assert.equal(row.reconciledAttachments,1);assert.equal(row.attachments[0].sizeBytes,bytes.length);assert.equal(row.attachments[0].providerDeclaredSizeBytes,bytes.length+1);
+ for(const key of ['sourceObject','sourceSha256','providerAttachmentId','providerMetadataSha256','decodedSha256','decodedSizeBytes']){
+  await assert.rejects(prepareArchivedMessage(f.raw,r,folder,{},[{...proof,[key]:key==='decodedSizeBytes'?9:'wrong'}]),/attachment-mismatch/);
+ }
+});
+test('encrypted evidence from another snapshot or wrong kind is rejected',async t=>{
+ const f=await archive(t);
+ for(const evidence of [{version:2,kind:'attachment-reconciliation',manifestSha256:'a'.repeat(64),rows:[]},{version:2,kind:'import-plan',manifestSha256:'a'.repeat(64),rows:[]}])await assert.rejects(buildMailImportPlan({...f,attachmentEvidence:evidence}),/attachment-evidence-scope/);
+ await assert.rejects(readSealedMailPlan({...f,name:'../secret'}),/plan-name/);
+});
+test('provider attachment reader sends GET only, refuses redirects and bounds retries',async()=>{
+ const {hostingerAttachmentReader}=await import('./mail-attachment-reconcile.mjs');let calls=0;
+ const read=hostingerAttachmentReader({token:'synthetic-token',wait:async()=>{},fetchImpl:async(url,options)=>{
+  calls++;assert.equal(url,'https://api.mail.hostinger.com/api/v1/me');assert.equal(options.method,'GET');assert.equal(options.redirect,'error');
+  return calls<3?new Response('',{status:503}):new Response('{"data":{"mailboxes":[]}}');
+ }});assert.deepEqual(await read('me'),{data:{mailboxes:[]}});assert.equal(calls,3);
+ await assert.rejects(read('https://other.invalid/'),/provider-route/);
+ let failed=0;const refused=hostingerAttachmentReader({token:'synthetic-token',wait:async()=>{},fetchImpl:async()=>{failed++;return new Response('',{status:403});}});
+ await assert.rejects(refused('me'),/provider-http-403/);assert.equal(failed,1);
+});
+test('independent provider bytes prove the exact archived decoded attachment',async t=>{
+ const {reconcileArchivedAttachments}=await import('./mail-attachment-reconcile.mjs');const bytes=Buffer.from('binary-proof'),f=mimeAttachment(bytes),provider={...f.meta,sizeBytes:bytes.length+1};
+ const a=await archive(t,{body:f.raw,metadata:{...record(f.raw),attachments:[provider]}});
+ const read=async(route,raw)=>{if(route==='me')return {data:{mailboxes:[{address:mailbox,resourceId:'AC123'}]}};assert.equal(raw,true);assert.ok(route.endsWith('/attachments/opaque'));return Buffer.from(bytes);};
+ const evidence=await reconcileArchivedAttachments(a,read);assert.equal(evidence.summary.providerBytesMatchMime,true);assert.equal(evidence.rows[0].decodedSha256,sha(bytes));
+ const saved=await sealMailImportPlan({...a,plan:evidence});const reopened=await readSealedMailPlan({...a,name:saved.name});
+ const {summary}=await buildMailImportPlan({...a,attachmentEvidence:reopened,attachmentEvidenceName:saved.name});assert.equal(summary.ready,true);assert.equal(summary.reconciledAttachments,1);
+ await assert.rejects(reconcileArchivedAttachments(a,async(route)=>route==='me'?{data:{mailboxes:[{address:mailbox,resourceId:'AC123'}]}}:Buffer.from('different')),/attachment-source-provider-mismatch/);
 });

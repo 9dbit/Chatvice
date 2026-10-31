@@ -8,6 +8,7 @@ on:
       - scripts/test_mail_cloud_ops.py
       - scripts/mail-archive-v2*.mjs
       - scripts/mail-import-plan*.mjs
+      - scripts/mail-attachment-reconcile.mjs
       - config/mail-migration-runtime/**
       - Dockerfile.mail-ops*
       - .github/workflows/chatvice-mail-ops.yml
@@ -18,6 +19,7 @@ on:
       - scripts/test_mail_cloud_ops.py
       - scripts/mail-archive-v2*.mjs
       - scripts/mail-import-plan*.mjs
+      - scripts/mail-attachment-reconcile.mjs
       - config/mail-migration-runtime/**
       - Dockerfile.mail-ops*
       - .github/workflows/chatvice-mail-ops.yml

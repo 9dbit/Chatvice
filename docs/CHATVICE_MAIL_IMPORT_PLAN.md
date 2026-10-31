@@ -30,7 +30,11 @@ pass the application's display sanitizer after a future import.
 The plan retains original folder, UID, timestamp, flags, sender/recipient fields
 (including BCC), RFC identifiers, text/HTML and per-attachment SHA-256. It compares
 decoded attachment sizes, names, media types and Content-IDs to the archived
-provider inventory. Missing or inconsistent data blocks that message explicitly;
+provider inventory. A reported size discrepancy requires independent proof from
+the provider's decoded attachment GET endpoint: exact byte count and SHA-256 must
+match the archived MIME result. The proof binds the source object, source hash,
+provider attachment ID and original metadata digest. No numeric tolerance is used.
+Missing or inconsistent data blocks that message explicitly;
 there is no silent skip or truncation. Empty, oversized or over-count attachments
 remain preserved in the original archive even when application policy blocks them.
 
@@ -41,11 +45,25 @@ Sent messages have terminal `sent` status, never `queued`, `sending` or invented
 `delivered` evidence. Drafts remain drafts. Attachments remain `pending` until
 the actual importer performs malware scanning and stores encrypted private objects.
 
-The immutable file `import-plan-<encrypted-manifest-sha256>.cvmplan` contains a
-CVMPLAN1 AES-256-GCM envelope. Its key is derived with a separate HKDF purpose from
-the archive key; the source manifest digest is authenticated. Publication is
-atomic, uses mode 0600, refuses symlinks/conflicting existing plans, and verifies
-decryption before acceptance. An identical run reuses the existing encrypted file.
+The immutable file `import-plan-<manifest-sha256>-<plan-sha256>.cvmplan` contains a
+CVMPLAN2 AES-256-GCM envelope. Its key is derived with a separate HKDF purpose from
+the archive key; both digests are authenticated. Publication is atomic, uses mode
+0600, refuses symlinks/corrupted existing plans, and verifies decryption before
+acceptance. An identical run reuses the existing encrypted file; changed evidence
+produces a new immutable revision. Earlier CVMPLAN1 files remain untouched and are
+not accepted by the V2 reader.
+
+`scripts/mail-attachment-reconcile.mjs` provides the optional GET-only Hostinger
+reconciliation. It permits only the fixed provider host, mailbox lookup and
+attachment download routes, refuses redirects, bounds bytes/retries, matches the
+exact authorized mailbox list and verifies the source snapshot again afterward.
+It never changes mail flags or sends messages. Use the archived sources as the
+baseline, seal the resulting `attachment-reconciliation` proof with
+`sealMailImportPlan`, and pass its filename as `MAIL_IMPORT_ATTACHMENT_EVIDENCE`.
+The offline planner opens and authenticates this evidence; it does not call
+Hostinger itself. Provider credentials are never needed by the MIME parser or
+dependency installer. Preserve both declared and independently verified sizes.
+
 CLI output is aggregate counts and digests only. Exit 0 means all messages could
 be prepared against a stable snapshot; exit 2 means the encrypted plan records
 explicit blockers; exit 1 means archive verification or plan publication failed.
