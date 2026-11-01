@@ -818,3 +818,80 @@ test("recipient delivery evidence covers To, CC and BCC without leaking private 
   for(const name of names){if(previous[name]===undefined)delete process.env[name];else process.env[name]=previous[name];}
  }
 });
+
+test("verified same-tenant transport aliases preserve mailbox identity and reject unsafe routes",async()=>{
+ const source=randomUUID(),target=randomUUID(),box=randomUUID();
+ await pool.query(`INSERT INTO mail_domains(id,tenant_id,domain,verification_token,status) VALUES
+  ($1,$3,'transport-mail-ci.example','transport','verified'),
+  ($2,$3,'inbox-mail-ci.example','inbox','verified')`,[source,target,fixture.tenantA]);
+ await pool.query(`INSERT INTO mail_mailboxes(id,tenant_id,domain_id,local_part)
+  VALUES($1,$2,$3,'hello')`,[box,fixture.tenantA,target]);
+ const aliasPath=`/api/mail/mailboxes/${box}/aliases`;
+ const add=(localPart:string,domainId:string|null=source,subject='merchantA')=>
+  supertest(server).post(aliasPath).set('x-ci-subject',subject).set('origin','http://test.local')
+   .send({localPart,...(domainId?{domainId}:{})});
+ assert.equal((await add('hello-route',source,'viewerA')).status,403);
+ assert.equal((await add('hello-route',source,'merchantB')).status,404);
+ assert.equal((await add('alien',fixture.domainB)).status,404);
+ assert.equal((await add('missing',randomUUID())).status,404);
+ for(const status of ['pending','disabled']){
+  await pool.query('UPDATE mail_domains SET status=$1 WHERE id=$2',[status,source]);
+  assert.equal((await add('hello-route')).status,409);
+ }
+ await pool.query("UPDATE mail_domains SET status='verified' WHERE id=$1",[source]);
+ await pool.query("UPDATE mail_domains SET status='pending' WHERE id=$1",[target]);
+ assert.equal((await add('hello-route')).status,409);
+ await pool.query("UPDATE mail_domains SET status='verified' WHERE id=$1",[target]);
+ const created=await add('hello-route');assert.equal(created.status,201);
+ assert.equal((await add('hello-route')).status,409);
+ assert.equal((await add('team',null)).status,201);
+ const aliases=await supertest(server).get(aliasPath).set('x-ci-subject','merchantA');
+ assert.ok(aliases.body.some((a:any)=>a.local_part==='hello-route'&&a.domain==='transport-mail-ci.example'));
+ const boxes=await supertest(server).get('/api/mail/mailboxes').set('x-ci-subject','merchantA');
+ const listed=boxes.body.find((b:any)=>b.id===box);
+ assert.equal(listed.domain,'inbox-mail-ci.example');
+ assert.ok(listed.aliases.includes('hello-route@transport-mail-ci.example'));
+ const receive=(eventId:string,to=['hello-route@transport-mail-ci.example'])=>ingestIncomingMail({
+  eventId,from:'sender@example.org',to,subject:'Forwarded mail',text:'Synthetic forwarding test'
+ });
+ const first=await receive('transport-route-first');
+ assert.equal(first.saved,1);assert.equal(first.messages[0].mailboxId,box);
+ assert.equal(first.messages[0].tenantId,fixture.tenantA);
+ assert.equal((await receive('transport-route-first')).duplicate,1);
+ const both=await receive('transport-route-both',['hello-route@transport-mail-ci.example','hello@inbox-mail-ci.example']);
+ assert.equal(both.saved,1);
+ const thread=(await pool.query('SELECT thread_id FROM mail_messages WHERE id=$1',[first.messages[0].id])).rows[0].thread_id;
+ assert.equal((await supertest(server).get('/api/mail/threads/'+thread).set('x-ci-subject','merchantB')).status,404);
+ const reply=await supertest(server).post('/api/mail/compose').set('x-ci-subject','merchantA')
+  .set('origin','http://test.local').send({mailboxId:box,to:['sender@example.org'],subject:'Re: Forwarded mail',
+   text:'Reply from the canonical mailbox',replyToId:first.messages[0].id,draft:true});
+ assert.equal(reply.status,201);
+ const identity=(await pool.query('SELECT from_email,thread_id FROM mail_messages WHERE id=$1',[reply.body.id])).rows[0];
+ assert.equal(identity.from_email,'hello@inbox-mail-ci.example');assert.equal(identity.thread_id,thread);
+ for(const [domainId,states] of [[source,['pending','disabled']],[target,['pending','disabled']]] as [string,string[]][]){
+  for(const status of states){
+   await pool.query('UPDATE mail_domains SET status=$1 WHERE id=$2',[status,domainId]);
+   assert.equal((await receive('blocked-'+domainId+'-'+status)).saved,0);
+  }
+  await pool.query("UPDATE mail_domains SET status='verified' WHERE id=$1",[domainId]);
+ }
+ await pool.query('UPDATE mail_mailboxes SET enabled=false WHERE id=$1',[box]);
+ assert.equal((await receive('disabled-transport-box')).saved,0);
+ await pool.query('UPDATE mail_mailboxes SET enabled=true WHERE id=$1',[box]);
+ // Even inconsistent legacy rows cannot use another tenant's verified domain.
+ const forged=randomUUID();
+ await pool.query(`INSERT INTO mail_aliases(id,tenant_id,domain_id,mailbox_id,local_part)
+  VALUES($1,$2,$3,$4,'forged-transport')`,[forged,fixture.tenantA,fixture.domainB,box]);
+ assert.equal((await receive('forged-transport',['forged-transport@ci-beta.example'])).saved,0);
+ await pool.query('DELETE FROM mail_aliases WHERE id=$1',[forged]);
+ // Alias allocation and mailbox allocation must not race into duplicate delivery.
+ const race=await Promise.all([
+  add('reserved-route'),
+  supertest(server).post('/api/mail/mailboxes').set('x-ci-subject','merchantA')
+   .set('origin','http://test.local').send({domainId:source,localPart:'reserved-route',displayName:'Collision check'})
+ ]);
+ assert.deepEqual(race.map(r=>r.status).sort(),[201,409]);
+ const removed=await supertest(server).delete(aliasPath+'/'+created.body.id)
+  .set('x-ci-subject','merchantA').set('origin','http://test.local');
+ assert.equal(removed.status,200);assert.equal((await receive('removed-transport-route')).saved,0);
+});

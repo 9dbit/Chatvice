@@ -16,6 +16,7 @@ export default function MailAdminPage(){
  const [dns,setDns]=useState<Dns|null>(null);
  const [selected,setSelected]=useState("");
  const [alias,setAlias]=useState("");
+ const [aliasDomainId,setAliasDomainId]=useState("");
  const [aliases,setAliases]=useState<{id:string;local_part:string;domain:string}[]>([]);
  const [memberId,setMemberId]=useState("");
  const [role,setRole]=useState("member");
@@ -33,6 +34,7 @@ export default function MailAdminPage(){
  }
  async function selectBox(id:string){
   setSelected(id);setError("");
+  setAliasDomainId(domains.find(d=>d.domain===boxes.find(b=>b.id===id)?.domain)?.id||"");
   try{
    const [a,m]=await Promise.all([
     apiRequest("GET",`/api/mail/mailboxes/${id}/aliases`),
@@ -97,8 +99,13 @@ export default function MailAdminPage(){
        </button>
       </div>
       <div className="border-t border-white/10 pt-4"><h3 className="text-sm font-medium mb-3">Aliases</h3>
-       <div className="flex gap-2"><input className={input} value={alias} onChange={e=>setAlias(e.target.value)} placeholder="Alias name"/>
-        <button className={action} disabled={busy||!alias} onClick={()=>task(async()=>{await apiRequest("POST",`/api/mail/mailboxes/${selected}/aliases`,{localPart:alias});setAlias("");await selectBox(selected)})}><Plus size={16}/></button></div>
+       <p className="text-xs text-white/40 mb-3">Receive mail from another verified domain in this workspace. Replies use the selected mailbox address.</p>
+       <div className="flex flex-col sm:flex-row gap-2"><input className={input} aria-label="Alias name" value={alias} onChange={e=>setAlias(e.target.value)} placeholder="Alias name"/>
+        <select className={input} aria-label="Alias domain" value={aliasDomainId} onChange={e=>setAliasDomainId(e.target.value)}>
+         <option className="bg-neutral-900" value="">Choose verified domain</option>
+         {domains.filter(d=>d.status==="verified").map(d=><option className="bg-neutral-900" key={d.id} value={d.id}>@{d.domain}</option>)}
+        </select>
+        <button aria-label="Add alias" className={action} disabled={busy||!alias||!aliasDomainId} onClick={()=>task(async()=>{await apiRequest("POST",`/api/mail/mailboxes/${selected}/aliases`,{localPart:alias,domainId:aliasDomainId});setAlias("");await selectBox(selected)})}><Plus size={16}/></button></div>
        {aliases.map(a=><div key={a.id} className="flex justify-between mt-2 text-xs text-white/60"><span>{a.local_part}@{a.domain}</span><button className="text-red-300" onClick={()=>task(async()=>{await apiRequest("DELETE",`/api/mail/mailboxes/${selected}/aliases/${a.id}`);await selectBox(selected)})}>Remove</button></div>)}
       </div>
       <div className="border-t border-white/10 pt-4"><h3 className="text-sm font-medium mb-3 flex items-center gap-2"><Users size={15}/> Team Access</h3>
@@ -114,3 +121,4 @@ export default function MailAdminPage(){
    </div>
  </section>;
 }
+

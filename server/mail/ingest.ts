@@ -39,8 +39,11 @@ export async function ingestIncomingMail(data: IncomingMail): Promise<{
     JOIN mail_domains d ON d.id=b.domain_id AND d.tenant_id=b.tenant_id
     WHERE b.enabled=true AND d.status='verified' AND (
       lower(b.local_part || '@' || d.domain) = ANY($1::text[]) OR EXISTS(
-        SELECT 1 FROM mail_aliases a WHERE a.mailbox_id=b.id AND a.tenant_id=b.tenant_id
-        AND a.domain_id=d.id AND lower(a.local_part || '@' || d.domain) = ANY($1::text[])
+        SELECT 1 FROM mail_aliases a
+        JOIN mail_domains ad ON ad.id=a.domain_id AND ad.tenant_id=b.tenant_id
+          AND ad.status='verified'
+        WHERE a.mailbox_id=b.id AND a.tenant_id=b.tenant_id
+          AND lower(a.local_part || '@' || ad.domain) = ANY($1::text[])
       ))
   `,[recipients]);
   let saved=0, duplicate=0;
@@ -86,3 +89,4 @@ export async function ingestIncomingMail(data: IncomingMail): Promise<{
   }
   return {saved,duplicate,unmatched:boxes.rowCount===0,messages};
 }
+

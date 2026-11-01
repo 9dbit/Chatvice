@@ -47,6 +47,7 @@ on:
   push:
     branches:
       - "feature/chatvice-mail-engine-20261026"
+      - "fix/chatvice-mail-forwarding-20261101"
 permissions:
   contents: read
 jobs:
@@ -150,4 +151,5 @@ jobs:
             echo "::error::Tracker detected in private Mail QA HTML"
             exit 1
           fi
+
 

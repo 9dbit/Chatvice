@@ -78,14 +78,23 @@ export function registerMailAdminRoutes(app:Express):void {
   app.post("/api/mail/mailboxes/:id/aliases",wrap(async(req,res)=>{
     const tenant=merchant(req,res);if(!tenant)return;
     const box=id.parse(req.params.id);
-    const d=z.object({localPart}).parse(req.body);
+    const d=z.object({localPart,domainId:id.optional()}).parse(req.body);
     const c=await pool.connect();
     try{
       await c.query("BEGIN");
-      const q=await c.query(`SELECT b.domain_id FROM mail_mailboxes b JOIN mail_domains d ON d.id=b.domain_id
-        WHERE b.id=$1 AND b.tenant_id=$2 AND d.tenant_id=$2 FOR UPDATE OF d`,[box,tenant]);
+      const q=await c.query(`SELECT b.domain_id FROM mail_mailboxes b
+        WHERE b.id=$1 AND b.tenant_id=$2 FOR UPDATE OF b`,[box,tenant]);
       if(!q.rowCount){await c.query("ROLLBACK");return res.sendStatus(404);}
-      const domainId=q.rows[0].domain_id;
+      const domainId=d.domainId||q.rows[0].domain_id;
+      // Lock both owned domains in a stable order. The source-domain lock also
+      // serializes address allocation with mailbox creation.
+      const domainIds=Array.from(new Set([domainId,q.rows[0].domain_id]));
+      const domains=await c.query(`SELECT id,status FROM mail_domains
+        WHERE id=ANY($1::uuid[]) AND tenant_id=$2 ORDER BY id FOR UPDATE`,[domainIds,tenant]);
+      if(domains.rowCount!==domainIds.length){await c.query("ROLLBACK");return res.sendStatus(404);}
+      if(domains.rows.some(row=>row.status!=="verified")){
+        await c.query("ROLLBACK");return res.status(409).json({error:"Both alias and mailbox domains must be verified"});
+      }
       const conflict=await c.query("SELECT 1 FROM mail_mailboxes WHERE domain_id=$1 AND local_part=$2",[domainId,d.localPart]);
       if(conflict.rowCount){await c.query("ROLLBACK");return res.status(409).json({error:"Address is already a mailbox"});}
       const aliasId=randomUUID();
@@ -110,3 +119,4 @@ export function registerMailAdminRoutes(app:Express):void {
     res.json(q.rows[0]);
   }));
 }
+
