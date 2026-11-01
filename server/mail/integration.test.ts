@@ -721,9 +721,10 @@ test("authorized readers receive text for HTML-only mail without exposing raw HT
  for(const subject of ["merchantA","viewerA"]){
   const response=await supertest(server).get(path).set("x-ci-subject",subject);
   assert.equal(response.status,200);
-  assert.equal(response.body[0].text_body,"Hello & welcome.\n\nSecond paragraph.\nNext line.\n\nProject details");
+  assert.equal(response.body[0].text_body,"Hello & welcome.\n\nSecond paragraph.\nNext line.\n\nProject details [https://mail-tracker.example.invalid/link]");
   assert.equal("html_body" in response.body[0],false);
-  assert.equal(JSON.stringify(response.body).includes("mail-tracker.example.invalid"),false);
+  assert.equal(JSON.stringify(response.body).includes("mail-tracker.example.invalid/pixel"),false);
+  assert.equal(JSON.stringify(response.body).includes("mail-tracker.example.invalid/frame"),false);
  }
  assert.equal((await supertest(server).get(path).set("x-ci-subject","merchantB")).status,404);
  const plainText="  Keep original text and spacing.\n\n<strong>Literal markup</strong>  ";
