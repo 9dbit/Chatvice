@@ -98,14 +98,14 @@ export async function putPrivateAttachment(key:string, data:Buffer):Promise<void
   const encrypted=encryptMailBinary(key,data);
   const signed=authorization("PUT",key,encrypted,config,new Date());
   const result=await fetch(signed.url,{method:"PUT",headers:signed.headers,body:new Uint8Array(encrypted),
-    redirect:"manual",signal:AbortSignal.timeout(20000)});
+    redirect:"manual",signal:AbortSignal.timeout(60000)});
   if(!result.ok) throw new Error("Private object upload failed");
 }
 export async function getPrivateAttachment(key:string):Promise<Buffer>{
   const config=settings();
   const signed=authorization("GET",key,Buffer.alloc(0),config,new Date());
   const result=await fetch(signed.url,{method:"GET",headers:signed.headers,redirect:"manual",
-    signal:AbortSignal.timeout(20000)});
+    signal:AbortSignal.timeout(60000)});
   if(result.status!==200 || !result.body)throw new Error("Private object unavailable");
   const advertised=Number(result.headers.get("content-length")||0);
   if(advertised>MAX_MAIL_ATTACHMENT_BYTES+MAIL_BINARY_OVERHEAD){await result.body.cancel();throw new Error("Private object exceeds download policy");}

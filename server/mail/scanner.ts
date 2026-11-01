@@ -20,7 +20,7 @@ export async function scanMailAttachment(content: Buffer): Promise<AttachmentSca
       if(finished)return;
       finished=true;socket.destroy();resolve(status);
     };
-    socket.setTimeout(12000,()=>finish("pending"));
+    socket.setTimeout(45000,()=>finish("pending"));
     socket.on("error",()=>finish("pending"));
     socket.on("close",()=>{if(!finished)finish("pending")});
     socket.on("data",chunk=>{

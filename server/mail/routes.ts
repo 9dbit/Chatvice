@@ -7,7 +7,7 @@ import { ingestIncomingMail } from "./ingest";
 import { registerResendWebhook } from "./resend-webhook";
 import { registerMailAdminRoutes } from "./admin";
 import { registerMailAIRoutes } from "./ai";
-import { registerMailAttachmentRoutes } from "./attachments";
+import { registerMailAttachmentRoutes,registerMailPublicShareRoute } from "./attachments";
 import { encryptMailField, decryptMailField, isMailEncryptionReady } from "./crypto";
 import { readableMailText } from "./message-text";
 import {mailAttachmentSizeError} from "../../shared/mail-policy";
@@ -100,6 +100,7 @@ export function registerMailRoutes(app: Express) {
     res.status(202).json({accepted:true,saved:result.saved,deduplicated:result.duplicate});
   }));
   registerResendWebhook(app);
+  registerMailPublicShareRoute(app);
   app.use("/api/mail",protect);
   registerMailAIRoutes(app);
   registerMailAttachmentRoutes(app);

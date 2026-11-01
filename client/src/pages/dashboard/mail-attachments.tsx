@@ -1,7 +1,7 @@
 import {lazy,Suspense,useEffect,useRef,useState} from "react";
 import {Paperclip,FileDown,FileText,RefreshCcw,ShieldAlert,Upload,ChevronRight,Image as ImageIcon,Film,Trash2,Maximize2} from "lucide-react";
 import {apiRequest} from "@/lib/queryClient";
-import {MAX_MAIL_ATTACHMENT_BYTES,MAIL_ATTACHMENT_LIMIT_LABEL,mailAttachmentSizeError} from "@shared/mail-policy";
+import {MAX_MAIL_ATTACHMENT_BYTES,MAX_MAIL_NATIVE_ATTACHMENT_BYTES,MAIL_SHARE_LINK_DAYS,MAIL_ATTACHMENT_LIMIT_LABEL,mailAttachmentSizeError} from "@shared/mail-policy";
 import {mailPreviewType} from "@shared/mail-preview";
 import {Dialog,DialogContent,DialogTitle,DialogDescription} from "@/components/mail-dialog";
 const PdfPreview=lazy(()=>import("./mail-pdf-preview"));
@@ -97,7 +97,7 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
   </>}
  </div>;
  const list=<><div className="mail-attachment-heading"><div><Paperclip size={15}/>{files.length} {files.length===1?"file":"files"}</div>{allowUpload&&<button className="mail-button" disabled={busy||!loaded} onClick={()=>input.current?.click()}><Upload size={14}/> Add files</button>}</div>
-  {allowUpload&&<><input ref={input} type="file" multiple aria-label="Upload attachments" className="sr-only" disabled={busy||!loaded} onChange={e=>{void upload(Array.from(e.target.files||[]));e.currentTarget.value="";}}/><p className="mail-file-help">Photos, videos & documents · {MAIL_ATTACHMENT_LIMIT_LABEL} total</p><p className="mail-file-help" aria-label="Attachment storage used" aria-live="polite">{totalBytes?(totalBytes/1000000).toFixed(2):"0"} MB / {MAIL_ATTACHMENT_LIMIT_LABEL} used</p></>}
+  {allowUpload&&<><input ref={input} type="file" multiple aria-label="Upload attachments" className="sr-only" disabled={busy||!loaded} onChange={e=>{void upload(Array.from(e.target.files||[]));e.currentTarget.value="";}}/><p className="mail-file-help">Photos, videos & documents · {MAIL_ATTACHMENT_LIMIT_LABEL} total</p><p className="mail-file-help" aria-label="Attachment storage used" aria-live="polite">{totalBytes?(totalBytes/1000000).toFixed(2):"0"} MB / {MAIL_ATTACHMENT_LIMIT_LABEL} used</p>{totalBytes>MAX_MAIL_NATIVE_ATTACHMENT_BYTES&&<p className="mail-file-help" role="status">Secure-link delivery: these files will be shared using expiring download links ({MAIL_SHARE_LINK_DAYS} days) instead of attached directly to the email. Anyone with a link can download that file.</p>}</>}
   <div className="mail-attachment-tiles">{files.map(a=><div key={a.id} className={`mail-file-tile ${a.id===selected?"selected":""}`}>
    <button className="mail-file-select" aria-label={`Preview ${a.original_filename}`} aria-pressed={a.id===selected} onClick={()=>setSelected(a.id)}>
     <span className="mail-file-thumb">{a.scan_status==="clean"&&previews[a.id]?.type.startsWith("image/")?<img src={previews[a.id]!.url} alt=""/>:a.scan_status==="clean"&&previews[a.id]?.type.startsWith("video/")?<video src={previews[a.id]!.url+"#t=0.1"} preload="metadata" muted playsInline aria-hidden="true"/>:/\.(mp4|webm|mov)$/i.test(a.original_filename)?<Film size={26}/>:<FileText size={26}/>}</span><strong title={a.original_filename}>{a.original_filename}</strong><small>{fileSize(Number(a.size_bytes))} · {a.scan_status==="clean"?"Ready":a.scan_status}</small>
