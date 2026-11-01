@@ -15,7 +15,7 @@ export function mailTextParts(text:string):MailTextPart[]{
  const parts:MailTextPart[]=[];
  // Bracketed URLs are produced by plain-text email converters, including
  // wrapped confirmation links. Join line breaks only inside those brackets.
- const urls=/\[https?:\/\/[^\]<>]+\]|https?:\/\/[^\s<>"\[\]]+/gi;
+ const urls=/\[https?:\/\/[^\[\]<>]+\]|https?:\/\/[^\s<>"\[\]]+/gi;
  let cursor=0;
  for(const match of text.matchAll(urls)){
   const index=match.index!,raw=match[0],bracketed=raw.startsWith("[");

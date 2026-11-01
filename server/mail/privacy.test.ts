@@ -27,7 +27,12 @@ test("inbox must never render untrusted HTML as raw markup",()=>{
  const inbox=read("client/src/pages/dashboard/mail.tsx");
  assert.equal(inbox.includes("dangerouslySetInnerHTML"),false);
  assert.equal(inbox.includes(".innerHTML"),false);
- assert.match(inbox,/\{m\.text_body\|\|/);
+ assert.match(inbox,/<MailMessageBody text=\{m\.text_body\}/);
+ const body=read("client/src/pages/dashboard/mail-message-body.tsx");
+ assert.equal(body.includes("dangerouslySetInnerHTML"),false);
+ assert.equal(body.includes(".innerHTML"),false);
+ assert.match(body,/rel="noopener noreferrer"/);
+ assert.match(body,/referrerPolicy="no-referrer"/);
  const mailRoute=read("server/mail/routes.ts");
  assert.match(mailRoute,/CHATVICE_MAIL_ALLOWED_ORIGINS/);
  assert.match(mailRoute,/CHATVICE_MAIL_OUTBOUND_ENABLED/);
