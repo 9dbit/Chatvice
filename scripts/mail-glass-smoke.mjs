@@ -66,7 +66,7 @@ try{
  await page.getByRole('button',{name:'Cancel',exact:true}).click();assert.equal(aiCalls,0);
  await page.getByRole('button',{name:'Summarize',exact:true}).click();await page.getByRole('button',{name:'Share excerpt',exact:true}).click();
  await page.getByText('Synthetic summary only.',{exact:true}).waitFor();assert.equal(aiCalls,1);
- await page.getByRole('button',{name:'Draft a reply',exact:true}).click();await page.getByRole('alertdialog').getByRole('button',{name:'Cancel',exact:true}).press('Escape');assert.equal(aiCalls,1);
+ await page.getByRole('button',{name:'Draft a reply',exact:true}).click();await page.getByRole('alertdialog').getByRole('button',{name:'Cancel',exact:true}).press('Escape');await page.getByRole('alertdialog').waitFor({state:'hidden'});assert.equal(aiCalls,1);
  await page.getByRole('button',{name:'Draft a reply',exact:true}).click();await page.getByRole('button',{name:'Share excerpt',exact:true}).click();
  await page.getByRole('dialog',{name:'New message'}).waitFor();assert.equal(await page.getByLabel('Message',{exact:true}).inputValue(),'Synthetic reply for review.');assert.equal(aiCalls,2);
  await page.getByRole('button',{name:'Close',exact:true}).click();await page.getByRole('button',{name:'Discard changes',exact:true}).click();
