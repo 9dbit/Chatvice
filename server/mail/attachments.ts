@@ -196,7 +196,10 @@ export function registerMailAttachmentRoutes(app:Express):void{
     // XHR Abort cancels only this connection. A disconnected client must not
     // leave an invisible attachment in a draft after scanning/storage finish.
     let clientCancelled=false;
-    res.once("close",()=>{if(!res.writableEnded)clientCancelled=true;});
+    const cancellation=new AbortController();
+    res.once("close",()=>{
+      if(!res.writableEnded){clientCancelled=true;cancellation.abort();}
+    });
     if(process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED!=="true")
       return res.status(503).json({error:"Private attachment uploads are disabled"});
     if(!validId(req.params.id))return res.sendStatus(400);
@@ -213,11 +216,11 @@ export function registerMailAttachmentRoutes(app:Express):void{
       const filename=cleanMailFilename(req.file.originalname);
       const content=req.file.buffer;
       const key=newPrivateAttachmentKey(auth!.tenantId,req.params.id);
-      let uploaded=false,registered=false;
+      let uploaded=false,storageAttempted=false,registered=false;
       try{
-        const scan=noActiveAttachment(filename)?await scanMailAttachment(content):"blocked";
+        const scan=noActiveAttachment(filename)?await scanMailAttachment(content,cancellation.signal):"blocked";
         if(clientCancelled)return;
-        if(scan!=="blocked"){await putPrivateAttachment(key,content);uploaded=true;}
+        if(scan!=="blocked"){storageAttempted=true;await putPrivateAttachment(key,content,cancellation.signal);uploaded=true;}
         if(clientCancelled){
           if(uploaded)await deletePrivateAttachment(key).catch(()=>{});
           return;
@@ -248,7 +251,7 @@ export function registerMailAttachmentRoutes(app:Express):void{
             WHERE tenant_id=$1 AND message_id=$2 AND object_key=$3`,
             [auth!.tenantId,req.params.id,key]).catch(()=>{});
         }
-        if(uploaded)await deletePrivateAttachment(key).catch(()=>{});
+        if(uploaded||storageAttempted)await deletePrivateAttachment(key).catch(()=>{});
         if(clientCancelled)return;
         if(err instanceof MailAttachmentPolicyError)
           return res.status(409).json({error:err.reason});
