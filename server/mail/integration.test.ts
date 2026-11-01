@@ -8,7 +8,8 @@ import supertest from "supertest";
 import { ingestIncomingMail } from "./ingest";
 import { registerMailRoutes } from "./routes";
 import { registerAttachment, MailAttachmentPolicyError } from "./attachment-quota";
-import { persistInboundMailAttachments } from "./attachments";
+import { persistInboundMailAttachments,createMailShareToken } from "./attachments";
+import { encryptMailBinary } from "./crypto";
 import { newPrivateAttachmentKey } from "./object-store";
 import { pool as appPool } from "../db";
 import {registerMailLogin,MAIL_COOKIE} from "./login";
@@ -971,4 +972,67 @@ test("40 MB outgoing budget is atomic and more than eight clean files can queue"
   assert.equal(rejected.status,409);assert.match(rejected.body.error,/40 MB/);
   assert.equal((await pool.query("SELECT status FROM mail_messages WHERE id=$1",[messageId])).rows[0].status,"draft");
  }finally{await pool.query("DELETE FROM mail_messages WHERE id=$1",[messageId]);for(const k of vars){if(old[k]===undefined)delete process.env[k];else process.env[k]=old[k];}}
+});
+
+
+test("40 MB secure attachment links require exact signature, clean sent status and expiry",async()=>{
+  const variables=["CHATVICE_MAIL_S3_ENDPOINT","CHATVICE_MAIL_S3_BUCKET","CHATVICE_MAIL_S3_REGION",
+    "CHATVICE_MAIL_S3_URL_STYLE","CHATVICE_MAIL_S3_ACCESS_KEY_ID","CHATVICE_MAIL_S3_SECRET_ACCESS_KEY"];
+  const previous=Object.fromEntries(variables.map(k=>[k,process.env[k]]));
+  const originalFetch=globalThis.fetch;
+  const message=await supertest(server).post("/api/mail/compose")
+    .set("Origin","http://test.local").set("x-ci-subject","merchantA")
+    .send({mailboxId:fixture.boxA,to:["qa@example.org"],subject:"Secure-file CI",draft:true});
+  assert.equal(message.status,201);
+  const id=message.body.id, attachmentId=randomUUID(),key=newPrivateAttachmentKey(fixture.tenantA,id);
+  const bytes=Buffer.from("Clean synthetic document, never sent to a real recipient.");
+  const issued=Math.floor(Date.now()/1000)-60,expires=issued+7*86400;
+  let reads=0;
+  try{
+    await pool.query("INSERT INTO mail_attachments (id,tenant_id,message_id,object_key,original_filename,media_type,size_bytes,scan_status) VALUES($1,$2,$3,$4,'private.txt','text/plain',$5,'clean')",
+      [attachmentId,fixture.tenantA,id,key,bytes.length]);
+    Object.assign(process.env,{
+      CHATVICE_MAIL_S3_ENDPOINT:"https://storage.example.invalid",
+      CHATVICE_MAIL_S3_BUCKET:"mail-ci-private",
+      CHATVICE_MAIL_S3_REGION:"auto",CHATVICE_MAIL_S3_URL_STYLE:"path",
+      CHATVICE_MAIL_S3_ACCESS_KEY_ID:"ci-public-link-test",
+      CHATVICE_MAIL_S3_SECRET_ACCESS_KEY:"ci-secret-for-link",
+    });
+    const encrypted=encryptMailBinary(key,bytes);
+    globalThis.fetch=async(input,init)=>{
+      reads++;
+      assert.equal(new URL(String(input)).hostname,"storage.example.invalid");
+      assert.equal(init?.method,"GET");
+      return new Response(encrypted,{status:200,
+        headers:{"content-length":String(encrypted.length)}});
+    };
+    const token=createMailShareToken(attachmentId,id,expires);
+    const url="/api/mail/shared/"+attachmentId+"?expires="+expires+"&token="+token;
+    assert.equal((await supertest(server).get(url)).status,404);
+    await pool.query("UPDATE mail_messages SET status='sent',folder='sent',queued_at=$2 WHERE id=$1",
+      [id,new Date(issued*1000)]);
+    assert.equal((await supertest(server).get(url.replace(token,"0".repeat(64)))).status,404);
+    assert.equal((await supertest(server).get(url.replace(String(expires),String(expires+1)))).status,404);
+    assert.equal((await supertest(server).get("/api/mail/shared/"+randomUUID()+"?expires="+expires+"&token="+token)).status,404);
+    assert.equal(reads,0,"forged links never access private storage");
+    const allowed=await supertest(server).get(url);
+    assert.equal(allowed.status,200);assert.deepEqual(allowed.body,bytes);
+    assert.match(allowed.headers["content-disposition"]||"",/attachment/);
+    assert.match(allowed.headers["cache-control"]||"",/no-store/);
+    assert.equal(reads,1);
+    await pool.query("UPDATE mail_attachments SET scan_status='blocked' WHERE id=$1",[attachmentId]);
+    assert.equal((await supertest(server).get(url)).status,404);
+    assert.equal(reads,1);
+    await pool.query("UPDATE mail_attachments SET scan_status='clean' WHERE id=$1",[attachmentId]);
+    await pool.query("UPDATE mail_messages SET queued_at=to_timestamp($2) WHERE id=$1",
+      [id,issued-8*86400]);
+    assert.equal((await supertest(server).get(url)).status,404,"replayed link fails when expiry is no longer bound to message");
+    assert.equal(reads,1);
+  }finally{
+    globalThis.fetch=originalFetch;
+    for(const k of variables){
+      if(previous[k]===undefined)delete process.env[k];else process.env[k]=previous[k];
+    }
+    await pool.query("DELETE FROM mail_messages WHERE id=$1",[id]);
+  }
 });
