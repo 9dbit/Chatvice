@@ -1020,14 +1020,23 @@ test("40 MB secure attachment links require exact signature, clean sent status a
     assert.match(allowed.headers["content-disposition"]||"",/attachment/);
     assert.match(allowed.headers["cache-control"]||"",/no-store/);
     assert.equal(reads,1);
+    await pool.query("UPDATE mail_messages SET status='delivered' WHERE id=$1",[id]);
+    const delivered=await supertest(server).get(url);
+    assert.equal(delivered.status,200);
+    assert.deepEqual(delivered.body,bytes);
+    assert.equal(reads,2,"confirmed delivery keeps the download link valid");
+    await pool.query("UPDATE mail_messages SET status='bounced' WHERE id=$1",[id]);
+    assert.equal((await supertest(server).get(url)).status,404,"bounced delivery does not expose shared attachments");
+    assert.equal(reads,2);
+    await pool.query("UPDATE mail_messages SET status='delivered' WHERE id=$1",[id]);
     await pool.query("UPDATE mail_attachments SET scan_status='blocked' WHERE id=$1",[attachmentId]);
     assert.equal((await supertest(server).get(url)).status,404);
-    assert.equal(reads,1);
+    assert.equal(reads,2);
     await pool.query("UPDATE mail_attachments SET scan_status='clean' WHERE id=$1",[attachmentId]);
     await pool.query("UPDATE mail_messages SET queued_at=to_timestamp($2) WHERE id=$1",
       [id,issued-8*86400]);
     assert.equal((await supertest(server).get(url)).status,404,"replayed link fails when expiry is no longer bound to message");
-    assert.equal(reads,1);
+    assert.equal(reads,2);
   }finally{
     globalThis.fetch=originalFetch;
     for(const k of variables){
