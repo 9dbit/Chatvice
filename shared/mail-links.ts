@@ -17,7 +17,8 @@ export function mailTextParts(text:string):MailTextPart[]{
  // wrapped confirmation links. Join line breaks only inside those brackets.
  const urls=/\[https?:\/\/[^\[\]<>]+\]|https?:\/\/[^\s<>"\[\]]+/gi;
  let cursor=0;
- for(const match of text.matchAll(urls)){
+ let match:RegExpExecArray|null;
+ while((match=urls.exec(text))!==null){
   const index=match.index!,raw=match[0],bracketed=raw.startsWith("[");
   let candidate=bracketed?raw.slice(1,-1).replace(/\r?\n[\t ]*/g,""):raw;
   if(!bracketed){
