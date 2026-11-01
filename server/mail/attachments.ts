@@ -131,8 +131,28 @@ function uploadLimiter(req:Request,res:Response,next:NextFunction){
   }
   next();
 }
+// Limit simultaneous 40 MB in-memory transfers on this 500 MB single-replica
+// Mail service. Shared DB mailbox quotas still handle aggregate stored bytes.
+let activeUploads=0,activeShareDownloads=0;
+function limitMailTransfers(kind:"upload"|"download") {
+  return (_req:Request,res:Response,next:NextFunction)=>{
+    if((kind==="upload"?activeUploads:activeShareDownloads)>=2){
+      res.setHeader("Retry-After","5");
+      return res.status(429).json({error:"Private file transfers are busy. Retry shortly."});
+    }
+    if(kind==="upload")activeUploads++;else activeShareDownloads++;
+    let released=false;
+    const release=()=>{
+      if(released)return;
+      released=true;
+      if(kind==="upload")activeUploads--;else activeShareDownloads--;
+    };
+    res.once("finish",release);res.once("close",release);
+    next();
+  };
+}
 export function registerMailPublicShareRoute(app:Express):void{
-  app.get("/api/mail/shared/:id",async(req,res)=>{
+  app.get("/api/mail/shared/:id",limitMailTransfers("download"),async(req,res)=>{
     res.setHeader("Cache-Control","private, no-store");
     res.setHeader("X-Robots-Tag","noindex, nofollow, noarchive");
     res.setHeader("X-Content-Type-Options","nosniff");
@@ -171,7 +191,7 @@ export function registerMailAttachmentRoutes(app:Express):void{
       res.json(q.rows);
     }catch{reportError(res);}
   });
-  app.post("/api/mail/messages/:id/attachments",uploadLimiter,async(req,res)=>{
+  app.post("/api/mail/messages/:id/attachments",uploadLimiter,limitMailTransfers("upload"),async(req,res)=>{
     if(process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED!=="true")
       return res.status(503).json({error:"Private attachment uploads are disabled"});
     if(!validId(req.params.id))return res.sendStatus(400);
