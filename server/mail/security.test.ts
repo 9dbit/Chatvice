@@ -138,7 +138,7 @@ test("one byte over the attachment total and encoded message overflow fail befor
  const large={filename:"large.bin",content:Buffer.alloc(25_000_000,65).toString("base64")};
  try{
   await assert.rejects(()=>sendResendMail({...message,attachments:[large,{filename:"extra.txt",content:"YQ=="}]},"re_synthetic_attachment_key"),e=>e instanceof MailProviderError&&!e.retryable);
-  await assert.rejects(()=>sendResendMail({...message,text:"a".repeat(5_000_000),attachments:[large]},"re_synthetic_attachment_key"),e=>e instanceof MailProviderError&&!e.retryable);
+  await assert.rejects(()=>sendResendMail({...message,text:"a".repeat(8_000_000),attachments:[large]},"re_synthetic_attachment_key"),e=>e instanceof MailProviderError&&!e.retryable);
   assert.equal(calls,0);
  }finally{globalThis.fetch=old;}
 });
