@@ -26,6 +26,7 @@ try{
   mailCalls++;
   if(!signedIn)return respond({error:'Authentication required'},401);
   if(path==='/api/mail/mailboxes')return respond([{id:'box1',local_part:'hello',domain:'example.invalid',display_name:'Example',enabled:true,can_write:true}]);
+  if(path==='/api/mail/compose')return respond({id:'synthetic-redesign-draft'},201);
   if(path==='/api/mail/capabilities')return respond({admin:true,outbound:true,ai:false,attachments:false});
   if(path==='/api/mail/threads')return respond([{id:'thread1',subject:'A new idea, ready to share',from_email:'studio@example.invalid',text_body:'Hi team, the project details are ready for your review.',created_at:'2026-11-01T10:30:00Z',is_read:false,is_starred:false,message_count:1}]);
   if(path.endsWith('/activity'))return respond({counts:{unread:1,spam:0,drafts:0},unread:[],drafts:[],reminders:[]});
@@ -113,6 +114,8 @@ try{
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await screenshot('mail-redesign-compose-mobile');
  await page.getByRole('button',{name:'Close',exact:true}).click();
+ await page.getByRole('dialog').waitFor({state:'hidden'});
+ await page.getByText('Message saved to Drafts.',{exact:false}).waitFor();
  await openMenu();
  await page.getByRole('button',{name:'Sign out',exact:true}).filter({visible:true}).click();
  await page.getByRole('heading',{name:'SIGN IN_'}).waitFor();
