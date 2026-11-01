@@ -17,7 +17,7 @@ try{
  const domains=[{id:'domain1',domain:'example.invalid',status:'verified'}];
  const boxes=[{id:'box1',local_part:'hello',domain:'example.invalid',display_name:'Customer team',enabled:true,can_write:true}];
  const files=[{id:'file-clean',original_filename:'Project brief.pdf',size_bytes:34000,media_type:'application/pdf',scan_status:'clean'},{id:'file-pending',original_filename:'Design notes.txt',size_bytes:2000,media_type:'text/plain',scan_status:'pending'},{id:'file-blocked',original_filename:'Blocked file.zip',size_bytes:4200,media_type:'application/zip',scan_status:'blocked'}];
- let aliases=[],members=[],rescanCalls=0,createCalls=0,verifyCalls=0,aiCalls=0;
+ let aliases=[],members=[],rescanCalls=0,createCalls=0,verifyCalls=0,aiCalls=0,glassDraft=null,failDraftOnce=false;
  await page.route('**/api/**',route=>{
   const req=route.request(),path=new URL(req.url()).pathname,method=req.method();
   const respond=(body,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
@@ -37,6 +37,14 @@ try{
   if(path==='/api/mail/threads/thread1/ai'){assert.equal(data().acknowledgeExternalProcessing,true);aiCalls++;return respond({text:data().task==='summary'?'Synthetic summary only.':'Synthetic reply for review.'});}
   if(path==='/api/mail/threads/thread1')return respond([{id:'message1',direction:'inbound',status:'received',from_email:'studio@example.invalid',to_emails:['hello@example.invalid'],subject:'Everything for your next project',text_body:'Hi team,\n\nHere is everything for our next project. Please review the attached brief and share your thoughts.\n\nThank you,\nStudio team',created_at:'2026-11-01T10:30:00Z'}]);
   if(path.endsWith('/context'))return respond({sender:'studio@example.invalid',lead:null});
+  if(path==='/api/mail/compose'&&method==='POST'){
+    if(failDraftOnce){failDraftOnce=false;return respond({error:'Synthetic draft persistence failure'},503);}
+    glassDraft={...data(),id:'glass-draft'};return respond({id:'glass-draft'},201);
+  }
+  if(path==='/api/mail/drafts/glass-draft'&&method==='PATCH'){
+    if(failDraftOnce){failDraftOnce=false;return respond({error:'Synthetic draft persistence failure'},503);}
+    Object.assign(glassDraft,data());return respond({id:'glass-draft',status:'draft'});
+  }
   if(path==='/api/mail/messages/message1/attachments')return respond(files);
   if(path==='/api/mail/attachments/file-pending/rescan'){rescanCalls++;files[1].scan_status='clean';return respond({ok:true});}
   return respond({error:'Unexpected fixture request: '+method+' '+path},404);
@@ -54,13 +62,16 @@ try{
  await drawer.getByRole('button',{name:'Retry scan for Design notes.txt'}).click();
  await drawer.getByRole('link',{name:'Download Design notes.txt'}).waitFor();assert.equal(rescanCalls,1);
  await page.keyboard.press('Escape');await drawer.waitFor({state:'hidden'});
- await page.getByRole('button',{name:/Compose/}).click();await page.getByLabel('Message',{exact:true}).fill('These changes must survive Cancel.');
+ await page.getByRole('button',{name:/Compose/}).click();await page.getByLabel('Message',{exact:true}).fill('These changes must survive a failed save.');
+ failDraftOnce=true;
  await page.getByRole('button',{name:'Close',exact:true}).click();
- await page.getByRole('alertdialog').waitFor();await shot('glass-discard-mobile');
- await page.getByRole('button',{name:'Keep editing'}).click();
- assert.equal(await page.getByLabel('Message',{exact:true}).inputValue(),'These changes must survive Cancel.');
- await page.getByRole('button',{name:'Close',exact:true}).click();await page.getByRole('button',{name:'Discard changes'}).click();
+ await page.getByRole('alert').filter({hasText:'Synthetic draft persistence failure'}).waitFor();
+ assert.equal(await page.getByLabel('Message',{exact:true}).inputValue(),'These changes must survive a failed save.');
+ await shot('glass-autosave-error-mobile');
+ await page.getByRole('button',{name:'Close',exact:true}).click();
  await page.getByRole('dialog').waitFor({state:'hidden'});
+ assert.equal(glassDraft.text,'These changes must survive a failed save.','successful retry must persist private draft');
+ assert.equal(await page.getByRole('alertdialog').count(),0,'close never asks to discard');
  await page.getByRole('button',{name:'Summarize',exact:true}).click();
  await page.getByRole('alertdialog',{name:'Share an excerpt with AI?'}).waitFor();assert.equal(aiCalls,0);
  await page.getByRole('button',{name:'Cancel',exact:true}).click();assert.equal(aiCalls,0);
@@ -69,7 +80,9 @@ try{
  await page.getByRole('button',{name:'Draft a reply',exact:true}).click();await page.getByRole('alertdialog').getByRole('button',{name:'Cancel',exact:true}).press('Escape');await page.getByRole('alertdialog').waitFor({state:'hidden'});assert.equal(aiCalls,1);
  await page.getByRole('button',{name:'Draft a reply',exact:true}).click();await page.getByRole('button',{name:'Share excerpt',exact:true}).click();
  await page.getByRole('dialog',{name:'New message'}).waitFor();assert.equal(await page.getByLabel('Message',{exact:true}).inputValue(),'Synthetic reply for review.');assert.equal(aiCalls,2);
- await page.getByRole('button',{name:'Close',exact:true}).click();await page.getByRole('button',{name:'Discard changes',exact:true}).click();
+ await page.getByRole('button',{name:'Close',exact:true}).click();
+ await page.getByRole('dialog').waitFor({state:'hidden'});
+ assert.equal(glassDraft.text,'Synthetic reply for review.');
  await page.goto(origin+'/dashboard/mail/admin');await page.getByRole('heading',{name:'Mail settings',exact:true}).waitFor();
  for(const width of [320,390,768,1440,2560]){await page.setViewportSize({width,height:900});await noOverflow();}
  await page.setViewportSize({width:1440,height:1000});await shot('glass-settings-desktop');
