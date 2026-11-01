@@ -213,7 +213,10 @@ try{
  assert.equal(await page.getByLabel('Message',{exact:true}).inputValue(),'An unsaved change');
  assert.equal(await page.getByLabel('CC recipients',{exact:true}).inputValue(),'reviewer@example.invalid');
  assert.equal(await page.getByLabel('BCC recipients',{exact:true}).inputValue(),'hidden@example.invalid');
- await page.getByRole('button',{name:'Close',exact:true}).click();
+ await page.getByLabel('Message',{exact:true}).fill('Final draft saved with Escape.');
+ await page.keyboard.press('Escape');
+ await page.getByRole('dialog').waitFor({state:'hidden'});
+ assert.equal(draft.text,'Final draft saved with Escape.','Escape also saves instead of discarding edits');
  await openMenu();
  await page.getByRole('navigation',{name:'Mail folders'}).getByRole('button',{name:/^Inbox/}).click();
  await page.setViewportSize({width:390,height:844});
@@ -258,7 +261,7 @@ try{
  assert.equal(patches,4);
  assert.deepEqual(errors,[]);
  assert.deepEqual(trackingRequests,[]);
- console.log('PASS: browser workspace contracts (navigation, filters, pagination, archive/restore, star/read, recipient-free drafts, CC/BCC persistence, reply-all, queue retry without duplication, unsaved changes, disabled sending, mobile, stale response isolation, read-only access, HTML-only text without tracking or script execution, safe rendering). Synthetic data only.');
+ console.log('PASS: browser workspace contracts (navigation, filters, pagination, archive/restore, star/read, recipient-free drafts, CC/BCC persistence, X/Escape autosave, reply-all, queue retry without duplication, failed-safe edits, disabled sending, mobile, stale response isolation, read-only access, HTML-only text without tracking or script execution, safe rendering). Synthetic data only.');
 }finally{
  await browser?.close();
  await new Promise(done=>server.close(done));
