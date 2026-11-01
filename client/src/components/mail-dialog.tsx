@@ -35,7 +35,13 @@ export function useMailConfirm() {
     return new Promise<boolean>(resolve => {pending.current = resolve;});
   }
   const confirmation = <Dialog open={Boolean(question)} onOpenChange={open => {if (!open) finish(false);}}>
-    <DialogContent elevated className="mail-confirm" role="alertdialog" onOpenAutoFocus={event => {event.preventDefault(); cancelRef.current?.focus();}}>
+    <DialogContent elevated className="mail-confirm" role="alertdialog" onOpenAutoFocus={event => {event.preventDefault(); cancelRef.current?.focus();}}
+      onEscapeKeyDown={event => {event.preventDefault(); finish(false);}}
+      onKeyDown={event => {
+        // Handle focused Escape immediately, including before the dismissable
+        // layer's document listener is registered. Never dismiss the editor below.
+        if (event.key === "Escape") {event.preventDefault(); event.stopPropagation(); finish(false);}
+      }}>
       <span className="mail-dialog-symbol"><FileText size={24}/></span>
       <DialogTitle>{question?.title || "Discard unsaved changes?"}</DialogTitle>
       <DialogDescription>{question?.description}</DialogDescription>
