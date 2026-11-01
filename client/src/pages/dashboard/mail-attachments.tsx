@@ -1,5 +1,5 @@
 import {lazy,Suspense,useEffect,useRef,useState} from "react";
-import {Paperclip,FileDown,FileText,RefreshCcw,ShieldAlert,Upload,ChevronRight,Image as ImageIcon,Film,Trash2,Maximize2} from "lucide-react";
+import {Paperclip,FileDown,FileText,RefreshCcw,ShieldAlert,Upload,ChevronRight,Image as ImageIcon,Film,Trash2,Maximize2,X,Check} from "lucide-react";
 import {apiRequest} from "@/lib/queryClient";
 import {MAX_MAIL_ATTACHMENT_BYTES,MAX_MAIL_NATIVE_ATTACHMENT_BYTES,MAIL_SHARE_LINK_DAYS,MAIL_ATTACHMENT_LIMIT_LABEL,mailAttachmentSizeError} from "@shared/mail-policy";
 import {mailPreviewType} from "@shared/mail-preview";
@@ -10,14 +10,14 @@ type Preview={url:string;type:string;bytes:Uint8Array;text?:string};
 type Props={messageId?:string;allowUpload?:boolean;compact?:boolean;ensureDraft?:()=>Promise<string>;onBusyChange?:(busy:boolean)=>void;onSendReady?:(ready:boolean)=>void;onChanged?:()=>void};
 const fileSize=(n:number)=>n<1000000?`${Math.ceil(n/1000)} KB`:`${(n/1000000).toFixed(1)} MB`;
 
-type UploadPhase="uploading"|"checking"|"complete";
-type UploadState={percent:number;current:number;count:number;filename:string;phase:UploadPhase};
-/** XHR provides actual outbound byte progress; fetch cannot report upload bytes. */
+type UploadPhase="queued"|"uploading"|"checking"|"complete"|"cancelled"|"failed";
+type UploadItem={id:string;filename:string;size:number;percent:number;phase:UploadPhase;error?:string};
+/** Each uploaded file has its own XHR and real byte progress, and can be aborted independently. */
 function postAttachmentWithProgress(
   url:string,file:File,onProgress:(fraction:number,phase:"uploading"|"checking")=>void,
   setActive:(request:XMLHttpRequest|null)=>void
-):Promise<void>{
-  return new Promise<void>((resolve,reject)=>{
+):Promise<{id?:string}>{
+  return new Promise((resolve,reject)=>{
     const xhr=new XMLHttpRequest();
     const payload=new FormData();payload.set("file",file,file.name);
     xhr.open("POST",url,true);
@@ -29,16 +29,13 @@ function postAttachmentWithProgress(
     xhr.upload.addEventListener("load",()=>onProgress(1,"checking"));
     xhr.addEventListener("load",()=>{
       setActive(null);
-      if(xhr.status>=200&&xhr.status<300){resolve();return;}
-      let message=`Could not upload ${file.name}`;
-      try{
-        const error=JSON.parse(xhr.responseText);
-        if(typeof error?.error==="string")message=error.error.slice(0,240);
-      }catch{}
-      reject(new Error(message));
+      let response:any=null;
+      try{response=JSON.parse(xhr.responseText);}catch{}
+      if(xhr.status>=200&&xhr.status<300){resolve({id:response?.id});return;}
+      reject(new Error(typeof response?.error==="string"?response.error.slice(0,240):`Could not upload ${file.name}`));
     });
     xhr.addEventListener("error",()=>{setActive(null);reject(new Error(`Network error uploading ${file.name}`));});
-    xhr.addEventListener("abort",()=>{setActive(null);reject(new Error("Upload interrupted. Please retry this attachment."));});
+    xhr.addEventListener("abort",()=>{setActive(null);reject(new Error("Attachment upload cancelled."));});
     setActive(xhr);
     xhr.send(payload);
   });
@@ -48,12 +45,13 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
  const [files,setFiles]=useState<Attachment[]>([]),[selected,setSelected]=useState("");
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[open,setOpen]=useState(false),[expanded,setExpanded]=useState(false),[drag,setDrag]=useState(false),[loaded,setLoaded]=useState(!messageId);
  const [previews,setPreviews]=useState<Record<string,Preview|null>>({});
- const [uploadProgress,setUploadProgress]=useState<UploadState|null>(null);
- const activeUpload=useRef<XMLHttpRequest|null>(null);
+ const [uploadItems,setUploadItems]=useState<UploadItem[]>([]);
+ const cancelledUploads=useRef(new Set<string>());
+ const activeUpload=useRef<{id:string;xhr:XMLHttpRequest}|null>(null);
  const current=useRef(messageId);current.current=messageId;
  const mounted=useRef(true),locked=useRef(false),input=useRef<HTMLInputElement>(null);
  const lifecycle=useRef({abort:new AbortController(),urls:[] as string[],pending:new Set<string>()});
- useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;activeUpload.current?.abort();onBusyChange?.(false);};},[]);
+ useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;activeUpload.current?.xhr.abort();onBusyChange?.(false);};},[]);
  useEffect(()=>{
   const life={abort:new AbortController(),urls:[] as string[],pending:new Set<string>()};lifecycle.current=life;
   setFiles([]);setSelected("");setPreviews({});setError("");setOpen(false);setLoaded(!messageId);
@@ -108,48 +106,68 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
   try{await fn();onChanged?.();}catch(e:any){if(mounted.current)setError(e.message||"Attachment operation failed");}
   finally{locked.current=false;if(mounted.current)setBusy(false);onBusyChange?.(false);}
  }
+ function cancelUpload(itemId:string){
+  // A queued file is never submitted; an active file aborts only its own XHR.
+  const item=uploadItems.find(candidate=>candidate.id===itemId);
+  if(!item||!["queued","uploading","checking"].includes(item.phase))return;
+  cancelledUploads.current.add(itemId);
+  setUploadItems(previous=>previous.map(entry=>entry.id===itemId
+    ?{...entry,phase:"cancelled",percent:0}:entry));
+  if(activeUpload.current?.id===itemId)activeUpload.current.xhr.abort();
+ }
  async function upload(chosen:File[]){
-  if(!allowUpload||!chosen.length)return;
+  if(!allowUpload||!chosen.length||locked.current)return;
   if(chosen.some(f=>f.size===0)){setError("Empty files cannot be attached. Choose a file with content.");return;}
   const issue=mailAttachmentSizeError(totalBytes+chosen.reduce((n,f)=>n+f.size,0),files.length+chosen.length);
   if(issue){setError(issue);return;}
-  const sum=chosen.reduce((n,file)=>n+file.size,0);
-  setUploadProgress({percent:0,current:1,count:chosen.length,filename:chosen[0].name,phase:"uploading"});
+  const pending:UploadItem[]=chosen.map(file=>({
+    id:crypto.randomUUID(),filename:file.name,size:file.size,percent:0,phase:"queued"
+  }));
+  cancelledUploads.current.clear();
+  setUploadItems(pending);
   await perform(async()=>{
    let savedId=messageId;
    try{
     const id=messageId||await ensureDraft?.();
     if(!id)throw Error("Save the draft before adding files.");
-    savedId=id;
-    current.current=id;
-    let completed=0;
+    savedId=id;current.current=id;
     for(let i=0;i<chosen.length;i++){
-      const file=chosen[i];
+      const item=pending[i],file=chosen[i];
+      if(cancelledUploads.current.has(item.id))continue;
       const update=(fraction:number,phase:"uploading"|"checking")=>{
-        // 99% means bytes have arrived, but the server may still be scanning
-        // and encrypting them. 100% is reserved for confirmed persistence.
-        const amount=completed+Math.round(file.size*fraction);
-        const percent=Math.min(99,Math.floor(100*amount/sum));
-        if(mounted.current)setUploadProgress({percent,current:i+1,count:chosen.length,filename:file.name,phase});
+        if(!mounted.current||cancelledUploads.current.has(item.id))return;
+        // A server can still scan/encrypt after 100% of request bytes transfer.
+        // Therefore 100% only means the server has acknowledged the upload.
+        setUploadItems(previous=>previous.map(entry=>entry.id===item.id
+          ?{...entry,phase,percent:Math.min(99,Math.floor(fraction*100))}:entry));
       };
       update(0,"uploading");
-      await postAttachmentWithProgress(
-        `/api/mail/messages/${encodeURIComponent(id)}/attachments`,file,update,
-        request=>{activeUpload.current=request}
-      );
-      update(1,"checking");
-      completed+=file.size;
+      try{
+        const result=await postAttachmentWithProgress(
+          `/api/mail/messages/${encodeURIComponent(id)}/attachments`,
+          file,update,xhr=>{activeUpload.current=xhr?{id:item.id,xhr}:null}
+        );
+        if(cancelledUploads.current.has(item.id)){
+          // If cancellation raced with a successful server acknowledgement,
+          // remove only the exact attachment ID returned by that upload.
+          if(result.id)await apiRequest("DELETE",`/api/mail/attachments/${encodeURIComponent(result.id)}`).catch(()=>{});
+        }else if(mounted.current){
+          setUploadItems(previous=>previous.map(entry=>entry.id===item.id
+            ?{...entry,phase:"complete",percent:100}:entry));
+        }
+      }catch(error:any){
+        if(cancelledUploads.current.has(item.id))continue;
+        if(mounted.current)setUploadItems(previous=>previous.map(entry=>entry.id===item.id
+          ?{...entry,phase:"failed",error:error?.message||"Upload failed. Please add the file again."}:entry));
+      }finally{activeUpload.current=null;}
     }
     const updated=await refresh(id);
-    if(mounted.current){
-      setSelected(updated.at(-1)?.id||"");
-      setUploadProgress({percent:100,current:chosen.length,count:chosen.length,filename:chosen.at(-1)!.name,phase:"complete"});
-    }
+    if(mounted.current)setSelected(updated.at(-1)?.id||"");
    }catch(error){
-    // A later file can fail after earlier files were saved. Refresh the
-    // persisted list so successes stay visible and editable in Drafts.
     if(savedId)await refresh(savedId).catch(()=>undefined);
-    if(mounted.current)setUploadProgress(null);
+    if(mounted.current)setUploadItems(previous=>previous.map(entry=>
+      entry.phase==="queued"||entry.phase==="uploading"||entry.phase==="checking"
+        ?{...entry,phase:"failed",error:"Could not save the draft for uploads."}:entry));
     throw error;
    }
   });
@@ -163,22 +181,39 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
  </div>;
  const list=<><div className="mail-attachment-heading"><div><Paperclip size={15}/>{files.length} {files.length===1?"file":"files"}</div>{allowUpload&&<button className="mail-button" disabled={busy||!loaded} onClick={()=>input.current?.click()}><Upload size={14}/> Add files</button>}</div>
   {allowUpload&&<><input ref={input} type="file" multiple aria-label="Upload attachments" className="sr-only" disabled={busy||!loaded} onChange={e=>{void upload(Array.from(e.target.files||[]));e.currentTarget.value="";}}/><p className="mail-file-help">Photos, videos & documents · {MAIL_ATTACHMENT_LIMIT_LABEL} total</p><p className="mail-file-help" aria-label="Attachment storage used" aria-live="polite">{totalBytes?(totalBytes/1000000).toFixed(2):"0"} MB / {MAIL_ATTACHMENT_LIMIT_LABEL} used</p>{totalBytes>MAX_MAIL_NATIVE_ATTACHMENT_BYTES&&<p className="mail-file-help" role="status">Secure-link delivery: these files will be shared using expiring download links ({MAIL_SHARE_LINK_DAYS} days) instead of attached directly to the email. Anyone with a link can download that file.</p>}</>}
-  {allowUpload&&uploadProgress&&<div className={`mail-upload-progress is-${uploadProgress.phase}`}>
-    <div className="mail-upload-progress-label" aria-live="polite">
-      <strong>{uploadProgress.phase==="complete"?"Upload complete":uploadProgress.phase==="checking"?"Scanning and saving file…":`Uploading ${uploadProgress.current} of ${uploadProgress.count} files…`}</strong>
-      <span>{uploadProgress.percent}%</span>
-    </div>
-    <div className="mail-upload-progress-track" role="progressbar" aria-label="Attachment upload progress"
-      aria-valuemin={0} aria-valuemax={100} aria-valuenow={uploadProgress.percent}>
-      <span className="mail-upload-progress-fill" style={{width:`${uploadProgress.percent}%`}}/>
-    </div>
-    <small className="mail-upload-progress-name" title={uploadProgress.filename}>{uploadProgress.filename}</small>
+  {allowUpload&&uploadItems.length>0&&<div className="mail-upload-list" aria-label="File upload progress">
+    <div className="mail-upload-list-heading"><span>FILE UPLOADS_</span><small>{uploadItems.filter(item=>item.phase==="complete").length} / {uploadItems.length} completed or processed</small></div>
+    {uploadItems.map(item=><div className={`mail-upload-item is-${item.phase}`} key={item.id}>
+      <span className="mail-upload-item-icon" aria-hidden="true">{/\.(png|jpe?g|webp|gif)$/i.test(item.filename)?<ImageIcon size={18}/>: /\.(mp4|webm|mov)$/i.test(item.filename)?<Film size={18}/>:<FileText size={18}/>}</span>
+      <div className="mail-upload-item-body">
+        <div className="mail-upload-progress-label">
+          <strong title={item.filename}>{item.filename}</strong>
+          <span>{item.phase==="cancelled"?"Cancelled":item.phase==="failed"?"Failed":item.phase==="queued"?"Queued":`${item.percent}%`}</span>
+        </div>
+        <div className="mail-upload-progress-track" role="progressbar"
+          aria-label={`Upload ${item.filename}`} aria-valuemin={0} aria-valuemax={100}
+          aria-valuenow={item.percent}>
+          <span className="mail-upload-progress-fill" style={{width:`${item.percent}%`}}/>
+        </div>
+        <small className="mail-upload-progress-name" title={item.error||undefined}>
+          {item.phase==="queued"?"Waiting for upload":item.phase==="uploading"?`Uploading · ${fileSize(item.size)}`
+           :item.phase==="checking"?"Scanning & saving securely…":item.phase==="complete"?"Uploaded successfully"
+           :item.phase==="cancelled"?"Upload cancelled. Other files continue.":item.error||"Upload failed"}
+        </small>
+      </div>
+      {(item.phase==="queued"||item.phase==="uploading"||item.phase==="checking")
+        ?<button type="button" className="mail-upload-cancel" title={`Cancel upload ${item.filename}`}
+           aria-label={`Cancel upload ${item.filename}`} onClick={()=>cancelUpload(item.id)}><X size={16}/></button>
+        :item.phase==="complete"?<Check size={16} className="mail-upload-complete-mark" aria-label="Uploaded"/>
+        :<button type="button" className="mail-upload-cancel" title={`Dismiss ${item.filename}`}
+           aria-label={`Dismiss ${item.filename}`} onClick={()=>setUploadItems(previous=>previous.filter(entry=>entry.id!==item.id))}><X size={16}/></button>}
+    </div>)}
   </div>}
   <div className="mail-attachment-tiles">{files.map(a=><div key={a.id} className={`mail-file-tile ${a.id===selected?"selected":""}`}>
    <button className="mail-file-select" aria-label={`Preview ${a.original_filename}`} aria-pressed={a.id===selected} onClick={()=>setSelected(a.id)}>
     <span className="mail-file-thumb">{a.scan_status==="clean"&&previews[a.id]?.type.startsWith("image/")?<img src={previews[a.id]!.url} alt=""/>:a.scan_status==="clean"&&previews[a.id]?.type.startsWith("video/")?<video src={previews[a.id]!.url+"#t=0.1"} preload="metadata" muted playsInline aria-hidden="true"/>:/\.(mp4|webm|mov)$/i.test(a.original_filename)?<Film size={26}/>:<FileText size={26}/>}</span><strong title={a.original_filename}>{a.original_filename}</strong><small>{fileSize(Number(a.size_bytes))} · {a.scan_status==="clean"?"Ready":a.scan_status}</small>
    </button><div className="mail-file-tile-actions">{a.scan_status==="clean"&&<a href={`/api/mail/attachments/${encodeURIComponent(a.id)}/download`} aria-label={`Download ${a.original_filename}`} className="mail-icon-btn"><FileDown size={15}/></a>}{a.scan_status==="pending"&&<button disabled={busy} aria-label={`Retry scan for ${a.original_filename}`} className="mail-icon-btn" onClick={()=>perform(async()=>{await apiRequest("POST",`/api/mail/attachments/${encodeURIComponent(a.id)}/rescan`,{});await refresh(messageId!);})}><RefreshCcw size={15}/></button>}{allowUpload&&<button disabled={busy} aria-label={`Remove ${a.original_filename}`} className="mail-icon-btn" onClick={()=>perform(async()=>{await apiRequest("DELETE",`/api/mail/attachments/${encodeURIComponent(a.id)}`);await refresh(messageId!);})}><Trash2 size={15}/></button>}</div>
-  </div>)}</div>{busy&&<p role="status" className="mail-file-help">Saving files & checking security…</p>}{error&&<p role="alert" className="mail-alert">{error}</p>}{!loaded&&messageId&&!busy&&<button className="mail-button" onClick={()=>perform(async()=>{await refresh(messageId);})}>Retry attachment list</button>}
+  </div>)}</div>{busy&&<p role="status" className="mail-file-help">Processing upload queue…</p>}{error&&<p role="alert" className="mail-alert">{error}</p>}{!loaded&&messageId&&!busy&&<button className="mail-button" onClick={()=>perform(async()=>{await refresh(messageId);})}>Retry attachment list</button>}
  </>;
  return <section className={`mail-attachments ${compact?"mail-attachment-compact":"mail-attachment-workbench"} ${drag?"is-dragging":""}`} onDragOver={e=>{if(allowUpload){e.preventDefault();setDrag(true);}}} onDragLeave={()=>setDrag(false)} onDrop={e=>{if(allowUpload){e.preventDefault();setDrag(false);void upload(Array.from(e.dataTransfer.files));}}}>
   {compact?<>{files.length>0&&<button className="mail-attachment-summary" onClick={()=>setOpen(true)}><Paperclip size={20}/><span><strong>{files.length} {files.length===1?"attachment":"attachments"}</strong><small>View files & previews</small></span><ChevronRight size={18}/></button>}{error&&<p role="alert">{error}</p>}<Dialog open={open} onOpenChange={setOpen}><DialogContent variant="drawer" className="mail-attachment-drawer"><DialogTitle>Conversation files</DialogTitle><DialogDescription>Private to this mailbox · Security checked before preview</DialogDescription>{list}{detail}</DialogContent></Dialog></>:<>{detail}<div className="mail-attachment-controls">{list}{!files.length&&allowUpload&&<button className="mail-upload-drop" disabled={busy} onClick={()=>input.current?.click()}><Upload size={23}/> Drop files here or browse</button>}</div></>}

@@ -95,3 +95,27 @@
 .mail-upload-progress-name{display:block;font-size:9px;color:var(--mail-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 @keyframes mail-upload-shimmer{from{background-position:100% 50%}to{background-position:0 50%}}
 @media(prefers-reduced-motion:reduce){.mail-upload-progress-fill{animation:none;transition:none}}
+
+/* Independent attachment transfer rows: each has its own progress and cancel X. */
+.mail-upload-list{display:grid;gap:8px;min-width:0}
+.mail-upload-list-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--mail-muted);font-size:9px;letter-spacing:.06em}
+.mail-upload-list-heading small{font-size:9px;letter-spacing:0;text-align:right}
+.mail-upload-item{display:flex;align-items:center;gap:10px;min-width:0;min-height:74px;padding:10px;background:var(--mail-bg);border:1px solid var(--mail-border);border-radius:2px}
+.mail-upload-item-icon{display:grid;place-items:center;flex-shrink:0;width:32px;height:36px;color:var(--mail-link);border:1px solid var(--mail-border);background:var(--mail-panel)}
+.mail-upload-item-body{display:grid;gap:6px;min-width:0;flex:1}
+.mail-upload-item .mail-upload-progress-label{min-width:0;gap:8px}
+.mail-upload-item .mail-upload-progress-label strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px}
+.mail-upload-item .mail-upload-progress-label span{font-size:14px}
+.mail-upload-item .mail-upload-progress-track{height:7px}
+.mail-upload-item .mail-upload-progress-name{font-size:9px;line-height:1.5}
+.mail-upload-cancel{display:grid;place-items:center;flex-shrink:0;width:32px;height:32px;min-width:32px;min-height:32px;border:1px solid var(--mail-border);border-radius:2px;background:var(--mail-panel);color:var(--mail-text);cursor:pointer;transition:border-color .16s,background .16s,color .16s}
+.mail-upload-cancel:hover{border-color:var(--mail-accent);background:rgba(243,107,33,.12);color:var(--mail-link)}
+.mail-upload-cancel:focus-visible{outline:2px solid var(--mail-accent);outline-offset:2px}
+.mail-upload-complete-mark{color:var(--mail-link);flex-shrink:0;margin:0 8px}
+.mail-upload-item.is-queued .mail-upload-progress-fill{animation:none;background:var(--mail-border)}
+.mail-upload-item.is-checking .mail-upload-progress-fill{animation:mail-upload-shimmer 1.8s linear infinite}
+.mail-upload-item.is-complete .mail-upload-progress-fill{animation:none;background:var(--mail-accent)}
+.mail-upload-item.is-cancelled .mail-upload-progress-fill,.mail-upload-item.is-failed .mail-upload-progress-fill{animation:none;background:var(--mail-border)}
+.mail-upload-item.is-cancelled,.mail-upload-item.is-failed{opacity:.75}
+@media(max-width:650px){.mail-upload-item{gap:8px;padding:9px}.mail-upload-item-icon{width:29px;height:32px}.mail-upload-cancel{width:34px;height:34px;min-width:34px;min-height:34px}}
+@media(prefers-reduced-motion:reduce){.mail-upload-item .mail-upload-progress-fill{animation:none;transition:none}.mail-upload-cancel{transition:none}}

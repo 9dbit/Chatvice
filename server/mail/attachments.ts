@@ -193,6 +193,13 @@ export function registerMailAttachmentRoutes(app:Express):void{
     }catch{reportError(res);}
   });
   app.post("/api/mail/messages/:id/attachments",uploadLimiter,limitMailTransfers(),async(req,res)=>{
+    // XHR Abort cancels only this connection. A disconnected client must not
+    // leave an invisible attachment in a draft after scanning/storage finish.
+    let clientCancelled=false;
+    const cancellation=new AbortController();
+    res.once("close",()=>{
+      if(!res.writableEnded){clientCancelled=true;cancellation.abort();}
+    });
     if(process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED!=="true")
       return res.status(503).json({error:"Private attachment uploads are disabled"});
     if(!validId(req.params.id))return res.sendStatus(400);
@@ -203,28 +210,49 @@ export function registerMailAttachmentRoutes(app:Express):void{
     if(auth.status!=="draft")return res.status(409).json({error:"Attachments may only be added to drafts"});
     if(!isMailObjectStorageConfigured())return reportError(res);
     upload.single("file")(req,res,async err=>{
+      if(clientCancelled)return;
       if(err)return res.status(413).json({error:err.code==="LIMIT_FILE_SIZE"?`Attachments exceed ${MAIL_ATTACHMENT_LIMIT_LABEL} total per email. Choose a smaller file.`:"Attachment exceeds upload policy"});
       if(!req.file?.buffer?.length)return res.status(400).json({error:"An attachment is required"});
       const filename=cleanMailFilename(req.file.originalname);
       const content=req.file.buffer;
       const key=newPrivateAttachmentKey(auth!.tenantId,req.params.id);
-      let uploaded=false;
+      let uploaded=false,storageAttempted=false,registered=false;
       try{
-        const scan=noActiveAttachment(filename)?await scanMailAttachment(content):"blocked";
-        if(scan!=="blocked"){await putPrivateAttachment(key,content);uploaded=true;}
+        const scan=noActiveAttachment(filename)?await scanMailAttachment(content,cancellation.signal):"blocked";
+        if(clientCancelled)return;
+        if(scan!=="blocked"){storageAttempted=true;await putPrivateAttachment(key,content,cancellation.signal);uploaded=true;}
+        if(clientCancelled){
+          if(uploaded)await deletePrivateAttachment(key).catch(()=>{});
+          return;
+        }
         await registerAttachment({
           tenantId:auth!.tenantId,messageId:req.params.id,key,filename,
           mediaType:(req.file?.mimetype||"application/octet-stream").slice(0,100),
           length:content.length,status:scan,expectedMessageStatus:"draft"
         });
+        registered=true;
         const record=await pool.query(`SELECT id FROM mail_attachments
           WHERE tenant_id=$1 AND message_id=$2 AND object_key=$3 LIMIT 1`,[
           auth!.tenantId,req.params.id,key
         ]);
+        if(clientCancelled){
+          // If X was clicked while the DB was committing, revoke both the
+          // exact upload row and its encrypted object. Never delete by name.
+          await pool.query(`DELETE FROM mail_attachments
+            WHERE tenant_id=$1 AND message_id=$2 AND object_key=$3`,
+            [auth!.tenantId,req.params.id,key]).catch(()=>{});
+          if(uploaded)await deletePrivateAttachment(key).catch(()=>{});
+          return;
+        }
         return res.status(201).json({id:record.rows[0]?.id,filename,sizeBytes:content.length,scanStatus:scan});
       }catch(err){
-        // Random draft object keys cannot be shared with another valid upload.
-        if(uploaded)await deletePrivateAttachment(key).catch(()=>{});
+        if(registered){
+          await pool.query(`DELETE FROM mail_attachments
+            WHERE tenant_id=$1 AND message_id=$2 AND object_key=$3`,
+            [auth!.tenantId,req.params.id,key]).catch(()=>{});
+        }
+        if(uploaded||storageAttempted)await deletePrivateAttachment(key).catch(()=>{});
+        if(clientCancelled)return;
         if(err instanceof MailAttachmentPolicyError)
           return res.status(409).json({error:err.reason});
         return reportError(res);
