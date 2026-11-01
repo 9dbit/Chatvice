@@ -1,4 +1,5 @@
 import type { Express, Request, Response, NextFunction } from "express";
+import {createHmac,timingSafeEqual} from "node:crypto";
 import multer from "multer";
 import { pool } from "../db";
 import { cleanMailFilename, type ResendReceivedAttachment } from "./resend-attachments";
@@ -10,6 +11,7 @@ import {
 } from "./object-store";
 import type { IngestedMessageRef } from "./ingest";
 import { registerAttachment, MailAttachmentPolicyError } from "./attachment-quota";
+import {MAIL_SHARE_LINK_DAYS,MAIL_ATTACHMENT_LIMIT_LABEL} from "../../shared/mail-policy";
 
 function principal(req:Request):{tenantId:string;userId:string;merchant:boolean}|null{
   const s=req.session as any;
@@ -56,6 +58,21 @@ async function allowedAttachment(req:Request,attachmentId:string,write:boolean){
         AND ($5::boolean=false OR mm.role IN ('owner','member'))
       )) LIMIT 1`,[attachmentId,p.tenantId,p.merchant,p.userId,write]);
   return q.rows[0]||null;
+}
+const SHARE_WINDOW_SECONDS=MAIL_SHARE_LINK_DAYS*86400;
+function shareSigningKey():Buffer{
+  const value=process.env.CHATVICE_MAIL_ENCRYPTION_KEY||"";
+  if(!/^[a-f0-9]{64}$/i.test(value))throw new Error("Mail share signing unavailable");
+  return Buffer.from(value,"hex");
+}
+export function createMailShareToken(attachmentId:string,messageId:string,expiry:number):string{
+  if(!validId(attachmentId)||!validId(messageId)||!Number.isSafeInteger(expiry)||expiry<1)throw new Error("Invalid mail share parameters");
+  return createHmac("sha256",shareSigningKey()).update("chatvice-mail-share-v1|"+attachmentId+"|"+messageId+"|"+expiry).digest("hex");
+}
+function shareTokenValid(id:string,messageId:string,expiry:number,token:unknown):boolean{
+  if(typeof token!=="string"||!/^[a-f0-9]{64}$/.test(token))return false;
+  const expected=Buffer.from(createMailShareToken(id,messageId,expiry),"hex");
+  return timingSafeEqual(expected,Buffer.from(token,"hex"));
 }
 function trustedObjectKey(key:string,tenantId:string,messageId:string){
   return key.startsWith(`mail/${tenantId}/${messageId}/`) &&
@@ -114,6 +131,34 @@ function uploadLimiter(req:Request,res:Response,next:NextFunction){
   }
   next();
 }
+export function registerMailPublicShareRoute(app:Express):void{
+  app.get("/api/mail/shared/:id",async(req,res)=>{
+    res.setHeader("Cache-Control","private, no-store");
+    res.setHeader("X-Robots-Tag","noindex, nofollow, noarchive");
+    res.setHeader("X-Content-Type-Options","nosniff");
+    const id=req.params.id,expires=Number(req.query.expires);
+    if(!validId(id)||!Number.isSafeInteger(expires)||expires<=Math.floor(Date.now()/1000)||
+       expires>Math.floor(Date.now()/1000)+SHARE_WINDOW_SECONDS)return res.sendStatus(404);
+    try{
+      const q=await pool.query<{id:string;message_id:string;tenant_id:string;object_key:string;original_filename:string;scan_status:string;status:string;queued_at:Date}>(`
+        SELECT a.id,a.message_id,a.tenant_id,a.object_key,a.original_filename,a.scan_status,
+          m.status,m.queued_at FROM mail_attachments a JOIN mail_messages m
+          ON m.id=a.message_id AND m.tenant_id=a.tenant_id
+          WHERE a.id=$1 AND m.direction='outbound' AND m.status='sent'
+          AND a.scan_status='clean' LIMIT 1`,[id]);
+      const a=q.rows[0];
+      if(!a||!a.queued_at||!shareTokenValid(id,a.message_id,expires,req.query.token)||
+         expires!==Math.floor(new Date(a.queued_at).getTime()/1000)+SHARE_WINDOW_SECONDS||
+         !trustedObjectKey(a.object_key,a.tenant_id,a.message_id))return res.sendStatus(404);
+      const data=await getPrivateAttachment(a.object_key);
+      const name=cleanMailFilename(a.original_filename),fallback=name.replace(/[^A-Za-z0-9._-]/g,"_").slice(0,120)||"attachment";
+      res.setHeader("Content-Type","application/octet-stream");
+      res.setHeader("Content-Disposition",`attachment; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(name)}`);
+      res.setHeader("Content-Length",String(data.length));
+      return res.end(data);
+    }catch{return res.sendStatus(404);}
+  });
+}
 export function registerMailAttachmentRoutes(app:Express):void{
   app.get("/api/mail/messages/:id/attachments",async(req,res)=>{
     if(!validId(req.params.id))return res.sendStatus(400);
@@ -137,7 +182,7 @@ export function registerMailAttachmentRoutes(app:Express):void{
     if(auth.status!=="draft")return res.status(409).json({error:"Attachments may only be added to drafts"});
     if(!isMailObjectStorageConfigured())return reportError(res);
     upload.single("file")(req,res,async err=>{
-      if(err)return res.status(413).json({error:err.code==="LIMIT_FILE_SIZE"?"Attachments exceed 25 MB total per email. Choose a smaller file.":"Attachment exceeds upload policy"});
+      if(err)return res.status(413).json({error:err.code==="LIMIT_FILE_SIZE"?`Attachments exceed ${MAIL_ATTACHMENT_LIMIT_LABEL} total per email. Choose a smaller file.`:"Attachment exceeds upload policy"});
       if(!req.file?.buffer?.length)return res.status(400).json({error:"An attachment is required"});
       const filename=cleanMailFilename(req.file.originalname);
       const content=req.file.buffer;
