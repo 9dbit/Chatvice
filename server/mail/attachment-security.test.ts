@@ -95,6 +95,28 @@ test("clamd malware scanner grants clean only on exact healthy response",async()
  assert.equal(await scanMailAttachment(Buffer.from("file")),"pending");
  reset();
 });
+test("cancelling an individual upload interrupts ClamAV without approving the file",async()=>{
+ const originalHost=process.env.CHATVICE_MAIL_CLAMAV_HOST;
+ const originalPort=process.env.CHATVICE_MAIL_CLAMAV_PORT;
+ const server=createServer(socket=>{socket.on("error",()=>{});socket.on("data",()=>{});});
+ await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
+ const address=server.address();
+ assert.ok(address&&typeof address!=="string");
+ process.env.CHATVICE_MAIL_CLAMAV_HOST="127.0.0.1";
+ process.env.CHATVICE_MAIL_CLAMAV_PORT=String(address.port);
+ try{
+  const signal=new AbortController();
+  const scan=scanMailAttachment(Buffer.from("Synthetic private file"),signal.signal);
+  signal.abort();
+  assert.equal(await scan,"pending","cancelled scan must never become clean");
+ }finally{
+  if(originalHost===undefined)delete process.env.CHATVICE_MAIL_CLAMAV_HOST;
+  else process.env.CHATVICE_MAIL_CLAMAV_HOST=originalHost;
+  if(originalPort===undefined)delete process.env.CHATVICE_MAIL_CLAMAV_PORT;
+  else process.env.CHATVICE_MAIL_CLAMAV_PORT=originalPort;
+  await new Promise<void>(resolve=>server.close(()=>resolve()));
+ }
+});
 test("Resend attachment retrieval allows only explicit HTTPS CDN hosts and enforces bounds",async()=>{
  process.env.CHATVICE_MAIL_ATTACHMENT_DOWNLOAD_HOSTS="files.resend.test";
  const oldFetch=globalThis.fetch;
