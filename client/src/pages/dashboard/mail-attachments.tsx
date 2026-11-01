@@ -9,14 +9,51 @@ type Attachment={id:string;original_filename:string;media_type:string;size_bytes
 type Preview={url:string;type:string;bytes:Uint8Array;text?:string};
 type Props={messageId?:string;allowUpload?:boolean;compact?:boolean;ensureDraft?:()=>Promise<string>;onBusyChange?:(busy:boolean)=>void;onSendReady?:(ready:boolean)=>void;onChanged?:()=>void};
 const fileSize=(n:number)=>n<1000000?`${Math.ceil(n/1000)} KB`:`${(n/1000000).toFixed(1)} MB`;
+
+type UploadPhase="uploading"|"checking"|"complete";
+type UploadState={percent:number;current:number;count:number;filename:string;phase:UploadPhase};
+/** XHR provides actual outbound byte progress; fetch cannot report upload bytes. */
+function postAttachmentWithProgress(
+  url:string,file:File,onProgress:(fraction:number,phase:"uploading"|"checking")=>void,
+  setActive:(request:XMLHttpRequest|null)=>void
+):Promise<void>{
+  return new Promise<void>((resolve,reject)=>{
+    const xhr=new XMLHttpRequest();
+    const payload=new FormData();payload.set("file",file,file.name);
+    xhr.open("POST",url,true);
+    xhr.withCredentials=true;
+    xhr.upload.addEventListener("progress",event=>{
+      if(event.lengthComputable&&event.total>0)
+        onProgress(Math.min(1,event.loaded/event.total),"uploading");
+    });
+    xhr.upload.addEventListener("load",()=>onProgress(1,"checking"));
+    xhr.addEventListener("load",()=>{
+      setActive(null);
+      if(xhr.status>=200&&xhr.status<300){resolve();return;}
+      let message=`Could not upload ${file.name}`;
+      try{
+        const error=JSON.parse(xhr.responseText);
+        if(typeof error?.error==="string")message=error.error.slice(0,240);
+      }catch{}
+      reject(new Error(message));
+    });
+    xhr.addEventListener("error",()=>{setActive(null);reject(new Error(`Network error uploading ${file.name}`));});
+    xhr.addEventListener("abort",()=>{setActive(null);reject(new Error("Upload interrupted. Please retry this attachment."));});
+    setActive(xhr);
+    xhr.send(payload);
+  });
+}
+
 export default function MailAttachments({messageId,allowUpload=false,compact=false,ensureDraft,onBusyChange,onSendReady,onChanged}:Props){
  const [files,setFiles]=useState<Attachment[]>([]),[selected,setSelected]=useState("");
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[open,setOpen]=useState(false),[expanded,setExpanded]=useState(false),[drag,setDrag]=useState(false),[loaded,setLoaded]=useState(!messageId);
  const [previews,setPreviews]=useState<Record<string,Preview|null>>({});
+ const [uploadProgress,setUploadProgress]=useState<UploadState|null>(null);
+ const activeUpload=useRef<XMLHttpRequest|null>(null);
  const current=useRef(messageId);current.current=messageId;
  const mounted=useRef(true),locked=useRef(false),input=useRef<HTMLInputElement>(null);
  const lifecycle=useRef({abort:new AbortController(),urls:[] as string[],pending:new Set<string>()});
- useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;onBusyChange?.(false);};},[]);
+ useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;activeUpload.current?.abort();onBusyChange?.(false);};},[]);
  useEffect(()=>{
   const life={abort:new AbortController(),urls:[] as string[],pending:new Set<string>()};lifecycle.current=life;
   setFiles([]);setSelected("");setPreviews({});setError("");setOpen(false);setLoaded(!messageId);
@@ -76,17 +113,40 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
   if(chosen.some(f=>f.size===0)){setError("Empty files cannot be attached. Choose a file with content.");return;}
   const issue=mailAttachmentSizeError(totalBytes+chosen.reduce((n,f)=>n+f.size,0),files.length+chosen.length);
   if(issue){setError(issue);return;}
+  const sum=chosen.reduce((n,file)=>n+file.size,0);
+  setUploadProgress({percent:0,current:1,count:chosen.length,filename:chosen[0].name,phase:"uploading"});
   await perform(async()=>{
-   const id=messageId||await ensureDraft?.();if(!id)throw Error("Save the draft before adding files.");
-   current.current=id;
-   let failure="";
-   for(const file of chosen){
-    const data=new FormData();data.set("file",file,file.name);
-    const r=await fetch(`/api/mail/messages/${encodeURIComponent(id)}/attachments`,{method:"POST",credentials:"same-origin",body:data,cache:"no-store"});
-    if(!r.ok){const problem=await r.json().catch(()=>null);failure=problem?.error||`Could not upload ${file.name}`;break;}
+   try{
+    const id=messageId||await ensureDraft?.();
+    if(!id)throw Error("Save the draft before adding files.");
+    current.current=id;
+    let completed=0;
+    for(let i=0;i<chosen.length;i++){
+      const file=chosen[i];
+      const update=(fraction:number,phase:"uploading"|"checking")=>{
+        // 99% means bytes have arrived, but the server may still be scanning
+        // and encrypting them. 100% is reserved for confirmed persistence.
+        const amount=completed+Math.round(file.size*fraction);
+        const percent=Math.min(99,Math.floor(100*amount/sum));
+        if(mounted.current)setUploadProgress({percent,current:i+1,count:chosen.length,filename:file.name,phase});
+      };
+      update(0,"uploading");
+      await postAttachmentWithProgress(
+        `/api/mail/messages/${encodeURIComponent(id)}/attachments`,file,update,
+        request=>{activeUpload.current=request}
+      );
+      completed+=file.size;
+      update(1,"checking");
+    }
+    const updated=await refresh(id);
+    if(mounted.current){
+      setSelected(updated.at(-1)?.id||"");
+      setUploadProgress({percent:100,current:chosen.length,count:chosen.length,filename:chosen.at(-1)!.name,phase:"complete"});
+    }
+   }catch(error){
+    if(mounted.current)setUploadProgress(null);
+    throw error;
    }
-   const updated=await refresh(id);if(mounted.current)setSelected(updated.at(-1)?.id||"");
-   if(failure)throw Error(failure);
   });
  }
  const detail=<div className="mail-file-preview" aria-label="Attachment preview">
@@ -98,6 +158,17 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
  </div>;
  const list=<><div className="mail-attachment-heading"><div><Paperclip size={15}/>{files.length} {files.length===1?"file":"files"}</div>{allowUpload&&<button className="mail-button" disabled={busy||!loaded} onClick={()=>input.current?.click()}><Upload size={14}/> Add files</button>}</div>
   {allowUpload&&<><input ref={input} type="file" multiple aria-label="Upload attachments" className="sr-only" disabled={busy||!loaded} onChange={e=>{void upload(Array.from(e.target.files||[]));e.currentTarget.value="";}}/><p className="mail-file-help">Photos, videos & documents · {MAIL_ATTACHMENT_LIMIT_LABEL} total</p><p className="mail-file-help" aria-label="Attachment storage used" aria-live="polite">{totalBytes?(totalBytes/1000000).toFixed(2):"0"} MB / {MAIL_ATTACHMENT_LIMIT_LABEL} used</p>{totalBytes>MAX_MAIL_NATIVE_ATTACHMENT_BYTES&&<p className="mail-file-help" role="status">Secure-link delivery: these files will be shared using expiring download links ({MAIL_SHARE_LINK_DAYS} days) instead of attached directly to the email. Anyone with a link can download that file.</p>}</>}
+  {allowUpload&&uploadProgress&&<div className={`mail-upload-progress is-${uploadProgress.phase}`}>
+    <div className="mail-upload-progress-label" aria-live="polite">
+      <strong>{uploadProgress.phase==="complete"?"Upload complete":uploadProgress.phase==="checking"?"Scanning and saving file…":`Uploading ${uploadProgress.current} of ${uploadProgress.count} files…`}</strong>
+      <span>{uploadProgress.percent}%</span>
+    </div>
+    <div className="mail-upload-progress-track" role="progressbar" aria-label="Attachment upload progress"
+      aria-valuemin={0} aria-valuemax={100} aria-valuenow={uploadProgress.percent}>
+      <span className="mail-upload-progress-fill" style={{width:`${uploadProgress.percent}%`}}/>
+    </div>
+    <small className="mail-upload-progress-name" title={uploadProgress.filename}>{uploadProgress.filename}</small>
+  </div>}
   <div className="mail-attachment-tiles">{files.map(a=><div key={a.id} className={`mail-file-tile ${a.id===selected?"selected":""}`}>
    <button className="mail-file-select" aria-label={`Preview ${a.original_filename}`} aria-pressed={a.id===selected} onClick={()=>setSelected(a.id)}>
     <span className="mail-file-thumb">{a.scan_status==="clean"&&previews[a.id]?.type.startsWith("image/")?<img src={previews[a.id]!.url} alt=""/>:a.scan_status==="clean"&&previews[a.id]?.type.startsWith("video/")?<video src={previews[a.id]!.url+"#t=0.1"} preload="metadata" muted playsInline aria-hidden="true"/>:/\.(mp4|webm|mov)$/i.test(a.original_filename)?<Film size={26}/>:<FileText size={26}/>}</span><strong title={a.original_filename}>{a.original_filename}</strong><small>{fileSize(Number(a.size_bytes))} · {a.scan_status==="clean"?"Ready":a.scan_status}</small>
