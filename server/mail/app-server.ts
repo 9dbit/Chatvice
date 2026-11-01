@@ -16,7 +16,7 @@ if(process.env.CHATVICE_MAIL_APP_ROLE!=="isolated-mail" ||
 const app=express();
 app.disable("x-powered-by");app.set("trust proxy",1);
 const csp=["default-src 'none'","base-uri 'none'","object-src 'none'","script-src 'self'",
-  "style-src 'self' 'unsafe-inline'","connect-src 'self'","img-src 'self' data:",
+  "style-src 'self' 'unsafe-inline'","connect-src 'self'","img-src 'self' data: blob:","media-src 'self' blob:","worker-src 'self'",
   "font-src 'self' data:","frame-ancestors 'none'","form-action 'self'"].join("; ");
 app.use((_req,res,next)=>{
   res.setHeader("Cache-Control","private, no-store");
@@ -32,6 +32,7 @@ app.use((_req,res,next)=>{
 app.get("/health",async(_req,res)=>{
   try{
     await pool.query("SELECT id FROM mail_login_users LIMIT 1");
+    await pool.query("SELECT id FROM mail_reminders LIMIT 0");
     res.json({status:"ok",service:"chatvice-mail"});
   }catch{res.status(503).json({status:"unavailable",service:"chatvice-mail"});}
 });
@@ -51,3 +52,4 @@ const server=app.listen(port,"0.0.0.0",()=>{
 });
 function shutdown(){server.close(()=>pool.end().finally(()=>process.exit(0)));}
 process.once("SIGTERM",shutdown);process.once("SIGINT",shutdown);
+

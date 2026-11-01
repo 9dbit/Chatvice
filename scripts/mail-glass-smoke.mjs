@@ -31,6 +31,7 @@ try{
   if(path==='/api/mail/domains/domain1/verify'){verifyCalls++;return respond({verified:true});}
   if(path.endsWith('/aliases')){if(method==='POST')aliases.push({id:'alias1',local_part:data().localPart,domain:'example.invalid'});return respond(aliases);}
   if(path.endsWith('/members')){if(method==='POST')members.push({user_id:data().userId,role:data().role});return respond(members);}
+  if(path.endsWith('/activity'))return respond({counts:{unread:1,spam:0,drafts:0},unread:[],drafts:[],reminders:[]});
   if(path.endsWith('/stats'))return respond([{folder:'inbox',total:1,unread:1}]);
   if(path==='/api/mail/threads')return respond([{id:'thread1',subject:'Everything for your next project',from_email:'studio@example.invalid',text_body:'The brief and design notes are attached.',created_at:'2026-11-01T10:30:00Z',is_read:false,is_starred:false,message_count:1}]);
   if(path==='/api/mail/threads/thread1/ai'){assert.equal(data().acknowledgeExternalProcessing,true);aiCalls++;return respond({text:data().task==='summary'?'Synthetic summary only.':'Synthetic reply for review.'});}
@@ -65,7 +66,7 @@ try{
  await page.getByRole('button',{name:'Cancel',exact:true}).click();assert.equal(aiCalls,0);
  await page.getByRole('button',{name:'Summarize',exact:true}).click();await page.getByRole('button',{name:'Share excerpt',exact:true}).click();
  await page.getByText('Synthetic summary only.',{exact:true}).waitFor();assert.equal(aiCalls,1);
- await page.getByRole('button',{name:'Draft a reply',exact:true}).click();await page.keyboard.press('Escape');assert.equal(aiCalls,1);
+ await page.getByRole('button',{name:'Draft a reply',exact:true}).click();await page.getByRole('alertdialog').getByRole('button',{name:'Cancel',exact:true}).press('Escape');assert.equal(aiCalls,1);
  await page.getByRole('button',{name:'Draft a reply',exact:true}).click();await page.getByRole('button',{name:'Share excerpt',exact:true}).click();
  await page.getByRole('dialog',{name:'New message'}).waitFor();assert.equal(await page.getByLabel('Message',{exact:true}).inputValue(),'Synthetic reply for review.');assert.equal(aiCalls,2);
  await page.getByRole('button',{name:'Close',exact:true}).click();await page.getByRole('button',{name:'Discard changes',exact:true}).click();
@@ -94,5 +95,5 @@ try{
  await settings.getByRole('button',{name:'Close',exact:true}).click();await page.getByRole('button',{name:'DNS setup'}).click();
  const dns=page.getByRole('dialog',{name:'Domain setup'});await dns.getByText('chatvice-verification=synthetic-only',{exact:true}).waitFor();await dns.getByRole('button',{name:'Verify DNS'}).click();await dns.getByRole('status').waitFor();assert.equal(verifyCalls,1);await noOverflow();
  await dns.getByRole('button',{name:'Close',exact:true}).click();await page.getByRole('button',{name:'Add domain',exact:true}).click();await page.getByLabel('New mail domain').fill('second.example.invalid');await page.getByRole('dialog').getByRole('button',{name:'Add domain',exact:true}).click();await page.getByText('second.example.invalid',{exact:true}).waitFor();
- assert.deepEqual(errors,[]);console.log('PASS: frosted composer discard/cancel, per-action AI consent/cancel without auto-send, attachment scan safety, mobile drawers, domain creation/verification, mailbox creation/name/status, aliases and viewer access; all data synthetic');
+ assert.deepEqual(errors,[]);console.log('PASS: scoped composer discard/cancel, per-action AI consent/cancel without auto-send, attachment scan safety, mobile drawers, domain creation/verification, mailbox creation/name/status, aliases and viewer access; all data synthetic');
 }finally{await browser?.close();await new Promise(done=>server.close(done));}

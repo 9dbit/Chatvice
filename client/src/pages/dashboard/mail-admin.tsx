@@ -5,7 +5,7 @@ import {apiRequest} from "@/lib/queryClient";
 import {Dialog, DialogContent, DialogTitle, DialogDescription, useMailConfirm} from "@/components/mail-dialog";
 import MailArt from "@/components/mail-art";
 import "./mail-workspace.css";
-import "../../mail-glass.css";
+import "../../mail-retro.css";
 
 type Domain={id:string;domain:string;status:string};
 type Mailbox={id:string;local_part:string;domain:string;display_name:string;enabled:boolean};

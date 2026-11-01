@@ -48,6 +48,7 @@ try{
   const fulfill=(body,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});
   if(path==='/api/mail/capabilities')return fulfill({admin:!viewer,outbound:sendingAvailable,ai:false,attachments:false});
   if(path==='/api/mail/mailboxes')return fulfill([{id:box,local_part:'hello',domain:'studio.example.invalid',display_name:'Studio',enabled:true,can_write:!viewer,aliases:['sales@studio.example.invalid']},{id:otherBox,local_part:'team',domain:'studio.example.invalid',display_name:'Team',enabled:true,can_write:!viewer,aliases:[]}]);
+  if(path.endsWith('/activity'))return fulfill({counts:{unread:1,spam:0,drafts:0},unread:[],drafts:[],reminders:[]});
   if(path.endsWith('/stats'))return fulfill([{folder,total:2,unread:read?0:1},{folder:'drafts',total:draft?1:0,unread:0}]);
   if(path==='/api/mail/threads'){
    const activeFolder=url.searchParams.get('folder'),filter=url.searchParams.get('filter');
@@ -128,7 +129,7 @@ try{
  await page.getByRole('button',{name:/^Archive/}).click();
  await page.getByRole('button',{name:'A new space for better conversations',exact:false}).click();
  await page.getByRole('button',{name:'Move to inbox',exact:true}).click();
- await page.getByRole('button',{name:/^Inbox/}).click();
+ await page.getByRole('navigation',{name:'Mail folders'}).getByRole('button',{name:/^Inbox/}).click();
  const starredResponse=page.waitForResponse(response=>{
   const u=new URL(response.url());return u.pathname==='/api/mail/threads'&&u.searchParams.get('filter')==='starred';
  });
@@ -174,7 +175,7 @@ try{
  assert.equal(await page.getByLabel('CC recipients',{exact:true}).inputValue(),'reviewer@example.invalid');
  assert.equal(await page.getByLabel('BCC recipients',{exact:true}).inputValue(),'hidden@example.invalid');
  await page.getByRole('button',{name:'Close',exact:true}).click();
- await page.getByRole('button',{name:/^Inbox/}).click();
+ await page.getByRole('navigation',{name:'Mail folders'}).getByRole('button',{name:/^Inbox/}).click();
  await page.setViewportSize({width:390,height:844});
  await screen(page,'mail-mobile-inbox');
  await page.getByRole('button',{name:'A new space for better conversations',exact:false}).click();

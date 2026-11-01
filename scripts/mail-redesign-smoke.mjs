@@ -26,6 +26,7 @@ try{
   if(path==='/api/mail/mailboxes')return respond([{id:'box1',local_part:'hello',domain:'example.invalid',display_name:'Example',enabled:true,can_write:true}]);
   if(path==='/api/mail/capabilities')return respond({admin:true,outbound:true,ai:false,attachments:false});
   if(path==='/api/mail/threads')return respond([{id:'thread1',subject:'A new idea, ready to share',from_email:'studio@example.invalid',text_body:'Hi team, the project details are ready for your review.',created_at:'2026-11-01T10:30:00Z',is_read:false,is_starred:false,message_count:1}]);
+  if(path.endsWith('/activity'))return respond({counts:{unread:1,spam:0,drafts:0},unread:[],drafts:[],reminders:[]});
   if(path.endsWith('/stats'))return respond([{folder:'inbox',total:1,unread:1}]);
   if(path==='/api/mail/threads/thread1')return respond([{id:'message1',direction:'inbound',status:'received',from_email:'studio@example.invalid',to_emails:['hello@example.invalid'],subject:'A new idea, ready to share',text_body:'Hi team,\n\nThe project details are ready for your review. Everything you need is together in this conversation.\n\nTake a look when you have a moment, and let us know what you think.\n\nHere is the project link: https://example.invalid/project\n\nThank you,\nStudio team',created_at:'2026-11-01T10:30:00Z',is_read:false,is_starred:false}]);
   if(path.endsWith('/context'))return respond({sender:'studio@example.invalid',lead:null});
@@ -34,8 +35,8 @@ try{
  const screenshot=async(name)=>{if(output)await page.screenshot({path:resolve(output,name+'.png'),fullPage:!await page.getByRole('dialog').count()});};
  for(const width of [320,390,768,1024,1440,2560]){
   await page.setViewportSize({width,height:900});await page.goto(origin+'/');
-  await page.getByRole('heading',{name:/Less noise/}).waitFor();
-  await page.locator('.cm-hero-art').evaluate(image=>image.decode());
+  await page.getByRole('heading',{name:/LESS NOISE/i}).waitFor();
+  await page.locator('.cm-site img').evaluateAll(images=>Promise.all(images.map(image=>{image.loading='eager';return image.decode();}))); 
   assert.ok(await page.locator('.cm-hero-art').evaluate(image=>image.naturalWidth>0),'Generated hero must load');
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Landing overflow at ${width}`);
   if(width===1440||width===390)await screenshot('mail-redesign-landing-'+width);
@@ -48,7 +49,7 @@ try{
  await screenshot('mail-redesign-landing-dark');
  await page.getByRole('button',{name:'Use light mode'}).click();
  await page.getByRole('link',{name:'Sign in',exact:false}).first().click();
- await page.getByRole('heading',{name:'Make yourself at home.'}).waitFor();
+ await page.getByRole('heading',{name:'SIGN IN_'}).waitFor();
  await screenshot('mail-redesign-login-mobile');
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await page.getByLabel('Email',{exact:true}).fill('owner@example.invalid');
@@ -85,7 +86,7 @@ try{
  await screenshot('mail-redesign-compose-mobile');
  await page.getByRole('button',{name:'Close',exact:true}).click();
  await page.getByRole('button',{name:'Sign out',exact:true}).filter({visible:true}).click();
- await page.getByRole('heading',{name:'Make yourself at home.'}).waitFor();
+ await page.getByRole('heading',{name:'SIGN IN_'}).waitFor();
  assert.equal(signedIn,false);assert.deepEqual(errors,[]);
  console.log('PASS: landing, login, protected inbox, theme persistence, compose and signout; 320–2560 px; synthetic accounts only');
 }finally{await browser?.close();await new Promise(done=>server.close(done));}

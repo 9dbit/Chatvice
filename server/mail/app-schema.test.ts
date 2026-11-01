@@ -44,7 +44,7 @@ async function isolated(name:string,fn:(url:string,pool:pg.Pool)=>Promise<void>)
 test("isolated app installer initializes empty schema atomically and verifies immutable history",async()=>{
   await isolated("empty",async(url,pool)=>{
     const first=run(url);assert.equal(first.status,0,first.stderr);
-    assert.equal((await pool.query("SELECT count(*)::integer AS n FROM mail_schema_migrations")).rows[0].n,4);
+    assert.equal((await pool.query("SELECT count(*)::integer AS n FROM mail_schema_migrations")).rows[0].n,5);
     const column=await pool.query("SELECT column_default,is_nullable,udt_name FROM information_schema.columns WHERE table_name='mail_delivery_events' AND column_name='recipient_keys'");
     assert.deepEqual(column.rows,[{column_default:"'{}'::text[]",is_nullable:"NO",udt_name:"_text"}]);
     assert.equal((await pool.query("SELECT id FROM merchants")).rows[0].id,"mail_schema_ci");
@@ -84,7 +84,7 @@ test("installer upgrades only the exact immutable three-file prefix and preserve
     assert.equal(single.text_body,'preserved-single-ciphertext-fixture');
     assert.equal(multiple.status,'sent');assert.equal(multiple.folder,'sent');assert.equal(multiple.delivered_at,null);
     assert.equal(multiple.text_body,'preserved-multi-ciphertext-fixture');
-    assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,4);
+    assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,5);
     assert.equal(run(url).status,0);
   });
 });
@@ -125,3 +125,19 @@ test("installer refuses occupied databases and wrong expected host without modif
   });
 });
 test.after(async()=>{await admin.end();});
+
+
+test("the exact four-migration release upgrades to reminders without changing credentials or prior history",async()=>{
+ await isolated('reminders',async(url,pool)=>{
+  await legacy(pool);
+  const name='20261027_chatvice_mail_delivery_recipients_v3.sql',sql=readFileSync('migrations/'+name,'utf8');
+  await pool.query(sql);await pool.query('INSERT INTO mail_schema_migrations(name,sha256,initial_tenant) VALUES($1,$2,$3)',[name,createHash('sha256').update(sql).digest('hex'),'mail_schema_ci']);
+  const history=await pool.query('SELECT * FROM mail_schema_migrations ORDER BY name');
+  assert.equal(run(url).status,0);
+  assert.deepEqual((await pool.query('SELECT * FROM mail_schema_migrations WHERE name<>$1 ORDER BY name',['20261101_chatvice_mail_reminders_v4.sql'])).rows,history.rows);
+  assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_reminders')).rows[0].n,0);
+  assert.equal(run(url).status,0);
+  await pool.query("DELETE FROM mail_schema_migrations WHERE name='20261101_chatvice_mail_reminders_v4.sql'");
+  assert.notEqual(run(url).status,0,'unrecorded reminders table must not be silently adopted');
+ });
+});

@@ -181,6 +181,25 @@ export function registerMailAttachmentRoutes(app:Express):void{
       return res.end(data);
     }catch{return reportError(res);}
   });
+  app.delete("/api/mail/attachments/:id",async(req,res)=>{
+    if(!validId(req.params.id))return res.sendStatus(400);
+    try{
+      const a=await allowedAttachment(req,req.params.id,true);
+      if(!a)return res.sendStatus(404);
+      const c=await pool.connect();
+      try{
+        await c.query("BEGIN");
+        const m=await c.query("SELECT status FROM mail_messages WHERE id=$1 AND tenant_id=$2 FOR UPDATE",[a.message_id,a.tenant_id]);
+        if(!m.rowCount||m.rows[0].status!=="draft"){
+          await c.query("ROLLBACK");return res.status(409).json({error:"Only draft attachments can be removed"});
+        }
+        if(!trustedObjectKey(a.object_key,a.tenant_id,a.message_id))throw new Error("Invalid attachment key");
+        if(a.scan_status!=="blocked")await deletePrivateAttachment(a.object_key);
+        await c.query("DELETE FROM mail_attachments WHERE id=$1 AND tenant_id=$2 AND message_id=$3",[a.id,a.tenant_id,a.message_id]);
+        await c.query("COMMIT");res.json({removed:true});
+      }catch(e){await c.query("ROLLBACK");throw e;}finally{c.release();}
+    }catch{reportError(res);}
+  });
   app.post("/api/mail/attachments/:id/rescan",async(req,res)=>{
     if(process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED!=="true")
       return res.status(503).json({error:"Attachment scanning is disabled"});
@@ -199,4 +218,5 @@ export function registerMailAttachmentRoutes(app:Express):void{
     }catch{return reportError(res);}
   });
 }
+
 

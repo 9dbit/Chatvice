@@ -62,7 +62,9 @@ try{
  catch(error){refused=String(error.stderr).includes('Isolated Mail schema guard denied');}
  assert.equal(refused,true,'wrong database host must be refused before installation');
  run(['node','scripts/mail-app-schema.mjs']);
- inspectSchema(`assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,4);
+ inspectSchema(`assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,5);
+  await pool.query("DROP TABLE mail_reminders");
+  await pool.query("DELETE FROM mail_schema_migrations WHERE name='20261101_chatvice_mail_reminders_v4.sql'");
   await pool.query("DELETE FROM mail_schema_migrations WHERE name='20261027_chatvice_mail_delivery_recipients_v3.sql'");
   await pool.query('ALTER TABLE mail_delivery_events DROP COLUMN recipient_keys');
   await pool.query("UPDATE mail_schema_migrations SET sha256=$1 WHERE name='20261026_chatvice_mail_v1.sql'",['0'.repeat(64)]);`);
@@ -74,7 +76,7 @@ try{
   const sha=createHash('sha256').update(readFileSync('migrations/20261026_chatvice_mail_v1.sql','utf8')).digest('hex');
   await pool.query("UPDATE mail_schema_migrations SET sha256=$1 WHERE name='20261026_chatvice_mail_v1.sql'",[sha]);`);
  run(['node','scripts/mail-app-schema.mjs']); // exact previous release upgrades inside the packaged runtime
- inspectSchema(`assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,4);
+ inspectSchema(`assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,5);
   const result=await pool.query("SELECT udt_name,is_nullable FROM information_schema.columns WHERE table_name='mail_delivery_events' AND column_name='recipient_keys'");
   assert.deepEqual(result.rows,[{udt_name:'_text',is_nullable:'NO'}]);`);
  run(['node','scripts/mail-app-schema.mjs']); // verifies packaged migration history on repeat
@@ -139,3 +141,4 @@ try{
  try{docker(['rm','--force',container]);}catch{}
  if(created)try{docker(['exec',postgres,'dropdb','-U','chatvice_mail',database]);}catch{}
 }
+

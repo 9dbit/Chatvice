@@ -5,10 +5,11 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription, useMailConfirm }
 import MailArt from "@/components/mail-art";
 import MailTheme from "@/components/mail-theme";
 import MailAttachments from "./mail-attachments";
+import MailActivity from "./mail-activity";
 import MailMessageBody from "./mail-message-body";
 import { mailReplyRecipients, parseMailRecipients } from "@shared/mail-recipients";
 import "./mail-workspace.css";
-import "../../mail-glass.css";
+import "../../mail-retro.css";
 
 type Box = {id:string;local_part:string;domain:string;display_name:string;enabled:boolean;can_write:boolean;aliases?:string[]};
 type Thread = {id:string;subject:string;from_email:string;text_body:string;created_at:string;is_read:boolean;is_starred:boolean;message_count:number};
@@ -50,6 +51,8 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
  const [error,setError]=useState(""),[notice,setNotice]=useState(""),[search,setSearch]=useState("");
  const [editor,setEditor]=useState<Editor|null>(null),[savedSnapshot,setSavedSnapshot]=useState("");
  const [saving,setSaving]=useState(false),[acting,setActing]=useState(false),[aiLoading,setAiLoading]=useState(false);
+ const [uploading,setUploading]=useState(false),[attachmentsReady,setAttachmentsReady]=useState(true);
+ const draftOperation=useRef<Promise<string>|null>(null);
  const [openingDraft,setOpeningDraft]=useState(false),[showCopies,setShowCopies]=useState(false);
  const [aiSummary,setAiSummary]=useState(""),[reload,setReload]=useState(0);
  const searchRef=useRef<HTMLInputElement>(null),selectionRef=useRef("");
@@ -101,17 +104,17 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
   return()=>abort.abort();
  },[selected?.id,reload]);
  async function closeEditor(){
-  if(saving)return;
+  if(saving||uploading)return;
   if(dirty&&!await confirm({description:"Only your unsaved edits will be discarded. Saved drafts will remain in Drafts."}))return;
   setEditor(null);
  }
  async function openEditor(next:Editor){
-  if(!canWrite||saving)return;
+  if(!canWrite||saving||uploading)return;
   if(dirty&&!await confirm({description:"Discard your unsaved edits and open another message? Saved drafts will remain in Drafts."}))return;
-  setEditor(next);setShowCopies(Boolean(next.cc||next.bcc));setSavedSnapshot(snapshot(next.draftId?next:blankEditor()));setError("");setNotice("");
+  setAttachmentsReady(!next.draftId||!cap.attachments);setEditor(next);setShowCopies(Boolean(next.cc||next.bcc));setSavedSnapshot(snapshot(next.draftId?next:blankEditor()));setError("");setNotice("");
  }
  async function openDraft(id:string){
-  if(!canWrite||saving||openingDraft)return;
+  if(!canWrite||saving||uploading||openingDraft)return;
   const target=selectionRef.current;setOpeningDraft(true);setError("");
   try{
    const draft=await request<SavedDraft>(`/api/mail/drafts/${id}`);
@@ -120,11 +123,11 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
   }catch(e:any){if(selectionRef.current===target)setError(e.message);}finally{setOpeningDraft(false);}
  }
  useEffect(()=>{
-  if(!dirty)return;
+  if(!dirty&&!uploading)return;
   const warn=(event:BeforeUnloadEvent)=>{event.preventDefault();event.returnValue="";};
   window.addEventListener("beforeunload",warn);
   return()=>window.removeEventListener("beforeunload",warn);
- },[dirty]);
+ },[dirty,uploading]);
  useEffect(()=>{
   const keyboard=(event:KeyboardEvent)=>{
    if(event.ctrlKey||event.metaKey||event.altKey||event.defaultPrevented)return;
@@ -137,7 +140,7 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
   return()=>window.removeEventListener("keydown",keyboard);
  },[editor,canWrite]);
  async function changeMailbox(next:string){
-  if(saving||acting||next===box)return;
+  if(saving||uploading||acting||next===box)return;
   if(dirty&&!await confirm({description:"Discard unsaved edits and switch mailboxes? Saved drafts stay in their original mailbox."}))return;
   setEditor(null);setSelected(null);setBox(next);setPage(0);setSearch("");setError("");setNotice("");
  }
@@ -156,26 +159,28 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
    setNotice(change.folder?`Conversation moved to ${change.folder}.`:"Conversation updated.");
   }catch(e:any){setError(e.message);}finally{setActing(false);}
  }
- async function submit(draft:boolean){
-  if(!editor||!box||!canWrite||saving)return;
-  if(!draft&&!parseMailRecipients(editor.to).length){setError("Add at least one To recipient before sending.");return;}
-  if(!draft&&!cap.outbound)return;
+ async function persistDraft():Promise<string>{
+  if(draftOperation.current)return draftOperation.current;
+  if(!editor||!box||!canWrite)throw Error("No writable draft");
   const value=editor;setSaving(true);setError("");
-  const recipients={to:parseMailRecipients(value.to),cc:parseMailRecipients(value.cc),bcc:parseMailRecipients(value.bcc)};
-  try{
+  const operation=(async()=>{
+   const recipients={to:parseMailRecipients(value.to),cc:parseMailRecipients(value.cc),bcc:parseMailRecipients(value.bcc)};
    let id=value.draftId;
-   if(id){
-    await request(`/api/mail/drafts/${id}`,"PATCH",{...recipients,subject:value.subject,text:value.body});
-   }else{
-    const created=await request<{id:string}>("/api/mail/compose","POST",{mailboxId:box,...recipients,subject:value.subject,text:value.body,draft:true,replyToId:value.replyToId});
-    id=created.id;
-   }
-   // Keep the saved message ID if queuing fails; a retry must not create a
-   // second outbound message. Sending still uses the server's atomic guard.
-   setEditor({...value,draftId:id});setSavedSnapshot(snapshot(value));
-   if(draft){setNotice("Draft saved privately.");}
-   else {await request(`/api/mail/drafts/${id}/send`,"POST",{});setEditor(null);navigate("sent","all");setNotice("Message queued. Delivery status will update after the provider responds.");}
-   setReload(x=>x+1);
+   if(id)await request(`/api/mail/drafts/${id}`,"PATCH",{...recipients,subject:value.subject,text:value.body});
+   else id=(await request<{id:string}>("/api/mail/compose","POST",{mailboxId:box,...recipients,subject:value.subject,text:value.body,draft:true,replyToId:value.replyToId})).id;
+   setEditor({...value,draftId:id});setSavedSnapshot(snapshot(value));setReload(n=>n+1);return id;
+  })();
+  draftOperation.current=operation;
+  try{return await operation;}finally{draftOperation.current=null;setSaving(false);}
+ }
+ async function submit(draft:boolean){
+  if(!editor||!box||!canWrite||saving||uploading||draftOperation.current)return;
+  if(!draft&&!parseMailRecipients(editor.to).length){setError("Add at least one To recipient before sending.");return;}
+  if(!draft&&(!cap.outbound||!attachmentsReady))return;
+  try{
+   const id=await persistDraft();
+   if(draft)setNotice("Draft saved privately.");
+   else{setSaving(true);await request(`/api/mail/drafts/${id}/send`,"POST",{});setEditor(null);navigate("sent","all");setNotice("Message queued. Delivery status will update after the provider responds.");setReload(n=>n+1);}
   }catch(e:any){setError(e.message);}finally{setSaving(false);}
  }
  function reply(text="",all=false){
@@ -204,18 +209,18 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
  }
  return <section className={`mail-workspace ${selected?"mail-reading-open":""}`} aria-label="Chatvice Mail">
   <header className="mail-topbar">
-   <div className="mail-brand"><span className="mail-brand-icon"><Mail size={21}/></span><div><h1>Chatvice <span>Mail</span></h1><p>Your conversations, connected.</p></div></div>
+   <div className="mail-brand"><span className="mail-brand-icon"><Mail size={21}/></span><div><h1>Chatvice <span>Mail</span></h1><p>MAIL TERMINAL / CONNECTED_</p></div></div>
    <div className="mail-header-actions"><MailTheme/>{onSignOut&&<button className="mail-icon-btn mail-mobile-signout" aria-label="Sign out" disabled={signingOut} onClick={onSignOut}><LogOut size={17}/></button>}
     <span className="mail-private"><LockKeyhole size={12}/> Private workspace</span>
     {cap.admin&&<Link href="/dashboard/mail/admin" className="mail-icon-btn" aria-label="Mail settings"><Settings size={18}/></Link>}
-    <button className="mail-button mail-primary" disabled={!canWrite||saving} onClick={()=>openEditor(blankEditor())}><Plus size={17}/> Compose<span className="mail-key">N</span></button>
+    <button className="mail-button mail-primary" disabled={!canWrite||saving||uploading} onClick={()=>openEditor(blankEditor())}><Plus size={17}/> Compose<span className="mail-key">N</span></button>
    </div>
   </header>
   {error&&!editor&&<div className="mail-alert" role="alert"><AlertCircle size={16}/>{error}<button aria-label="Dismiss error" onClick={()=>setError("")}>×</button></div>}
   {notice&&!editor&&<div className="mail-notice" role="status"><Check size={15}/>{notice}</div>}
   <div className="mail-grid">
    <nav className="mail-sidebar" aria-label="Mail folders">
-    <div className="mail-account"><label htmlFor="mailbox-select">WORKSPACE</label><select id="mailbox-select" value={box} disabled={saving||acting||initializing} onChange={e=>changeMailbox(e.target.value)}>
+    <div className="mail-account"><label htmlFor="mailbox-select">WORKSPACE</label><select id="mailbox-select" value={box} disabled={saving||uploading||acting||initializing} onChange={e=>changeMailbox(e.target.value)}>
      {!box&&<option value="">{initializing?"Loading…":"No active mailbox"}</option>}
      {boxes.map(b=><option key={b.id} value={b.id} disabled={!b.enabled}>{b.local_part}@{b.domain}{!b.enabled?" (disabled)":""}</option>)}
     </select><span className={`mail-access ${box&&!canWrite?"mail-readonly":""}`}>{box?(canWrite?"Mailbox member":"Read-only access"):"Assign a mailbox to get started"}</span></div>
@@ -260,16 +265,18 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
     </>:<div className="mail-reader-empty"><MailArt kind="inbox" className="mail-empty-art"/><span className="mail-eyebrow">MAKE ROOM FOR FOCUS</span><h2>Good conversations<br/>start here.</h2><p>Select a conversation to read, reply,<br/>and keep your customers connected.</p><div><span><LockKeyhole size={13}/> Private mailboxes</span><span><UserRoundPlus size={13}/> Connected to CRM</span></div>{canWrite&&<button className="mail-button" onClick={()=>openEditor(blankEditor())}><Plus size={16}/> Start a conversation</button>}</div>}
    </article>
   </div>
-  <Dialog open={Boolean(editor)} onOpenChange={open=>{if(!open)closeEditor();}}><DialogContent className="mail-composer" closeDisabled={saving} onInteractOutside={event=>event.preventDefault()} onEscapeKeyDown={event=>{event.preventDefault();closeEditor();}}>
+  <MailActivity key={box} mailboxId={box} canWrite={canWrite} reload={reload} onFolder={(next,nextFilter="all")=>navigate(next,nextFilter)} onDraft={id=>{void openDraft(id);}} onMessage={m=>{navigate("inbox","all");setSelected({...m,id:m.thread_id,is_read:false,is_starred:false,message_count:1});}}/>
+  <Dialog open={Boolean(editor)} onOpenChange={open=>{if(!open)closeEditor();}}><DialogContent className="mail-composer" closeDisabled={saving||uploading} onInteractOutside={event=>event.preventDefault()} onEscapeKeyDown={event=>{event.preventDefault();closeEditor();}}>
    <DialogTitle>{editor?.draftId?"Edit draft":"New message"}</DialogTitle><DialogDescription>From {currentBox?.local_part}@{currentBox?.domain}</DialogDescription>
-   {editor&&<><label className="mail-compose-field">To<input autoFocus aria-label="Recipients" placeholder="address@example.com, another@example.com" disabled={saving} value={editor.to} onChange={e=>setEditor({...editor,to:e.target.value})}/>{!showCopies&&<button className="mail-copy-toggle" type="button" disabled={saving} onClick={()=>setShowCopies(true)}>CC / BCC</button>}</label>
-    {showCopies&&<><label className="mail-compose-field">CC<input aria-label="CC recipients" placeholder="Copy recipients" disabled={saving} value={editor.cc} onChange={e=>setEditor({...editor,cc:e.target.value})}/></label><label className="mail-compose-field">BCC<input aria-label="BCC recipients" placeholder="Hidden from other recipients" disabled={saving} value={editor.bcc} onChange={e=>setEditor({...editor,bcc:e.target.value})}/></label></>}
-    <label className="mail-compose-field">Subject<input aria-label="Subject" placeholder="Give your message a subject" disabled={saving} value={editor.subject} onChange={e=>setEditor({...editor,subject:e.target.value})}/></label>
-    <textarea className="mail-compose-body" aria-label="Message" placeholder="Write something thoughtful…" disabled={saving} value={editor.body} onChange={e=>setEditor({...editor,body:e.target.value})}/>
+   {editor&&<><div className={`mail-compose-layout ${cap.attachments?"has-attachments":""}`}><div className="mail-compose-writing"><label className="mail-compose-field">To<input autoFocus aria-label="Recipients" placeholder="address@example.com, another@example.com" disabled={saving||uploading} value={editor.to} onChange={e=>setEditor({...editor,to:e.target.value})}/>{!showCopies&&<button className="mail-copy-toggle" type="button" disabled={saving||uploading} onClick={()=>setShowCopies(true)}>CC / BCC</button>}</label>
+    {showCopies&&<><label className="mail-compose-field">CC<input aria-label="CC recipients" placeholder="Copy recipients" disabled={saving||uploading} value={editor.cc} onChange={e=>setEditor({...editor,cc:e.target.value})}/></label><label className="mail-compose-field">BCC<input aria-label="BCC recipients" placeholder="Hidden from other recipients" disabled={saving||uploading} value={editor.bcc} onChange={e=>setEditor({...editor,bcc:e.target.value})}/></label></>}
+    <label className="mail-compose-field">Subject<input aria-label="Subject" placeholder="Give your message a subject" disabled={saving||uploading} value={editor.subject} onChange={e=>setEditor({...editor,subject:e.target.value})}/></label>
+    <textarea className="mail-compose-body" aria-label="Message" placeholder="Write something thoughtful…" disabled={saving||uploading} value={editor.body} onChange={e=>setEditor({...editor,body:e.target.value})}/>
     {error&&<div className="mail-alert" role="alert">{error}</div>}
-    {cap.attachments&&(editor.draftId?<div className="mail-compose-attachments"><MailAttachments key={editor.draftId} messageId={editor.draftId} allowUpload={!saving}/></div>:<p className="mail-compose-help">Save a draft to add private attachments.</p>)}
+    </div>{cap.attachments&&<MailAttachments messageId={editor.draftId} allowUpload={!saving} ensureDraft={persistDraft} onBusyChange={setUploading} onSendReady={setAttachmentsReady} onChanged={()=>setReload(n=>n+1)}/>}</div>
+    {cap.attachments&&!attachmentsReady&&!uploading&&editor.draftId&&<p className="mail-compose-help">Check pending or blocked attachments before sending.</p>}
     {!cap.outbound&&<p className="mail-compose-help"><LockKeyhole size={13}/> Sending is unavailable for this workspace. You can save drafts.</p>}
-    <footer className="mail-compose-footer"><span role="status">{saving?"Saving…":editor.draftId&&!dirty?"Draft saved privately":dirty?"Unsaved changes":"Private message"}</span><button className="mail-button" disabled={saving} onClick={()=>submit(true)}><FileText size={15}/> Save draft</button><button className="mail-button mail-primary" title={!cap.outbound?"Sending is not configured for this workspace":undefined} disabled={saving||!parseMailRecipients(editor.to).length||!cap.outbound} onClick={()=>submit(false)}><Send size={15}/> Send message</button></footer>
+    <footer className="mail-compose-footer"><span role="status">{uploading?"Uploading files…":saving?"Saving…":editor.draftId&&!dirty?"Draft saved privately":dirty?"Unsaved changes":"Private message"}</span><button className="mail-button" disabled={saving||uploading} onClick={()=>submit(true)}><FileText size={15}/> Save draft</button><button className="mail-button mail-primary" title={!cap.outbound?"Sending is not configured for this workspace":undefined} disabled={saving||uploading||!attachmentsReady||!parseMailRecipients(editor.to).length||!cap.outbound} onClick={()=>submit(false)}><Send size={15}/> Send message</button></footer>
    </>}
   </DialogContent></Dialog>
   {confirmation}

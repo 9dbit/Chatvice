@@ -10,7 +10,7 @@ import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:cr
  * to decrypt mail in order to deliver, search previews, and display it.
  */
 const PREFIX="cvenc1.";
-const PURPOSES = ["message-text","message-html","message-subject","thread-subject"] as const;
+const PURPOSES = ["message-text","message-html","message-subject","thread-subject","reminder-title"] as const;
 export type MailSecretField = typeof PURPOSES[number];
 
 function masterKey():Buffer {
@@ -101,4 +101,5 @@ export function decryptMailField(
     return Buffer.concat([decipher.update(data),decipher.final()]).toString("utf8");
   }finally{key.fill(0);}
 }
+
 

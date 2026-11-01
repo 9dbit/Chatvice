@@ -38,6 +38,7 @@ before(async()=>{
   await pool.query(readFileSync("migrations/20261026_chatvice_mail_v1.sql","utf8"));
   await pool.query(readFileSync("migrations/20261026_chatvice_mail_attachments_v2.sql","utf8"));
   await pool.query(readFileSync("migrations/20261027_chatvice_mail_delivery_recipients_v3.sql","utf8"));
+  await pool.query(readFileSync("migrations/20261101_chatvice_mail_reminders_v4.sql","utf8"));
   await pool.query("INSERT INTO merchants(id) VALUES($1),($2)",[fixture.tenantA,fixture.tenantB]);
   await pool.query("INSERT INTO supervisors(id,merchant_id) VALUES ($1,$2)",[fixture.supervisor,fixture.tenantA]);
   await pool.query(`INSERT INTO mail_domains(id,tenant_id,domain,verification_token,status) VALUES
@@ -164,10 +165,10 @@ test("disabled attachment feature rejects uploads before reading multipart bytes
   }
 });
 
-test("fresh migrations create all eleven mail tables without touching unrelated data",async()=>{
+test("fresh migrations create all twelve mail tables without touching unrelated data",async()=>{
   const q=await pool.query(`SELECT count(*)::integer AS count FROM information_schema.tables
     WHERE table_schema='public' AND table_name LIKE 'mail_%'`);
-  assert.equal(q.rows[0].count,11);
+  assert.equal(q.rows[0].count,12);
 });
 test("encryption is mandatory and mail API fails closed if master key disappears",async()=>{
   const key=process.env.CHATVICE_MAIL_ENCRYPTION_KEY;
@@ -895,4 +896,52 @@ test("verified same-tenant transport aliases preserve mailbox identity and rejec
  const removed=await supertest(server).delete(aliasPath+'/'+created.body.id)
   .set('x-ci-subject','merchantA').set('origin','http://test.local');
  assert.equal(removed.status,200);assert.equal((await receive('removed-transport-route')).saved,0);
+});
+
+
+test("activity uses the latest ten unread inbox messages and exact message counts, isolated by mailbox",async()=>{
+ for(let i=0;i<13;i++){
+  const created=await ingestIncomingMail({eventId:`ticker-${i}`,from:'ticker@example.invalid',to:['hello@ci-alpha.example'],subject:`Unread fixture ${i}`,text:`Private preview ${i}`});
+  await pool.query(`UPDATE mail_messages SET created_at=$1 WHERE id=$2`,[new Date(Date.UTC(2090,0,1,0,i)),created.messages[0].id]);
+ }
+ const activity=await supertest(server).get(`/api/mail/mailboxes/${fixture.boxA}/activity`).set('x-ci-subject','merchantA');
+ assert.equal(activity.status,200);assert.match(activity.headers['cache-control'],/no-store/);
+ assert.equal(activity.body.unread.length,10);assert.equal(activity.body.unread[0].subject,'Unread fixture 12');
+ assert.equal(activity.body.unread[9].subject,'Unread fixture 3');assert.equal(activity.body.unread[0].text_body,'Private preview 12');
+ const counts=await pool.query(`SELECT count(*) FILTER(WHERE folder='inbox' AND NOT is_read)::integer AS unread,
+   count(*) FILTER(WHERE folder='spam')::integer AS spam,count(*) FILTER(WHERE folder='drafts' AND status='draft')::integer AS drafts
+   FROM mail_messages WHERE tenant_id=$1 AND mailbox_id=$2`,[fixture.tenantA,fixture.boxA]);
+ assert.deepEqual(activity.body.counts,counts.rows[0]);
+ const other=await supertest(server).get(`/api/mail/mailboxes/${fixture.boxA}/activity`).set('x-ci-subject','merchantB');assert.equal(other.status,404);
+ const viewer=await supertest(server).get(`/api/mail/mailboxes/${fixture.boxA}/activity`).set('x-ci-subject','viewerA');assert.equal(viewer.status,200);
+});
+test("subscription reminders persist encrypted, validate real dates, and require mailbox write access",async()=>{
+ const path=`/api/mail/mailboxes/${fixture.boxA}/reminders`,body={title:'Domain subscription renewal',dueDate:'2027-04-18'};
+ assert.equal((await supertest(server).post(path).set('Origin','http://test.local').set('x-ci-subject','viewerA').send(body)).status,404);
+ assert.equal((await supertest(server).post(path).set('Origin','http://test.local').set('x-ci-subject','merchantB').send(body)).status,404);
+ assert.equal((await supertest(server).post(path).set('Origin','http://test.local').set('x-ci-subject','merchantA').send({...body,dueDate:'2027-02-30'})).status,400);
+ assert.equal((await supertest(server).post(path).set('x-ci-subject','merchantA').send(body)).status,403);
+ const created=await supertest(server).post(path).set('Origin','http://test.local').set('x-ci-subject','merchantA').send(body);assert.equal(created.status,201);
+ const row=(await pool.query('SELECT title FROM mail_reminders WHERE id=$1',[created.body.id])).rows[0];assert.match(row.title,/^cvenc1\./);assert.ok(!row.title.includes(body.title));
+ const activity=await supertest(server).get(`/api/mail/mailboxes/${fixture.boxA}/activity`).set('x-ci-subject','merchantA');
+ assert.deepEqual(activity.body.reminders.find((r:any)=>r.id===created.body.id),{id:created.body.id,title:body.title,due_date:body.dueDate});
+ assert.equal((await supertest(server).delete(path+'/'+created.body.id).set('Origin','http://test.local').set('x-ci-subject','viewerA')).status,404);
+ assert.equal((await supertest(server).delete(path+'/'+created.body.id).set('Origin','http://test.local').set('x-ci-subject','merchantB')).status,404);
+ assert.equal((await supertest(server).delete(path+'/'+created.body.id).set('Origin','http://test.local').set('x-ci-subject','merchantA')).status,200);
+ assert.equal((await pool.query('SELECT id FROM mail_reminders WHERE id=$1',[created.body.id])).rowCount,0);
+});
+test("draft file removal rejects foreign tenants, viewers and sent mail",async()=>{
+ const draft=await supertest(server).post('/api/mail/compose').set('Origin','http://test.local').set('x-ci-subject','merchantA').send({mailboxId:fixture.boxA,draft:true,subject:'Attachment removal fixture'});
+ assert.equal(draft.status,201);const messageId=draft.body.id;
+ const id=randomUUID(),key=newPrivateAttachmentKey(fixture.tenantA,messageId);
+ // Blocked attachments have no stored bytes; deletion must not contact object storage.
+ await pool.query(`INSERT INTO mail_attachments(id,tenant_id,message_id,object_key,original_filename,media_type,size_bytes,scan_status) VALUES($1,$2,$3,$4,'blocked.js','text/javascript',5,'blocked')`,[id,fixture.tenantA,messageId,key]);
+ const path='/api/mail/attachments/'+id;
+ assert.equal((await supertest(server).delete(path).set('Origin','http://test.local').set('x-ci-subject','merchantB')).status,404);
+ assert.equal((await supertest(server).delete(path).set('Origin','http://test.local').set('x-ci-subject','viewerA')).status,404);
+ await pool.query("UPDATE mail_messages SET status='sent',folder='sent' WHERE id=$1",[messageId]);
+ assert.equal((await supertest(server).delete(path).set('Origin','http://test.local').set('x-ci-subject','merchantA')).status,409);
+ await pool.query("UPDATE mail_messages SET status='draft',folder='drafts' WHERE id=$1",[messageId]);
+ assert.equal((await supertest(server).delete(path).set('Origin','http://test.local').set('x-ci-subject','merchantA')).status,200);
+ assert.equal((await pool.query('SELECT id FROM mail_attachments WHERE id=$1',[id])).rowCount,0);
 });

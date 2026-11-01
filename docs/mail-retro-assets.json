@@ -1,0 +1,23 @@
+{
+  "generator": "Built-in imagegen",
+  "palette": [
+    "#FAFAF8",
+    "#E6E6E3",
+    "#F36B21",
+    "#252523"
+  ],
+  "assets": {
+    "hero": "Use case: stylized-concept. Production asset for Chatvice Mail retro UI, not a mockup page. A single compact late-1980s desktop CRT monitor in warm white and soft grey textured ABS plastic, charcoal gently curved screen displaying ONE orange pixel-art envelope outline. Small orange side vent and square orange power button. Three-quarter view from slightly above, front mostly visible, facing left slightly. Premium photorealistic miniature product render, subtly dithered surface, soft studio illumination. Entire monitor and low plinth visible, centered and filling 85 percent of square composition. True transparent background, subtle contact shadow, no floor or rectangle backdrop, no text, no logos, no letters, no extra objects. Palette strictly off-white #FAFAF8 soft grey #E6E6E3 charcoal #252523 orange #F36B21. Opaque materials, not glass. High detail clean cutout.",
+    "inbox": "Use case: stylized-concept. Single production 3D asset for retro Chatvice Mail interface, NOT a UI mockup. Premium miniature product render in opaque textured white ABS plastic and soft grey with orange #F36B21 accents, charcoal tiny details. Soft studio lighting, entire object centered with generous margins, true transparent background, delicate contact shadow only. Palette off-white #FAFAF8 grey #E6E6E3 orange #F36B21 charcoal #252523. No text, logo, labels with letters, no glass, no neon, no backdrop, no extra unrelated props. A chunky off-white envelope sculpture, square-cut pixel-stair stepped diagonal flap, small orange square seal. Slight three-quarter view showing tangible thickness. Matches an elegant 1980s computer accessory. Square composition.",
+    "secure": "Use case: stylized-concept. Single production 3D asset for retro Chatvice Mail interface, NOT a UI mockup. Premium miniature product render in opaque textured white ABS plastic and soft grey with orange #F36B21 accents, charcoal tiny details. Soft studio lighting, entire object centered with generous margins, true transparent background, delicate contact shadow only. Palette off-white #FAFAF8 grey #E6E6E3 orange #F36B21 charcoal #252523. No text, logo, labels with letters, no glass, no neon, no backdrop, no extra unrelated props. One upright retro 3.5 inch floppy disk, off-white casing, charcoal grey sliding metal shutter at top, orange recessed blank label at bottom with two subtle horizontal grooves. Slight three-quarter view. Square composition."
+  },
+  "outputFiles": {
+    "hero": "client/src/assets/mail-retro/hero.webp",
+    "inbox": "client/src/assets/mail-retro/inbox.webp",
+    "secure": "client/src/assets/mail-retro/secure.webp"
+  },
+  "fonts": {
+    "display": "Pixelify Sans (self-hosted, OFL)",
+    "interface": "IBM Plex Mono (self-hosted, OFL)"
+  }
+}
