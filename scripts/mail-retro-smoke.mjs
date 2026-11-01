@@ -37,6 +37,7 @@ try{
   if(path==='/api/mail/messages/draft1/attachments'){
    if(method==='POST'){
     if(slowNextUpload){slowNextUpload=false;await new Promise(done=>setTimeout(done,900));}
+    if(req.failure())return; // XHR was aborted: the fake server must not save cancelled bytes.
     const fd=await new Request(req.url(),{method:'POST',headers:req.headers(),body:req.postDataBuffer()}).formData();const file=fd.get('file'),id='file-'+(++uploads);payloads.set(id,Buffer.from(await file.arrayBuffer()));files.push({id,original_filename:file.name,media_type:file.type,size_bytes:file.size,scan_status:blockNext?'pending':'clean'});blockNext=false;return respond({id},201);
    }return respond(files);
   }
@@ -60,17 +61,45 @@ try{
  await activity.getByLabel('Subscription name').fill('Domain renewal');await activity.getByLabel('Renewal date').fill('2027-04-18');await activity.getByRole('button',{name:'Add reminder'}).click();await activity.getByRole('button',{name:'Complete reminder Domain renewal'}).waitFor();await shot('retro-activity-desktop');await activity.getByRole('button',{name:'Close',exact:true}).click();
  await page.getByRole('button',{name:/Compose/}).click();await page.getByLabel('Recipients',{exact:true}).fill('studio@example.invalid');await page.getByLabel('Subject',{exact:true}).fill('Files for the next release');await page.getByLabel('Message',{exact:true}).fill('Hi team,\n\nHere are the photos, video and documents for review.\n\nThank you!');
  const photo=await readFile('client/src/assets/mail-retro/hero.webp'),video=await readFile('scripts/fixtures/mail-preview-video.mp4');
+ // Cancel one queued file and one active XHR, without interrupting the next file.
+ // The per-file X buttons must not discard the compose draft or the other files.
+ slowNextUpload=true;
+ const cancelledRequest=page.waitForRequest(req=>new URL(req.url()).pathname==='/api/mail/messages/draft1/attachments'&&req.method()==='POST');
+ await page.getByLabel('Upload attachments',{exact:true}).setInputFiles([
+  {name:'Cancel active.bin',mimeType:'application/octet-stream',buffer:Buffer.alloc(8192,65)},
+  {name:'Cancel queued.txt',mimeType:'text/plain',buffer:Buffer.from('Never upload this queued item')},
+  {name:'Keep uploading.txt',mimeType:'text/plain',buffer:Buffer.from('Kept and verified')}
+ ]);
+ await cancelledRequest;
+ await page.getByRole('progressbar',{name:'Upload Cancel active.bin'}).waitFor();
+ assert.equal(await page.getByRole('progressbar',{name:'Upload Cancel queued.txt'}).getAttribute('aria-valuenow'),'0');
+ await page.getByRole('button',{name:'Cancel upload Cancel queued.txt'}).click();
+ await page.getByRole('button',{name:'Cancel upload Cancel active.bin'}).click();
+ await page.getByRole('button',{name:'Preview Keep uploading.txt'}).waitFor();
+ await page.waitForFunction(()=>!document.querySelector('input[type=file]').disabled);
+ await page.waitForTimeout(950);
+ assert.deepEqual(files.map(f=>f.original_filename),['Keep uploading.txt'],'cancelled files are not persisted');
+ assert.equal(await page.getByRole('progressbar',{name:'Upload Keep uploading.txt'}).getAttribute('aria-valuenow'),'100');
+ await page.getByText('Upload cancelled. Other files continue.',{exact:true}).first().waitFor();
+ await page.getByRole('button',{name:'Remove Keep uploading.txt'}).click();
+ await page.getByRole('button',{name:'Preview Keep uploading.txt'}).waitFor({state:'hidden'});
+ assert.equal(files.length,0);
+ uploads=0;payloads.clear(); // Reset synthetic fixture counters for the existing acceptance contract.
  slowNextUpload=true;
  await page.getByLabel('Upload attachments',{exact:true}).setInputFiles([{name:'Product photo.webp',mimeType:'image/webp',buffer:photo},{name:'Short demo.mp4',mimeType:'video/mp4',buffer:video},{name:'Project brief.pdf',mimeType:'application/pdf',buffer:makePdf()},{name:'Release notes.txt',mimeType:'text/plain',buffer:Buffer.from('Release checklist\n1. Review assets\n2. Confirm the release')}]);
  await page.getByRole('button',{name:'Close',exact:true}).isDisabled().then(disabled=>assert.equal(disabled,true,'closing while upload is active must be blocked'));
- const barDuringUpload=page.getByRole('progressbar',{name:'Attachment upload progress'});
+ const barDuringUpload=page.getByRole('progressbar',{name:'Upload Product photo.webp'});
  await barDuringUpload.waitFor();
- assert.ok(Number(await barDuringUpload.getAttribute('aria-valuenow'))<100,'progress stays below 100 until server confirms persistence');
+ await page.getByRole('progressbar',{name:'Upload Short demo.mp4'}).waitFor();
+ assert.equal(await page.getByRole('progressbar',{name:'Upload Short demo.mp4'}).getAttribute('aria-valuenow'),'0','each waiting attachment gets its own progressbar');
+ assert.ok(Number(await barDuringUpload.getAttribute('aria-valuenow'))<100,'per-file progress stays below 100 until acknowledged');
  await page.getByRole('button',{name:'Preview Release notes.txt',exact:true}).waitFor();await page.waitForFunction(()=>!document.querySelector('input[type=file]').disabled);assert.equal(composeCalls,1,'adding several files creates only one draft');assert.equal(uploads,4);
- const progress=page.getByRole('progressbar',{name:'Attachment upload progress'});
- await progress.waitFor();
- assert.equal(await progress.getAttribute('aria-valuenow'),'100','100% only follows accepted file uploads');
- await page.getByText('Upload complete',{exact:true}).waitFor();
+ for(const name of ['Product photo.webp','Short demo.mp4','Project brief.pdf','Release notes.txt']){
+  const row=page.getByRole('progressbar',{name:`Upload ${name}`});
+  await row.waitFor();
+  assert.equal(await row.getAttribute('aria-valuenow'),'100',`Per-file 100% after accepted upload: ${name}`);
+ }
+ await page.getByText('Uploaded successfully',{exact:true}).first().waitFor();
  await page.getByRole('button',{name:'Preview Product photo.webp',exact:true}).click();await page.locator('.mail-preview-image').evaluate(img=>img.decode());await page.locator('.mail-file-thumb img').first().evaluate(img=>img.decode());
  const writing=await page.locator('.mail-compose-writing').boundingBox(),preview=await page.locator('.mail-attachment-workbench').boundingBox();assert.ok(preview.x>=writing.x+writing.width-1,'desktop preview must occupy right column');await shot('retro-compose-photo-desktop');
  await page.getByRole('button',{name:'Preview Short demo.mp4',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.mail-preview-video')?.readyState>=1);assert.equal(await page.locator('.mail-preview-video').getAttribute('autoplay'),null);await shot('retro-compose-video-desktop');
@@ -93,7 +122,7 @@ try{
  await page.getByLabel('Upload attachments',{exact:true}).setInputFiles({name:'Budget boundary.bin',mimeType:'application/octet-stream',buffer:Buffer.alloc(remaining,65)});
  await page.getByRole('button',{name:'Preview Budget boundary.bin',exact:true}).waitFor();await page.waitForFunction(()=>!document.querySelector('input[type=file]').disabled);
  assert.equal(uploads,beforeLimitUploads+1);assert.equal(files.reduce((n,f)=>n+f.size_bytes,0),40_000_000);
- assert.equal(await progress.getAttribute('aria-valuenow'),'100','large uploads resolve only after the server responds');
+ assert.equal(await page.getByRole('progressbar',{name:'Upload Budget boundary.bin'}).getAttribute('aria-valuenow'),'100','large file completes only after server acknowledgement');
  await page.getByLabel('Attachment storage used').filter({hasText:'40.00 MB / 40 MB used'}).waitFor();await page.getByText(/Secure-link delivery:/).waitFor();
  await page.getByLabel('Upload attachments',{exact:true}).setInputFiles({name:'Over budget.txt',mimeType:'text/plain',buffer:Buffer.from('x')});
  await page.getByRole('alert').filter({hasText:'Attachments exceed 40 MB total per email.'}).waitFor();assert.equal(uploads,beforeLimitUploads+1,'over-limit files never upload');
@@ -110,5 +139,5 @@ try{
  await page.setViewportSize({width:1440,height:1000});await page.getByRole('button',{name:/Project files for review/}).click();await page.getByRole('button',{name:'Reply to studio',exact:true}).click();await page.getByLabel('Upload attachments').setInputFiles({name:'Reply notes.txt',mimeType:'text/plain',buffer:Buffer.from('Reply attachment')});await page.getByRole('button',{name:'Preview Reply notes.txt'}).waitFor();assert.equal(draft.replyToId,'message1','auto-created reply draft preserves reply headers');assert.equal(composeCalls,2);await page.getByRole('button',{name:'Save draft',exact:true}).click();await page.getByRole('button',{name:'Close',exact:true}).click();
  await page.reload();await openMenu();await page.getByRole('button',{name:'Open activity and subscription reminders'}).click();await activity.getByRole('button',{name:'Complete reminder Domain renewal'}).click();await activity.getByText('No reminders yet.').waitFor();await activity.getByRole('button',{name:'Close',exact:true}).click();
  viewer=true;await page.reload();await page.getByRole('button',{name:/Compose/}).waitFor();assert.equal(await page.getByRole('button',{name:/Compose/}).isDisabled(),true);await openMenu();await page.getByRole('button',{name:'Open activity and subscription reminders'}).click();assert.equal(await activity.getByRole('button',{name:'Add reminder'}).count(),0);
- assert.deepEqual(external,[],'previews, fonts, images and PDF worker are private/same-origin');assert.deepEqual(errors,[]);console.log('PASS: retro uploads expose real progress, close persists edits and attachments, thumbnails, right-column image/video/PDF/text previews, unsafe MIME fallback, scan gating, draft resume, reply attachment, desktop ticker and menu activity counts/top 10, reminders, readonly and 320–2560px layout under production CSP');
+ assert.deepEqual(external,[],'previews, fonts, images and PDF worker are private/same-origin');assert.deepEqual(errors,[]);console.log('PASS: retro per-file upload progress and X cancellation preserve other files, close persists edits and attachments, thumbnails, right-column image/video/PDF/text previews, unsafe MIME fallback, scan gating, draft resume, reply attachment, desktop ticker and menu activity counts/top 10, reminders, readonly and 320–2560px layout under production CSP');
 }finally{await browser?.close();await new Promise(done=>server.close(done));}
