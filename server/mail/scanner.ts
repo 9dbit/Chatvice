@@ -7,19 +7,22 @@ export type AttachmentScanStatus = "pending" | "clean" | "blocked";
  * unrecognized response keeps the attachment in quarantine.
  * Never promote unknown bytes to "clean".
  */
-export async function scanMailAttachment(content: Buffer): Promise<AttachmentScanStatus> {
+export async function scanMailAttachment(content: Buffer, signal?: AbortSignal): Promise<AttachmentScanStatus> {
   if(!Buffer.isBuffer(content) || !content.length || content.length>MAX_MAIL_ATTACHMENT_BYTES)
     return "blocked";
   const host=process.env.CHATVICE_MAIL_CLAMAV_HOST || "";
   const port=Number(process.env.CHATVICE_MAIL_CLAMAV_PORT || "3310");
-  if(!host || !Number.isSafeInteger(port) || port<1 || port>65535) return "pending";
+  if(signal?.aborted || !host || !Number.isSafeInteger(port) || port<1 || port>65535) return "pending";
   return new Promise(resolve=>{
     const socket=createConnection({host,port});
     let finished=false,answer="";
     const finish=(status:AttachmentScanStatus)=>{
       if(finished)return;
-      finished=true;socket.destroy();resolve(status);
+      finished=true;signal?.removeEventListener("abort",cancelScan);socket.destroy();resolve(status);
     };
+    const cancelScan=()=>finish("pending");
+    signal?.addEventListener("abort",cancelScan,{once:true});
+    if(signal?.aborted)cancelScan();
     socket.setTimeout(45000,()=>finish("pending"));
     socket.on("error",()=>finish("pending"));
     socket.on("close",()=>{if(!finished)finish("pending")});
@@ -33,6 +36,7 @@ export async function scanMailAttachment(content: Buffer): Promise<AttachmentSca
       }
     });
     socket.on("connect",()=>{
+      if(finished)return;
       socket.write(Buffer.from("zINSTREAM\0"));
       const step=256*1024;
       for(let start=0;start<content.length;start+=step){
