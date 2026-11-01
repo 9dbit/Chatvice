@@ -135,8 +135,8 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
         `/api/mail/messages/${encodeURIComponent(id)}/attachments`,file,update,
         request=>{activeUpload.current=request}
       );
-      completed+=file.size;
       update(1,"checking");
+      completed+=file.size;
     }
     const updated=await refresh(id);
     if(mounted.current){
