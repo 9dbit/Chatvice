@@ -167,11 +167,11 @@ test("virtual-host S3 endpoint signs bucket in hostname with single-slash object
 });
 
 
-test("an attachment matching the 8477526-byte Hostinger inventory size survives private encrypted storage",async()=>{
+test("a full 25 MB sending attachment survives private encrypted storage",async()=>{
  const names=["CHATVICE_MAIL_S3_ENDPOINT","CHATVICE_MAIL_S3_BUCKET","CHATVICE_MAIL_S3_REGION","CHATVICE_MAIL_S3_URL_STYLE","CHATVICE_MAIL_S3_ACCESS_KEY_ID","CHATVICE_MAIL_S3_SECRET_ACCESS_KEY","CHATVICE_MAIL_ENCRYPTION_KEY"];
  const old=Object.fromEntries(names.map(k=>[k,process.env[k]])),oldFetch=globalThis.fetch;
  Object.assign(process.env,{CHATVICE_MAIL_S3_ENDPOINT:"https://storage.example.invalid",CHATVICE_MAIL_S3_BUCKET:"large-mail-ci",CHATVICE_MAIL_S3_REGION:"auto",CHATVICE_MAIL_S3_URL_STYLE:"path",CHATVICE_MAIL_S3_ACCESS_KEY_ID:"ci-access",CHATVICE_MAIL_S3_SECRET_ACCESS_KEY:"ci-secret",CHATVICE_MAIL_ENCRYPTION_KEY:"f".repeat(64)});
- const source=Buffer.alloc(8477526,67);let stored=Buffer.alloc(0);
+ const source=Buffer.alloc(25_000_000,67);let stored=Buffer.alloc(0);
  globalThis.fetch=async(_input,init)=>{
   if(init?.method==="PUT"){stored=Buffer.from(init.body as Uint8Array);assert.equal(stored.subarray(0,8).toString(),"CVMAILB1");return new Response(null,{status:200});}
   return new Response(stored,{status:200});
@@ -183,3 +183,4 @@ test("an attachment matching the 8477526-byte Hostinger inventory size survives 
   assert.deepEqual(await getPrivateAttachment(key),source);
  }finally{globalThis.fetch=oldFetch;for(const k of names){if(old[k]===undefined)delete process.env[k];else process.env[k]=old[k];}}
 });
+

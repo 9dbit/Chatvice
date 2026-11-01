@@ -257,7 +257,7 @@ app.use((req, res, next) => {
     // remotely hosted fonts/images or active third-party network requests.
     res.setHeader("Content-Security-Policy",
       "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
-      "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; " +
+      "img-src 'self' data: blob:; media-src 'self' blob:; worker-src 'self'; font-src 'self' data:; connect-src 'self'; " +
       "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
     next();
   });

@@ -1,6 +1,7 @@
 import { pool } from "../db";
 import { MailProviderError, sendResendMail } from "./provider";
-import { getPrivateAttachment, MAX_MAIL_ATTACHMENT_BYTES, MAX_MAIL_ATTACHMENTS } from "./object-store";
+import { getPrivateAttachment, MAX_MAIL_ATTACHMENT_BYTES } from "./object-store";
+import {mailAttachmentSizeError} from "../../shared/mail-policy";
 import { decryptMailField, isMailEncryptionReady } from "./crypto";
 
 type Queued = {
@@ -61,8 +62,9 @@ export async function processMailOutboxOnce():Promise<{processed:number;sent:num
           SELECT object_key,original_filename,size_bytes,scan_status FROM mail_attachments
           WHERE tenant_id=$1 AND message_id=$2 ORDER BY created_at ASC`,
           [m.tenant_id,m.id]);
-        if(files.rowCount && (process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED!=="true" ||
-          files.rows.length>MAX_MAIL_ATTACHMENTS))throw new MailProviderError(0,false);
+        if(files.rowCount && process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED!=="true")throw new MailProviderError(0,false);
+        if(mailAttachmentSizeError(files.rows.reduce((n,a)=>n+Number(a.size_bytes),0),files.rows.length))
+          throw new MailProviderError(0,false);
         const attachments:{filename:string;content:string}[]=[];
         let total=0;
         for(const a of files.rows){
@@ -74,7 +76,8 @@ export async function processMailOutboxOnce():Promise<{processed:number;sent:num
           try{contents=await getPrivateAttachment(a.object_key);}
           catch{throw new MailProviderError(0,true);}
           total+=contents.length;
-          if(total>16*1024*1024)throw new MailProviderError(0,false);
+          if(contents.length!==Number(a.size_bytes)||mailAttachmentSizeError(total,files.rows.length))
+            throw new MailProviderError(0,false);
           attachments.push({filename:a.original_filename,content:contents.toString("base64")});
         }
         const providerId=await sendResendMail({
@@ -117,3 +120,4 @@ export function startMailOutboxWorker():void {
   timer.unref?.();
   void tick();
 }
+

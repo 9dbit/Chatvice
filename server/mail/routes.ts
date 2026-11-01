@@ -10,6 +10,7 @@ import { registerMailAIRoutes } from "./ai";
 import { registerMailAttachmentRoutes } from "./attachments";
 import { encryptMailField, decryptMailField, isMailEncryptionReady } from "./crypto";
 import { readableMailText } from "./message-text";
+import {mailAttachmentSizeError} from "../../shared/mail-policy";
 
 const email = z.string().email().max(320).transform(v => v.toLowerCase());
 const uuid = z.string().uuid();
@@ -136,6 +137,53 @@ export function registerMailRoutes(app: Express) {
         FROM mail_messages WHERE tenant_id=$1 AND mailbox_id=$2
         GROUP BY folder,thread_id) threads GROUP BY folder`,[p.tenantId,box]);
     res.json(q.rows);
+  }));
+  app.get("/api/mail/mailboxes/:id/activity",wrap(async(req,res)=>{
+    const p=principal(req)!,box=uuid.parse(req.params.id);
+    if(!await canAccess(p,box))return res.sendStatus(404);
+    const [counts,unread,drafts,reminders]=await Promise.all([
+      pool.query(`SELECT count(*) FILTER(WHERE folder='inbox' AND NOT is_read)::integer AS unread,
+        count(*) FILTER(WHERE folder='spam')::integer AS spam,
+        count(*) FILTER(WHERE folder='drafts' AND status='draft')::integer AS drafts
+        FROM mail_messages WHERE tenant_id=$1 AND mailbox_id=$2`,[p.tenantId,box]),
+      pool.query(`SELECT id,thread_id,from_email,subject,text_body,created_at FROM mail_messages
+        WHERE tenant_id=$1 AND mailbox_id=$2 AND folder='inbox' AND NOT is_read
+        ORDER BY created_at DESC,id DESC LIMIT 10`,[p.tenantId,box]),
+      pool.query(`SELECT id,subject,created_at FROM mail_messages
+        WHERE tenant_id=$1 AND mailbox_id=$2 AND folder='drafts' AND status='draft'
+        ORDER BY created_at DESC,id DESC LIMIT 5`,[p.tenantId,box]),
+      pool.query(`SELECT id,title,to_char(due_date,'YYYY-MM-DD') AS due_date FROM mail_reminders
+        WHERE tenant_id=$1 AND mailbox_id=$2 ORDER BY due_date,id LIMIT 50`,[p.tenantId,box])
+    ]);
+    res.json({counts:counts.rows[0],unread:unread.rows.map(r=>({...r,
+      subject:decryptMailField(p.tenantId,r.id,"message-subject",r.subject),
+      text_body:decryptMailField(p.tenantId,r.id,"message-text",r.text_body).slice(0,140)})),
+      drafts:drafts.rows.map(r=>({...r,subject:decryptMailField(p.tenantId,r.id,"message-subject",r.subject)})),
+      reminders:reminders.rows.map(r=>({...r,title:decryptMailField(p.tenantId,r.id,"reminder-title",r.title)}))});
+  }));
+  app.post("/api/mail/mailboxes/:id/reminders",wrap(async(req,res)=>{
+    const p=principal(req)!,box=uuid.parse(req.params.id);
+    if(!await canAccess(p,box,true))return res.sendStatus(404);
+    const data=z.object({title:z.string().trim().min(1).max(120),dueDate:z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+      .refine(v=>v>="2000-01-01"&&v<="2100-12-31"&&!Number.isNaN(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v)}).parse(req.body);
+    const c=await pool.connect();
+    try{
+      await c.query("BEGIN");
+      await c.query("SELECT id FROM mail_mailboxes WHERE id=$1 AND tenant_id=$2 FOR UPDATE",[box,p.tenantId]);
+      const count=await c.query("SELECT count(*)::integer AS n FROM mail_reminders WHERE tenant_id=$1 AND mailbox_id=$2",[p.tenantId,box]);
+      if(count.rows[0].n>=50){await c.query("ROLLBACK");return res.status(409).json({error:"Maximum 50 reminders per mailbox"});}
+      const id=randomUUID();
+      await c.query("INSERT INTO mail_reminders(id,tenant_id,mailbox_id,title,due_date) VALUES($1,$2,$3,$4,$5)",
+        [id,p.tenantId,box,encryptMailField(p.tenantId,id,"reminder-title",data.title),data.dueDate]);
+      await c.query("COMMIT");res.status(201).json({id});
+    }catch(e){await c.query("ROLLBACK");throw e;}finally{c.release();}
+  }));
+  app.delete("/api/mail/mailboxes/:id/reminders/:reminderId",wrap(async(req,res)=>{
+    const p=principal(req)!,box=uuid.parse(req.params.id),id=uuid.parse(req.params.reminderId);
+    if(!await canAccess(p,box,true))return res.sendStatus(404);
+    const result=await pool.query("DELETE FROM mail_reminders WHERE id=$1 AND tenant_id=$2 AND mailbox_id=$3 RETURNING id",[id,p.tenantId,box]);
+    if(!result.rowCount)return res.sendStatus(404);
+    res.json({removed:true});
   }));
   app.get("/api/mail/threads",wrap(async(req,res)=>{
     const p=principal(req)!;
@@ -309,7 +357,7 @@ export function registerMailRoutes(app: Express) {
     const c=await pool.connect();
     try{
       await c.query("BEGIN");
-      const q=await c.query(`SELECT m.id,m.mailbox_id,m.to_emails FROM mail_messages m
+      const q=await c.query(`SELECT m.id,m.mailbox_id,m.to_emails,m.text_body FROM mail_messages m
         JOIN mail_mailboxes b ON b.id=m.mailbox_id AND b.tenant_id=m.tenant_id
         JOIN mail_domains d ON d.id=b.domain_id AND d.tenant_id=m.tenant_id
         WHERE m.id=$1 AND m.tenant_id=$2 AND m.direction='outbound'
@@ -326,14 +374,18 @@ export function registerMailRoutes(app: Express) {
         return res.status(409).json({error:"Add at least one valid To recipient before sending"});
       }
       const pending=await c.query(`SELECT count(*)::integer AS total,
+        COALESCE(sum(size_bytes),0)::bigint AS bytes,
         count(*) FILTER(WHERE scan_status<>'clean')::integer AS blocked
         FROM mail_attachments WHERE message_id=$1 AND tenant_id=$2`,[id,p.tenantId]);
       const count=pending.rows[0]?.total||0;
       if(count>0 && (process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED!=="true" ||
-         pending.rows[0].blocked>0 || count>8)){
+         pending.rows[0].blocked>0)){
         await c.query("ROLLBACK");
         return res.status(409).json({error:"Attachments must be scanned and approved before sending"});
       }
+      const sizeError=mailAttachmentSizeError(Number(pending.rows[0].bytes),count,
+        Buffer.byteLength(decryptMailField(p.tenantId,id,"message-text",q.rows[0].text_body),"utf8"));
+      if(sizeError){await c.query("ROLLBACK");return res.status(409).json({error:sizeError});}
       await c.query(`UPDATE mail_messages SET status='queued',folder='sent',
         queued_at=now(),next_attempt_at=now(),retry_count=0,lock_acquired_at=NULL
         WHERE id=$1 AND tenant_id=$2`,[id,p.tenantId]);
@@ -425,3 +477,4 @@ export function registerMailRoutes(app: Express) {
   }));
   registerMailAdminRoutes(app);
 }
+

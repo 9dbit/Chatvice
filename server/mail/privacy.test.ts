@@ -43,6 +43,13 @@ test("AI requires explicit per-action consent and does not auto send",()=>{
  assert.match(ai,/CHATVICE_MAIL_AI_ENABLED/);
  assert.match(ai,/redactCommonPII/);
  const ui=read("client/src/pages/dashboard/mail.tsx");
- assert.match(ui,/window\.confirm\(/);
+ const action=ui.slice(ui.indexOf('async function aiTask('),ui.indexOf('async function convertLead('));
+ assert.match(action,/if\(!await confirm\(\{title:"Share an excerpt with AI\?"[\s\S]*?cancel:"Cancel"\}\)\)return;/);
+ assert.ok(action.indexOf('await confirm(')<action.indexOf('await request<'),"consent must precede the AI request");
+ assert.match(action,/acknowledgeExternalProcessing:true/);
+ const dialog=read("client/src/components/mail-dialog.tsx");
+ assert.match(dialog,/role="alertdialog"/);
+ assert.match(dialog,/if \(!open\) finish\(false\)/);
  assert.match(ui,/else reply\(data\.text\)/);
 });
+

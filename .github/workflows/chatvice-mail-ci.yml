@@ -24,6 +24,26 @@ on:
       - "client/mail-qa.html"
       - "client/mail-app.html"
       - "client/src/mail-app-main.tsx"
+      - "client/src/mail-site.css"
+      - "client/src/mail-glass.css"
+      - "client/src/mail-retro.css"
+      - "client/src/mail-motion.css"
+      - "client/src/components/mail-motion.ts"
+      - "client/src/pages/dashboard/mail-compact.css"
+      - "client/src/assets/mail-retro/**"
+      - "client/src/pages/dashboard/mail-activity.tsx"
+      - "client/src/pages/dashboard/mail-pdf-preview.tsx"
+      - "scripts/mail-retro-smoke.mjs"
+      - "scripts/fixtures/mail-preview-video.mp4"
+      - "migrations/20261101_chatvice_mail_reminders_v4.sql"
+      - "client/src/mail-assets.d.ts"
+      - "client/src/assets/mail-glass/**"
+      - "client/src/components/mail-art.tsx"
+      - "client/src/components/mail-dialog.tsx"
+      - "scripts/mail-glass-smoke.mjs"
+      - "client/src/pages/mail-landing.tsx"
+      - "client/src/components/mail-theme.tsx"
+      - "scripts/mail-redesign-smoke.mjs"
       - "vite.mail-app.config.ts"
       - "client/src/mail-qa-main.tsx"
       - "client/src/mail-qa.css"
@@ -50,6 +70,7 @@ on:
     branches:
       - "feature/chatvice-mail-engine-20261026"
       - "fix/chatvice-mail-forwarding-20261101"
+      - "feat/chatvice-mail-redesign-20261101"
 permissions:
   contents: read
 jobs:
@@ -85,7 +106,7 @@ jobs:
       - name: Install from lockfile
         run: npm ci --no-audit --no-fund
       - name: Verify mail security and provider tests
-        run: npx tsx --test server/mail/qa-login.test.ts server/mail/qa-auth.test.ts server/mail/security.test.ts server/mail/delivery.test.ts server/mail/message-text.test.ts scripts/mail-links.test.mjs server/mail/privacy.test.ts server/mail/attachment-security.test.ts server/mail/crypto.test.ts server/mail/binary-crypto.test.ts server/mail/password.test.ts server/mail/backup.test.ts server/mail/recipients.test.ts
+        run: npx tsx --test server/mail/qa-login.test.ts server/mail/qa-auth.test.ts server/mail/security.test.ts server/mail/delivery.test.ts server/mail/message-text.test.ts scripts/mail-links.test.mjs server/mail/privacy.test.ts server/mail/attachment-security.test.ts server/mail/crypto.test.ts server/mail/binary-crypto.test.ts server/mail/password.test.ts server/mail/backup.test.ts server/mail/recipients.test.ts server/mail/preview.test.ts
       - name: Test mail tenant isolation on disposable PostgreSQL
         run: npx tsx --test server/mail/integration.test.ts
       - name: Rehearse encrypted PostgreSQL backup and restore on disposable CI
@@ -105,7 +126,7 @@ jobs:
       - name: Typecheck mail files (report existing app baseline separately)
         run: |
           npm run check > /tmp/chatvice-typecheck.log 2>&1 || TYPECHECK_FAILED=1
-          if grep -E '(server/mail/|shared/mail-|client/src/mail-(app|qa)-main\.tsx|script/build-mail-|vite.mail-|client/src/pages/dashboard/mail(-admin|-attachments|-message-body)?\.tsx)' /tmp/chatvice-typecheck.log; then
+          if grep -E '(server/mail/|shared/mail-|client/src/pages/mail-landing|client/src/components/mail-(theme|dialog|art)|client/src/mail-(app|qa)-main\.tsx|script/build-mail-|vite.mail-|client/src/pages/dashboard/mail(-admin|-attachments|-message-body|-activity|-pdf-preview)?\.tsx)' /tmp/chatvice-typecheck.log; then
             echo "::error::New mail TypeScript diagnostics detected"
             exit 1
           fi
@@ -125,6 +146,18 @@ jobs:
         env:
           CHATVICE_MAIL_SMOKE_OUTPUT: ${{ runner.temp }}/mail-workspace-preview
         run: node --import tsx scripts/mail-workspace-smoke.mjs
+      - name: Verify landing parallax, responsive sidebar, themes and home navigation
+        env:
+          CHATVICE_MAIL_SMOKE_OUTPUT: ${{ runner.temp }}/mail-workspace-preview
+        run: node scripts/mail-redesign-smoke.mjs
+      - name: Verify dialogs, attachment safety and mailbox settings
+        env:
+          CHATVICE_MAIL_SMOKE_OUTPUT: ${{ runner.temp }}/mail-workspace-preview
+        run: node scripts/mail-glass-smoke.mjs
+      - name: Verify retro attachments, desktop ticker and subscription reminders
+        env:
+          CHATVICE_MAIL_SMOKE_OUTPUT: ${{ runner.temp }}/mail-workspace-preview
+        run: node scripts/mail-retro-smoke.mjs
       - name: Verify real browser Origin on QA login form navigation
         run: node --import tsx scripts/mail-qa-login-browser.mjs
       - name: Save synthetic Mail previews
@@ -153,6 +186,8 @@ jobs:
             echo "::error::Tracker detected in private Mail QA HTML"
             exit 1
           fi
+
+
 
 
 

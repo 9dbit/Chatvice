@@ -147,7 +147,7 @@ registerMailRoutes(app);
 const csp=[
  "default-src 'none'","base-uri 'none'","object-src 'none'",
  "script-src 'self'","style-src 'self' 'unsafe-inline'",
- "connect-src 'self'","img-src 'self' data:",
+ "connect-src 'self'","img-src 'self' data: blob:","media-src 'self' blob:","worker-src 'self'",
  "font-src 'self' data:","frame-ancestors 'none'","form-action 'self'"
 ].join("; ");
 const assetPath=resolve("dist/mail-qa/assets");
@@ -176,4 +176,5 @@ const server=app.listen(port,"0.0.0.0",()=>{
 function shutdown(){server.close(()=>pool.end().finally(()=>process.exit(0)));}
 process.once("SIGTERM",shutdown);
 process.once("SIGINT",shutdown);
+
 

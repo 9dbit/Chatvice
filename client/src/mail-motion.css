@@ -1,0 +1,10 @@
+[data-mail-depth]{transform:translate3d(var(--mail-depth-x,0px),var(--mail-depth-y,0px),0);transition:transform .22s ease-out}
+.cm-site{overflow-x:clip}.cm-envelope-scene{isolation:isolate}.cm-scene-note{z-index:1}
+.mail-brand-home{text-decoration:none;color:inherit;min-width:0}
+.mail-reader{position:relative;isolation:isolate}
+.mail-inbox-depth{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:-1}
+.mail-inbox-depth i{display:block;position:absolute;width:100px;height:100px;right:6%;top:16%;border:1px solid var(--mail-accent);opacity:.08}
+.mail-inbox-depth i+ i{width:52px;height:52px;right:11%;top:23%;opacity:.1}
+.mail-inbox-depth i+ i+ i{width:8px;height:8px;right:8%;top:37%;background:var(--mail-accent);opacity:.25}
+.mail-reader-toolbar,.mail-reader-content{position:relative}
+@media(prefers-reduced-motion:reduce){[data-mail-depth]{transform:none!important;transition:none!important}}

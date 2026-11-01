@@ -1,0 +1,19 @@
+{
+  "generatedWith": "Built-in imagegen",
+  "created": "2026-11-01",
+  "purpose": "Approved Chatvice Mail glass redesign; transparent original images encoded as WebP for same-origin delivery.",
+  "assets": [
+    {
+      "key": "hero",
+      "prompt": "Use case: stylized-concept. Asset type: production illustration for Chatvice Mail landing hero. Create an exquisite 3D optical-glass open envelope with two milky frosted-glass letter cards floating gently above its opening, one small translucent warm orange seal on the envelope front. Single cohesive object, three-quarter front view, fills 85 percent of square frame, centered, substantial clear thick rounded glass edges and realistic refraction, soft white studio reflections, restrained warm orange caustics, calm premium product render. Letter cards have just two tiny embossed abstract lines, no readable text. Clear and frosted neutral glass with orange only as a small accent. True transparent background with clean alpha cutout; delicate ambient contact shadow only. Must remain visible against light and dark UI. No UI screenshot, no environment, no checkerboard, no logo, no text, no watermark, no purple, no blue."
+    },
+    {
+      "key": "inbox",
+      "prompt": "Use case: stylized-concept. Asset type: production empty inbox illustration for Chatvice Mail. Create a premium 3D frosted-glass inbox tray holding two upright translucent glass letters, with one small warm amber orange glass sphere nestled at the corner. Single cohesive object, friendly simple silhouette, three-quarter front view, centered and fills 80 percent of square frame. Thick optical clear glass bevels, milky frosted interior, realistic refraction, soft studio reflections and subtle orange caustics. Neutral clear/white glass, orange accent only. True transparent background and clean alpha cutout, delicate ambient contact shadow. Must remain visible against both light and dark UI. No UI screenshot, no typography, no logo, no environment, no checkerboard, no watermark, no purple, no blue."
+    },
+    {
+      "key": "secure",
+      "prompt": "Use case: stylized-concept. Asset type: production secure login illustration for Chatvice Mail. A beautiful 3D translucent frosted-glass closed envelope with a small warm orange glass padlock in front, rounded metallic-clear glass shackle, premium optical glass with thick beveled edges, subtle realistic refraction, white studio highlights and gentle amber caustics. Single cohesive centered object, three-quarter front view, fills 80 percent of square frame. Calm friendly minimalist material design. Neutral milky clear glass and restrained orange accent only. True transparent background with clean alpha cutout, delicate ambient contact shadow. Visible on both light and dark UI. No typography, no logo, no background scene, no UI, no checkerboard, no watermark, no purple, no blue."
+    }
+  ]
+}

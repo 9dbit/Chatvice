@@ -1,9 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { pool } from "../db";
-import { MAX_MAIL_ATTACHMENTS, MAX_MAIL_ATTACHMENT_BYTES } from "./object-store";
+import { MAX_MAIL_ATTACHMENT_BYTES, MAX_MAIL_INBOUND_ATTACHMENTS, MAX_MAIL_INBOUND_ATTACHMENT_BYTES, mailAttachmentSizeError } from "../../shared/mail-policy";
 import type { AttachmentScanStatus } from "./scanner";
 
-const MAX_MESSAGE_BYTES=16*1024*1024;
 export class MailAttachmentPolicyError extends Error {
   constructor(public readonly reason:string){super(reason);}
 }
@@ -16,7 +15,7 @@ type AttachmentInput = {
  *  The mailbox row lock serializes competing upload requests.
  */
 export async function registerAttachment(input:AttachmentInput):Promise<"created"|"duplicate">{
-  if(!input.length || input.length>MAX_MAIL_ATTACHMENT_BYTES ||
+  if(!Number.isSafeInteger(input.length) || input.length<=0 || input.length>MAX_MAIL_ATTACHMENT_BYTES ||
      input.filename.length>180 || input.key.length>300)
     throw new MailAttachmentPolicyError("Attachment exceeds policy");
   const client=await pool.connect();
@@ -47,11 +46,16 @@ export async function registerAttachment(input:AttachmentInput):Promise<"created
       WHERE m.mailbox_id=$1 AND a.tenant_id=$2`,[
       locked.rows[0].mailbox_id,input.tenantId
     ]);
-    if(Number(message.rows[0].n)>=MAX_MAIL_ATTACHMENTS ||
-       Number(message.rows[0].size)+input.length>MAX_MESSAGE_BYTES ||
-       Number(mailbox.rows[0].size)+input.length>Number(locked.rows[0].quota_bytes)){
-      throw new MailAttachmentPolicyError("Mailbox or message attachment quota exceeded");
+    const total=Number(message.rows[0].size)+input.length,count=Number(message.rows[0].n)+1;
+    if(input.expectedMessageStatus==="received"){
+      if(count>MAX_MAIL_INBOUND_ATTACHMENTS || total>MAX_MAIL_INBOUND_ATTACHMENT_BYTES)
+        throw new MailAttachmentPolicyError("Inbound attachment quota exceeded");
+    }else{
+      const issue=mailAttachmentSizeError(total,count);
+      if(issue)throw new MailAttachmentPolicyError(issue);
     }
+    if(Number(mailbox.rows[0].size)+input.length>Number(locked.rows[0].quota_bytes))
+      throw new MailAttachmentPolicyError("Mailbox storage quota exceeded");
     const inserted=await client.query(`INSERT INTO mail_attachments
        (id,tenant_id,message_id,object_key,original_filename,media_type,size_bytes,scan_status,provider_attachment_id)
        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)
@@ -65,3 +69,4 @@ export async function registerAttachment(input:AttachmentInput):Promise<"created
   }catch(err){await client.query("ROLLBACK");throw err;}
   finally{client.release();}
 }
+

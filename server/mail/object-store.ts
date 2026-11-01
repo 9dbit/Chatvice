@@ -1,8 +1,8 @@
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { encryptMailBinary, decryptMailBinary, MAIL_BINARY_OVERHEAD } from "./crypto";
 
-import { MAX_MAIL_ATTACHMENT_BYTES, MAX_MAIL_ATTACHMENTS } from "../../shared/mail-policy";
-export { MAX_MAIL_ATTACHMENT_BYTES, MAX_MAIL_ATTACHMENTS } from "../../shared/mail-policy";
+import { MAX_MAIL_ATTACHMENT_BYTES } from "../../shared/mail-policy";
+export { MAX_MAIL_ATTACHMENT_BYTES } from "../../shared/mail-policy";
 
 type PrivateStorageSettings = {
   bucket:string; accessKeyId:string; secretAccessKey:string;
@@ -129,4 +129,5 @@ export async function deletePrivateAttachment(key:string):Promise<void>{
     redirect:"manual",signal:AbortSignal.timeout(15000)});
   if(!result.ok && result.status!==404)throw new Error("Private object deletion failed");
 }
+
 

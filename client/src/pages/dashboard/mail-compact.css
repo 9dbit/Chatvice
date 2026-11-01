@@ -1,0 +1,83 @@
+/* Inbox-first layout: navigation is an on-demand right drawer. */
+.mail-workspace .mail-grid{display:grid;grid-template-columns:370px minmax(0,1fr);padding:0;gap:0;min-height:0;overflow:hidden}
+.mail-workspace .mail-topbar{height:66px;min-height:66px;padding:10px 20px;background:#252523;transition:height .18s,min-height .18s,padding .18s}
+.mail-workspace .mail-topbar-compact{height:46px;min-height:46px;padding-top:4px;padding-bottom:4px}
+.mail-topbar-compact .mail-brand p{display:none}
+.mail-topbar-compact .mail-brand h1{font-size:21px}
+.mail-topbar-compact .mail-brand-icon{width:30px;height:30px}
+.mail-workspace-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:5px 20px;border-bottom:1px solid var(--mail-border);background:var(--mail-bg);flex-shrink:0}
+.mail-workspace-actions>span{font-size:10px;line-height:1.5;min-width:0;overflow-wrap:anywhere;color:var(--mail-muted)}
+.mail-workspace .mail-button,.mail-modal .mail-button{min-height:37.8px;padding-left:16.2px;padding-right:16.2px;font-size:10px;gap:7.2px}
+.mail-workspace .mail-icon-btn{width:39.6px;height:39.6px;min-height:39.6px}
+.mail-workspace .mail-pagination .mail-icon-btn{width:32.4px;height:32.4px;min-height:32.4px}
+.mail-workspace .mail-topbar .mail-primary{background:var(--mail-accent);color:#252523}
+.mail-workspace .mail-list-heading{padding:14px 18px 8px;min-height:0}
+.mail-workspace .mail-list-heading h2{font-size:28px}
+.mail-workspace .mail-list-controls{display:flex;align-items:center;gap:5px;padding:0 14px 12px;flex-shrink:0}
+.mail-list-controls .mail-filter-tabs{display:flex;flex:1;min-width:0;gap:3px;padding:0;margin:0;border:0;background:transparent;box-shadow:none}
+.mail-list-controls .mail-filter-tabs button{flex:1;min-width:0;min-height:32.4px;padding:6px;font-size:10px}
+.mail-workspace .mail-list-controls>.mail-icon-btn{height:32.4px;min-height:32.4px;width:32.4px;position:relative}
+.mail-search-active{color:var(--mail-link)!important;border-color:var(--mail-accent)!important}
+.mail-search-active i{position:absolute;right:4px;top:4px;width:4px;height:4px;background:var(--mail-accent)}
+.mail-search-drawer{flex-shrink:0;padding:0 14px 12px;animation:mail-search-reveal .15s ease-out}
+.mail-search-drawer .mail-search{margin:0;min-height:40px;padding:0 8px;gap:6px}
+.mail-search-drawer .mail-search input{width:100%;min-width:0;font-size:12px}
+.mail-search-drawer button{display:grid;place-items:center;min-width:28px;min-height:32px;padding:0;background:transparent;border:0;color:var(--mail-text);cursor:pointer}
+.mail-search-drawer small{display:block;color:var(--mail-muted);font-size:9px;margin-top:6px}
+.mail-thread-scroll,.mail-reader-content{overflow-anchor:none}
+.mail-workspace .mail-thread-list,.mail-workspace .mail-reader{border-radius:0}
+.mail-workspace .mail-reader-toolbar{min-height:58px;padding-top:9px;padding-bottom:9px}
+.mail-workspace .mail-reader-toolbar .mail-icon-btn{width:39.6px;height:39.6px;min-height:39.6px}
+.mail-modal.mail-menu-drawer{width:min(360px,100%);padding:24px 20px max(20px,env(safe-area-inset-bottom));gap:12px}
+.mail-menu-drawer .mail-menu-sidebar{display:flex;flex-direction:column;flex:1;min-height:0;overflow:visible;gap:18px;padding:0;background:transparent;border:0}
+.mail-menu-drawer .mail-account{display:block}
+.mail-menu-drawer .mail-account label,.mail-menu-drawer .mail-access{display:block}
+.mail-menu-drawer .mail-account select{display:block;width:100%;max-width:100%;min-height:40px;margin:10px 0;font-family:var(--mail-font);font-size:12px}
+.mail-menu-drawer .mail-folder-links{display:flex;flex-direction:column;overflow:visible;gap:4px;padding:0}
+.mail-menu-drawer .mail-folder{display:flex;min-height:38.7px;gap:10px;padding:0 12px;width:100%;font-family:var(--mail-font);font-size:11px;text-decoration:none;color:var(--mail-text);cursor:pointer}
+.mail-menu-drawer .mail-folder-count{margin-left:auto}
+.mail-menu-drawer .mail-sidebar-footer{display:block;margin-top:auto;padding-top:18px}
+.mail-menu-drawer .mail-sidebar-footer>svg,.mail-menu-drawer .mail-sidebar-footer>strong,.mail-menu-drawer .mail-sidebar-footer>p{display:none}
+.mail-menu-theme{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--mail-muted)}
+.mail-activity-summary{display:flex;gap:6px;flex-wrap:wrap}
+.mail-modal .mail-compose-footer button{min-height:37.8px}
+@keyframes mail-search-reveal{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+@media(min-width:1700px){.mail-workspace .mail-grid{grid-template-columns:410px minmax(0,1fr)}}
+@media(max-width:900px){.mail-workspace .mail-grid{display:flex;flex-direction:column}.mail-workspace .mail-topbar{padding-left:14px;padding-right:14px;height:60px;min-height:60px}.mail-workspace .mail-topbar-compact{height:44px;min-height:44px}.mail-workspace .mail-workspace-actions{padding-left:14px;padding-right:14px}.mail-workspace .mail-brand h1{font-size:22px}.mail-workspace .mail-topbar-compact .mail-brand h1{font-size:20px}.mail-workspace .mail-list-controls{gap:6px}.mail-workspace .mail-topbar .mail-button{min-height:36px;padding:0 12px}.mail-search-drawer .mail-search input,.mail-menu-drawer .mail-account select{font-size:16px}.mail-workspace-actions>span{font-size:9px}.mail-workspace .mail-reader-content{padding-bottom:max(24px,env(safe-area-inset-bottom))}.mail-menu-drawer .mail-account-profile{display:flex}}
+@media(prefers-reduced-motion:reduce){.mail-workspace .mail-topbar,.mail-search-drawer{transition:none;animation:none}}
+
+/* Desktop keeps navigation at the far left; mobile uses the right drawer. */
+.mail-workspace .mail-brand-home{color:inherit;text-decoration:none}
+@media(min-width:901px){
+ .mail-workspace .mail-grid{grid-template-columns:216px 330px minmax(0,1fr)}
+ .mail-workspace.mail-sidebar-collapsed .mail-grid{grid-template-columns:64px 330px minmax(0,1fr)}
+ .mail-desktop-sidebar{padding:12px;gap:16px;border-right:1px solid var(--mail-border);background:var(--mail-soft);scrollbar-width:thin;overflow-x:hidden}
+ .mail-sidebar-heading{display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:9px;color:var(--mail-muted);letter-spacing:1px;flex-shrink:0}
+ .mail-workspace .mail-sidebar-heading .mail-icon-btn{width:32px;height:32px;min-height:32px}
+ .mail-desktop-sidebar .mail-account label{display:none}
+ .mail-desktop-sidebar .mail-account select{width:100%;margin:0 0 8px;min-height:38px;font-family:var(--mail-font)}
+ .mail-desktop-sidebar .mail-folder{min-height:38.7px;gap:10px;padding:0 10px;flex-shrink:0;text-decoration:none;color:var(--mail-text)}
+ .mail-desktop-sidebar .mail-folder-links{gap:4px}
+ .mail-desktop-sidebar .mail-folder>span:not(.mail-folder-count){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .mail-desktop-sidebar .mail-folder>svg{flex-shrink:0}
+ .mail-desktop-sidebar .mail-folder-count{margin-left:auto}
+ .mail-desktop-sidebar .mail-sidebar-footer{padding:12px 0 0;margin-top:auto}
+ .mail-desktop-sidebar .mail-account-profile{margin-top:8px;flex-wrap:wrap;gap:8px}
+ .mail-desktop-sidebar .mail-account-profile>.mail-avatar{width:30px;height:30px;font-size:11px}
+ .mail-desktop-sidebar .mail-account-profile>div{flex-basis:110px}
+ .mail-desktop-sidebar .mail-account-profile small{font-size:9px}
+ .mail-desktop-sidebar.is-collapsed{padding:12px 8px;gap:12px}
+ .mail-desktop-sidebar.is-collapsed .mail-sidebar-heading{justify-content:center}
+ .mail-desktop-sidebar.is-collapsed .mail-sidebar-heading>span,.mail-desktop-sidebar.is-collapsed .mail-folder>span,.mail-desktop-sidebar.is-collapsed .mail-menu-theme>span,.mail-desktop-sidebar.is-collapsed .mail-sidebar-footer>span,.mail-desktop-sidebar.is-collapsed .mail-account-profile>.mail-avatar,.mail-desktop-sidebar.is-collapsed .mail-account-profile>div{display:none}
+ .mail-desktop-sidebar.is-collapsed .mail-folder,.mail-desktop-sidebar.is-collapsed .mail-menu-theme,.mail-desktop-sidebar.is-collapsed .mail-account-profile{justify-content:center;padding-left:0;padding-right:0}
+ .mail-desktop-sidebar.is-collapsed .mail-sidebar-footer{padding-left:0;padding-right:0}
+ .mail-desktop-sidebar.is-collapsed .mail-account-profile{margin:0}
+ .mail-desktop-sidebar.is-collapsed .mail-menu-theme .mail-icon-btn{width:38px;height:38px;min-height:38px}
+ .mail-desktop-activity{min-height:40px}
+ .mail-desktop-activity button{min-height:38px}
+ .mail-ticker-track{animation-duration:120s}
+}
+@media(min-width:1700px){.mail-workspace .mail-grid{grid-template-columns:236px 390px minmax(0,1fr)}.mail-workspace.mail-sidebar-collapsed .mail-grid{grid-template-columns:64px 390px minmax(0,1fr)}}
+@media(min-width:901px) and (max-width:1100px){.mail-workspace .mail-grid{grid-template-columns:190px 300px minmax(0,1fr)}.mail-workspace.mail-sidebar-collapsed .mail-grid{grid-template-columns:64px 300px minmax(0,1fr)}.mail-desktop-sidebar{padding:10px 8px}.mail-desktop-sidebar .mail-folder{font-size:10px;padding:0 8px}.mail-activity-counts button{padding:0 8px}}
+@media(max-width:900px){.mail-desktop-sidebar,.mail-desktop-activity{display:none}}
+@media(prefers-reduced-motion:reduce){.mail-desktop-activity .mail-ticker-track{animation:none!important}.mail-desktop-activity .mail-ticker-copy+ .mail-ticker-copy{display:none}.mail-desktop-activity .mail-ticker{overflow:hidden}}

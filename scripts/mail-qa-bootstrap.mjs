@@ -13,6 +13,8 @@ const domain="qa-mail.example.invalid";
 const deliveryFile="20261027_chatvice_mail_delivery_recipients_v3.sql";
 const deliverySQL=readFileSync("migrations/"+deliveryFile,"utf8");
 const deliverySHA=createHash("sha256").update(deliverySQL).digest("hex");
+const reminderSQL=readFileSync("migrations/20261101_chatvice_mail_reminders_v4.sql","utf8");
+const reminderSHA=createHash("sha256").update(reminderSQL).digest("hex");
 const withoutTransaction=sql=>sql.replace(/^\s*(BEGIN|COMMIT);\s*$/gm,"");
 const expectedTables=["merchants","supervisors","leads","mail_domains","mail_mailboxes",
  "mail_memberships","mail_aliases","mail_threads","mail_messages","mail_attachments",
@@ -43,7 +45,7 @@ async function main(){
    const existing=await client.query(`SELECT table_schema,table_name FROM information_schema.tables
      WHERE table_schema NOT IN ('pg_catalog','information_schema') AND table_type='BASE TABLE' ORDER BY table_name`);
    if(existing.rows.some(x=>x.table_name==="chatvice_mail_qa_bootstrap")){
-     if(existing.rows.some(x=>x.table_schema!=="public"||!expectedTables.includes(x.table_name))||
+     if(existing.rows.some(x=>x.table_schema!=="public"||!expectedTables.includes(x.table_name)&&x.table_name!=="mail_reminders")||
         expectedTables.some(name=>!existing.rows.some(x=>x.table_name===name)))
        throw new Error("QA schema contains unmanaged or missing tables; refuse upgrade");
      const count=await client.query("SELECT count(*)::integer AS n FROM chatvice_mail_qa_bootstrap WHERE id=1");
@@ -66,6 +68,16 @@ async function main(){
        const recorded=await client.query("SELECT delivery_schema_sha256 FROM chatvice_mail_qa_bootstrap WHERE id=1");
        if(recorded.rows[0]?.delivery_schema_sha256!==deliverySHA)throw new Error("QA delivery migration history mismatch");
      }
+     const reminderMarker=await client.query("SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='chatvice_mail_qa_bootstrap' AND column_name='reminder_schema_sha256'");
+     if(!reminderMarker.rowCount){
+       if(existing.rows.some(t=>t.table_name==="mail_reminders"))throw new Error("Unrecorded QA reminder schema");
+       await client.query(withoutTransaction(reminderSQL));
+       await client.query("ALTER TABLE chatvice_mail_qa_bootstrap ADD COLUMN reminder_schema_sha256 char(64)");
+       await client.query("UPDATE chatvice_mail_qa_bootstrap SET reminder_schema_sha256=$1 WHERE id=1",[reminderSHA]);
+     }else{
+       const reminderHistory=await client.query("SELECT reminder_schema_sha256 FROM chatvice_mail_qa_bootstrap WHERE id=1");
+       if(reminderHistory.rows[0]?.reminder_schema_sha256!==reminderSHA||!existing.rows.some(t=>t.table_name==="mail_reminders"))throw new Error("QA reminder migration history mismatch");
+     }
      await recipientColumn(client);
      await client.query("COMMIT");
      console.log("[Mail QA] Disposable schema delivery migration verified");
@@ -85,6 +97,7 @@ async function main(){
    await client.query(withoutTransaction(readFileSync("migrations/20261026_chatvice_mail_attachments_v2.sql","utf8")));
    await client.query(withoutTransaction(deliverySQL));
    await recipientColumn(client);
+   await client.query(withoutTransaction(reminderSQL));
    await client.query("INSERT INTO merchants(id) VALUES($1)",[tenant]);
    // Demo-only .invalid test domain; cannot be sent from via Resend.
    const {randomUUID}=await import("node:crypto");
@@ -96,8 +109,8 @@ async function main(){
      id,tenant_id,domain_id,local_part,display_name)
      VALUES($1,$2,$3,'hello','QA Sandbox Mailbox')`,[mailboxId,tenant,domainId]);
    await client.query(`CREATE TABLE chatvice_mail_qa_bootstrap(
-      id integer PRIMARY KEY CHECK(id=1),completed_at timestamptz NOT NULL DEFAULT now(),delivery_schema_sha256 char(64))`);
-   await client.query("INSERT INTO chatvice_mail_qa_bootstrap(id,delivery_schema_sha256) VALUES(1,$1)",[deliverySHA]);
+      id integer PRIMARY KEY CHECK(id=1),completed_at timestamptz NOT NULL DEFAULT now(),delivery_schema_sha256 char(64),reminder_schema_sha256 char(64))`);
+   await client.query("INSERT INTO chatvice_mail_qa_bootstrap(id,delivery_schema_sha256,reminder_schema_sha256) VALUES(1,$1,$2)",[deliverySHA,reminderSHA]);
    await client.query("COMMIT");
    console.log("[Mail QA] Isolated empty database initialized with synthetic test identity");
  }catch(error){
@@ -112,3 +125,4 @@ main().catch(err=>{
  console.error("[Mail QA] "+(err instanceof Error?err.message:"Bootstrap failed"));
  process.exitCode=1;
 });
+
