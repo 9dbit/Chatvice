@@ -164,7 +164,7 @@ export function registerMailPublicShareRoute(app:Express):void{
         SELECT a.id,a.message_id,a.tenant_id,a.object_key,a.original_filename,a.scan_status,
           m.status,m.queued_at FROM mail_attachments a JOIN mail_messages m
           ON m.id=a.message_id AND m.tenant_id=a.tenant_id
-          WHERE a.id=$1 AND m.direction='outbound' AND m.status='sent'
+          WHERE a.id=$1 AND m.direction='outbound' AND m.status IN ('sent','delivered')
           AND a.scan_status='clean' LIMIT 1`,[id]);
       const a=q.rows[0];
       if(!a||!a.queued_at||!shareTokenValid(id,a.message_id,expires,req.query.token)||
