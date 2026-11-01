@@ -1,5 +1,5 @@
 import { normalizeEmail } from "./security";
-import {MAX_MAIL_ATTACHMENT_BYTES,MAX_MAIL_ENCODED_MESSAGE_BYTES,mailAttachmentSizeError} from "../../shared/mail-policy";
+import {MAX_MAIL_ATTACHMENT_BYTES,MAX_MAIL_ENCODED_MESSAGE_BYTES,mailNativeAttachmentSizeError} from "../../shared/mail-policy";
 
 type SendRequest = {
   id: string; from: string; to: string[]; cc: string[]; bcc: string[];
@@ -35,7 +35,7 @@ export async function sendResendMail(message: SendRequest, apiKey: string): Prom
         throw new MailProviderError(0,false);
       const bytes=Buffer.from(file.content,"base64");total+=bytes.length;
       if(!bytes.length || bytes.length>MAX_MAIL_ATTACHMENT_BYTES ||
-         bytes.toString("base64")!==file.content || mailAttachmentSizeError(total,message.attachments!.length,Buffer.byteLength(message.text,"utf8")))
+         bytes.toString("base64")!==file.content || mailNativeAttachmentSizeError(total,message.attachments!.length,Buffer.byteLength(message.text,"utf8")))
         throw new MailProviderError(0,false);
       return {filename:file.filename,content:file.content};
     });
