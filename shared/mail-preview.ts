@@ -1,7 +1,7 @@
 /** Ignore claimed MIME types. Only inert raster/media signatures are embedded. */
 export function mailPreviewType(bytes:Uint8Array,filename:string):string|null {
  const starts=(signature:number[])=>signature.every((v,i)=>bytes[i]===v);
- const ascii=(start:number,end:number)=>String.fromCharCode(...bytes.slice(start,end));
+ const ascii=(start:number,end:number)=>String.fromCharCode(...Array.from(bytes.slice(start,end)));
  if(starts([137,80,78,71,13,10,26,10]))return "image/png";
  if(starts([255,216,255]))return "image/jpeg";
  if(ascii(0,6)==="GIF87a"||ascii(0,6)==="GIF89a")return "image/gif";
