@@ -56,6 +56,7 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
  const [saving,setSaving]=useState(false),[acting,setActing]=useState(false),[aiLoading,setAiLoading]=useState(false);
  const [uploading,setUploading]=useState(false),[attachmentsReady,setAttachmentsReady]=useState(true);
  const draftOperation=useRef<Promise<string>|null>(null);
+ const closingEditor=useRef(false);
  const [openingDraft,setOpeningDraft]=useState(false),[showCopies,setShowCopies]=useState(false);
  const [aiSummary,setAiSummary]=useState(""),[reload,setReload]=useState(0);
  const desktop=useDesktopMail();
@@ -121,9 +122,19 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
   return()=>abort.abort();
  },[selected?.id,reload]);
  async function closeEditor(){
-  if(saving||uploading)return;
-  if(dirty&&!await confirm({description:"Only your unsaved edits will be discarded. Saved drafts will remain in Drafts."}))return;
-  setEditor(null);
+  // Closing a composer is a save action, never a discard action. Keep the
+  // modal mounted until the server confirms the private draft is durable.
+  if(!editor||saving||uploading||closingEditor.current||draftOperation.current)return;
+  closingEditor.current=true;
+  try{
+   if(dirty||!editor.draftId)await persistDraft();
+   setEditor(null);
+   setNotice("Message saved to Drafts.");
+  }catch(e:any){
+   // Do not dismiss on a network/validation failure: the typed content must
+   // stay editable rather than silently disappear.
+   setError(e?.message||"Could not save your draft. Please retry.");
+  }finally{closingEditor.current=false;}
  }
  async function openEditor(next:Editor){
   if(!canWrite||saving||uploading)return;
@@ -290,7 +301,7 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
    {navigation()}
   </DialogContent></Dialog>
   <MailActivity key={box} desktop={desktop} open={panel==="activity"} onOpenChange={open=>setPanel(open?"activity":null)} returnFocusRef={menuRef} mailboxId={box} canWrite={canWrite} reload={reload} onFolder={(next,nextFilter="all")=>navigate(next,nextFilter)} onDraft={id=>{void openDraft(id);}} onMessage={m=>{navigate("inbox","all");setSelected({...m,id:m.thread_id,is_read:false,is_starred:false,message_count:1});}}/>
-  <Dialog open={Boolean(editor)} onOpenChange={open=>{if(!open)closeEditor();}}><DialogContent className="mail-composer" closeDisabled={saving||uploading} onInteractOutside={event=>event.preventDefault()} onEscapeKeyDown={event=>{event.preventDefault();closeEditor();}}>
+  <Dialog open={Boolean(editor)} onOpenChange={open=>{if(!open)void closeEditor();}}><DialogContent className="mail-composer" closeDisabled={saving||uploading} onInteractOutside={event=>event.preventDefault()} onEscapeKeyDown={event=>{event.preventDefault();void closeEditor();}}>
    <DialogTitle>{editor?.draftId?"Edit draft":"New message"}</DialogTitle><DialogDescription>From {currentBox?.local_part}@{currentBox?.domain}</DialogDescription>
    {editor&&<><div className={`mail-compose-layout ${cap.attachments?"has-attachments":""}`}><div className="mail-compose-writing"><label className="mail-compose-field">To<input autoFocus aria-label="Recipients" placeholder="address@example.com, another@example.com" disabled={saving||uploading} value={editor.to} onChange={e=>setEditor({...editor,to:e.target.value})}/>{!showCopies&&<button className="mail-copy-toggle" type="button" disabled={saving||uploading} onClick={()=>setShowCopies(true)}>CC / BCC</button>}</label>
     {showCopies&&<><label className="mail-compose-field">CC<input aria-label="CC recipients" placeholder="Copy recipients" disabled={saving||uploading} value={editor.cc} onChange={e=>setEditor({...editor,cc:e.target.value})}/></label><label className="mail-compose-field">BCC<input aria-label="BCC recipients" placeholder="Hidden from other recipients" disabled={saving||uploading} value={editor.bcc} onChange={e=>setEditor({...editor,bcc:e.target.value})}/></label></>}
@@ -300,7 +311,7 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
     </div>{cap.attachments&&<MailAttachments messageId={editor.draftId} allowUpload={!saving} ensureDraft={persistDraft} onBusyChange={setUploading} onSendReady={setAttachmentsReady} onChanged={()=>setReload(n=>n+1)}/>}</div>
     {cap.attachments&&!attachmentsReady&&!uploading&&editor.draftId&&<p className="mail-compose-help">Check pending or blocked attachments before sending.</p>}
     {!cap.outbound&&<p className="mail-compose-help"><LockKeyhole size={13}/> Sending is unavailable for this workspace. You can save drafts.</p>}
-    <footer className="mail-compose-footer"><span role="status">{uploading?"Uploading files…":saving?"Saving…":editor.draftId&&!dirty?"Draft saved privately":dirty?"Unsaved changes":"Private message"}</span><button className="mail-button" disabled={saving||uploading} onClick={()=>submit(true)}><FileText size={15}/> Save draft</button><button className="mail-button mail-primary" title={!cap.outbound?"Sending is not configured for this workspace":undefined} disabled={saving||uploading||!attachmentsReady||!parseMailRecipients(editor.to).length||!cap.outbound} onClick={()=>submit(false)}><Send size={15}/> Send message</button></footer>
+    <footer className="mail-compose-footer"><span role="status">{uploading?"Uploading and scanning files…":saving||closingEditor.current?"Saving to Drafts…":editor.draftId&&!dirty?"Draft saved privately":dirty?"Unsaved changes · closing saves to Drafts":"Closing saves to Drafts"}</span><button className="mail-button" disabled={saving||uploading} onClick={()=>submit(true)}><FileText size={15}/> Save draft</button><button className="mail-button mail-primary" title={!cap.outbound?"Sending is not configured for this workspace":undefined} disabled={saving||uploading||!attachmentsReady||!parseMailRecipients(editor.to).length||!cap.outbound} onClick={()=>submit(false)}><Send size={15}/> Send message</button></footer>
    </>}
   </DialogContent></Dialog>
   {confirmation}

@@ -72,6 +72,7 @@ on:
       - "fix/chatvice-mail-forwarding-20261101"
       - "feat/chatvice-mail-redesign-20261101"
       - "fix/chatvice-mail-40mb-secure-links-20261102"
+      - "feat/mail-upload-progress-autodraft-20261102"
 permissions:
   contents: read
 jobs:
