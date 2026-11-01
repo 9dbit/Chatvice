@@ -83,7 +83,7 @@ try{
  await page.getByLabel('Upload attachments',{exact:true}).setInputFiles({name:'Budget boundary.bin',mimeType:'application/octet-stream',buffer:Buffer.alloc(remaining,65)});
  await page.getByRole('button',{name:'Preview Budget boundary.bin',exact:true}).waitFor();await page.waitForFunction(()=>!document.querySelector('input[type=file]').disabled);
  assert.equal(uploads,beforeLimitUploads+1);assert.equal(files.reduce((n,f)=>n+f.size_bytes,0),40_000_000);
- await page.getByLabel('Attachment storage used').filter({hasText:'40.00 MB / 40 MB used'}).waitFor();
+ await page.getByLabel('Attachment storage used').filter({hasText:'40.00 MB / 40 MB used'}).waitFor();await page.getByText(/Secure-link delivery:/).waitFor();
  await page.getByLabel('Upload attachments',{exact:true}).setInputFiles({name:'Over budget.txt',mimeType:'text/plain',buffer:Buffer.from('x')});
  await page.getByRole('alert').filter({hasText:'Attachments exceed 40 MB total per email.'}).waitFor();assert.equal(uploads,beforeLimitUploads+1,'over-limit files never upload');
  await page.getByRole('button',{name:'Remove Budget boundary.bin',exact:true}).click();await page.getByRole('button',{name:'Preview Budget boundary.bin',exact:true}).waitFor({state:'hidden'});
