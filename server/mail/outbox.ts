@@ -72,14 +72,21 @@ export async function processMailOutboxOnce():Promise<{processed:number;sent:num
           const expires=Math.floor(new Date(m.queued_at).getTime()/1000)+MAIL_SHARE_LINK_DAYS*86400;
           const origin=process.env.CHATVICE_MAIL_APP_ORIGIN||"";
           if(!/^https:\/\/[a-z0-9.-]+$/.test(origin))throw new MailProviderError(0,false);
-          const lines=files.rows.map(a=>{
+          const lines:string[]=[];
+          for(const a of files.rows){
             if(a.scan_status!=="clean"||Number(a.size_bytes)>MAX_MAIL_ATTACHMENT_BYTES ||
                !a.object_key.startsWith(`mail/${m.tenant_id}/${m.id}/`))
               throw new MailProviderError(0,false);
+            // A link must not be sent before the encrypted object has been
+            // retrieved, authenticated and checked for its expected length.
+            let stored:Buffer;
+            try{stored=await getPrivateAttachment(a.object_key);}
+            catch{throw new MailProviderError(0,true);}
+            if(stored.length!==Number(a.size_bytes))throw new MailProviderError(0,false);
             const token=createMailShareToken(a.id,m.id,expires);
-            return a.original_filename+" ("+(Number(a.size_bytes)/1000000).toFixed(2)+" MB): "+origin+
-              "/api/mail/shared/"+a.id+"?expires="+expires+"&token="+token;
-          });
+            lines.push(a.original_filename+" ("+(Number(a.size_bytes)/1000000).toFixed(2)+" MB): "+origin+
+              "/api/mail/shared/"+a.id+"?expires="+expires+"&token="+token);
+          }
           const notice="\n\nPrivate files ("+(totalBytes/1000000).toFixed(2)+
             " MB total). Download links expire in "+MAIL_SHARE_LINK_DAYS+
             " days. Anyone holding a link can download that file:\n"+lines.join("\n");
