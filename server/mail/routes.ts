@@ -10,6 +10,7 @@ import { registerMailAIRoutes } from "./ai";
 import { registerMailAttachmentRoutes } from "./attachments";
 import { encryptMailField, decryptMailField, isMailEncryptionReady } from "./crypto";
 import { readableMailText } from "./message-text";
+import {mailAttachmentSizeError} from "../../shared/mail-policy";
 
 const email = z.string().email().max(320).transform(v => v.toLowerCase());
 const uuid = z.string().uuid();
@@ -356,7 +357,7 @@ export function registerMailRoutes(app: Express) {
     const c=await pool.connect();
     try{
       await c.query("BEGIN");
-      const q=await c.query(`SELECT m.id,m.mailbox_id,m.to_emails FROM mail_messages m
+      const q=await c.query(`SELECT m.id,m.mailbox_id,m.to_emails,m.text_body FROM mail_messages m
         JOIN mail_mailboxes b ON b.id=m.mailbox_id AND b.tenant_id=m.tenant_id
         JOIN mail_domains d ON d.id=b.domain_id AND d.tenant_id=m.tenant_id
         WHERE m.id=$1 AND m.tenant_id=$2 AND m.direction='outbound'
@@ -373,14 +374,18 @@ export function registerMailRoutes(app: Express) {
         return res.status(409).json({error:"Add at least one valid To recipient before sending"});
       }
       const pending=await c.query(`SELECT count(*)::integer AS total,
+        COALESCE(sum(size_bytes),0)::bigint AS bytes,
         count(*) FILTER(WHERE scan_status<>'clean')::integer AS blocked
         FROM mail_attachments WHERE message_id=$1 AND tenant_id=$2`,[id,p.tenantId]);
       const count=pending.rows[0]?.total||0;
       if(count>0 && (process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED!=="true" ||
-         pending.rows[0].blocked>0 || count>8)){
+         pending.rows[0].blocked>0)){
         await c.query("ROLLBACK");
         return res.status(409).json({error:"Attachments must be scanned and approved before sending"});
       }
+      const sizeError=mailAttachmentSizeError(Number(pending.rows[0].bytes),count,
+        Buffer.byteLength(decryptMailField(p.tenantId,id,"message-text",q.rows[0].text_body),"utf8"));
+      if(sizeError){await c.query("ROLLBACK");return res.status(409).json({error:sizeError});}
       await c.query(`UPDATE mail_messages SET status='queued',folder='sent',
         queued_at=now(),next_attempt_at=now(),retry_count=0,lock_acquired_at=NULL
         WHERE id=$1 AND tenant_id=$2`,[id,p.tenantId]);

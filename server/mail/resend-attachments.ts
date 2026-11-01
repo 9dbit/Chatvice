@@ -1,9 +1,9 @@
-import { MAX_MAIL_ATTACHMENT_BYTES, MAX_MAIL_ATTACHMENTS } from "./object-store";
+import { MAX_MAIL_INBOUND_ATTACHMENT_BYTES as MAX_MAIL_ATTACHMENT_BYTES, MAX_MAIL_INBOUND_ATTACHMENTS as MAX_MAIL_ATTACHMENTS } from "../../shared/mail-policy";
 
 export type ResendReceivedAttachment = {
   providerId:string;filename:string;mediaType:string;bytes:Buffer;
 };
-const MAX_EMAIL_TOTAL=16*1024*1024;
+const MAX_EMAIL_TOTAL=MAX_MAIL_ATTACHMENT_BYTES;
 function validProviderId(id:unknown):id is string {
   return typeof id==="string" && /^[a-z\d-]{8,128}$/i.test(id);
 }
@@ -77,3 +77,4 @@ export async function loadResendReceivedAttachments(emailId:string,key:string):P
   }
   return out;
 }
+

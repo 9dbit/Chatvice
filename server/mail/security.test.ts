@@ -105,7 +105,7 @@ test("outbound serializes exact attachment bytes and rejects malformed attachmen
 
 test("large outbound attachments retain all bytes and the aggregate budget cannot be bypassed",async()=>{
  const old=globalThis.fetch;let calls=0;
- const bytes=Buffer.alloc(8477526,65),encoded=bytes.toString("base64");
+ const bytes=Buffer.alloc(25_000_000,65),encoded=bytes.toString("base64");
  const mail={id:"00000000-0000-4000-8000-000000000056",from:"hello@chatvice.app",to:["test@example.com"],cc:[],bcc:[],subject:"Large synthetic file",text:"Synthetic",attachments:[{filename:"large.bin",content:encoded}]};
  globalThis.fetch=async(_input,init)=>{
   calls++;const body=JSON.parse(String(init?.body));
@@ -118,5 +118,27 @@ test("large outbound attachments retain all bytes and the aggregate budget canno
   await assert.rejects(()=>sendResendMail({...mail,attachments:[...mail.attachments,{filename:"second.bin",content:encoded}]},"re_large_synthetic_key"),
    (e:unknown)=>e instanceof MailProviderError && !e.retryable);
   assert.equal(calls,1);
+ }finally{globalThis.fetch=old;}
+});
+
+
+
+test("more than eight outbound attachments fit the shared size budget",async()=>{
+ const old=globalThis.fetch;let calls=0;
+ const attachments=Array.from({length:20},(_,i)=>({filename:`file-${i}.txt`,content:Buffer.from(`file ${i}`).toString("base64")}));
+ globalThis.fetch=async(_input,init)=>{calls++;assert.equal(JSON.parse(String(init?.body)).attachments.length,20);return new Response('{"id":"many-files"}',{status:200});};
+ try{assert.equal(await sendResendMail({id:"many",from:"hello@chatvice.app",to:["test@example.com"],cc:[],bcc:[],subject:"Many files",text:"Synthetic",attachments},"re_synthetic_attachment_key"),"many-files");assert.equal(calls,1);}
+ finally{globalThis.fetch=old;}
+});
+
+test("one byte over the attachment total and encoded message overflow fail before transport",async()=>{
+ const old=globalThis.fetch;let calls=0;
+ globalThis.fetch=async()=>{calls++;throw Error("Must not send");};
+ const message={id:"boundary",from:"hello@chatvice.app",to:["test@example.com"],cc:[],bcc:[],subject:"Boundary",text:"Synthetic"};
+ const large={filename:"large.bin",content:Buffer.alloc(25_000_000,65).toString("base64")};
+ try{
+  await assert.rejects(()=>sendResendMail({...message,attachments:[large,{filename:"extra.txt",content:"YQ=="}]},"re_synthetic_attachment_key"),e=>e instanceof MailProviderError&&!e.retryable);
+  await assert.rejects(()=>sendResendMail({...message,text:"a".repeat(5_000_000),attachments:[large]},"re_synthetic_attachment_key"),e=>e instanceof MailProviderError&&!e.retryable);
+  assert.equal(calls,0);
  }finally{globalThis.fetch=old;}
 });

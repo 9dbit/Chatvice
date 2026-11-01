@@ -367,7 +367,7 @@ test("mailbox storage and message attachment caps are enforced inside PostgreSQL
  const messageId=draft.body.id as string;
  await pool.query("UPDATE mail_mailboxes SET quota_bytes=64 WHERE id=$1",[fixture.boxB]);
  try{
-  for(let n=0;n<8;n++){
+  for(let n=0;n<16;n++){
    const result=await registerAttachment({
     tenantId:fixture.tenantB,messageId,
     key:newPrivateAttachmentKey(fixture.tenantB,messageId),
@@ -379,16 +379,16 @@ test("mailbox storage and message attachment caps are enforced inside PostgreSQL
   await assert.rejects(()=>registerAttachment({
    tenantId:fixture.tenantB,messageId,
    key:newPrivateAttachmentKey(fixture.tenantB,messageId),
-   filename:"ninth.txt",mediaType:"text/plain",length:4,
+   filename:"seventeenth.txt",mediaType:"text/plain",length:4,
    status:"pending",expectedMessageStatus:"draft"
   }),e=>e instanceof MailAttachmentPolicyError);
   const count=await pool.query("SELECT count(*)::integer AS n FROM mail_attachments WHERE message_id=$1",[messageId]);
-  assert.equal(count.rows[0].n,8);
+  assert.equal(count.rows[0].n,16);
   const second=await supertest(server).post("/api/mail/compose").set("x-ci-subject","merchantB")
     .set("origin","http://test.local")
     .send({mailboxId:fixture.boxB,to:["test@example.org"],subject:"Mailbox quota",text:"test",draft:true});
   assert.equal(second.status,201);
-  await pool.query("UPDATE mail_mailboxes SET quota_bytes=33 WHERE id=$1",[fixture.boxB]);
+  await pool.query("UPDATE mail_mailboxes SET quota_bytes=65 WHERE id=$1",[fixture.boxB]);
   await assert.rejects(()=>registerAttachment({
     tenantId:fixture.tenantB,messageId:second.body.id,
     key:newPrivateAttachmentKey(fixture.tenantB,second.body.id),
@@ -944,4 +944,31 @@ test("draft file removal rejects foreign tenants, viewers and sent mail",async()
  await pool.query("UPDATE mail_messages SET status='draft',folder='drafts' WHERE id=$1",[messageId]);
  assert.equal((await supertest(server).delete(path).set('Origin','http://test.local').set('x-ci-subject','merchantA')).status,200);
  assert.equal((await pool.query('SELECT id FROM mail_attachments WHERE id=$1',[id])).rowCount,0);
+});
+
+
+test("25 MB outgoing budget is atomic and more than eight clean files can queue",async()=>{
+ const vars=["CHATVICE_MAIL_OUTBOUND_ENABLED","CHATVICE_MAIL_PROVIDER","RESEND_API_KEY","CHATVICE_MAIL_ATTACHMENTS_ENABLED"];
+ const old=Object.fromEntries(vars.map(k=>[k,process.env[k]]));
+ Object.assign(process.env,{CHATVICE_MAIL_OUTBOUND_ENABLED:"true",CHATVICE_MAIL_PROVIDER:"resend",RESEND_API_KEY:"re_synthetic_limits_ci",CHATVICE_MAIL_ATTACHMENTS_ENABLED:"true"});
+ const draft=await supertest(server).post("/api/mail/compose").set("x-ci-subject","merchantB").set("origin","http://test.local").send({mailboxId:fixture.boxB,to:["test@example.org"],subject:"Attachment limits",text:"Synthetic",draft:true});
+ assert.equal(draft.status,201);const messageId=draft.body.id;
+ const add=(length:number)=>registerAttachment({tenantId:fixture.tenantB,messageId,key:newPrivateAttachmentKey(fixture.tenantB,messageId),filename:"file.bin",mediaType:"application/octet-stream",length,status:"clean",expectedMessageStatus:"draft"});
+ try{
+  for(let i=0;i<20;i++)await add(1);
+  await add(25_000_000-21);
+  const race=await Promise.allSettled([add(1),add(1)]);
+  assert.equal(race.filter(r=>r.status==="fulfilled").length,1);
+  assert.equal(race.filter(r=>r.status==="rejected"&&r.reason instanceof MailAttachmentPolicyError).length,1);
+  const total=await pool.query("SELECT sum(size_bytes)::integer AS bytes,count(*)::integer AS count FROM mail_attachments WHERE message_id=$1",[messageId]);
+  assert.equal(total.rows[0].bytes,25_000_000);assert.equal(total.rows[0].count,22);
+  const sent=await supertest(server).post(`/api/mail/drafts/${messageId}/send`).set("x-ci-subject","merchantB").set("origin","http://test.local").send({});
+  assert.equal(sent.status,200);assert.equal(sent.body.status,"queued");
+  // An old/imported record cannot bypass the send endpoint's aggregate check.
+  await pool.query("UPDATE mail_messages SET status='draft',folder='drafts' WHERE id=$1",[messageId]);
+  await pool.query("UPDATE mail_attachments SET size_bytes=size_bytes+1 WHERE id=(SELECT id FROM mail_attachments WHERE message_id=$1 LIMIT 1)",[messageId]);
+  const rejected=await supertest(server).post(`/api/mail/drafts/${messageId}/send`).set("x-ci-subject","merchantB").set("origin","http://test.local").send({});
+  assert.equal(rejected.status,409);assert.match(rejected.body.error,/25 MB/);
+  assert.equal((await pool.query("SELECT status FROM mail_messages WHERE id=$1",[messageId])).rows[0].status,"draft");
+ }finally{await pool.query("DELETE FROM mail_messages WHERE id=$1",[messageId]);for(const k of vars){if(old[k]===undefined)delete process.env[k];else process.env[k]=old[k];}}
 });

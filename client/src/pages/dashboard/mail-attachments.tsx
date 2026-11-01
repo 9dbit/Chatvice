@@ -1,14 +1,14 @@
 import {lazy,Suspense,useEffect,useRef,useState} from "react";
 import {Paperclip,FileDown,FileText,RefreshCcw,ShieldAlert,Upload,ChevronRight,Image as ImageIcon,Film,Trash2,Maximize2} from "lucide-react";
 import {apiRequest} from "@/lib/queryClient";
-import {MAX_MAIL_ATTACHMENT_BYTES,MAX_MAIL_ATTACHMENTS,MAX_MAIL_MESSAGE_ATTACHMENT_BYTES} from "@shared/mail-policy";
+import {MAX_MAIL_ATTACHMENT_BYTES,MAIL_ATTACHMENT_LIMIT_LABEL,mailAttachmentSizeError} from "@shared/mail-policy";
 import {mailPreviewType} from "@shared/mail-preview";
 import {Dialog,DialogContent,DialogTitle,DialogDescription} from "@/components/mail-dialog";
 const PdfPreview=lazy(()=>import("./mail-pdf-preview"));
 type Attachment={id:string;original_filename:string;media_type:string;size_bytes:string|number;scan_status:"pending"|"clean"|"blocked"};
 type Preview={url:string;type:string;bytes:Uint8Array;text?:string};
 type Props={messageId?:string;allowUpload?:boolean;compact?:boolean;ensureDraft?:()=>Promise<string>;onBusyChange?:(busy:boolean)=>void;onSendReady?:(ready:boolean)=>void;onChanged?:()=>void};
-const fileSize=(n:number)=>n<1048576?`${Math.ceil(n/1024)} KB`:`${(n/1048576).toFixed(1)} MiB`;
+const fileSize=(n:number)=>n<1000000?`${Math.ceil(n/1000)} KB`:`${(n/1000000).toFixed(1)} MB`;
 export default function MailAttachments({messageId,allowUpload=false,compact=false,ensureDraft,onBusyChange,onSendReady,onChanged}:Props){
  const [files,setFiles]=useState<Attachment[]>([]),[selected,setSelected]=useState("");
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[open,setOpen]=useState(false),[expanded,setExpanded]=useState(false),[drag,setDrag]=useState(false),[loaded,setLoaded]=useState(!messageId);
@@ -25,7 +25,9 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
   }).catch(()=>{if(!life.abort.signal.aborted)setError("Attachment list unavailable. Retry before sending.");});
   return()=>{life.abort.abort();life.urls.forEach(URL.revokeObjectURL);};
  },[messageId]);
- useEffect(()=>{onSendReady?.(loaded&&!busy&&files.every(f=>f.scan_status==="clean"));},[loaded,busy,files,onSendReady]);
+ const totalBytes=files.reduce((n,f)=>n+Number(f.size_bytes),0);
+ const sizeIssue=mailAttachmentSizeError(totalBytes,files.length);
+ useEffect(()=>{onSendReady?.(loaded&&!busy&&!sizeIssue&&files.every(f=>f.scan_status==="clean"));},[loaded,busy,files,sizeIssue,onSendReady]);
  const active=files.find(f=>f.id===selected);
  const previewableIds=useRef(new Set<string>());
  previewableIds.current=new Set(files.filter(f=>f.scan_status==="clean").map(f=>f.id));
@@ -71,8 +73,9 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
  }
  async function upload(chosen:File[]){
   if(!allowUpload||!chosen.length)return;
-  if(chosen.some(f=>f.size===0||f.size>MAX_MAIL_ATTACHMENT_BYTES)){setError("Choose non-empty files up to 16 MiB.");return;}
-  if(files.length+chosen.length>MAX_MAIL_ATTACHMENTS||files.reduce((n,f)=>n+Number(f.size_bytes),0)+chosen.reduce((n,f)=>n+f.size,0)>MAX_MAIL_MESSAGE_ATTACHMENT_BYTES){setError("Maximum 8 files and 16 MiB total per message. Choose a smaller batch.");return;}
+  if(chosen.some(f=>f.size===0)){setError("Empty files cannot be attached. Choose a file with content.");return;}
+  const issue=mailAttachmentSizeError(totalBytes+chosen.reduce((n,f)=>n+f.size,0),files.length+chosen.length);
+  if(issue){setError(issue);return;}
   await perform(async()=>{
    const id=messageId||await ensureDraft?.();if(!id)throw Error("Save the draft before adding files.");
    current.current=id;
@@ -93,8 +96,8 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
    <footer><strong>{active.original_filename}</strong><span>{fileSize(Number(active.size_bytes))} · {active.scan_status==="clean"?"Security checked":active.scan_status}</span>{active.scan_status==="clean"&&<a className="mail-button" href={`/api/mail/attachments/${encodeURIComponent(active.id)}/download`}><FileDown size={15}/> Download</a>}</footer>
   </>}
  </div>;
- const list=<><div className="mail-attachment-heading"><div><Paperclip size={15}/>{files.length} / 8 files</div>{allowUpload&&<button className="mail-button" disabled={busy||!loaded} onClick={()=>input.current?.click()}><Upload size={14}/> Add files</button>}</div>
-  {allowUpload&&<><input ref={input} type="file" multiple aria-label="Upload attachments" className="sr-only" disabled={busy||!loaded} onChange={e=>{void upload(Array.from(e.target.files||[]));e.currentTarget.value="";}}/><p className="mail-file-help">Photos, videos & documents · 16 MiB total</p></>}
+ const list=<><div className="mail-attachment-heading"><div><Paperclip size={15}/>{files.length} {files.length===1?"file":"files"}</div>{allowUpload&&<button className="mail-button" disabled={busy||!loaded} onClick={()=>input.current?.click()}><Upload size={14}/> Add files</button>}</div>
+  {allowUpload&&<><input ref={input} type="file" multiple aria-label="Upload attachments" className="sr-only" disabled={busy||!loaded} onChange={e=>{void upload(Array.from(e.target.files||[]));e.currentTarget.value="";}}/><p className="mail-file-help">Photos, videos & documents · {MAIL_ATTACHMENT_LIMIT_LABEL} total</p><p className="mail-file-help" aria-label="Attachment storage used" aria-live="polite">{totalBytes?(totalBytes/1000000).toFixed(2):"0"} MB / {MAIL_ATTACHMENT_LIMIT_LABEL} used</p></>}
   <div className="mail-attachment-tiles">{files.map(a=><div key={a.id} className={`mail-file-tile ${a.id===selected?"selected":""}`}>
    <button className="mail-file-select" aria-label={`Preview ${a.original_filename}`} aria-pressed={a.id===selected} onClick={()=>setSelected(a.id)}>
     <span className="mail-file-thumb">{a.scan_status==="clean"&&previews[a.id]?.type.startsWith("image/")?<img src={previews[a.id]!.url} alt=""/>:a.scan_status==="clean"&&previews[a.id]?.type.startsWith("video/")?<video src={previews[a.id]!.url+"#t=0.1"} preload="metadata" muted playsInline aria-hidden="true"/>:/\.(mp4|webm|mov)$/i.test(a.original_filename)?<Film size={26}/>:<FileText size={26}/>}</span><strong title={a.original_filename}>{a.original_filename}</strong><small>{fileSize(Number(a.size_bytes))} · {a.scan_status==="clean"?"Ready":a.scan_status}</small>

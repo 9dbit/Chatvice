@@ -1,5 +1,5 @@
 import { normalizeEmail } from "./security";
-import {MAX_MAIL_ATTACHMENT_BYTES,MAX_MAIL_ATTACHMENTS,MAX_MAIL_MESSAGE_ATTACHMENT_BYTES} from "../../shared/mail-policy";
+import {MAX_MAIL_ATTACHMENT_BYTES,MAX_MAIL_ENCODED_MESSAGE_BYTES,mailAttachmentSizeError} from "../../shared/mail-policy";
 
 type SendRequest = {
   id: string; from: string; to: string[]; cc: string[]; bcc: string[];
@@ -26,7 +26,6 @@ export async function sendResendMail(message: SendRequest, apiKey: string): Prom
     body.headers = { "In-Reply-To": message.inReplyTo };
   }
   if(message.attachments?.length){
-    if(message.attachments.length>MAX_MAIL_ATTACHMENTS)throw new MailProviderError(0,false);
     let total=0;
     body.attachments=message.attachments.map(file=>{
       if(typeof file.filename!=="string" || !file.filename.length || file.filename.length>180 ||
@@ -36,11 +35,14 @@ export async function sendResendMail(message: SendRequest, apiKey: string): Prom
         throw new MailProviderError(0,false);
       const bytes=Buffer.from(file.content,"base64");total+=bytes.length;
       if(!bytes.length || bytes.length>MAX_MAIL_ATTACHMENT_BYTES ||
-         bytes.toString("base64")!==file.content || total>MAX_MAIL_MESSAGE_ATTACHMENT_BYTES)
+         bytes.toString("base64")!==file.content || mailAttachmentSizeError(total,message.attachments!.length,Buffer.byteLength(message.text,"utf8")))
         throw new MailProviderError(0,false);
       return {filename:file.filename,content:file.content};
     });
   }
+  const payload=JSON.stringify(body);
+  if(Buffer.byteLength(payload,"utf8")>MAX_MAIL_ENCODED_MESSAGE_BYTES)
+    throw new MailProviderError(0,false);
   let response: Response;
   try {
     response = await fetch("https://api.resend.com/emails", {
@@ -49,7 +51,7 @@ export async function sendResendMail(message: SendRequest, apiKey: string): Prom
         Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json",
         "Idempotency-Key": `chatvice-mail/${message.id}`,
       },
-      body: JSON.stringify(body),
+      body: payload,
       signal: AbortSignal.timeout(15000),
     });
   } catch { throw new MailProviderError(0,true); }
@@ -75,3 +77,4 @@ export async function fetchResendReceived(id: string, apiKey: string): Promise<u
   if (!response.ok) throw new MailProviderError(response.status,response.status>=500 || response.status===429);
   return response.json();
 }
+

@@ -108,7 +108,10 @@ function uploadLimiter(req:Request,res:Response,next:NextFunction){
     ?{count:previous.count+1,until:previous.until}
     :{count:1,until:now+60000};
   bursts.set(key,state);
-  if(state.count>12)return res.status(429).json({error:"Too many attachment uploads"});
+  if(state.count>120){
+    res.setHeader("Retry-After",String(Math.max(1,Math.ceil((state.until-now)/1000))));
+    return res.status(429).json({error:"Upload rate limit reached. Wait a moment, then add the remaining files."});
+  }
   next();
 }
 export function registerMailAttachmentRoutes(app:Express):void{
@@ -134,7 +137,7 @@ export function registerMailAttachmentRoutes(app:Express):void{
     if(auth.status!=="draft")return res.status(409).json({error:"Attachments may only be added to drafts"});
     if(!isMailObjectStorageConfigured())return reportError(res);
     upload.single("file")(req,res,async err=>{
-      if(err)return res.status(413).json({error:"Attachment exceeds upload policy"});
+      if(err)return res.status(413).json({error:err.code==="LIMIT_FILE_SIZE"?"Attachments exceed 25 MB total per email. Choose a smaller file.":"Attachment exceeds upload policy"});
       if(!req.file?.buffer?.length)return res.status(400).json({error:"An attachment is required"});
       const filename=cleanMailFilename(req.file.originalname);
       const content=req.file.buffer;
