@@ -91,14 +91,14 @@ function authorization(method: "PUT"|"GET"|"DELETE", key: string, body: Buffer, 
   };
 }
 /** Server-side only, never expose the signed URL or R2 credentials to browsers. */
-export async function putPrivateAttachment(key:string, data:Buffer):Promise<void>{
+export async function putPrivateAttachment(key:string, data:Buffer, cancel?:AbortSignal):Promise<void>{
   if (!Buffer.isBuffer(data) || !data.length || data.length>MAX_MAIL_ATTACHMENT_BYTES)
     throw new Error("Mail attachment exceeds private upload policy");
   const config=settings();
   const encrypted=encryptMailBinary(key,data);
   const signed=authorization("PUT",key,encrypted,config,new Date());
   const result=await fetch(signed.url,{method:"PUT",headers:signed.headers,body:new Uint8Array(encrypted),
-    redirect:"manual",signal:AbortSignal.timeout(60000)});
+    redirect:"manual",signal:cancel?AbortSignal.any([cancel,AbortSignal.timeout(60000)]):AbortSignal.timeout(60000)});
   if(!result.ok) throw new Error("Private object upload failed");
 }
 export async function getPrivateAttachment(key:string):Promise<Buffer>{
