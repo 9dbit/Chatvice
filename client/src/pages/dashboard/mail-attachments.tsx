@@ -27,6 +27,18 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
  },[messageId]);
  useEffect(()=>{onSendReady?.(loaded&&!busy&&files.every(f=>f.scan_status==="clean"));},[loaded,busy,files,onSendReady]);
  const active=files.find(f=>f.id===selected);
+ const previewableIds=useRef(new Set<string>());
+ previewableIds.current=new Set(files.filter(f=>f.scan_status==="clean").map(f=>f.id));
+ useEffect(()=>{
+  setPreviews(previous=>{
+   const next={...previous};let changed=false;
+   for(const id of Object.keys(next))if(!previewableIds.current.has(id)){
+    if(next[id])URL.revokeObjectURL(next[id]!.url);
+    delete next[id];lifecycle.current.pending.delete(id);changed=true;
+   }
+   return changed?next:previous;
+  });
+ },[files]);
  async function preview(a:Attachment){
   const life=lifecycle.current;
   if(a.scan_status!=="clean"||life.pending.has(a.id))return;
@@ -35,13 +47,13 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
    const r=await fetch(`/api/mail/attachments/${encodeURIComponent(a.id)}/download`,{credentials:"same-origin",cache:"no-store",signal:life.abort.signal});
    if(!r.ok)throw Error("Preview unavailable");
    const bytes=new Uint8Array(await r.arrayBuffer());
-   if(life.abort.signal.aborted)return;
+   if(life.abort.signal.aborted||!previewableIds.current.has(a.id))return;
    if(bytes.length>MAX_MAIL_ATTACHMENT_BYTES)throw Error("File exceeds preview limit");
    const type=mailPreviewType(bytes,a.original_filename);
    const result=type?{url:URL.createObjectURL(new Blob([bytes],{type})),type,bytes,text:type==="text/plain"?new TextDecoder().decode(bytes.slice(0,200000)):undefined}:null;
    if(result)life.urls.push(result.url);
    setPreviews(p=>({...p,[a.id]:result}));
-  }catch{if(!life.abort.signal.aborted)setPreviews(p=>({...p,[a.id]:null}));}
+  }catch{if(!life.abort.signal.aborted&&previewableIds.current.has(a.id))setPreviews(p=>({...p,[a.id]:null}));}
  }
  useEffect(()=>{
   files.filter(f=>/\.(png|jpe?g|gif|webp|mp4|webm)$/i.test(f.original_filename)).forEach(f=>void preview(f));
@@ -85,7 +97,7 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
   {allowUpload&&<><input ref={input} type="file" multiple aria-label="Upload attachments" className="sr-only" disabled={busy||!loaded} onChange={e=>{void upload(Array.from(e.target.files||[]));e.currentTarget.value="";}}/><p className="mail-file-help">Photos, videos & documents · 16 MiB total</p></>}
   <div className="mail-attachment-tiles">{files.map(a=><div key={a.id} className={`mail-file-tile ${a.id===selected?"selected":""}`}>
    <button className="mail-file-select" aria-label={`Preview ${a.original_filename}`} aria-pressed={a.id===selected} onClick={()=>setSelected(a.id)}>
-    <span className="mail-file-thumb">{previews[a.id]?.type.startsWith("image/")?<img src={previews[a.id]!.url} alt=""/>:previews[a.id]?.type.startsWith("video/")?<video src={previews[a.id]!.url+"#t=0.1"} preload="metadata" muted playsInline aria-hidden="true"/>:/\.(mp4|webm|mov)$/i.test(a.original_filename)?<Film size={26}/>:<FileText size={26}/>}</span><strong title={a.original_filename}>{a.original_filename}</strong><small>{fileSize(Number(a.size_bytes))} · {a.scan_status==="clean"?"Ready":a.scan_status}</small>
+    <span className="mail-file-thumb">{a.scan_status==="clean"&&previews[a.id]?.type.startsWith("image/")?<img src={previews[a.id]!.url} alt=""/>:a.scan_status==="clean"&&previews[a.id]?.type.startsWith("video/")?<video src={previews[a.id]!.url+"#t=0.1"} preload="metadata" muted playsInline aria-hidden="true"/>:/\.(mp4|webm|mov)$/i.test(a.original_filename)?<Film size={26}/>:<FileText size={26}/>}</span><strong title={a.original_filename}>{a.original_filename}</strong><small>{fileSize(Number(a.size_bytes))} · {a.scan_status==="clean"?"Ready":a.scan_status}</small>
    </button><div className="mail-file-tile-actions">{a.scan_status==="clean"&&<a href={`/api/mail/attachments/${encodeURIComponent(a.id)}/download`} aria-label={`Download ${a.original_filename}`} className="mail-icon-btn"><FileDown size={15}/></a>}{a.scan_status==="pending"&&<button disabled={busy} aria-label={`Retry scan for ${a.original_filename}`} className="mail-icon-btn" onClick={()=>perform(async()=>{await apiRequest("POST",`/api/mail/attachments/${encodeURIComponent(a.id)}/rescan`,{});await refresh(messageId!);})}><RefreshCcw size={15}/></button>}{allowUpload&&<button disabled={busy} aria-label={`Remove ${a.original_filename}`} className="mail-icon-btn" onClick={()=>perform(async()=>{await apiRequest("DELETE",`/api/mail/attachments/${encodeURIComponent(a.id)}`);await refresh(messageId!);})}><Trash2 size={15}/></button>}</div>
   </div>)}</div>{busy&&<p role="status" className="mail-file-help">Saving files & checking security…</p>}{error&&<p role="alert" className="mail-alert">{error}</p>}{!loaded&&messageId&&!busy&&<button className="mail-button" onClick={()=>perform(async()=>{await refresh(messageId);})}>Retry attachment list</button>}
  </>;
