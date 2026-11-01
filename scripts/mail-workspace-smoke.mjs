@@ -117,8 +117,8 @@ try{
  assert.equal(await page.getByLabel('Recipients',{exact:true}).inputValue(),'amelia@example.invalid, partner@example.invalid');
  assert.equal(await page.getByLabel('CC recipients',{exact:true}).inputValue(),'reviewer@example.invalid');
  assert.equal(await page.getByLabel('BCC recipients',{exact:true}).inputValue(),'');
- page.once('dialog',dialog=>dialog.accept());
  await page.getByRole('button',{name:'Close',exact:true}).click();
+ await page.getByRole('button',{name:'Discard changes',exact:true}).click();
  await page.getByRole('button',{name:'Star conversation',exact:true}).click();
  await page.getByRole('button',{name:'Remove star',exact:true}).waitFor();
  await page.getByRole('button',{name:'Mark read',exact:true}).click();
@@ -158,8 +158,8 @@ try{
  assert.deepEqual(draft.cc,['reviewer@example.invalid']);assert.deepEqual(draft.bcc,['hidden@example.invalid']);
  await page.getByLabel('Recipients',{exact:true}).fill('client@example.invalid');
  await page.getByLabel('Message',{exact:true}).fill('An unsaved change');
- page.once('dialog',dialog=>dialog.dismiss());
  await page.getByRole('button',{name:'Close',exact:true}).click();
+ await page.getByRole('button',{name:'Keep editing',exact:true}).click();
  assert.equal(await page.getByRole('dialog').count(),1);
  await page.getByRole('button',{name:'Save draft',exact:true}).click();
  await page.getByText('Draft saved privately',{exact:true}).waitFor();

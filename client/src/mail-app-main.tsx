@@ -6,6 +6,7 @@ import {ArrowRight,ArrowLeft,LockKeyhole,Eye,EyeOff} from "lucide-react";
 import MailPage from "./pages/dashboard/mail";
 import MailAdminPage from "./pages/dashboard/mail-admin";
 import MailLanding,{MailBrand} from "./pages/mail-landing";
+import MailArt from "./components/mail-art";
 import MailTheme from "./components/mail-theme";
 import {queryClient} from "./lib/queryClient";
 import "./mail-qa.css";
@@ -37,7 +38,7 @@ function App(){
  }
  if(location==="/")return <MailLanding/>;
  if(!ready)return <main className="cm-loading" role="status">Opening your workspace…</main>;
- if(!identity)return <main className="cm-login"><header><MailBrand/><MailTheme/></header><div className="cm-login-layout"><section className="cm-login-intro"><span className="cm-eyebrow">WELCOME BACK</span><h1>Your mail.<br/>A little more<br/><em>organized.</em></h1><p>A familiar place for your business conversations.<br/>Pick up right where you left off.</p><Link href="/" className="cm-text-link"><ArrowLeft size={16}/> Back to overview</Link></section><section className="cm-login-card"><span className="cm-login-lock"><LockKeyhole size={24}/></span><h2>Make yourself at home.</h2><p>Sign in to your private mailboxes.</p><form onSubmit={login}>
+ if(!identity)return <main className="cm-login"><header><MailBrand/><MailTheme/></header><div className="cm-login-layout"><section className="cm-login-intro"><span className="cm-eyebrow">WELCOME BACK</span><h1>Your mail.<br/>A little more<br/><em>organized.</em></h1><MailArt kind="secure" eager className="cm-login-art"/><p>A familiar place for your business conversations.<br/>Pick up right where you left off.</p><Link href="/" className="cm-text-link"><ArrowLeft size={16}/> Back to overview</Link></section><section className="cm-login-card"><span className="cm-login-lock"><LockKeyhole size={24}/></span><MailArt kind="secure" className="cm-login-mobile-art"/><h2>Make yourself at home.</h2><p>Sign in to your private mailboxes.</p><form onSubmit={login}>
   <label>Email<input type="email" autoComplete="username" inputMode="email" maxLength={320} value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@yourcompany.com" required/></label>
   <label>Password<span className="cm-password-field"><input type={showPassword?"text":"password"} autoComplete="current-password" maxLength={256} value={password} onChange={e=>setPassword(e.target.value)} placeholder="Your password" required/><button type="button" aria-label={showPassword?"Hide password":"Show password"} onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={18}/>:<Eye size={18}/>}</button></span></label>
   {error&&<p role="alert" className="mail-alert">{error}</p>}

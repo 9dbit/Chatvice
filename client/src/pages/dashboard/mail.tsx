@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, type RouteComponentProps } from "wouter";
 import { Inbox, Send, FileText, Archive, Trash2, Star, Mail, Plus, Search, Reply, ReplyAll, ArrowLeft, Settings, UserRoundPlus, ShieldCheck, Sparkles, RefreshCw, ChevronLeft, ChevronRight, MailOpen, Check, LockKeyhole, AlertCircle, LogOut } from "lucide-react";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription, useMailConfirm } from "@/components/mail-dialog";
+import MailArt from "@/components/mail-art";
 import MailTheme from "@/components/mail-theme";
 import MailAttachments from "./mail-attachments";
 import MailMessageBody from "./mail-message-body";
 import { mailReplyRecipients, parseMailRecipients } from "@shared/mail-recipients";
 import "./mail-workspace.css";
+import "../../mail-glass.css";
 
 type Box = {id:string;local_part:string;domain:string;display_name:string;enabled:boolean;can_write:boolean;aliases?:string[]};
 type Thread = {id:string;subject:string;from_email:string;text_body:string;created_at:string;is_read:boolean;is_starred:boolean;message_count:number};
@@ -38,6 +40,7 @@ function dateLabel(value:string){
 }
 type MailPageProps=Partial<RouteComponentProps>&{accountEmail?:string;onSignOut?:()=>void;signingOut?:boolean};
 export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailPageProps={}){
+ const {confirm,confirmation}=useMailConfirm();
  const [boxes,setBoxes]=useState<Box[]>([]),[box,setBox]=useState("");
  const [cap,setCap]=useState<Capabilities>({admin:false,outbound:false,ai:false,attachments:false});
  const [folder,setFolder]=useState("inbox"),[filter,setFilter]=useState("all"),[page,setPage]=useState(0);
@@ -97,14 +100,14 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
    .then(setContext).catch(e=>{if(!abort.signal.aborted)setError(e.message);});
   return()=>abort.abort();
  },[selected?.id,reload]);
- function closeEditor(){
+ async function closeEditor(){
   if(saving)return;
-  if(dirty&&!window.confirm("Discard your unsaved changes? Saved drafts will remain in Drafts."))return;
+  if(dirty&&!await confirm({description:"Only your unsaved edits will be discarded. Saved drafts will remain in Drafts."}))return;
   setEditor(null);
  }
- function openEditor(next:Editor){
+ async function openEditor(next:Editor){
   if(!canWrite||saving)return;
-  if(dirty&&!window.confirm("Discard your unsaved changes and open another message?"))return;
+  if(dirty&&!await confirm({description:"Discard your unsaved edits and open another message? Saved drafts will remain in Drafts."}))return;
   setEditor(next);setShowCopies(Boolean(next.cc||next.bcc));setSavedSnapshot(snapshot(next.draftId?next:blankEditor()));setError("");setNotice("");
  }
  async function openDraft(id:string){
@@ -133,9 +136,9 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
   window.addEventListener("keydown",keyboard);
   return()=>window.removeEventListener("keydown",keyboard);
  },[editor,canWrite]);
- function changeMailbox(next:string){
+ async function changeMailbox(next:string){
   if(saving||acting||next===box)return;
-  if(dirty&&!window.confirm("Discard unsaved changes and switch mailboxes? Saved drafts stay in their original mailbox."))return;
+  if(dirty&&!await confirm({description:"Discard unsaved edits and switch mailboxes? Saved drafts stay in their original mailbox."}))return;
   setEditor(null);setSelected(null);setBox(next);setPage(0);setSearch("");setError("");setNotice("");
  }
  function navigate(nextFolder=folder,nextFilter=filter,nextPage=0){
@@ -182,7 +185,7 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
  }
  async function aiTask(task:"summary"|"draft"){
   if(!selected||aiLoading)return;
-  if(!window.confirm("Send a shortened excerpt to the external AI provider? Email addresses and phone numbers are redacted, but other personal information may remain."))return;
+  if(!await confirm({title:"Share an excerpt with AI?",description:"Send a shortened excerpt to the external AI provider? Email addresses and phone numbers are redacted, but other personal information may remain.",confirm:"Share excerpt",cancel:"Cancel"}))return;
   const id=selected.id;setAiLoading(true);setError("");
   try{
    const data=await request<{text:string}>(`/api/mail/threads/${id}/ai`,"POST",{task,acknowledgeExternalProcessing:true,tone:"professional"});
@@ -227,7 +230,7 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
     <label className="mail-search"><Search size={16}/><input ref={searchRef} aria-label="Search this page" placeholder="Search conversations" value={search} onChange={e=>setSearch(e.target.value)}/>{search&&<button aria-label="Clear search" onClick={()=>setSearch("")}>×</button>}<kbd>/</kbd></label>
     <div className="mail-filter-tabs" aria-label="Conversation filters">{["all","unread","starred"].map(f=><button key={f} disabled={acting} aria-pressed={filter===f} className={filter===f?"active":""} onClick={()=>navigate(folder,f)}>{f==="starred"&&<Star size={12}/>}<span>{f[0].toUpperCase()+f.slice(1)}</span></button>)}</div>
     <div className="mail-thread-scroll" aria-busy={loading}>
-     {loading?<div className="mail-skeletons" aria-label="Loading conversations">{[1,2,3,4].map(x=><div key={x}><span/><span/><span/></div>)}</div>:!visible.length?<div className="mail-empty-list"><Inbox size={30}/><h3>{search?"No matches on this page":!box?"Your mailbox starts here":"You're all caught up"}</h3><p>{search?"Try another term or clear the search to browse more pages.":!box?"Ask your administrator to assign a mailbox.":`No ${filter==="all"?"":filter+" "}conversations in ${folderLabel.toLowerCase()}.`}</p>{search&&<button className="mail-button" onClick={()=>setSearch("")}>Clear search</button>}</div>:visible.map(t=><button key={t.id} disabled={acting} aria-pressed={selected?.id===t.id} onClick={()=>{setSelected(t);setError("");setNotice("");}} className={`mail-thread ${selected?.id===t.id?"selected":""} ${!t.is_read?"unread":""}`}>
+     {loading?<div className="mail-skeletons" aria-label="Loading conversations">{[1,2,3,4].map(x=><div key={x}><span/><span/><span/></div>)}</div>:!visible.length?<div className="mail-empty-list"><MailArt kind="inbox" className="mail-list-art"/><h3>{search?"No matches on this page":!box?"Your mailbox starts here":"You're all caught up"}</h3><p>{search?"Try another term or clear the search to browse more pages.":!box?"Ask your administrator to assign a mailbox.":`No ${filter==="all"?"":filter+" "}conversations in ${folderLabel.toLowerCase()}.`}</p>{search&&<button className="mail-button" onClick={()=>setSearch("")}>Clear search</button>}</div>:visible.map(t=><button key={t.id} disabled={acting} aria-pressed={selected?.id===t.id} onClick={()=>{setSelected(t);setError("");setNotice("");}} className={`mail-thread ${selected?.id===t.id?"selected":""} ${!t.is_read?"unread":""}`}>
       <div className="mail-thread-line"><span className="mail-thread-avatar" aria-hidden="true">{t.from_email[0]?.toUpperCase()}</span><span className="mail-sender">{t.from_email.split("@")[0]||t.from_email}</span><time dateTime={t.created_at}>{dateLabel(t.created_at)}</time></div>
       <div className="mail-thread-subject"><span>{!t.is_read&&<i aria-label="Unread"/>}{t.subject||"(No subject)"}</span>{t.is_starred&&<Star size={13} fill="currentColor"/>}</div>
       <p>{t.text_body||"No message text"}</p><div className="mail-thread-meta"><span>{t.from_email}</span>{t.message_count>1&&<span>{t.message_count} messages</span>}</div>
@@ -254,10 +257,10 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
       {!reading&&incoming&&canWrite&&<div className="mail-reply-actions"><button className="mail-button mail-reply" onClick={()=>reply()}><Reply size={17}/> Reply to {incoming.from_email.split("@")[0]}</button>{hasReplyAll&&<button className="mail-button mail-reply" onClick={()=>reply("",true)}><ReplyAll size={17}/> Reply all</button>}</div>}
       {context?.sender&&<aside className="mail-contact"><div><span className="mail-eyebrow">CUSTOMER 360</span><h3>{context.lead?.customer_name||context.sender}</h3><p>{context.lead?`${context.lead.stage} · Lead score ${context.lead.score??0}/100`:"Connect this conversation with your customer records."}</p></div>{context.lead?<span className="mail-linked"><Check size={13}/> CRM linked</span>:canWrite&&<button className="mail-button" disabled={acting} onClick={convertLead}><UserRoundPlus size={15}/> Add to CRM</button>}</aside>}
      </div>
-    </>:<div className="mail-reader-empty"><div className="mail-empty-orbit"><Mail size={36}/><span><ShieldCheck size={17}/></span></div><span className="mail-eyebrow">MAKE ROOM FOR FOCUS</span><h2>Good conversations<br/>start here.</h2><p>Select a conversation to read, reply,<br/>and keep your customers connected.</p><div><span><LockKeyhole size={13}/> Private mailboxes</span><span><UserRoundPlus size={13}/> Connected to CRM</span></div>{canWrite&&<button className="mail-button" onClick={()=>openEditor(blankEditor())}><Plus size={16}/> Start a conversation</button>}</div>}
+    </>:<div className="mail-reader-empty"><MailArt kind="inbox" className="mail-empty-art"/><span className="mail-eyebrow">MAKE ROOM FOR FOCUS</span><h2>Good conversations<br/>start here.</h2><p>Select a conversation to read, reply,<br/>and keep your customers connected.</p><div><span><LockKeyhole size={13}/> Private mailboxes</span><span><UserRoundPlus size={13}/> Connected to CRM</span></div>{canWrite&&<button className="mail-button" onClick={()=>openEditor(blankEditor())}><Plus size={16}/> Start a conversation</button>}</div>}
    </article>
   </div>
-  <Dialog open={Boolean(editor)} onOpenChange={open=>{if(!open)closeEditor();}}><DialogContent className="mail-composer sm:max-w-2xl" onInteractOutside={event=>event.preventDefault()} onEscapeKeyDown={event=>{event.preventDefault();closeEditor();}}>
+  <Dialog open={Boolean(editor)} onOpenChange={open=>{if(!open)closeEditor();}}><DialogContent className="mail-composer" closeDisabled={saving} onInteractOutside={event=>event.preventDefault()} onEscapeKeyDown={event=>{event.preventDefault();closeEditor();}}>
    <DialogTitle>{editor?.draftId?"Edit draft":"New message"}</DialogTitle><DialogDescription>From {currentBox?.local_part}@{currentBox?.domain}</DialogDescription>
    {editor&&<><label className="mail-compose-field">To<input autoFocus aria-label="Recipients" placeholder="address@example.com, another@example.com" disabled={saving} value={editor.to} onChange={e=>setEditor({...editor,to:e.target.value})}/>{!showCopies&&<button className="mail-copy-toggle" type="button" disabled={saving} onClick={()=>setShowCopies(true)}>CC / BCC</button>}</label>
     {showCopies&&<><label className="mail-compose-field">CC<input aria-label="CC recipients" placeholder="Copy recipients" disabled={saving} value={editor.cc} onChange={e=>setEditor({...editor,cc:e.target.value})}/></label><label className="mail-compose-field">BCC<input aria-label="BCC recipients" placeholder="Hidden from other recipients" disabled={saving} value={editor.bcc} onChange={e=>setEditor({...editor,bcc:e.target.value})}/></label></>}
@@ -269,6 +272,7 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
     <footer className="mail-compose-footer"><span role="status">{saving?"Saving…":editor.draftId&&!dirty?"Draft saved privately":dirty?"Unsaved changes":"Private message"}</span><button className="mail-button" disabled={saving} onClick={()=>submit(true)}><FileText size={15}/> Save draft</button><button className="mail-button mail-primary" title={!cap.outbound?"Sending is not configured for this workspace":undefined} disabled={saving||!parseMailRecipients(editor.to).length||!cap.outbound} onClick={()=>submit(false)}><Send size={15}/> Send message</button></footer>
    </>}
   </DialogContent></Dialog>
+  {confirmation}
  </section>;
 }
 

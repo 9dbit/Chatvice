@@ -25,6 +25,12 @@ on:
       - "client/mail-app.html"
       - "client/src/mail-app-main.tsx"
       - "client/src/mail-site.css"
+      - "client/src/mail-glass.css"
+      - "client/src/mail-assets.d.ts"
+      - "client/src/assets/mail-glass/**"
+      - "client/src/components/mail-art.tsx"
+      - "client/src/components/mail-dialog.tsx"
+      - "scripts/mail-glass-smoke.mjs"
       - "client/src/pages/mail-landing.tsx"
       - "client/src/components/mail-theme.tsx"
       - "scripts/mail-redesign-smoke.mjs"
@@ -110,7 +116,7 @@ jobs:
       - name: Typecheck mail files (report existing app baseline separately)
         run: |
           npm run check > /tmp/chatvice-typecheck.log 2>&1 || TYPECHECK_FAILED=1
-          if grep -E '(server/mail/|shared/mail-|client/src/pages/mail-landing|client/src/components/mail-theme|client/src/mail-(app|qa)-main\.tsx|script/build-mail-|vite.mail-|client/src/pages/dashboard/mail(-admin|-attachments|-message-body)?\.tsx)' /tmp/chatvice-typecheck.log; then
+          if grep -E '(server/mail/|shared/mail-|client/src/pages/mail-landing|client/src/components/mail-(theme|dialog|art)|client/src/mail-(app|qa)-main\.tsx|script/build-mail-|vite.mail-|client/src/pages/dashboard/mail(-admin|-attachments|-message-body)?\.tsx)' /tmp/chatvice-typecheck.log; then
             echo "::error::New mail TypeScript diagnostics detected"
             exit 1
           fi
@@ -134,6 +140,10 @@ jobs:
         env:
           CHATVICE_MAIL_SMOKE_OUTPUT: ${{ runner.temp }}/mail-workspace-preview
         run: node scripts/mail-redesign-smoke.mjs
+      - name: Verify glass dialogs, attachment safety and mailbox settings
+        env:
+          CHATVICE_MAIL_SMOKE_OUTPUT: ${{ runner.temp }}/mail-workspace-preview
+        run: node scripts/mail-glass-smoke.mjs
       - name: Verify real browser Origin on QA login form navigation
         run: node --import tsx scripts/mail-qa-login-browser.mjs
       - name: Save synthetic Mail previews

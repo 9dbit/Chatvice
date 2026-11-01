@@ -31,10 +31,12 @@ try{
   if(path.endsWith('/context'))return respond({sender:'studio@example.invalid',lead:null});
   return respond({error:'Unexpected fixture request'},404);
  });
- const screenshot=async(name)=>{if(output)await page.screenshot({path:resolve(output,name+'.png'),fullPage:true});};
+ const screenshot=async(name)=>{if(output)await page.screenshot({path:resolve(output,name+'.png'),fullPage:!await page.getByRole('dialog').count()});};
  for(const width of [320,390,768,1024,1440,2560]){
   await page.setViewportSize({width,height:900});await page.goto(origin+'/');
   await page.getByRole('heading',{name:/Less noise/}).waitFor();
+  await page.locator('.cm-hero-art').evaluate(image=>image.decode());
+  assert.ok(await page.locator('.cm-hero-art').evaluate(image=>image.naturalWidth>0),'Generated hero must load');
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Landing overflow at ${width}`);
   if(width===1440||width===390)await screenshot('mail-redesign-landing-'+width);
  }
