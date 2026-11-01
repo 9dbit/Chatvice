@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, type RouteComponentProps } from "wouter";
-import { Inbox, Send, FileText, Archive, Trash2, Star, Mail, Plus, Search, Reply, ReplyAll, ArrowLeft, Settings, UserRoundPlus, ShieldCheck, Sparkles, RefreshCw, ChevronLeft, ChevronRight, MailOpen, Check, LockKeyhole, AlertCircle, LogOut, Menu, Bell, X } from "lucide-react";
+import { Inbox, Send, FileText, Archive, Trash2, Star, Mail, Plus, Search, Reply, ReplyAll, ArrowLeft, Settings, UserRoundPlus, ShieldCheck, Sparkles, RefreshCw, ChevronLeft, ChevronRight, MailOpen, Check, LockKeyhole, AlertCircle, LogOut, Menu, Bell, X, PanelLeftClose, PanelLeftOpen, Boxes } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, useMailConfirm } from "@/components/mail-dialog";
 import MailArt from "@/components/mail-art";
 import MailTheme from "@/components/mail-theme";
 import MailAttachments from "./mail-attachments";
+import {useDesktopMail,useMailParallax} from "@/components/mail-motion";
+import "../../mail-motion.css";
 import MailActivity from "./mail-activity";
 import MailMessageBody from "./mail-message-body";
 import { mailReplyRecipients, parseMailRecipients } from "@shared/mail-recipients";
@@ -56,6 +58,12 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
  const draftOperation=useRef<Promise<string>|null>(null);
  const [openingDraft,setOpeningDraft]=useState(false),[showCopies,setShowCopies]=useState(false);
  const [aiSummary,setAiSummary]=useState(""),[reload,setReload]=useState(0);
+ const desktop=useDesktopMail();
+ const motionRef=useMailParallax<HTMLElement>(selected?.id);
+ const [collapsed,setCollapsed]=useState(()=>{try{return localStorage.getItem("chatvice-mail-sidebar")==="collapsed";}catch{return false;}});
+ const workspaceRef=useRef<HTMLSelectElement>(null),focusWorkspace=useRef(false);
+ useEffect(()=>{try{localStorage.setItem("chatvice-mail-sidebar",collapsed?"collapsed":"expanded");}catch{}if(!collapsed&&focusWorkspace.current){workspaceRef.current?.focus();focusWorkspace.current=false;}},[collapsed]);
+ useEffect(()=>{if(desktop)setPanel(current=>current==="menu"?null:current);},[desktop]);
  const searchRef=useRef<HTMLInputElement>(null),selectionRef=useRef("");
  const menuRef=useRef<HTMLButtonElement>(null),searchButtonRef=useRef<HTMLButtonElement>(null);
  const listScrollRef=useRef<HTMLDivElement>(null),readerScrollRef=useRef<HTMLDivElement>(null);
@@ -216,14 +224,28 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
    if(selectionRef.current===id)setContext(data);
   }catch(e:any){setError(e.message);}finally{setActing(false);}
  }
- return <section className={`mail-workspace ${selected?"mail-reading-open":""}`} aria-label="Chatvice Mail">
+ const navigation=()=>(<nav id={desktop?"mail-desktop-menu":"mail-mobile-menu"} className={`mail-sidebar ${desktop?"mail-desktop-sidebar":"mail-menu-sidebar"} ${desktop&&collapsed?"is-collapsed":""}`} aria-label="Mail folders">
+    {desktop&&<div className="mail-sidebar-heading"><span>WORKSPACE</span><button ref={menuRef} className="mail-icon-btn" aria-label={collapsed?"Expand sidebar":"Collapse sidebar"} title={collapsed?"Expand sidebar":"Collapse sidebar"} aria-expanded={!collapsed} aria-controls="mail-desktop-menu" onClick={()=>setCollapsed(value=>!value)}>{collapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}</button></div>}
+    {desktop&&collapsed?<button className="mail-folder mail-workspace-picker" aria-label="Choose workspace" title={currentBox?`${currentBox.local_part}@${currentBox.domain}`:"Choose workspace"} onClick={()=>{focusWorkspace.current=true;setCollapsed(false);}}><Boxes size={18}/></button>:<div className="mail-account"><label htmlFor="mailbox-select">WORKSPACE</label><select ref={workspaceRef} id="mailbox-select" value={box} disabled={saving||uploading||acting||initializing} onChange={e=>changeMailbox(e.target.value)}>
+     {!box&&<option value="">{initializing?"Loading…":"No active mailbox"}</option>}
+     {boxes.map(b=><option key={b.id} value={b.id} disabled={!b.enabled}>{b.local_part}@{b.domain}{!b.enabled?" (disabled)":""}</option>)}
+    </select><span className={`mail-access ${box&&!canWrite?"mail-readonly":""}`}>{box?(canWrite?"Mailbox member":"Read-only access"):"Assign a mailbox to get started"}</span></div>}
+    <div className="mail-folder-links">{folders.map(f=>{
+     const stat=stats.find(s=>s.folder===f.name);
+     return <button key={f.name} aria-label={f.label} title={collapsed&&desktop?`${f.label}${stats.find(s=>s.folder===f.name)?.total?` (${stats.find(s=>s.folder===f.name)?.total})`:""}`:undefined} disabled={acting} onClick={()=>navigate(f.name,"all")} aria-current={folder===f.name?"page":undefined} className={`mail-folder ${folder===f.name?"active":""}`}><f.icon size={17}/><span>{f.label}</span>{Boolean(stat?.total)&&<span className="mail-folder-count">{stat?.total}</span>}</button>;
+    })}{cap.admin&&<Link href="/dashboard/mail/admin" className="mail-folder" aria-label="Mail settings" title="Mail settings"><Settings size={17}/><span>Settings</span></Link>}<button className="mail-folder" disabled={!box} title="Activity & reminders" aria-label="Open activity and subscription reminders" onClick={()=>setPanel("activity")}><Bell size={17}/><span>Activity & reminders</span></button></div>
+    <div className="mail-menu-theme"><span>Appearance</span><MailTheme/></div>
+    <div className="mail-sidebar-footer"><span>Press / to search this page</span>{accountEmail&&<div className="mail-account-profile"><span className="mail-avatar">{accountEmail[0].toUpperCase()}</span><div><strong title={accountEmail}>{accountEmail}</strong><small>Your account</small></div>{onSignOut&&<button className="mail-icon-btn" aria-label="Sign out" title="Sign out" disabled={signingOut} onClick={onSignOut}><LogOut size={16}/></button>}</div>}</div>
+   </nav>);
+ return <section ref={motionRef} className={`mail-workspace ${desktop&&collapsed?"mail-sidebar-collapsed":""} ${selected?"mail-reading-open":""}`} aria-label="Chatvice Mail">
   <header className={`mail-topbar ${headerCompact?"mail-topbar-compact":""}`}>
-   <div className="mail-brand"><span className="mail-brand-icon"><Mail size={21}/></span><div><h1>Chatvice <span>Mail</span></h1><p>MAIL TERMINAL / CONNECTED_</p></div></div>
-   <div className="mail-header-actions"><button ref={menuRef} className="mail-button mail-primary" aria-label="Open mail menu" aria-haspopup="dialog" aria-expanded={panel==="menu"} aria-controls="mail-menu" onClick={()=>setPanel("menu")}><Menu size={16}/> Menu</button></div>
+   <Link href="/" className="mail-brand mail-brand-home" aria-label="Chatvice Mail home"><span className="mail-brand-icon" data-mail-depth=".3"><Mail size={21}/></span><div><h1>Chatvice <span>Mail</span></h1><p>MAIL TERMINAL / CONNECTED_</p></div></Link>
+   <div className="mail-header-actions">{!desktop&&<button ref={menuRef} className="mail-button mail-primary" aria-label="Open mail menu" aria-haspopup="dialog" aria-expanded={panel==="menu"} aria-controls="mail-menu" onClick={()=>setPanel("menu")}><Menu size={16}/> Menu</button>}</div>
   </header>
   {error&&!editor&&<div className="mail-alert" role="alert"><AlertCircle size={16}/>{error}<button aria-label="Dismiss error" onClick={()=>setError("")}>×</button></div>}
   <div className="mail-workspace-actions"><span role="status">{notice&&!editor?notice:loading?"Updating conversations…":`${folderLabel} · ${folderStat?.total??0} conversations${box&&!canWrite?" · Read-only access":""}`}</span><button className="mail-button mail-primary" disabled={!canWrite||saving||uploading} onClick={()=>openEditor(blankEditor())}><Plus size={15}/> Compose<span className="mail-key">N</span></button></div>
   <div className="mail-grid">
+   {desktop&&navigation()}
    <div className={`mail-thread-list ${selected?"mail-mobile-hidden":""}`}>
     <div className="mail-list-heading"><div><h2>{folderLabel}</h2><p>{folderStat?`${folderStat.total} conversations · ${folderStat.unread} unread`:"Your mailbox conversations"}</p></div></div>
     <div className="mail-list-controls">
@@ -242,6 +264,7 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
     <div className="mail-pagination"><span>Page {page+1}{search?" · filtered locally":""}</span><div><button className="mail-icon-btn" aria-label="Previous page" disabled={!page||loading||acting} onClick={()=>navigate(folder,filter,page-1)}><ChevronLeft size={17}/></button><button className="mail-icon-btn" aria-label="Next page" disabled={!hasNext||loading||acting} onClick={()=>navigate(folder,filter,page+1)}><ChevronRight size={17}/></button></div></div>
    </div>
    <article className={`mail-reader ${!selected?"mail-mobile-hidden":""}`} aria-label="Conversation">
+    <div className="mail-inbox-depth" aria-hidden="true"><i data-mail-depth=".45"/><i data-mail-depth="-.7"/><i data-mail-depth="1.2"/></div>
     {selected?<>
      <div className="mail-reader-toolbar"><button className="mail-icon-btn mail-back" aria-label="Back to messages" onClick={()=>setSelected(null)}><ArrowLeft size={18}/></button><span className="mail-reader-label">CONVERSATION</span><div>
       <button className={`mail-icon-btn ${selected.is_starred?"mail-starred":""}`} disabled={!canWrite||acting} aria-label={selected.is_starred?"Remove star":"Star conversation"} onClick={()=>changeThread({isStarred:!selected.is_starred})}><Star size={17} fill={selected.is_starred?"currentColor":"none"}/></button>
@@ -260,24 +283,13 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
       {!reading&&incoming&&canWrite&&<div className="mail-reply-actions"><button className="mail-button mail-reply" onClick={()=>reply()}><Reply size={17}/> Reply to {incoming.from_email.split("@")[0]}</button>{hasReplyAll&&<button className="mail-button mail-reply" onClick={()=>reply("",true)}><ReplyAll size={17}/> Reply all</button>}</div>}
       {context?.sender&&<aside className="mail-contact"><div><span className="mail-eyebrow">CUSTOMER 360</span><h3>{context.lead?.customer_name||context.sender}</h3><p>{context.lead?`${context.lead.stage} · Lead score ${context.lead.score??0}/100`:"Connect this conversation with your customer records."}</p></div>{context.lead?<span className="mail-linked"><Check size={13}/> CRM linked</span>:canWrite&&<button className="mail-button" disabled={acting} onClick={convertLead}><UserRoundPlus size={15}/> Add to CRM</button>}</aside>}
      </div>
-    </>:<div className="mail-reader-empty"><MailArt kind="inbox" className="mail-empty-art"/><span className="mail-eyebrow">MAKE ROOM FOR FOCUS</span><h2>Good conversations<br/>start here.</h2><p>Select a conversation to read, reply,<br/>and keep your customers connected.</p><div><span><LockKeyhole size={13}/> Private mailboxes</span><span><UserRoundPlus size={13}/> Connected to CRM</span></div>{canWrite&&<button className="mail-button" onClick={()=>openEditor(blankEditor())}><Plus size={16}/> Start a conversation</button>}</div>}
+    </>:<div className="mail-reader-empty"><MailArt kind="inbox" depth={1} className="mail-empty-art"/><span className="mail-eyebrow">MAKE ROOM FOR FOCUS</span><h2>Good conversations<br/>start here.</h2><p>Select a conversation to read, reply,<br/>and keep your customers connected.</p><div><span><LockKeyhole size={13}/> Private mailboxes</span><span><UserRoundPlus size={13}/> Connected to CRM</span></div>{canWrite&&<button className="mail-button" onClick={()=>openEditor(blankEditor())}><Plus size={16}/> Start a conversation</button>}</div>}
    </article>
   </div>
-  <Dialog open={panel==="menu"} onOpenChange={open=>setPanel(open?"menu":null)}><DialogContent id="mail-menu" variant="drawer" className="mail-menu-drawer" onCloseAutoFocus={event=>{event.preventDefault();menuRef.current?.focus();}}><DialogTitle>Workspace menu_</DialogTitle><DialogDescription>Choose a mailbox, browse folders, or manage your workspace.</DialogDescription>
-   <nav className="mail-sidebar mail-menu-sidebar" aria-label="Mail folders">
-    <div className="mail-account"><label htmlFor="mailbox-select">WORKSPACE</label><select id="mailbox-select" value={box} disabled={saving||uploading||acting||initializing} onChange={e=>changeMailbox(e.target.value)}>
-     {!box&&<option value="">{initializing?"Loading…":"No active mailbox"}</option>}
-     {boxes.map(b=><option key={b.id} value={b.id} disabled={!b.enabled}>{b.local_part}@{b.domain}{!b.enabled?" (disabled)":""}</option>)}
-    </select><span className={`mail-access ${box&&!canWrite?"mail-readonly":""}`}>{box?(canWrite?"Mailbox member":"Read-only access"):"Assign a mailbox to get started"}</span></div>
-    <div className="mail-folder-links">{folders.map(f=>{
-     const stat=stats.find(s=>s.folder===f.name);
-     return <button key={f.name} disabled={acting} onClick={()=>navigate(f.name,"all")} aria-current={folder===f.name?"page":undefined} className={`mail-folder ${folder===f.name?"active":""}`}><f.icon size={17}/><span>{f.label}</span>{Boolean(stat?.total)&&<span className="mail-folder-count">{stat?.total}</span>}</button>;
-    })}{cap.admin&&<Link href="/dashboard/mail/admin" className="mail-folder" aria-label="Mail settings"><Settings size={17}/> Settings</Link>}<button className="mail-folder" disabled={!box} aria-label="Open activity and subscription reminders" onClick={()=>setPanel("activity")}><Bell size={17}/><span>Activity & reminders</span></button></div>
-    <div className="mail-menu-theme"><span>Appearance</span><MailTheme/></div>
-    <div className="mail-sidebar-footer"><ShieldCheck size={19}/><strong>A private place to work</strong><p>Messages stay within your authorized mailboxes.</p><span>Press / to search this page</span>{accountEmail&&<div className="mail-account-profile"><span className="mail-avatar">{accountEmail[0].toUpperCase()}</span><div><strong title={accountEmail}>{accountEmail}</strong><small>Your account</small></div>{onSignOut&&<button className="mail-icon-btn" aria-label="Sign out" title="Sign out" disabled={signingOut} onClick={onSignOut}><LogOut size={16}/></button>}</div>}</div>
-   </nav>
+  <Dialog open={!desktop&&panel==="menu"} onOpenChange={open=>setPanel(open?"menu":null)}><DialogContent id="mail-menu" variant="drawer" className="mail-menu-drawer" onCloseAutoFocus={event=>{event.preventDefault();menuRef.current?.focus();}}><DialogTitle>Workspace menu_</DialogTitle><DialogDescription>Choose a mailbox, browse folders, or manage your workspace.</DialogDescription>
+   {navigation()}
   </DialogContent></Dialog>
-  <MailActivity key={box} open={panel==="activity"} onOpenChange={open=>setPanel(open?"activity":null)} returnFocusRef={menuRef} mailboxId={box} canWrite={canWrite} reload={reload} onFolder={(next,nextFilter="all")=>navigate(next,nextFilter)} onDraft={id=>{void openDraft(id);}} onMessage={m=>{navigate("inbox","all");setSelected({...m,id:m.thread_id,is_read:false,is_starred:false,message_count:1});}}/>
+  <MailActivity key={box} desktop={desktop} open={panel==="activity"} onOpenChange={open=>setPanel(open?"activity":null)} returnFocusRef={menuRef} mailboxId={box} canWrite={canWrite} reload={reload} onFolder={(next,nextFilter="all")=>navigate(next,nextFilter)} onDraft={id=>{void openDraft(id);}} onMessage={m=>{navigate("inbox","all");setSelected({...m,id:m.thread_id,is_read:false,is_starred:false,message_count:1});}}/>
   <Dialog open={Boolean(editor)} onOpenChange={open=>{if(!open)closeEditor();}}><DialogContent className="mail-composer" closeDisabled={saving||uploading} onInteractOutside={event=>event.preventDefault()} onEscapeKeyDown={event=>{event.preventDefault();closeEditor();}}>
    <DialogTitle>{editor?.draftId?"Edit draft":"New message"}</DialogTitle><DialogDescription>From {currentBox?.local_part}@{currentBox?.domain}</DialogDescription>
    {editor&&<><div className={`mail-compose-layout ${cap.attachments?"has-attachments":""}`}><div className="mail-compose-writing"><label className="mail-compose-field">To<input autoFocus aria-label="Recipients" placeholder="address@example.com, another@example.com" disabled={saving||uploading} value={editor.to} onChange={e=>setEditor({...editor,to:e.target.value})}/>{!showCopies&&<button className="mail-copy-toggle" type="button" disabled={saving||uploading} onClick={()=>setShowCopies(true)}>CC / BCC</button>}</label>

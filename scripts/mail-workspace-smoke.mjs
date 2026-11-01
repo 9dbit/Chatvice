@@ -32,6 +32,8 @@ const wait=ms=>new Promise(done=>setTimeout(done,ms));
 try{
  browser=await chromium.launch({headless:true,...(process.env.CHATVICE_MAIL_BROWSER_PATH?{executablePath:process.env.CHATVICE_MAIL_BROWSER_PATH}:{})});
  const page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
+ const openMenu=async()=>{const button=page.getByRole('button',{name:'Open mail menu'});if(await button.count())await button.click();};
+ const closeMenu=async()=>{const drawer=page.getByRole('dialog',{name:'Workspace menu_'});if(await drawer.count())await drawer.getByRole('button',{name:'Close',exact:true}).click();};
  page.setDefaultTimeout(15000);
  page.setDefaultNavigationTimeout(15000);
  let viewer=false,folder='inbox',read=false,starred=false,draft=null,patches=0,composeCalls=0;
@@ -91,10 +93,10 @@ try{
  assert.ok((await page.locator('.mail-workspace').boundingBox()).height<=1000,'desktop inbox must stay within a bounded workspace');
  assert.ok(await page.locator('.mail-thread-scroll').evaluate(el=>el.scrollHeight>el.clientHeight),'long inboxes must scroll within their panel');
 
- // The on-demand menu frees the full width; scrolling only changes the header.
- assert.equal(await page.locator('.mail-activity,.mail-ticker').count(),0);
- assert.equal(await page.getByRole('navigation',{name:'Mail folders'}).count(),0);
- assert.equal(Math.round((await page.locator('.mail-thread-list').boundingBox()).x),Math.round((await page.locator('.mail-workspace').boundingBox()).x));
+ // Desktop has a persistent icon rail; scrolling only changes the header.
+ assert.equal(await page.locator('.mail-desktop-activity').count(),1);
+ assert.equal(await page.getByRole('navigation',{name:'Mail folders'}).count(),1);
+ assert.equal(Math.round((await page.locator('.mail-desktop-sidebar').boundingBox()).x),Math.round((await page.locator('.mail-workspace').boundingBox()).x));
  const normalHeader=(await page.locator('.mail-topbar').boundingBox()).height;
  await page.locator('.mail-thread-scroll').evaluate(el=>el.scrollTop=250);
  await page.waitForFunction(()=>document.querySelector('.mail-topbar-compact'));
@@ -113,11 +115,11 @@ try{
  assert.equal(await page.getByRole('button',{name:'Search conversations',exact:true}).evaluate(el=>el===document.activeElement),true);
  assert.equal(await page.getByLabel('Search filter active').count(),1);
  await page.keyboard.press('/');await page.getByLabel('Search this page').fill('');await page.getByLabel('Search this page').press('Escape');
- await page.getByRole('button',{name:'Open mail menu'}).click();
- const menu=page.getByRole('dialog',{name:'Workspace menu_'}),menuBox=await menu.boundingBox();
- assert.equal(Math.round(menuBox.x+menuBox.width),1440,'menu attaches to right edge');
- await page.keyboard.press('Escape');
- assert.equal(await page.getByRole('button',{name:'Open mail menu'}).evaluate(el=>el===document.activeElement),true);
+ await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+ assert.equal(Math.round((await page.locator('.mail-desktop-sidebar').boundingBox()).width),64);
+ assert.equal(await page.getByRole('navigation',{name:'Mail folders'}).getByRole('button',{name:'Inbox',exact:true}).isVisible(),true);
+ await page.getByRole('button',{name:'Expand sidebar',exact:true}).click();
+ assert.ok((await page.locator('.mail-desktop-sidebar').boundingBox()).width>190);
  await screen(page,'mail-desktop');
  await page.getByRole('button',{name:'A new space for better conversations',exact:false}).click();
  await page.getByRole('heading',{name:'amelia@example.invalid',exact:true}).first().waitFor();
@@ -159,11 +161,11 @@ try{
  await page.getByRole('button',{name:'Mark unread',exact:true}).waitFor();
  await page.getByRole('button',{name:'Archive conversation',exact:true}).click();
  await page.getByRole('status').filter({hasText:'Conversation moved to archive'}).waitFor();
- await page.getByRole('button',{name:'Open mail menu'}).click();
+ await openMenu();
  await page.getByRole('button',{name:/^Archive/}).click();
  await page.getByRole('button',{name:'A new space for better conversations',exact:false}).click();
  await page.getByRole('button',{name:'Move to inbox',exact:true}).click();
- await page.getByRole('button',{name:'Open mail menu'}).click();
+ await openMenu();
  await page.getByRole('navigation',{name:'Mail folders'}).getByRole('button',{name:/^Inbox/}).click();
  const starredResponse=page.waitForResponse(response=>{
   const u=new URL(response.url());return u.pathname==='/api/mail/threads'&&u.searchParams.get('filter')==='starred';
@@ -203,7 +205,7 @@ try{
  assert.equal(composeCalls,1,'editing a saved draft must not create a duplicate');
  assert.equal(draft.text,'An unsaved change');
  await page.getByRole('button',{name:'Close',exact:true}).click();
- await page.getByRole('button',{name:'Open mail menu'}).click();
+ await openMenu();
  await page.getByRole('button',{name:/^Drafts/}).click();
  await page.getByRole('button',{name:'Project follow-up',exact:false}).click();
  await page.getByRole('button',{name:'Continue editing',exact:true}).click();
@@ -212,7 +214,7 @@ try{
  assert.equal(await page.getByLabel('CC recipients',{exact:true}).inputValue(),'reviewer@example.invalid');
  assert.equal(await page.getByLabel('BCC recipients',{exact:true}).inputValue(),'hidden@example.invalid');
  await page.getByRole('button',{name:'Close',exact:true}).click();
- await page.getByRole('button',{name:'Open mail menu'}).click();
+ await openMenu();
  await page.getByRole('navigation',{name:'Mail folders'}).getByRole('button',{name:/^Inbox/}).click();
  await page.setViewportSize({width:390,height:844});
  await screen(page,'mail-mobile-inbox');
@@ -225,13 +227,13 @@ try{
  delayThread=true;
  await page.getByRole('button',{name:'A new space for better conversations',exact:false}).click();
  await page.getByRole('button',{name:'Back to messages',exact:true}).click();
- await page.getByRole('button',{name:'Open mail menu'}).click();
+ await openMenu();
  await page.getByRole('combobox',{name:'WORKSPACE'}).selectOption(otherBox);
  await wait(500);
  assert.equal(await page.locator('.mail-message-body').count(),0,'old mailbox responses must not repopulate the reader');
  viewer=true;
  await page.reload();
- await page.getByRole('button',{name:'Open mail menu'}).click();
+ await openMenu();
  await page.getByText('Read-only access',{exact:true}).waitFor();
  await page.getByRole('button',{name:'Close',exact:true}).click();
  assert.equal(await page.getByRole('button',{name:'Compose',exact:false}).isDisabled(),true);

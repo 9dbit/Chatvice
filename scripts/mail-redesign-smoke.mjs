@@ -13,6 +13,8 @@ let browser;
 try{
  browser=await chromium.launch({headless:true,...(process.env.CHATVICE_MAIL_BROWSER_PATH?{executablePath:process.env.CHATVICE_MAIL_BROWSER_PATH}:{})});
  const page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
+ const openMenu=async()=>{const button=page.getByRole('button',{name:'Open mail menu'});if(await button.count())await button.click();};
+ const closeMenu=async()=>{const drawer=page.getByRole('dialog',{name:'Workspace menu_'});if(await drawer.count())await drawer.getByRole('button',{name:'Close',exact:true}).click();};
  page.setDefaultTimeout(15000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
  let signedIn=false,mailCalls=0;
  await page.route('**/api/**',route=>{
@@ -41,6 +43,15 @@ try{
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Landing overflow at ${width}`);
   if(width===1440||width===390)await screenshot('mail-redesign-landing-'+width);
  }
+
+ await page.setViewportSize({width:1440,height:1000});await page.goto(origin+'/');
+ assert.equal(await page.locator('.cm-hero-art').evaluate(el=>getComputedStyle(el).transform),'none','reduced motion disables parallax');
+ await page.emulateMedia({reducedMotion:'no-preference'});await page.mouse.move(1250,300);
+ await page.waitForFunction(()=>parseFloat(document.querySelector('.cm-hero-art').style.getPropertyValue('--mail-depth-x'))>0);
+ const depthBefore=await page.locator('.cm-hero-art').evaluate(el=>el.style.getPropertyValue('--mail-depth-y'));
+ await page.evaluate(()=>window.scrollTo(0,200));
+ await page.waitForFunction(before=>document.querySelector('.cm-hero-art').style.getPropertyValue('--mail-depth-y')!==before,depthBefore);
+ await page.emulateMedia({reducedMotion:'reduce'});await page.evaluate(()=>window.scrollTo(0,0));
  assert.equal(mailCalls,0,'public landing must not request mailbox data');
  await page.setViewportSize({width:390,height:844});
  await page.getByRole('button',{name:'Use dark mode'}).click();
@@ -67,13 +78,30 @@ try{
   assert.equal(Math.round(bounds.width),width);assert.equal(Math.round(bounds.height),900);
   if(width===390||width===1440)await screenshot('mail-redesign-empty-'+width);
  }
+
+ await page.setViewportSize({width:1440,height:1000});
+ assert.equal(await page.locator('.mail-desktop-sidebar').count(),1);
+ await page.getByRole('button',{name:'Collapse sidebar',exact:true}).click();
+ assert.equal(Math.round((await page.locator('.mail-desktop-sidebar').boundingBox()).width),64);await screenshot('mail-sidebar-collapsed');
+ await page.reload();await page.getByRole('button',{name:'Expand sidebar',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Choose workspace',exact:true}).click();
+ assert.equal(await page.getByRole('combobox',{name:'WORKSPACE'}).evaluate(el=>el===document.activeElement),true);
+ await page.getByRole('link',{name:'Chatvice Mail home',exact:true}).click();
+ await page.getByRole('heading',{name:/LESS NOISE/i}).waitFor();
+ await page.getByRole('link',{name:'Open your inbox',exact:false}).click();
+ await page.getByRole('button',{name:'Compose',exact:false}).waitFor();
+ await page.emulateMedia({reducedMotion:'no-preference'});await page.mouse.move(1200,300);
+ await page.waitForFunction(()=>parseFloat(document.querySelector('.mail-empty-art').style.getPropertyValue('--mail-depth-x'))>0);
+ await page.getByRole('button',{name:'Pause activity ticker',exact:true}).click();
+ assert.equal(await page.locator('.mail-ticker-track').evaluate(el=>getComputedStyle(el).animationPlayState),'paused');
+ await page.emulateMedia({reducedMotion:'reduce'});
  await page.setViewportSize({width:1440,height:1000});
  await page.getByRole('button',{name:'A new idea, ready to share',exact:false}).click();
  await page.locator('.mail-message-body').waitFor();
  await screenshot('mail-redesign-inbox-desktop');
- await page.getByRole('button',{name:'Open mail menu'}).click();await page.getByRole('button',{name:'Use dark mode'}).click();await page.getByRole('button',{name:'Close',exact:true}).click();
+ await openMenu();await page.getByRole('button',{name:'Use dark mode'}).click();await closeMenu();
  await screenshot('mail-redesign-inbox-dark');
- await page.getByRole('button',{name:'Open mail menu'}).click();await page.getByRole('button',{name:'Use light mode'}).click();await page.getByRole('button',{name:'Close',exact:true}).click();
+ await openMenu();await page.getByRole('button',{name:'Use light mode'}).click();await closeMenu();
  for(const width of [320,390,768,1024,1440,2560]){
   await page.setViewportSize({width,height:900});
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Reader overflow at ${width}`);
@@ -85,9 +113,9 @@ try{
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await screenshot('mail-redesign-compose-mobile');
  await page.getByRole('button',{name:'Close',exact:true}).click();
- await page.getByRole('button',{name:'Open mail menu'}).click();
+ await openMenu();
  await page.getByRole('button',{name:'Sign out',exact:true}).filter({visible:true}).click();
  await page.getByRole('heading',{name:'SIGN IN_'}).waitFor();
  assert.equal(signedIn,false);assert.deepEqual(errors,[]);
- console.log('PASS: landing, login, protected inbox, theme persistence, compose and signout; 320–2560 px; synthetic accounts only');
+ console.log('PASS: landing, login, protected inbox, theme/sidebar persistence, desktop ticker, reduced-motion parallax, home link, compose and signout; 320–2560 px; synthetic accounts only');
 }finally{await browser?.close();await new Promise(done=>server.close(done));}

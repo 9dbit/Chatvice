@@ -27,6 +27,9 @@ on:
       - "client/src/mail-site.css"
       - "client/src/mail-glass.css"
       - "client/src/mail-retro.css"
+      - "client/src/mail-motion.css"
+      - "client/src/components/mail-motion.ts"
+      - "client/src/pages/dashboard/mail-compact.css"
       - "client/src/assets/mail-retro/**"
       - "client/src/pages/dashboard/mail-activity.tsx"
       - "client/src/pages/dashboard/mail-pdf-preview.tsx"
@@ -143,7 +146,7 @@ jobs:
         env:
           CHATVICE_MAIL_SMOKE_OUTPUT: ${{ runner.temp }}/mail-workspace-preview
         run: node --import tsx scripts/mail-workspace-smoke.mjs
-      - name: Verify public landing, login, themes and full viewport inbox
+      - name: Verify landing parallax, responsive sidebar, themes and home navigation
         env:
           CHATVICE_MAIL_SMOKE_OUTPUT: ${{ runner.temp }}/mail-workspace-preview
         run: node scripts/mail-redesign-smoke.mjs
@@ -151,7 +154,7 @@ jobs:
         env:
           CHATVICE_MAIL_SMOKE_OUTPUT: ${{ runner.temp }}/mail-workspace-preview
         run: node scripts/mail-glass-smoke.mjs
-      - name: Verify retro attachments, private previews and menu subscription reminders
+      - name: Verify retro attachments, desktop ticker and subscription reminders
         env:
           CHATVICE_MAIL_SMOKE_OUTPUT: ${{ runner.temp }}/mail-workspace-preview
         run: node scripts/mail-retro-smoke.mjs
