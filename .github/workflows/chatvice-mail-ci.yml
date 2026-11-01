@@ -151,7 +151,7 @@ jobs:
         env:
           CHATVICE_MAIL_SMOKE_OUTPUT: ${{ runner.temp }}/mail-workspace-preview
         run: node scripts/mail-glass-smoke.mjs
-      - name: Verify retro attachments, private previews, ticker and subscription reminders
+      - name: Verify retro attachments, private previews and menu subscription reminders
         env:
           CHATVICE_MAIL_SMOKE_OUTPUT: ${{ runner.temp }}/mail-workspace-preview
         run: node scripts/mail-retro-smoke.mjs

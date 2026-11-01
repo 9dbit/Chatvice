@@ -71,9 +71,9 @@ try{
  await page.getByRole('button',{name:'A new idea, ready to share',exact:false}).click();
  await page.locator('.mail-message-body').waitFor();
  await screenshot('mail-redesign-inbox-desktop');
- await page.getByRole('button',{name:'Use dark mode'}).click();
+ await page.getByRole('button',{name:'Open mail menu'}).click();await page.getByRole('button',{name:'Use dark mode'}).click();await page.getByRole('button',{name:'Close',exact:true}).click();
  await screenshot('mail-redesign-inbox-dark');
- await page.getByRole('button',{name:'Use light mode'}).click();
+ await page.getByRole('button',{name:'Open mail menu'}).click();await page.getByRole('button',{name:'Use light mode'}).click();await page.getByRole('button',{name:'Close',exact:true}).click();
  for(const width of [320,390,768,1024,1440,2560]){
   await page.setViewportSize({width,height:900});
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Reader overflow at ${width}`);
@@ -85,6 +85,7 @@ try{
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await screenshot('mail-redesign-compose-mobile');
  await page.getByRole('button',{name:'Close',exact:true}).click();
+ await page.getByRole('button',{name:'Open mail menu'}).click();
  await page.getByRole('button',{name:'Sign out',exact:true}).filter({visible:true}).click();
  await page.getByRole('heading',{name:'SIGN IN_'}).waitFor();
  assert.equal(signedIn,false);assert.deepEqual(errors,[]);
