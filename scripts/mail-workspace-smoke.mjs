@@ -10,6 +10,7 @@ import { tsImport } from 'tsx/esm/api';
 // its plain-text result, matching the reader endpoint's private field contract.
 const {readableMailText}=await tsImport('../server/mail/message-text.ts',import.meta.url);
 const htmlOnlyBody=`<!doctype html><html><head><style>@font-face{font-family:tracking;src:url(https://mail-tracker.example.invalid/font)}p{background:url(https://mail-tracker.example.invalid/background)}</style><link rel="stylesheet" href="https://mail-tracker.example.invalid/style.css"></head><body><p>Hello &amp; welcome &#x1f642;.</p><p>Second paragraph.<br>Next line with &lt;strong&gt;literal markup&lt;/strong&gt;.</p><p><a href="https://mail-tracker.example.invalid/link">Read project details</a></p><script>window.__mailHtmlExecuted=true;fetch('https://mail-tracker.example.invalid/script')</script><img src="https://mail-tracker.example.invalid/pixel" onerror="window.__mailHtmlExecuted=true"><iframe src="https://mail-tracker.example.invalid/frame"></iframe></body></html>`;
+const confirmUrl='https://auth.example.invalid/verify?token=synthetic%2Bonly&type=signup&redirect_to=https%3A%2F%2Fshop.example.invalid%2F';
 const htmlOnlyText=readableMailText('',htmlOnlyBody);
 
 const app=express();
@@ -67,7 +68,7 @@ try{
   if(path.endsWith('/context'))return fulfill({sender:'amelia@example.invalid',lead:null});
   if(path===`/api/mail/threads/${thread}`){
    if(delayThread)await wait(350);
-   return fulfill([{id:message,direction:'inbound',status:'received',from_email:base.from_email,to_emails:['hello@studio.example.invalid','sales@studio.example.invalid','partner@example.invalid'],cc_emails:['reviewer@example.invalid','partner@example.invalid'],subject:base.subject,text_body:'Hi team,\n\nCould you share the details for our next project?\n\n<img src=x onerror=alert(1)>\n\nThank you,\nAmelia',created_at:base.created_at,is_read:read,is_starred:starred},
+   return fulfill([{id:message,direction:'inbound',status:'received',from_email:base.from_email,to_emails:['hello@studio.example.invalid','sales@studio.example.invalid','partner@example.invalid'],cc_emails:['reviewer@example.invalid','partner@example.invalid'],subject:base.subject,text_body:`Hi team,\n\nCould you share the details for our next project?\n\n<img src=x onerror=alert(1)>\n\nThank you,\nAmelia\n\nConfirm email address [${confirmUrl}]`,created_at:base.created_at,is_read:read,is_starred:starred},
     {id:'html-only-message',direction:'inbound',status:'received',from_email:base.from_email,to_emails:['hello@studio.example.invalid','sales@studio.example.invalid','partner@example.invalid'],cc_emails:['reviewer@example.invalid','partner@example.invalid'],subject:base.subject,text_body:htmlOnlyText,created_at:base.created_at,is_read:read,is_starred:starred}]);
   }
   if(path===`/api/mail/threads/${thread2}`)return fulfill([{id:'draft-message',status:'draft',direction:'outbound',from_email:'hello@studio.example.invalid',to_emails:draft?.to||[],subject:draft?.subject||'',text_body:draft?.text||'',created_at:base.created_at,is_read:true,is_starred:false}]);
@@ -92,9 +93,23 @@ try{
  await page.getByRole('button',{name:'A new space for better conversations',exact:false}).click();
  await page.getByRole('heading',{name:'amelia@example.invalid',exact:true}).first().waitFor();
  assert.equal(await page.locator('.mail-message-body img').count(),0);
+ const confirmation=page.locator('.mail-message-body').first().getByRole('link');
+ assert.equal(await confirmation.getAttribute('href'),confirmUrl);
+ // Only synthetic confirmation URLs are clicked; no real token is consumed.
+ await page.context().route('https://auth.example.invalid/**',route=>route.fulfill({status:200,contentType:'text/html',body:'Synthetic confirmation destination'}));
+ const popupPromise=page.waitForEvent('popup');
+ await confirmation.click();
+ const popup=await popupPromise;await popup.waitForLoadState('domcontentloaded');
+ assert.equal(popup.url(),confirmUrl);await popup.close();
+
  assert.ok(await page.locator('.mail-message-body').first().innerText().then(t=>t.includes('<img')));
- assert.equal(await page.locator('.mail-message-body').nth(1).innerText(),'Hello & welcome 🙂.\n\nSecond paragraph.\nNext line with <strong>literal markup</strong>.\n\nRead project details');
- assert.equal(await page.locator('.mail-message-body script,.mail-message-body iframe,.mail-message-body style,.mail-message-body a,.mail-message-body strong').count(),0);
+ assert.equal(await page.locator('.mail-message-body').nth(1).innerText(),'Hello & welcome 🙂.\n\nSecond paragraph.\nNext line with <strong>literal markup</strong>.\n\nRead project details [https://mail-tracker.example.invalid/link]');
+ assert.equal(await page.locator('.mail-message-body script,.mail-message-body iframe,.mail-message-body style,.mail-message-body strong').count(),0);
+ const safeLink=page.locator('.mail-message-body').nth(1).getByRole('link');
+ assert.equal(await safeLink.getAttribute('href'),'https://mail-tracker.example.invalid/link');
+ assert.equal(await safeLink.getAttribute('target'),'_blank');
+ assert.equal(await safeLink.getAttribute('rel'),'noopener noreferrer');
+ assert.equal(await safeLink.getAttribute('referrerpolicy'),'no-referrer');
  assert.equal(await page.evaluate(()=>window.__mailHtmlExecuted),undefined);
  assert.deepEqual(trackingRequests,[],'HTML-only text must not load pixels, fonts, styles or frames');
  await screen(page,'mail-conversation');
@@ -165,6 +180,7 @@ try{
  await page.getByRole('button',{name:'A new space for better conversations',exact:false}).click();
  await page.getByRole('heading',{name:'amelia@example.invalid',exact:true}).first().waitFor();
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'mobile must not overflow horizontally');
+ assert.equal(await page.locator('.mail-message-body').first().getByRole('link').getAttribute('href'),confirmUrl);
  await screen(page,'mail-mobile-conversation');
  await page.getByRole('button',{name:'Back to messages',exact:true}).click();
  delayThread=true;
@@ -202,3 +218,4 @@ try{
  await browser?.close();
  await new Promise(done=>server.close(done));
 }
+

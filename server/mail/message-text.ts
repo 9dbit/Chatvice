@@ -1,17 +1,24 @@
 import { compile } from "html-to-text";
+import { safeMailHref } from "../../shared/mail-links";
 
 export const MAIL_HTML_TEXT_MAX_INPUT=1_000_000;
 export const MAIL_HTML_TEXT_MAX_OUTPUT=500_000;
 const truncation="[Message text truncated]";
 // html-to-text uses htmlparser2's string parser, not a browser document. It has
 // no resource loader, JavaScript execution or live elements. Only plain text is
-// returned to the client; no raw HTML or URL-valued attributes cross the API.
+// returned to the client. Safe HTTP(S) link destinations are included as text;
+// no HTML, scripts, images or remote resources cross the API.
 const convert=compile({
  wordwrap:false,
+ formatters:{safeLink:(elem,walk,builder)=>{
+  walk(elem.children,builder);
+  const href=safeMailHref(elem.attribs?.href||"");
+  if(href)builder.addInline(` [${href}]`);
+ }},
  limits:{maxInputLength:MAIL_HTML_TEXT_MAX_INPUT,maxDepth:64,maxChildNodes:10_000,maxBaseElements:1,ellipsis:truncation},
  selectors:[
   ...["script","style","iframe","frame","frameset","object","embed","applet","img","picture","source","video","audio","canvas","svg","math","template","noscript","head","title","meta","link","base","input","[hidden]",'[aria-hidden="true"]'].map(selector=>({selector,format:"skip"})),
-  {selector:"a",options:{ignoreHref:true}},
+  {selector:"a",format:"safeLink"},
   ...["h1","h2","h3","h4","h5","h6"].map(selector=>({selector,options:{uppercase:false}}))
  ]
 });
@@ -24,3 +31,4 @@ export function readableMailText(text:string|null|undefined,html:string|null|und
  const clipped=converted.slice(0,MAIL_HTML_TEXT_MAX_OUTPUT);
  return html.length>input.length||converted.length>clipped.length?`${clipped}\n\n${truncation}`:clipped;
 }
+

@@ -30,6 +30,8 @@ on:
       - "vite.mail-qa.config.ts"
       - "script/build-mail-qa.ts"
       - "client/src/pages/dashboard/mail.tsx"
+      - "client/src/pages/dashboard/mail-message-body.tsx"
+      - "scripts/mail-links.test.mjs"
       - "client/src/pages/dashboard/mail-workspace.css"
       - "client/src/pages/dashboard/mail-admin.tsx"
       - "client/src/pages/dashboard/mail-attachments.tsx"
@@ -83,7 +85,7 @@ jobs:
       - name: Install from lockfile
         run: npm ci --no-audit --no-fund
       - name: Verify mail security and provider tests
-        run: npx tsx --test server/mail/qa-login.test.ts server/mail/qa-auth.test.ts server/mail/security.test.ts server/mail/delivery.test.ts server/mail/message-text.test.ts server/mail/privacy.test.ts server/mail/attachment-security.test.ts server/mail/crypto.test.ts server/mail/binary-crypto.test.ts server/mail/password.test.ts server/mail/backup.test.ts server/mail/recipients.test.ts
+        run: npx tsx --test server/mail/qa-login.test.ts server/mail/qa-auth.test.ts server/mail/security.test.ts server/mail/delivery.test.ts server/mail/message-text.test.ts scripts/mail-links.test.mjs server/mail/privacy.test.ts server/mail/attachment-security.test.ts server/mail/crypto.test.ts server/mail/binary-crypto.test.ts server/mail/password.test.ts server/mail/backup.test.ts server/mail/recipients.test.ts
       - name: Test mail tenant isolation on disposable PostgreSQL
         run: npx tsx --test server/mail/integration.test.ts
       - name: Rehearse encrypted PostgreSQL backup and restore on disposable CI
@@ -103,7 +105,7 @@ jobs:
       - name: Typecheck mail files (report existing app baseline separately)
         run: |
           npm run check > /tmp/chatvice-typecheck.log 2>&1 || TYPECHECK_FAILED=1
-          if grep -E '(server/mail/|shared/mail-|client/src/mail-(app|qa)-main\.tsx|script/build-mail-|vite.mail-|client/src/pages/dashboard/mail(-admin|-attachments)?\.tsx)' /tmp/chatvice-typecheck.log; then
+          if grep -E '(server/mail/|shared/mail-|client/src/mail-(app|qa)-main\.tsx|script/build-mail-|vite.mail-|client/src/pages/dashboard/mail(-admin|-attachments|-message-body)?\.tsx)' /tmp/chatvice-typecheck.log; then
             echo "::error::New mail TypeScript diagnostics detected"
             exit 1
           fi
@@ -151,5 +153,6 @@ jobs:
             echo "::error::Tracker detected in private Mail QA HTML"
             exit 1
           fi
+
 
 

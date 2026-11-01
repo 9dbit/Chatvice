@@ -23,3 +23,8 @@
 @media(max-width:800px){.mail-thread-list{height:calc(100dvh - 290px);min-height:440px;max-height:700px}.mail-thread-scroll{height:0;min-height:0}}
 .mail-filter-tabs button{min-height:44px}
 .mail-copy-toggle{flex-shrink:0;white-space:nowrap;min-height:44px;padding:0 8px;color:#f2b07b;font-size:10px;border-radius:7px}.mail-copy-toggle:hover{background:#fb923c0c}.mail-reply-actions{display:flex;gap:10px;flex-wrap:wrap}
+
+/* Long signed links stay tappable without widening the mobile reader. */
+.mail-message-body .mail-message-link{color:#fb923c;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere;word-break:break-word;cursor:pointer}
+.mail-message-body .mail-message-link:hover{color:#ffb36d}
+.mail-message-body .mail-message-link:focus-visible{outline:2px solid #fb923c;outline-offset:3px;border-radius:3px}

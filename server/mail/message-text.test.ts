@@ -11,7 +11,7 @@ test("mail reader keeps an existing plain-text body exactly as received",()=>{
  assert.equal(readableMailText(null,"  "),"");
 });
 
-test("HTML-only mail becomes readable text without scripts, resources or attribute URLs",()=>{
+test("HTML-only mail becomes readable text with safe links but without scripts or remote resource loading",()=>{
  const originalFetch=globalThis.fetch;
  let requests=0;
  globalThis.fetch=(()=>{requests++;throw new Error("HTML parsing must never fetch resources");}) as typeof fetch;
@@ -31,8 +31,8 @@ test("HTML-only mail becomes readable text without scripts, resources or attribu
     <template>Hidden template</template><div hidden>Hidden content</div>
    </body></html>`;
   const result=readableMailText(" \n\t",html);
-  assert.equal(result,"Hello & welcome 🙂.\n\nSecond paragraph.\nNext line with <strong>literal markup</strong>.\n\nRead project details");
-  assert.equal(result.includes("mail-tracker.example.invalid"),false);
+  assert.equal(result,"Hello & welcome 🙂.\n\nSecond paragraph.\nNext line with <strong>literal markup</strong>.\n\nRead project details [https://mail-tracker.example.invalid/link]");
+  assert.equal(result.includes("mail-tracker.example.invalid/pixel"),false);
   assert.equal((globalThis as any).__mailHtmlExecuted,undefined);
   assert.equal(requests,0);
  }finally{globalThis.fetch=originalFetch;}
@@ -54,3 +54,12 @@ test("malformed HTML remains plain text and does not restore active markup",()=>
  const result=readableMailText("",'<p>First &amp; second<p>Last <a href="javascript:alert(1)">link</a><img src=x>');
  assert.equal(result,"First & second\n\nLast link");
 });
+
+
+ test("HTML confirmation links retain exact signed query strings and reject active schemes",()=>{
+ const url="https://auth.example.invalid/verify?token=synthetic%2Bonly&type=signup";
+ assert.equal(readableMailText("",`<a href="${url.replace(/&/g,"&amp;")}">Confirm email address</a>`),`Confirm email address [${url}]`);
+ for(const href of ["javascript:alert(1)","data:text/html,test","//example.invalid","https://user:password@example.invalid"]){
+  assert.equal(readableMailText("",`<a href="${href}">Confirm</a>`),"Confirm");
+ }
+ });
