@@ -116,9 +116,11 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
   const sum=chosen.reduce((n,file)=>n+file.size,0);
   setUploadProgress({percent:0,current:1,count:chosen.length,filename:chosen[0].name,phase:"uploading"});
   await perform(async()=>{
+   let savedId=messageId;
    try{
     const id=messageId||await ensureDraft?.();
     if(!id)throw Error("Save the draft before adding files.");
+    savedId=id;
     current.current=id;
     let completed=0;
     for(let i=0;i<chosen.length;i++){
@@ -144,6 +146,9 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
       setUploadProgress({percent:100,current:chosen.length,count:chosen.length,filename:chosen.at(-1)!.name,phase:"complete"});
     }
    }catch(error){
+    // A later file can fail after earlier files were saved. Refresh the
+    // persisted list so successes stay visible and editable in Drafts.
+    if(savedId)await refresh(savedId).catch(()=>undefined);
     if(mounted.current)setUploadProgress(null);
     throw error;
    }
