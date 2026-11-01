@@ -99,7 +99,7 @@ try{
  await page.context().route('https://auth.example.invalid/**',route=>route.fulfill({status:200,contentType:'text/html',body:'Synthetic confirmation destination'}));
  const popupPromise=page.waitForEvent('popup');
  await confirmation.click();
- const popup=await popupPromise;await popup.waitForLoadState('domcontentloaded');
+ const popup=await popupPromise;await popup.waitForURL(confirmUrl,{waitUntil:'domcontentloaded'});
  assert.equal(popup.url(),confirmUrl);await popup.close();
 
  assert.ok(await page.locator('.mail-message-body').first().innerText().then(t=>t.includes('<img')));
@@ -148,7 +148,7 @@ try{
  await page.getByRole('button',{name:'CC / BCC',exact:true}).click();
  await page.getByLabel('CC recipients',{exact:true}).fill('reviewer@example.invalid');
  await page.getByLabel('BCC recipients',{exact:true}).fill('hidden@example.invalid');
- assert.equal(await page.getByRole('button',{name:'Queue send',exact:true}).isDisabled(),true);
+ assert.equal(await page.getByRole('button',{name:'Send message',exact:true}).isDisabled(),true);
  await screen(page,'mail-compose');
  delayCompose=true;
  await page.getByRole('button',{name:'Save draft',exact:true}).click();
@@ -185,6 +185,7 @@ try{
  await page.getByRole('button',{name:'Back to messages',exact:true}).click();
  delayThread=true;
  await page.getByRole('button',{name:'A new space for better conversations',exact:false}).click();
+ await page.getByRole('button',{name:'Back to messages',exact:true}).click();
  await page.getByRole('combobox',{name:'WORKSPACE'}).selectOption(otherBox);
  await wait(500);
  assert.equal(await page.locator('.mail-message-body').count(),0,'old mailbox responses must not repopulate the reader');
@@ -204,10 +205,10 @@ try{
  await page.getByLabel('Recipients',{exact:true}).fill('client@example.invalid');
  await page.getByLabel('Subject',{exact:true}).fill('Queue retry');
  await page.getByLabel('Message',{exact:true}).fill('No duplicate outbound message.');
- await page.getByRole('button',{name:'Queue send',exact:true}).click();
+ await page.getByRole('button',{name:'Send message',exact:true}).click();
  await page.getByRole('alert').filter({hasText:'Temporary provider failure'}).waitFor();
  assert.equal(composeCalls,2);
- await page.getByRole('button',{name:'Queue send',exact:true}).click();
+ await page.getByRole('button',{name:'Send message',exact:true}).click();
  await page.getByRole('status').filter({hasText:'Message queued.'}).waitFor();
  assert.equal(composeCalls,2,'a queue retry must retain its saved draft ID');assert.equal(queueCalls,2);
  assert.equal(patches,4);
@@ -218,4 +219,5 @@ try{
  await browser?.close();
  await new Promise(done=>server.close(done));
 }
+
 

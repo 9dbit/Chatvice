@@ -36,26 +36,27 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
     if(!response.ok)throw new Error(response.status===413?"Attachment too large":"Upload rejected");
   });
  }
- return <section className={`space-y-2 ${compact?"text-xs":"text-sm"}`}>
-  {(files.length>0||allowUpload)&&<div className="flex flex-wrap items-center justify-between gap-2">
-   <div className="flex items-center gap-2 text-white/50"><Paperclip size={15}/>{files.length} attachments</div>
-   {allowUpload&&<label className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-xs cursor-pointer hover:bg-white/15">
+ return <section className={`mail-attachment-list ${compact?"mail-attachment-compact":""}`}>
+  {(files.length>0||allowUpload)&&<div className="mail-attachment-heading">
+   <div ><Paperclip size={15}/>{files.length} attachments</div>
+   {allowUpload&&<label className="mail-button">
     <Upload size={14}/> Add file
     <input type="file" disabled={busy} className="sr-only" onChange={e=>{
       const file=e.target.files?.[0];if(file)void upload(file);e.currentTarget.value="";
     }}/>
    </label>}
   </div>}
-  {files.map(a=><div key={a.id} className="rounded-xl bg-white/5 border border-white/10 p-3 flex items-center gap-3">
-   <div className="flex-1 min-w-0">
-    <p className="truncate text-white/85" title={a.original_filename}>{a.original_filename}</p>
-    <p className="mt-1 text-xs text-white/40">{Math.ceil(Number(a.size_bytes)/1024)} KB · {a.scan_status==="clean"?"Security checked":a.scan_status==="blocked"?"Blocked":"Scan pending"}</p>
+  {files.map(a=><div key={a.id} className="mail-file">
+   <div >
+    <p  title={a.original_filename}>{a.original_filename}</p>
+    <small>{Math.ceil(Number(a.size_bytes)/1024)} KB · {a.scan_status==="clean"?"Security checked":a.scan_status==="blocked"?"Blocked":"Scan pending"}</small>
    </div>
-   {a.scan_status==="clean"?<a href={`/api/mail/attachments/${a.id}/download`} title="Download privately" className="text-green-400 p-2"><FileDown size={18}/></a>:
-    a.scan_status==="blocked"?<ShieldAlert className="text-red-400 shrink-0" size={18}/>:
-    <button disabled={busy} title="Retry security scan" onClick={()=>perform(async()=>{await apiRequest("POST",`/api/mail/attachments/${a.id}/rescan`,{})})} className="text-amber-400 p-2"><RefreshCcw size={18}/></button>}
+   {a.scan_status==="clean"?<a href={`/api/mail/attachments/${a.id}/download`} title="Download privately" className="mail-icon-btn"><FileDown size={18}/></a>:
+    a.scan_status==="blocked"?<ShieldAlert className="mail-file-blocked" size={18}/>:
+    <button disabled={busy} title="Retry security scan" onClick={()=>perform(async()=>{await apiRequest("POST",`/api/mail/attachments/${a.id}/rescan`,{})})} className="mail-icon-btn"><RefreshCcw size={18}/></button>}
   </div>)}
-  {error&&<p role="alert" className="text-xs text-red-400">{error}</p>}
-  {files.some(x=>x.scan_status==="pending")&&<p className="text-xs text-white/40 flex items-center gap-2"><ShieldCheck size={13}/> Pending files cannot be downloaded or sent until verified.</p>}
+  {error&&<p role="alert" className="mail-alert">{error}</p>}
+  {files.some(x=>x.scan_status==="pending")&&<p className="mail-file-help"><ShieldCheck size={13}/> Pending files cannot be downloaded or sent until verified.</p>}
  </section>;
 }
+

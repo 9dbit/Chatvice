@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "wouter";
-import { Inbox, Send, FileText, Archive, Trash2, Star, Mail, Plus, Search, Reply, ReplyAll, ArrowLeft, Settings, UserRoundPlus, ShieldCheck, Sparkles, RefreshCw, ChevronLeft, ChevronRight, MailOpen, Check, LockKeyhole, AlertCircle } from "lucide-react";
+import { Link, type RouteComponentProps } from "wouter";
+import { Inbox, Send, FileText, Archive, Trash2, Star, Mail, Plus, Search, Reply, ReplyAll, ArrowLeft, Settings, UserRoundPlus, ShieldCheck, Sparkles, RefreshCw, ChevronLeft, ChevronRight, MailOpen, Check, LockKeyhole, AlertCircle, LogOut } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import MailTheme from "@/components/mail-theme";
 import MailAttachments from "./mail-attachments";
 import MailMessageBody from "./mail-message-body";
 import { mailReplyRecipients, parseMailRecipients } from "@shared/mail-recipients";
@@ -35,7 +36,8 @@ function dateLabel(value:string){
  const d=new Date(value);
  return d.toDateString()===new Date().toDateString()?d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):d.toLocaleDateString([],{month:"short",day:"numeric"});
 }
-export default function MailPage(){
+type MailPageProps=Partial<RouteComponentProps>&{accountEmail?:string;onSignOut?:()=>void;signingOut?:boolean};
+export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailPageProps={}){
  const [boxes,setBoxes]=useState<Box[]>([]),[box,setBox]=useState("");
  const [cap,setCap]=useState<Capabilities>({admin:false,outbound:false,ai:false,attachments:false});
  const [folder,setFolder]=useState("inbox"),[filter,setFilter]=useState("all"),[page,setPage]=useState(0);
@@ -197,10 +199,10 @@ export default function MailPage(){
    if(selectionRef.current===id)setContext(data);
   }catch(e:any){setError(e.message);}finally{setActing(false);}
  }
- return <section className="mail-workspace" aria-label="Chatvice Mail">
+ return <section className={`mail-workspace ${selected?"mail-reading-open":""}`} aria-label="Chatvice Mail">
   <header className="mail-topbar">
    <div className="mail-brand"><span className="mail-brand-icon"><Mail size={21}/></span><div><h1>Chatvice <span>Mail</span></h1><p>Your conversations, connected.</p></div></div>
-   <div className="mail-header-actions">
+   <div className="mail-header-actions"><MailTheme/>{onSignOut&&<button className="mail-icon-btn mail-mobile-signout" aria-label="Sign out" disabled={signingOut} onClick={onSignOut}><LogOut size={17}/></button>}
     <span className="mail-private"><LockKeyhole size={12}/> Private workspace</span>
     {cap.admin&&<Link href="/dashboard/mail/admin" className="mail-icon-btn" aria-label="Mail settings"><Settings size={18}/></Link>}
     <button className="mail-button mail-primary" disabled={!canWrite||saving} onClick={()=>openEditor(blankEditor())}><Plus size={17}/> Compose<span className="mail-key">N</span></button>
@@ -213,20 +215,20 @@ export default function MailPage(){
     <div className="mail-account"><label htmlFor="mailbox-select">WORKSPACE</label><select id="mailbox-select" value={box} disabled={saving||acting||initializing} onChange={e=>changeMailbox(e.target.value)}>
      {!box&&<option value="">{initializing?"Loading…":"No active mailbox"}</option>}
      {boxes.map(b=><option key={b.id} value={b.id} disabled={!b.enabled}>{b.local_part}@{b.domain}{!b.enabled?" (disabled)":""}</option>)}
-    </select><span className="mail-access">{box?(canWrite?"Mailbox member":"Read-only access"):"Assign a mailbox to get started"}</span></div>
+    </select><span className={`mail-access ${box&&!canWrite?"mail-readonly":""}`}>{box?(canWrite?"Mailbox member":"Read-only access"):"Assign a mailbox to get started"}</span></div>
     <div className="mail-folder-links">{folders.map(f=>{
      const stat=stats.find(s=>s.folder===f.name);
      return <button key={f.name} disabled={acting} onClick={()=>navigate(f.name,"all")} aria-current={folder===f.name?"page":undefined} className={`mail-folder ${folder===f.name?"active":""}`}><f.icon size={17}/><span>{f.label}</span>{Boolean(stat?.total)&&<span className="mail-folder-count">{stat?.total}</span>}</button>;
-    })}</div>
-    <div className="mail-sidebar-footer"><ShieldCheck size={19}/><strong>A private place to work</strong><p>Messages stay within your authorized mailboxes.</p><span>Press / to search this page</span></div>
+    })}{cap.admin&&<Link href="/dashboard/mail/admin" className="mail-folder mail-mobile-settings" aria-label="Mail settings"><Settings size={17}/> Settings</Link>}</div>
+    <div className="mail-sidebar-footer"><ShieldCheck size={19}/><strong>A private place to work</strong><p>Messages stay within your authorized mailboxes.</p><span>Press / to search this page</span>{accountEmail&&<div className="mail-account-profile"><span className="mail-avatar">{accountEmail[0].toUpperCase()}</span><div><strong title={accountEmail}>{accountEmail}</strong><small>Your account</small></div>{onSignOut&&<button className="mail-icon-btn" aria-label="Sign out" title="Sign out" disabled={signingOut} onClick={onSignOut}><LogOut size={16}/></button>}</div>}</div>
    </nav>
    <div className={`mail-thread-list ${selected?"mail-mobile-hidden":""}`}>
     <div className="mail-list-heading"><div><h2>{folderLabel}</h2><p>{folderStat?`${folderStat.total} conversations · ${folderStat.unread} unread`:"Your mailbox conversations"}</p></div><button className="mail-icon-btn" aria-label="Refresh mailbox" disabled={loading||acting} onClick={()=>{setError("");setReload(x=>x+1);}}><RefreshCw size={16} className={loading?"animate-spin":""}/></button></div>
-    <label className="mail-search"><Search size={16}/><input ref={searchRef} aria-label="Search this page" placeholder="Search this page" value={search} onChange={e=>setSearch(e.target.value)}/>{search&&<button aria-label="Clear search" onClick={()=>setSearch("")}>×</button>}<kbd>/</kbd></label>
+    <label className="mail-search"><Search size={16}/><input ref={searchRef} aria-label="Search this page" placeholder="Search conversations" value={search} onChange={e=>setSearch(e.target.value)}/>{search&&<button aria-label="Clear search" onClick={()=>setSearch("")}>×</button>}<kbd>/</kbd></label>
     <div className="mail-filter-tabs" aria-label="Conversation filters">{["all","unread","starred"].map(f=><button key={f} disabled={acting} aria-pressed={filter===f} className={filter===f?"active":""} onClick={()=>navigate(folder,f)}>{f==="starred"&&<Star size={12}/>}<span>{f[0].toUpperCase()+f.slice(1)}</span></button>)}</div>
     <div className="mail-thread-scroll" aria-busy={loading}>
      {loading?<div className="mail-skeletons" aria-label="Loading conversations">{[1,2,3,4].map(x=><div key={x}><span/><span/><span/></div>)}</div>:!visible.length?<div className="mail-empty-list"><Inbox size={30}/><h3>{search?"No matches on this page":!box?"Your mailbox starts here":"You're all caught up"}</h3><p>{search?"Try another term or clear the search to browse more pages.":!box?"Ask your administrator to assign a mailbox.":`No ${filter==="all"?"":filter+" "}conversations in ${folderLabel.toLowerCase()}.`}</p>{search&&<button className="mail-button" onClick={()=>setSearch("")}>Clear search</button>}</div>:visible.map(t=><button key={t.id} disabled={acting} aria-pressed={selected?.id===t.id} onClick={()=>{setSelected(t);setError("");setNotice("");}} className={`mail-thread ${selected?.id===t.id?"selected":""} ${!t.is_read?"unread":""}`}>
-      <div className="mail-thread-line"><span className="mail-sender">{t.from_email.split("@")[0]||t.from_email}</span><time dateTime={t.created_at}>{dateLabel(t.created_at)}</time></div>
+      <div className="mail-thread-line"><span className="mail-thread-avatar" aria-hidden="true">{t.from_email[0]?.toUpperCase()}</span><span className="mail-sender">{t.from_email.split("@")[0]||t.from_email}</span><time dateTime={t.created_at}>{dateLabel(t.created_at)}</time></div>
       <div className="mail-thread-subject"><span>{!t.is_read&&<i aria-label="Unread"/>}{t.subject||"(No subject)"}</span>{t.is_starred&&<Star size={13} fill="currentColor"/>}</div>
       <p>{t.text_body||"No message text"}</p><div className="mail-thread-meta"><span>{t.from_email}</span>{t.message_count>1&&<span>{t.message_count} messages</span>}</div>
      </button>)}
@@ -264,9 +266,10 @@ export default function MailPage(){
     {error&&<div className="mail-alert" role="alert">{error}</div>}
     {cap.attachments&&(editor.draftId?<div className="mail-compose-attachments"><MailAttachments key={editor.draftId} messageId={editor.draftId} allowUpload={!saving}/></div>:<p className="mail-compose-help">Save a draft to add private attachments.</p>)}
     {!cap.outbound&&<p className="mail-compose-help"><LockKeyhole size={13}/> Sending is unavailable for this workspace. You can save drafts.</p>}
-    <footer className="mail-compose-footer"><span role="status">{saving?"Saving…":editor.draftId&&!dirty?"Draft saved privately":dirty?"Unsaved changes":"Private message"}</span><button className="mail-button" disabled={saving} onClick={()=>submit(true)}><FileText size={15}/> Save draft</button><button className="mail-button mail-primary" title={!cap.outbound?"Sending is not configured for this workspace":undefined} disabled={saving||!parseMailRecipients(editor.to).length||!cap.outbound} onClick={()=>submit(false)}><Send size={15}/> Queue send</button></footer>
+    <footer className="mail-compose-footer"><span role="status">{saving?"Saving…":editor.draftId&&!dirty?"Draft saved privately":dirty?"Unsaved changes":"Private message"}</span><button className="mail-button" disabled={saving} onClick={()=>submit(true)}><FileText size={15}/> Save draft</button><button className="mail-button mail-primary" title={!cap.outbound?"Sending is not configured for this workspace":undefined} disabled={saving||!parseMailRecipients(editor.to).length||!cap.outbound} onClick={()=>submit(false)}><Send size={15}/> Send message</button></footer>
    </>}
   </DialogContent></Dialog>
  </section>;
 }
+
 
