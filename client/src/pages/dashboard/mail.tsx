@@ -265,7 +265,6 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
   </header>
   {error&&!editor&&<div className="mail-alert" role="alert"><AlertCircle size={16}/>{error}<button aria-label="Dismiss error" onClick={()=>setError("")}>×</button></div>}
   {(notice&&!editor||loading||Boolean(box&&!canWrite))&&<div className="mail-workspace-notice" role="status">{notice&&!editor?notice:loading?"Updating conversations…":"Mailbox is read-only"}</div>}
-  <button className="mail-compose-fab" aria-label="Compose" title="Compose new mail" disabled={!canWrite||saving||uploading} onClick={()=>openEditor(blankEditor())}><Plus size={26}/></button>
   <div className="mail-grid">
    {desktop&&navigation()}
    <div className={`mail-thread-list ${selected?"mail-mobile-hidden":""}`}>
@@ -284,7 +283,8 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
         <span className="mail-thread-avatar" aria-hidden="true">{t.from_email[0]?.toUpperCase()}</span>
         <span className="mail-thread-main">
          <span className="mail-thread-line"><span className="mail-sender">{t.from_email.split("@")[0]||t.from_email}</span><time dateTime={t.created_at}>{dateLabel(t.created_at)}</time></span>
-         <span className={`mail-thread-preview ${!t.text_body?"is-subject-only":""}`}>{!t.is_read&&<i className="mail-unread-dot" aria-label="Unread"/>}<strong>{t.subject||"(No subject)"}</strong>{t.text_body&&<span> · {t.text_body.replace(/\s+/g," ").trim()}</span>}</span>
+         <span className="mail-thread-subject-row">{!t.is_read&&<i className="mail-unread-dot" aria-label="Unread"/>}<strong title={t.subject||"(No subject)"}>{t.subject||"(No subject)"}</strong></span>
+         <span className="mail-thread-preview-text" title={t.text_body||"No message text"}>{t.text_body?t.text_body.replace(/\s+/g," ").trim():"No message text"}</span>
         </span>
        </button>
        <button type="button" className={`mail-thread-star ${t.is_starred?"is-starred":""}`}
@@ -293,15 +293,7 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
         disabled={!canWrite||acting} onClick={()=>void toggleStarInList(t)}><Star size={17} fill={t.is_starred?"currentColor":"none"}/></button>
       </div>)}
     </div>
-    <div className="mail-pagination" aria-label="Inbox pagination">
-      <div className="mail-pagination-buttons">
-       {page>0&&<button className="mail-icon-btn" aria-label="Previous page" disabled={loading||acting}
-          onClick={()=>navigate(folder,filter,page-1)}>{page===1?"1":<ChevronLeft size={17}/>}</button>}
-       <span className="mail-page-current" aria-current="page">{page+1}</span>
-       <button className="mail-icon-btn" aria-label="Next page" disabled={!hasNext||loading||acting}
-          onClick={()=>navigate(folder,filter,page+1)}><ChevronRight size={17}/></button>
-      </div>
-    </div>
+    <button className="mail-compose-fab" aria-label="Compose" title="Compose new mail" disabled={!canWrite||saving||uploading} onClick={()=>openEditor(blankEditor())}><Plus size={26}/></button>
    </div>
    <article className={`mail-reader ${!selected?"mail-mobile-hidden":""}`} aria-label="Conversation">
     <div className="mail-inbox-depth" aria-hidden="true"><i data-mail-depth=".45"/><i data-mail-depth="-.7"/><i data-mail-depth="1.2"/></div>
@@ -329,7 +321,12 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
   <Dialog open={!desktop&&panel==="menu"} onOpenChange={open=>setPanel(open?"menu":null)}><DialogContent id="mail-menu" variant="drawer" className="mail-menu-drawer" onCloseAutoFocus={event=>{event.preventDefault();menuRef.current?.focus();}}><DialogTitle>Workspace menu_</DialogTitle><DialogDescription>Choose a mailbox, browse folders, or manage your workspace.</DialogDescription>
    {navigation()}
   </DialogContent></Dialog>
-  <MailActivity key={box} desktop={desktop} open={panel==="activity"} onOpenChange={open=>setPanel(open?"activity":null)} returnFocusRef={menuRef} mailboxId={box} canWrite={canWrite} reload={reload} onFolder={(next,nextFilter="all")=>navigate(next,nextFilter)} onDraft={id=>{void openDraft(id);}} onMessage={m=>{navigate("inbox","all");setSelected({...m,id:m.thread_id,is_read:false,is_starred:false,message_count:1});}}/>
+  <MailActivity key={box} desktop={desktop} open={panel==="activity"} onOpenChange={open=>setPanel(open?"activity":null)} returnFocusRef={menuRef} mailboxId={box} canWrite={canWrite} reload={reload} onFolder={(next,nextFilter="all")=>navigate(next,nextFilter)} onDraft={id=>{void openDraft(id);}} onMessage={m=>{navigate("inbox","all");setSelected({...m,id:m.thread_id,is_read:false,is_starred:false,message_count:1});}}
+   pagination={desktop||!selected?<nav className="mail-pagination" aria-label="Inbox pagination"><div className="mail-pagination-buttons">
+      {page>0&&<button className="mail-icon-btn" aria-label="Previous page" disabled={loading||acting} onClick={()=>navigate(folder,filter,page-1)}>{page===1?"1":<ChevronLeft size={17}/>}</button>}
+      <span className="mail-page-current" aria-current="page">{page+1}</span>
+      <button className="mail-icon-btn" aria-label="Next page" disabled={!hasNext||loading||acting} onClick={()=>navigate(folder,filter,page+1)}><ChevronRight size={17}/></button>
+   </div></nav>:null}/>
   <Dialog open={Boolean(editor)} onOpenChange={open=>{if(!open)void closeEditor();}}><DialogContent className="mail-composer" closeDisabled={saving||uploading} onInteractOutside={event=>event.preventDefault()} onEscapeKeyDown={event=>{event.preventDefault();void closeEditor();}}>
    <DialogTitle>{editor?.draftId?"Edit draft":"New message"}</DialogTitle><DialogDescription>From {currentBox?.local_part}@{currentBox?.domain}</DialogDescription>
    {editor&&<><div className={`mail-compose-layout ${cap.attachments?"has-attachments":""}`}><div className="mail-compose-writing"><label className="mail-compose-field">To<input autoFocus aria-label="Recipients" placeholder="address@example.com, another@example.com" disabled={saving||uploading} value={editor.to} onChange={e=>setEditor({...editor,to:e.target.value})}/>{!showCopies&&<button className="mail-copy-toggle" type="button" disabled={saving||uploading} onClick={()=>setShowCopies(true)}>CC / BCC</button>}</label>
