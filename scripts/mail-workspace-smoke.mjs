@@ -57,7 +57,9 @@ try{
    if(activeFolder==='drafts')return fulfill(draft?[{...base,id:thread2,subject:draft.subject,text_body:draft.text,is_read:true}]:[]);
    if(activeFolder!==folder||filter==='unread'&&read||filter==='starred'&&!starred)return fulfill([]);
    const offset=Number(url.searchParams.get('offset'));
-   if(offset)return fulfill([{...base,id:thread2,subject:'Second page conversation',is_read:true}]);
+   if(offset>=80)return fulfill([{...base,id:'third-page',subject:'Third page conversation',is_read:true}]);
+   if(offset>=40)return fulfill([{...base,id:thread2,subject:'Second page conversation',is_read:true},
+    ...Array.from({length:40},(_,i)=>({...base,id:`second-fixture-${i}`,subject:`Second page update ${i+1}`,is_read:true}))]);
    return fulfill([{...base,is_read:read,is_starred:starred},...Array.from({length:40},(_,i)=>({...base,id:`fixture-${i}`,subject:`Project update ${i+1}`,from_email:`contact${i+1}@example.invalid`,is_read:true,message_count:1}))]);
   }
   if(path===`/api/mail/threads/${thread}`&&method==='PATCH'){
@@ -107,7 +109,18 @@ try{
  const filterBox=await page.getByRole('button',{name:'Unread',exact:true}).boundingBox(),refreshBox=await page.getByRole('button',{name:'Refresh mailbox'}).boundingBox();
  assert.ok(Math.abs(filterBox.y-refreshBox.y)<2,'filters and refresh share a row');
  const composeBox=await page.getByRole('button',{name:'Compose',exact:false}).boundingBox();
- assert.ok(composeBox.y>=normalHeader&&composeBox.height<=38,'compose below header and 10% smaller');
+ assert.ok(composeBox.y>normalHeader+300&&composeBox.x>1200&&composeBox.height>=48,'compose floats at bottom-right');
+ const titleBox=await page.getByRole('heading',{name:'Inbox',exact:true}).boundingBox();
+ assert.ok(Math.abs((titleBox.y+titleBox.height/2)-(filterBox.y+filterBox.height/2))<8,'Inbox heading, filters, search and refresh share one row');
+ const avatar=await page.locator('.mail-thread-avatar').first().boundingBox();
+ assert.ok(avatar.width>=54&&avatar.height>=54,'sender avatar is a large circle');
+ assert.equal(await page.locator('.mail-thread-avatar').first().evaluate(el=>getComputedStyle(el).borderRadius),'50%');
+ assert.equal(await page.locator('.mail-workspace-notice').filter({hasText:'Inbox'}).count(),0,'remove redundant Inbox conversations header');
+ await page.getByRole('button',{name:'Star A new space for better conversations',exact:true}).click();
+ await page.getByRole('button',{name:'Unstar A new space for better conversations',exact:true}).waitFor();
+ assert.equal(await page.locator('.mail-conversation-heading').count(),0,'starred list action must not select a thread');
+ await page.getByRole('button',{name:'Unstar A new space for better conversations',exact:true}).click();
+ await page.getByRole('button',{name:'Star A new space for better conversations',exact:true}).waitFor();
  await page.getByRole('button',{name:'Search conversations',exact:true}).click();
  await page.getByLabel('Search this page').fill('nothing-matches');
  await page.getByLabel('Search this page').press('Escape');
@@ -176,7 +189,16 @@ try{
  await starredResponse;
  await page.getByRole('button',{name:'A new space for better conversations',exact:false}).waitFor();
  await page.getByRole('button',{name:'All',exact:true}).click();
+ assert.equal((await page.locator('.mail-pagination-buttons').innerText()).trim().replace(/\\s+/g,' '),'1','first page only shows current number with next arrow');
+ assert.equal(await page.getByRole('button',{name:'Previous page'}).count(),0);
  await page.getByRole('button',{name:'Next page',exact:true}).click();
+ await page.getByRole('button',{name:'Second page conversation',exact:false}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'Previous page',exact:true}).innerText(),'1','second page shows 1 2 >');
+ await page.getByRole('button',{name:'Next page',exact:true}).click();
+ await page.getByRole('button',{name:'Third page conversation',exact:false}).waitFor();
+ assert.equal(await page.locator('.mail-page-current').innerText(),'3');
+ assert.equal(await page.getByRole('button',{name:'Previous page',exact:true}).locator('svg').count(),1,'third page shows a back chevron');
+ await page.getByRole('button',{name:'Previous page',exact:true}).click();
  await page.getByRole('button',{name:'Second page conversation',exact:false}).waitFor();
  await page.getByRole('button',{name:'Previous page',exact:true}).click();
  await page.getByRole('button',{name:'Search conversations',exact:true}).click();
@@ -220,6 +242,16 @@ try{
  await openMenu();
  await page.getByRole('navigation',{name:'Mail folders'}).getByRole('button',{name:/^Inbox/}).click();
  await page.setViewportSize({width:390,height:844});
+ await page.locator('.mail-mobile-activity').waitFor();
+ assert.equal(await page.locator('.mail-desktop-activity').count(),0);
+ assert.ok((await page.locator('.mail-mobile-activity .mail-ticker').boundingBox()).x<18,'mobile running ticker is left aligned in footer');
+ assert.equal(await page.locator('.mail-mobile-activity .mail-ticker-copy').count(),2);
+ assert.equal(await page.getByRole('button',{name:'Open mail menu',exact:true}).innerText(),'','hamburger has no Menu label');
+ await page.emulateMedia({reducedMotion:'no-preference'});
+ await openMenu();
+ assert.match(await page.locator('.mail-menu-drawer').evaluate(el=>getComputedStyle(el).animationName),/mailMenuSlideIn/,'drawer uses smooth open animation');
+ await closeMenu();
+ await page.emulateMedia({reducedMotion:'reduce'});
  await screen(page,'mail-mobile-inbox');
  await page.getByRole('button',{name:'A new space for better conversations',exact:false}).click();
  await page.getByRole('heading',{name:'amelia@example.invalid',exact:true}).first().waitFor();
@@ -258,7 +290,7 @@ try{
  await page.getByRole('button',{name:'Send message',exact:true}).click();
  await page.getByRole('status').filter({hasText:'Message queued.'}).waitFor();
  assert.equal(composeCalls,3,'a queue retry must retain its saved draft ID');assert.equal(queueCalls,2);
- assert.equal(patches,4);
+ assert.equal(patches,6);
  assert.deepEqual(errors,[]);
  assert.deepEqual(trackingRequests,[]);
  console.log('PASS: browser workspace contracts (navigation, filters, pagination, archive/restore, star/read, recipient-free drafts, CC/BCC persistence, X/Escape autosave, reply-all, queue retry without duplication, failed-safe edits, disabled sending, mobile, stale response isolation, read-only access, HTML-only text without tracking or script execution, safe rendering). Synthetic data only.');
