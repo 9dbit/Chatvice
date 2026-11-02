@@ -79,7 +79,6 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
  const canWrite=Boolean(currentBox?.can_write&&currentBox.enabled);
  const dirty=Boolean(editor&&snapshot(editor)!==savedSnapshot);
  const folderLabel=folders.find(f=>f.name===folder)?.label||"Inbox";
- const folderStat=stats.find(s=>s.folder===folder);
  const incoming=messages.filter(m=>m.direction==="inbound").at(-1);
  const ownAddresses=currentBox?[`${currentBox.local_part}@${currentBox.domain}`,...(currentBox.aliases||[])]:[];
  const replyAllRecipients=incoming?mailReplyRecipients(incoming,ownAddresses,true):{to:[],cc:[]};
@@ -187,6 +186,17 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
    setNotice(change.folder?`Conversation moved to ${change.folder}.`:"Conversation updated.");
   }catch(e:any){setError(e.message);}finally{setActing(false);}
  }
+ async function toggleStarInList(thread:Thread){
+  if(!canWrite||acting)return;
+  setActing(true);setError("");setNotice("");
+  try{
+   await request(`/api/mail/threads/${thread.id}`,"PATCH",
+    {mailboxId:box,sourceFolder:folder,isStarred:!thread.is_starred});
+   setThreads(previous=>previous.map(item=>item.id===thread.id?{...item,is_starred:!thread.is_starred}:item));
+   if(selected?.id===thread.id)setSelected(previous=>previous?{...previous,is_starred:!thread.is_starred}:null);
+   setReload(value=>value+1);
+  }catch(e:any){setError(e.message);}finally{setActing(false);}
+ }
  async function persistDraft():Promise<string>{
   if(draftOperation.current)return draftOperation.current;
   if(!editor||!box||!canWrite)throw Error("No writable draft");
@@ -251,28 +261,47 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
  return <section ref={motionRef} className={`mail-workspace ${desktop&&collapsed?"mail-sidebar-collapsed":""} ${selected?"mail-reading-open":""}`} aria-label="Chatvice Mail">
   <header className={`mail-topbar ${headerCompact?"mail-topbar-compact":""}`}>
    <Link href="/" className="mail-brand mail-brand-home" aria-label="Chatvice Mail home"><span className="mail-brand-icon" data-mail-depth=".3"><Mail size={21}/></span><div><h1>Chatvice <span>Mail</span></h1><p>MAIL TERMINAL / CONNECTED_</p></div></Link>
-   <div className="mail-header-actions">{!desktop&&<button ref={menuRef} className="mail-button mail-primary" aria-label="Open mail menu" aria-haspopup="dialog" aria-expanded={panel==="menu"} aria-controls="mail-menu" onClick={()=>setPanel("menu")}><Menu size={16}/> Menu</button>}</div>
+   <div className="mail-header-actions">{!desktop&&<button ref={menuRef} className="mail-menu-trigger" aria-label="Open mail menu" aria-haspopup="dialog" aria-expanded={panel==="menu"} aria-controls="mail-menu" onClick={()=>setPanel("menu")}><Menu size={21}/></button>}</div>
   </header>
   {error&&!editor&&<div className="mail-alert" role="alert"><AlertCircle size={16}/>{error}<button aria-label="Dismiss error" onClick={()=>setError("")}>×</button></div>}
-  <div className="mail-workspace-actions"><span role="status">{notice&&!editor?notice:loading?"Updating conversations…":`${folderLabel} · ${folderStat?.total??0} conversations${box&&!canWrite?" · Read-only access":""}`}</span><button className="mail-button mail-primary" disabled={!canWrite||saving||uploading} onClick={()=>openEditor(blankEditor())}><Plus size={15}/> Compose<span className="mail-key">N</span></button></div>
+  {(notice&&!editor||loading||Boolean(box&&!canWrite))&&<div className="mail-workspace-notice" role="status">{notice&&!editor?notice:loading?"Updating conversations…":"Mailbox is read-only"}</div>}
+  <button className="mail-compose-fab" aria-label="Compose" title="Compose new mail" disabled={!canWrite||saving||uploading} onClick={()=>openEditor(blankEditor())}><Plus size={26}/></button>
   <div className="mail-grid">
    {desktop&&navigation()}
    <div className={`mail-thread-list ${selected?"mail-mobile-hidden":""}`}>
-    <div className="mail-list-heading"><div><h2>{folderLabel}</h2><p>{folderStat?`${folderStat.total} conversations · ${folderStat.unread} unread`:"Your mailbox conversations"}</p></div></div>
+    <div className="mail-list-heading"><h2>{folderLabel}</h2>
     <div className="mail-list-controls">
      <div className="mail-filter-tabs" aria-label="Conversation filters">{["all","unread","starred"].map(f=><button key={f} disabled={acting} aria-pressed={filter===f} className={filter===f?"active":""} onClick={()=>navigate(folder,f)}><span>{f[0].toUpperCase()+f.slice(1)}</span></button>)}</div>
      <button className="mail-icon-btn" aria-label="Refresh mailbox" disabled={loading||acting} onClick={()=>{setError("");setReload(x=>x+1);}}><RefreshCw size={15} className={loading?"animate-spin":""}/></button>
      <button ref={searchButtonRef} className={`mail-icon-btn ${search?"mail-search-active":""}`} aria-label="Search conversations" aria-expanded={searchOpen} aria-controls="mail-search-panel" onClick={()=>searchOpen?closeSearch():setSearchOpen(true)}><Search size={15}/>{search&&<i aria-label="Search filter active"/>}</button>
-    </div>
+    </div></div>
     {searchOpen&&<div id="mail-search-panel" className="mail-search-drawer" role="region" aria-label="Search conversations" onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();event.stopPropagation();closeSearch();}}}><label className="mail-search"><Search size={15}/><input ref={searchRef} aria-label="Search this page" placeholder="Search this page" value={search} onChange={e=>setSearch(e.target.value)}/>{search&&<button aria-label="Clear search" onClick={()=>setSearch("")}>×</button>}<button aria-label="Close search" onClick={closeSearch}><X size={15}/></button></label><small>Searches conversations on this page.</small></div>}
     <div ref={listScrollRef} className="mail-thread-scroll" aria-busy={loading} onScroll={event=>{updateHeader(event.currentTarget.scrollTop);}}>
-     {loading?<div className="mail-skeletons" aria-label="Loading conversations">{[1,2,3,4].map(x=><div key={x}><span/><span/><span/></div>)}</div>:!visible.length?<div className="mail-empty-list"><MailArt kind="inbox" className="mail-list-art"/><h3>{search?"No matches on this page":!box?"Your mailbox starts here":"You're all caught up"}</h3><p>{search?"Try another term or clear the search to browse more pages.":!box?"Ask your administrator to assign a mailbox.":`No ${filter==="all"?"":filter+" "}conversations in ${folderLabel.toLowerCase()}.`}</p>{search&&<button className="mail-button" onClick={()=>setSearch("")}>Clear search</button>}</div>:visible.map(t=><button key={t.id} disabled={acting} aria-pressed={selected?.id===t.id} onClick={()=>{setSelected(t);setError("");setNotice("");}} className={`mail-thread ${selected?.id===t.id?"selected":""} ${!t.is_read?"unread":""}`}>
-      <div className="mail-thread-line"><span className="mail-thread-avatar" aria-hidden="true">{t.from_email[0]?.toUpperCase()}</span><span className="mail-sender">{t.from_email.split("@")[0]||t.from_email}</span><time dateTime={t.created_at}>{dateLabel(t.created_at)}</time></div>
-      <div className="mail-thread-subject"><span>{!t.is_read&&<i aria-label="Unread"/>}{t.subject||"(No subject)"}</span>{t.is_starred&&<Star size={13} fill="currentColor"/>}</div>
-      <p>{t.text_body||"No message text"}</p><div className="mail-thread-meta"><span>{t.from_email}</span>{t.message_count>1&&<span>{t.message_count} messages</span>}</div>
-     </button>)}
+     {loading?<div className="mail-skeletons" aria-label="Loading conversations">{[1,2,3,4].map(x=><div key={x}><span/><span/><span/></div>)}</div>:!visible.length?<div className="mail-empty-list"><MailArt kind="inbox" className="mail-list-art"/><h3>{search?"No matches on this page":!box?"Your mailbox starts here":"You're all caught up"}</h3><p>{search?"Try another term or clear the search to browse more pages.":!box?"Ask your administrator to assign a mailbox.":`No ${filter==="all"?"":filter+" "}conversations in ${folderLabel.toLowerCase()}.`}</p>{search&&<button className="mail-button" onClick={()=>setSearch("")}>Clear search</button>}</div>:visible.map(t=><div key={t.id} className={`mail-thread ${selected?.id===t.id?"selected":""} ${!t.is_read?"unread":""}`}>
+       <button type="button" className="mail-thread-open" disabled={acting} aria-pressed={selected?.id===t.id}
+        aria-label={`${t.from_email.split("@")[0]} · ${t.subject||"(No subject)"}`}
+        onClick={()=>{setSelected(t);setError("");setNotice("");}}>
+        <span className="mail-thread-avatar" aria-hidden="true">{t.from_email[0]?.toUpperCase()}</span>
+        <span className="mail-thread-main">
+         <span className="mail-thread-line"><span className="mail-sender">{t.from_email.split("@")[0]||t.from_email}</span><time dateTime={t.created_at}>{dateLabel(t.created_at)}</time></span>
+         <span className={`mail-thread-preview ${!t.text_body?"is-subject-only":""}`}>{!t.is_read&&<i className="mail-unread-dot" aria-label="Unread"/>}<strong>{t.subject||"(No subject)"}</strong>{t.text_body&&<span> · {t.text_body.replace(/\s+/g," ").trim()}</span>}</span>
+        </span>
+       </button>
+       <button type="button" className={`mail-thread-star ${t.is_starred?"is-starred":""}`}
+        aria-label={t.is_starred?`Unstar email from ${t.from_email}`:`Star email from ${t.from_email}`}
+        aria-pressed={t.is_starred} title={t.is_starred?"Remove star":"Star conversation"}
+        disabled={!canWrite||acting} onClick={()=>void toggleStarInList(t)}><Star size={17} fill={t.is_starred?"currentColor":"none"}/></button>
+      </div>)}
     </div>
-    <div className="mail-pagination"><span>Page {page+1}{search?" · filtered locally":""}</span><div><button className="mail-icon-btn" aria-label="Previous page" disabled={!page||loading||acting} onClick={()=>navigate(folder,filter,page-1)}><ChevronLeft size={17}/></button><button className="mail-icon-btn" aria-label="Next page" disabled={!hasNext||loading||acting} onClick={()=>navigate(folder,filter,page+1)}><ChevronRight size={17}/></button></div></div>
+    <div className="mail-pagination" aria-label="Inbox pagination">
+      <div className="mail-pagination-buttons">
+       {page>0&&<button className="mail-icon-btn" aria-label="Previous page" disabled={loading||acting}
+          onClick={()=>navigate(folder,filter,page-1)}>{page===1?"1":<ChevronLeft size={17}/>}</button>}
+       <span className="mail-page-current" aria-current="page">{page+1}</span>
+       <button className="mail-icon-btn" aria-label="Next page" disabled={!hasNext||loading||acting}
+          onClick={()=>navigate(folder,filter,page+1)}><ChevronRight size={17}/></button>
+      </div>
+    </div>
    </div>
    <article className={`mail-reader ${!selected?"mail-mobile-hidden":""}`} aria-label="Conversation">
     <div className="mail-inbox-depth" aria-hidden="true"><i data-mail-depth=".45"/><i data-mail-depth="-.7"/><i data-mail-depth="1.2"/></div>

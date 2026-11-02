@@ -15,7 +15,7 @@ export default function MailActivity({desktop,open,onOpenChange:setOpen,returnFo
  const [title,setTitle]=useState(""),[date,setDate]=useState("");
  useEffect(()=>{setData(null);setTitle("");setDate("");},[mailboxId]);
  useEffect(()=>{
-  if(!mailboxId||(!open&&!desktop))return;
+  if(!mailboxId)return;
   const controller=new AbortController();let fetching=false;
   const update=async()=>{if(fetching||document.hidden)return;fetching=true;try{const next=await api(`/api/mail/mailboxes/${encodeURIComponent(mailboxId)}/activity`,"GET",undefined,controller.signal);if(!controller.signal.aborted){setData(next);setError("");}}catch(e:any){if(!controller.signal.aborted)setError(e.message);}finally{fetching=false;}};
   void update();const interval=setInterval(update,60000);document.addEventListener("visibilitychange",update);
@@ -31,12 +31,12 @@ export default function MailActivity({desktop,open,onOpenChange:setOpen,returnFo
   ...data.drafts.map(d=>({id:d.id,label:`DRAFT / ${d.subject||"Untitled message"}`,click:()=>canWrite?onDraft(d.id):onFolder("drafts")}))
  ]:[];
  return <>
-  {desktop&&<footer className="mail-activity mail-desktop-activity" aria-label="Mailbox activity ticker">
+  <footer className={`mail-activity ${desktop?"mail-desktop-activity":"mail-mobile-activity"}`} aria-label="Mailbox activity ticker">
    <div className="mail-activity-counts"><button aria-label={`Unread inbox count: ${data?.counts.unread??"loading"}`} onClick={()=>onFolder("inbox","unread")}><Inbox size={14}/><b>{data?.counts.unread??"—"}</b><span>Unread</span></button><button aria-label={`Spam count: ${data?.counts.spam??"loading"}`} onClick={()=>onFolder("spam")}><ShieldAlert size={14}/><b>{data?.counts.spam??"—"}</b><span>Spam</span></button><button aria-label={`Draft count: ${data?.counts.drafts??"loading"}`} onClick={()=>onFolder("drafts")}><FileText size={14}/><b>{data?.counts.drafts??"—"}</b><span>Drafts</span></button></div>
    <div className={`mail-ticker ${paused||open?"paused":""}`} aria-hidden="true"><div className="mail-ticker-track">{items.length?[0,1].map(copy=><div className="mail-ticker-copy" key={copy}>{items.map(item=><button key={item.id} tabIndex={-1} onClick={item.click}><span>▪</span>{item.label}</button>)}</div>):<span>{error?"Activity could not refresh. Open activity to retry.":!mailboxId?"Select a mailbox to see activity.":data?"ALL CLEAR_ No unread mail, reminders or unfinished drafts.":"Loading mailbox activity…"}</span>}</div></div>
    <div className="mail-activity-actions"><button aria-label={paused?"Play activity ticker":"Pause activity ticker"} aria-pressed={paused} onClick={()=>setPaused(value=>!value)}>{paused?<Play size={14}/>:<Pause size={14}/>}</button><button disabled={!mailboxId} className="mail-activity-open" aria-label="View ticker details" onClick={()=>setOpen(true)}><Bell size={15}/><span>Activity</span><ArrowUpRight size={14}/></button></div>
-  </footer>}
-  <Dialog open={open} onOpenChange={v=>{if(!busy)setOpen(v);}}><DialogContent variant="drawer" closeDisabled={busy} className="mail-activity-drawer" onCloseAutoFocus={event=>{event.preventDefault();returnFocusRef.current?.focus();}}><DialogTitle>Mailbox activity_</DialogTitle><DialogDescription>Latest 10 unread emails, unfinished drafts, and your subscription reminders. Updated every minute while the desktop ticker or this panel is visible.</DialogDescription>
+  </footer>
+  <Dialog open={open} onOpenChange={v=>{if(!busy)setOpen(v);}}><DialogContent variant="drawer" closeDisabled={busy} className="mail-activity-drawer" onCloseAutoFocus={event=>{event.preventDefault();returnFocusRef.current?.focus();}}><DialogTitle>Mailbox activity_</DialogTitle><DialogDescription>Latest 10 unread emails, unfinished drafts, and your subscription reminders. Updated every minute while the ticker or this panel is visible.</DialogDescription>
    <div className="mail-activity-summary"><button className="mail-button" aria-label={`Inbox unread: ${data?.counts.unread??"loading"}`} onClick={()=>onFolder("inbox","unread")}><Inbox size={14}/> {data?.counts.unread??"—"} unread</button><button className="mail-button" aria-label={`Spam emails: ${data?.counts.spam??"loading"}`} onClick={()=>onFolder("spam")}><ShieldAlert size={14}/> {data?.counts.spam??"—"} spam</button><button className="mail-button" aria-label={`Unfinished drafts: ${data?.counts.drafts??"loading"}`} onClick={()=>onFolder("drafts")}><FileText size={14}/> {data?.counts.drafts??"—"} drafts</button></div>
    {error&&<div className="mail-alert" role="alert">{error}<button className="mail-button" onClick={()=>setRefresh(n=>n+1)}>Retry</button></div>}
    <section><h3>Subscription reminders</h3><p className="mail-admin-help">Set renewal dates for this mailbox. These are your reminders; they do not change or cancel a subscription.</p>

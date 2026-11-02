@@ -74,6 +74,7 @@ on:
       - "fix/chatvice-mail-40mb-secure-links-20261102"
       - "feat/mail-upload-progress-autodraft-20261102"
       - "feat/mail-per-file-progress-cancel-20261102"
+      - "feat/mail-inbox-mobile-layout-20261102"
 permissions:
   contents: read
 jobs:
