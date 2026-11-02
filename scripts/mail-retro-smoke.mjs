@@ -52,7 +52,14 @@ try{
  await page.goto(origin+'/dashboard/mail');await page.getByRole('button',{name:'Compose',exact:false}).waitFor();
  assert.equal(await page.locator('.mail-desktop-activity').count(),1,'desktop ticker is present');
  await page.getByRole('button',{name:'Unread inbox count: 12',exact:true}).waitFor();
- assert.equal(await page.locator('.mail-ticker-copy').first().locator('button').count(),10);
+ assert.equal(await page.locator('.mail-ticker-copy').first().locator('.mail-ticker-item').count(),10);
+ await page.getByRole('button',{name:'Pause ticker and preview notifications',exact:true}).click();
+ const preview=page.getByRole('region',{name:'Ticker notifications'});
+ await preview.waitFor();
+ assert.equal(await preview.locator('.mail-ticker-preview-items>button').count(),10,'tap reveals the private notifications');
+ await page.getByRole('button',{name:'Resume running notifications',exact:true}).click();
+ await preview.waitFor({state:'hidden'});
+ assert.equal(await page.locator('.mail-activity-pager .mail-pagination').count(),1,'paging is in the same footer as the ticker');
  assert.equal(await page.locator('.mail-ticker-track').evaluate(el=>getComputedStyle(el).animationName),'none','reduced motion stops ticker');
  await openMenu();await page.getByRole('button',{name:'Open activity and subscription reminders'}).click();
  await page.getByRole('button',{name:'Inbox unread: 12',exact:true}).waitFor();await page.getByRole('button',{name:'Spam emails: 3',exact:true}).waitFor();
