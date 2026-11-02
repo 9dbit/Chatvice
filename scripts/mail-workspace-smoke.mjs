@@ -33,7 +33,7 @@ try{
  browser=await chromium.launch({headless:true,...(process.env.CHATVICE_MAIL_BROWSER_PATH?{executablePath:process.env.CHATVICE_MAIL_BROWSER_PATH}:{})});
  const page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
  const openMenu=async()=>{const button=page.getByRole('button',{name:'Open mail menu'});if(await button.count())await button.click();};
- const closeMenu=async()=>{const drawer=page.getByRole('dialog',{name:'Workspace menu_'});if(await drawer.count())await drawer.getByRole('button',{name:'Close',exact:true}).click();};
+ const closeMenu=async()=>{const drawer=page.getByRole('dialog',{name:'Workspace menu_'});if(await drawer.count()){await drawer.getByRole('button',{name:'Close',exact:true}).click();await drawer.waitFor({state:'hidden'});}};
  page.setDefaultTimeout(15000);
  page.setDefaultNavigationTimeout(15000);
  let viewer=false,folder='inbox',read=false,starred=false,draft=null,patches=0,composeCalls=0;
