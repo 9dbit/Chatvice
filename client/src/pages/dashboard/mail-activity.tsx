@@ -14,6 +14,7 @@ export default function MailActivity({desktop,open,onOpenChange:setOpen,returnFo
  const [paused,setPaused]=useState(false);
  const [title,setTitle]=useState(""),[date,setDate]=useState("");
  useEffect(()=>{setData(null);setTitle("");setDate("");setPaused(false);},[mailboxId]);
+ useEffect(()=>{setPaused(false);},[desktop]); // Prevent a desktop preview from covering the mobile reader on viewport changes.
  useEffect(()=>{
   if(!mailboxId)return;
   const controller=new AbortController();let fetching=false;
