@@ -264,7 +264,7 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
    <div className="mail-header-actions">{!desktop&&<button ref={menuRef} className="mail-menu-trigger" aria-label="Open mail menu" aria-haspopup="dialog" aria-expanded={panel==="menu"} aria-controls="mail-menu" onClick={()=>setPanel("menu")}><Menu size={21}/></button>}</div>
   </header>
   {error&&!editor&&<div className="mail-alert" role="alert"><AlertCircle size={16}/>{error}<button aria-label="Dismiss error" onClick={()=>setError("")}>×</button></div>}
-  {(notice&&!editor||loading||Boolean(box&&!canWrite))&&<div className="mail-workspace-notice" role="status">{notice&&!editor?notice:loading?"Updating conversations…":"Read-only access"}</div>}
+  {(notice&&!editor||loading||Boolean(box&&!canWrite))&&<div className="mail-workspace-notice" role="status">{notice&&!editor?notice:loading?"Updating conversations…":"Mailbox is read-only"}</div>}
   <button className="mail-compose-fab" aria-label="Compose" title="Compose new mail" disabled={!canWrite||saving||uploading} onClick={()=>openEditor(blankEditor())}><Plus size={26}/></button>
   <div className="mail-grid">
    {desktop&&navigation()}
