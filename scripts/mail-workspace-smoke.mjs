@@ -116,11 +116,11 @@ try{
  assert.ok(avatar.width>=54&&avatar.height>=54,'sender avatar is a large circle');
  assert.equal(await page.locator('.mail-thread-avatar').first().evaluate(el=>getComputedStyle(el).borderRadius),'50%');
  assert.equal(await page.locator('.mail-workspace-notice').filter({hasText:'Inbox'}).count(),0,'remove redundant Inbox conversations header');
- await page.getByRole('button',{name:'Star A new space for better conversations',exact:true}).click();
- await page.getByRole('button',{name:'Unstar A new space for better conversations',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Star email from amelia@example.invalid',exact:true}).click();
+ await page.getByRole('button',{name:'Unstar email from amelia@example.invalid',exact:true}).waitFor();
  assert.equal(await page.locator('.mail-conversation-heading').count(),0,'starred list action must not select a thread');
- await page.getByRole('button',{name:'Unstar A new space for better conversations',exact:true}).click();
- await page.getByRole('button',{name:'Star A new space for better conversations',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Unstar email from amelia@example.invalid',exact:true}).click();
+ await page.getByRole('button',{name:'Star email from amelia@example.invalid',exact:true}).waitFor();
  await page.getByRole('button',{name:'Search conversations',exact:true}).click();
  await page.getByLabel('Search this page').fill('nothing-matches');
  await page.getByLabel('Search this page').press('Escape');
