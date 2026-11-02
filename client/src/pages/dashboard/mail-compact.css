@@ -108,8 +108,10 @@
 .mail-workspace .mail-sender{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;font-size:12px;font-weight:500}
 .mail-workspace .mail-thread.unread .mail-sender{font-weight:750}
 .mail-workspace .mail-thread time{font-size:9px;color:var(--mail-muted);flex-shrink:0;white-space:nowrap;line-height:1.4}
-.mail-thread-preview{display:block;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:34px;color:var(--mail-muted);font-size:10px;line-height:1.5}
-.mail-thread-preview strong{color:var(--mail-text);font-weight:500}
+.mail-thread-preview{display:flex;align-items:center;gap:4px;min-width:0;max-width:100%;overflow:hidden;white-space:nowrap;padding-right:34px;color:var(--mail-muted);font-size:10px;line-height:1.5}
+.mail-thread-preview strong{display:block;max-width:45%;min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mail-text);font-weight:500}
+.mail-thread-preview>span{display:block;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mail-thread-preview.is-subject-only strong{max-width:100%;flex:1}
 .mail-thread.unread .mail-thread-preview strong{font-weight:700}
 .mail-thread-preview .mail-unread-dot{display:inline-block;vertical-align:middle;width:5px;height:5px;margin:0 6px 1px 0;background:var(--mail-accent)}
 .mail-thread-star{position:absolute;right:8px;bottom:9px;display:grid;place-items:center;width:31px;height:31px;min-height:31px;border:0;background:transparent;color:var(--mail-muted);cursor:pointer;border-radius:50%}
