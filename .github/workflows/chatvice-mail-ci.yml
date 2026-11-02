@@ -75,6 +75,7 @@ on:
       - "feat/mail-upload-progress-autodraft-20261102"
       - "feat/mail-per-file-progress-cancel-20261102"
       - "feat/mail-inbox-mobile-layout-20261102"
+      - "feat/mail-three-line-ticker-paging-20261102"
 permissions:
   contents: read
 jobs:
