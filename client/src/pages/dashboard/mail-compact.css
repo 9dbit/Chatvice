@@ -219,3 +219,8 @@
  .mail-activity .mail-ticker-track{animation:none!important}
  .mail-activity .mail-ticker-copy+.mail-ticker-copy{display:none}
 }
+
+/* Keep Compose accessible while the list is replaced by the reader on mobile. */
+.mail-workspace .mail-reader{position:relative}
+.mail-workspace .mail-reader .mail-compose-fab-reader{display:none}
+@media(max-width:900px){.mail-workspace .mail-reader .mail-compose-fab-reader{display:grid;right:14px;bottom:30px;width:54px;height:49px;min-width:54px;min-height:49px}}
