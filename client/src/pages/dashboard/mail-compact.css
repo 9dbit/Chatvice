@@ -175,7 +175,7 @@
 .mail-workspace .mail-thread-star{top:22px;bottom:auto;right:8px;width:30px;height:30px;min-height:30px}
 .mail-workspace .mail-thread-scroll{padding-bottom:86px}
 .mail-workspace .mail-thread-list .mail-compose-fab{right:14px;bottom:24px;width:55px;min-width:55px;height:49px;min-height:49px;z-index:6}
-.mail-activity{align-items:center}
+.mail-activity{align-items:center;z-index:12}
 .mail-activity .mail-ticker{height:44px;min-width:0;flex:1;position:relative}
 .mail-activity .mail-ticker-trigger{display:flex;align-items:center;justify-content:flex-start;width:100%;height:44px;min-height:44px;max-width:none;min-width:0;gap:0;margin:0;padding:0;white-space:nowrap;overflow:hidden;text-align:left;background:transparent;border:0;color:#fafaf8;cursor:pointer;font:inherit}
 .mail-activity .mail-ticker-trigger:focus-visible{outline:2px solid var(--mail-accent);outline-offset:-2px}
