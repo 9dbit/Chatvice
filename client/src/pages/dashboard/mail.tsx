@@ -284,7 +284,7 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
         <span className="mail-thread-avatar" aria-hidden="true">{t.from_email[0]?.toUpperCase()}</span>
         <span className="mail-thread-main">
          <span className="mail-thread-line"><span className="mail-sender">{t.from_email.split("@")[0]||t.from_email}</span><time dateTime={t.created_at}>{dateLabel(t.created_at)}</time></span>
-         <span className="mail-thread-preview">{!t.is_read&&<i className="mail-unread-dot" aria-label="Unread"/>}<strong>{t.subject||"(No subject)"}</strong>{t.text_body&&<span> · {t.text_body.replace(/\s+/g," ").trim()}</span>}</span>
+         <span className={`mail-thread-preview ${!t.text_body?"is-subject-only":""}`}>{!t.is_read&&<i className="mail-unread-dot" aria-label="Unread"/>}<strong>{t.subject||"(No subject)"}</strong>{t.text_body&&<span> · {t.text_body.replace(/\s+/g," ").trim()}</span>}</span>
         </span>
        </button>
        <button type="button" className={`mail-thread-star ${t.is_starred?"is-starred":""}`}
