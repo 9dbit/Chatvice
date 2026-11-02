@@ -296,6 +296,7 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
     <button className="mail-compose-fab" aria-label="Compose" title="Compose new mail" disabled={!canWrite||saving||uploading} onClick={()=>openEditor(blankEditor())}><Plus size={26}/></button>
    </div>
    <article className={`mail-reader ${!selected?"mail-mobile-hidden":""}`} aria-label="Conversation">
+    {!desktop&&selected&&<button className="mail-compose-fab mail-compose-fab-reader" aria-label="Compose" title="Compose new mail" disabled={!canWrite||saving||uploading} onClick={()=>openEditor(blankEditor())}><Plus size={26}/></button>}
     <div className="mail-inbox-depth" aria-hidden="true"><i data-mail-depth=".45"/><i data-mail-depth="-.7"/><i data-mail-depth="1.2"/></div>
     {selected?<>
      <div className="mail-reader-toolbar"><button className="mail-icon-btn mail-back" aria-label="Back to messages" onClick={()=>setSelected(null)}><ArrowLeft size={18}/></button><span className="mail-reader-label">CONVERSATION</span><div>
