@@ -288,7 +288,7 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
         </span>
        </button>
        <button type="button" className={`mail-thread-star ${t.is_starred?"is-starred":""}`}
-        aria-label={t.is_starred?`Unstar ${t.subject||"conversation"}`:`Star ${t.subject||"conversation"}`}
+        aria-label={t.is_starred?`Unstar email from ${t.from_email}`:`Star email from ${t.from_email}`}
         aria-pressed={t.is_starred} title={t.is_starred?"Remove star":"Star conversation"}
         disabled={!canWrite||acting} onClick={()=>void toggleStarInList(t)}><Star size={17} fill={t.is_starred?"currentColor":"none"}/></button>
       </div>)}
