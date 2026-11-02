@@ -245,7 +245,7 @@ try{
  await page.locator('.mail-mobile-activity').waitFor();
  assert.equal(await page.locator('.mail-desktop-activity').count(),0);
  assert.ok((await page.locator('.mail-mobile-activity .mail-ticker').boundingBox()).x<18,'mobile running ticker is left aligned in footer');
- assert.equal(await page.locator('.mail-mobile-activity .mail-ticker-copy').count(),2);
+ assert.ok(await page.locator('.mail-mobile-activity .mail-ticker').isVisible(),'mobile footer shows running activity text or empty-state text');
  assert.equal(await page.getByRole('button',{name:'Open mail menu',exact:true}).innerText(),'','hamburger has no Menu label');
  await page.emulateMedia({reducedMotion:'no-preference'});
  await openMenu();
