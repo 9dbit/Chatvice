@@ -85,13 +85,13 @@ export function registerMailOnboardingAdmin(app:Express){
       const id=uuid.parse(req.params.id),c=await pool.connect();
       try{
         await c.query("BEGIN");
-        const q=await c.query(`SELECT p.*,u.enabled,u.is_admin FROM mail_mailbox_provisioning p
+        const q=await c.query(`SELECT p.*,u.enabled,u.is_admin,u.credential_version,u.password_hash FROM mail_mailbox_provisioning p
           JOIN mail_login_users u ON u.id=p.login_id AND u.tenant_id=p.tenant_id
           WHERE p.mailbox_id=$1 AND p.tenant_id=$2 FOR UPDATE OF p,u`,[id,tenant]);
         if(!q.rowCount)throw new OnboardingError(404,"Managed mailbox not found");
         const row=q.rows[0];let result:unknown={status:row.state};
         if(action==="invitation"){
-          if(row.enabled||row.is_admin)throw new OnboardingError(409,"Account already activated; this action cannot reset its password");
+          if(row.enabled||row.is_admin||row.credential_version!==1||row.password_hash!=="scrypt1.pending")throw new OnboardingError(409,"Account already activated; this action cannot reset its password");
           result=await invite(c,tenant,id,row.login_id);
         }else{
           if(row.state==="verified")throw new OnboardingError(409,"Routing already verified");
@@ -130,7 +130,7 @@ export async function activateMailbox(token:string,password:string){
       JOIN mail_login_users u ON u.id=p.login_id AND u.tenant_id=p.tenant_id
       JOIN mail_mailboxes b ON b.id=p.mailbox_id AND b.tenant_id=p.tenant_id
       JOIN mail_domains d ON d.id=b.domain_id AND d.tenant_id=b.tenant_id
-      WHERE i.token_hash=$1 AND i.used_at IS NULL AND i.expires_at>now() AND u.enabled=false AND u.is_admin=false
+      WHERE i.token_hash=$1 AND i.used_at IS NULL AND i.expires_at>now() AND u.enabled=false AND u.is_admin=false AND u.credential_version=1 AND u.password_hash='scrypt1.pending'
       AND b.enabled=true AND d.status='verified' AND EXISTS(SELECT 1 FROM mail_memberships m
         WHERE m.mailbox_id=b.id AND m.tenant_id=b.tenant_id AND m.user_id=u.user_id AND m.role='member')
       FOR UPDATE OF p,u,i`,[tokenHash(token)]);

@@ -126,6 +126,9 @@ test("admin invitation rotation invalidates the previous link and cannot reset a
   const replacement=await r.json();await assert.rejects(activateMailbox(old,password),e=>(e as any).status===410);
   await activateMailbox(new URL(replacement.activationUrl).hash.slice(7),password);
   assert.equal((await api(`/api/mail/mailboxes/${pending.id}/onboarding/invitation`,{},ac)).status,409);
+  await pool.query("UPDATE mail_login_users SET enabled=false WHERE email=$1",[pending.address]);
+  assert.equal((await api(`/api/mail/mailboxes/${pending.id}/onboarding/invitation`,{},ac)).status,409,'disabled active identities must not be reset through onboarding');
+  await pool.query("UPDATE mail_login_users SET enabled=true WHERE email=$1",[pending.address]);
   const status=await (await api("/api/mail/onboarding/status",undefined,ac)).json();assert.equal(status.mailboxes.find((x:any)=>x.mailbox_id===created.id).status,"ready");
   assert.equal(status.mailboxes.find((x:any)=>x.mailbox_id===pending.id).status,"pending");
 });

@@ -1,0 +1,13 @@
+{
+  "name": "chatvice-mail-router",
+  "main": "worker.mjs",
+  "account_id": "fe246622c78d91fe73fd3247a0e2982d",
+  "compatibility_date": "2026-11-04",
+  "workers_dev": true,
+  "vars": {
+    "CHATVICE_MAIL_APP_ORIGIN": "https://mail.chatvice.app",
+    "CHATVICE_MAIL_ROUTER_DOMAINS": "chatvice.app",
+    "CHATVICE_MAIL_ROUTER_FORWARD_TO": "mail-router@qa-mail-staging.chatvice.app"
+  },
+  "observability": { "enabled": true }
+}

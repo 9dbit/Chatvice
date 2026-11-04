@@ -7,6 +7,7 @@ pg_ctl -l /tmp/chatvice-postgres.log -o '-h 127.0.0.1 -p 55432' start
 trap 'pg_ctl stop -m fast >/dev/null 2>&1 || true' EXIT
 export DATABASE_URL=postgresql://postgres@127.0.0.1:55432/postgres
 export CHATVICE_MAIL_INTEGRATION_DB=isolated-ci
+node --import tsx --test server/mail/router-worker.test.ts
 node --import tsx --test server/mail/app-schema.test.ts
 node --import tsx --test server/mail/onboarding.integration.test.ts
 node --import tsx --test server/mail/integration.test.ts
