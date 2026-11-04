@@ -4,6 +4,7 @@ import {Router,Route,Switch,Redirect,Link,useLocation} from "wouter";
 import {QueryClientProvider} from "@tanstack/react-query";
 import {ArrowRight,ArrowLeft,LockKeyhole,Eye,EyeOff} from "lucide-react";
 import MailPage from "./pages/dashboard/mail";
+import MailActivate from "./pages/mail-activate";
 import MailAdminPage from "./pages/dashboard/mail-admin";
 import MailLanding,{MailBrand} from "./pages/mail-landing";
 import MailArt from "./components/mail-art";
@@ -36,6 +37,7 @@ function App(){
    queryClient.clear();setIdentity(null);setPassword("");setError("");navigate("/login");
   }catch{setError("Unable to sign out. Please try again.");}finally{setBusy(false);}
  }
+ if(location==="/activate")return <MailActivate/>;
  if(location==="/")return <MailLanding/>;
  if(!ready)return <main className="cm-loading" role="status">Opening your workspace…</main>;
  if(!identity)return <main className="cm-login"><header><MailBrand/><MailTheme/></header><div className="cm-login-layout"><section className="cm-login-intro"><span className="cm-eyebrow">WELCOME BACK</span><h1>HELLO, MAIL.<br/><em>WELCOME BACK_</em></h1><MailArt kind="hero" eager className="cm-login-art"/><p>A familiar place for your business conversations.<br/>Pick up right where you left off.</p><Link href="/" className="cm-text-link"><ArrowLeft size={16}/> Back to overview</Link></section><section className="cm-login-card"><span className="cm-login-lock"><LockKeyhole size={24}/></span><MailArt kind="secure" className="cm-login-mobile-art"/><h2>SIGN IN_</h2><p>Sign in to your private mailboxes.</p><form onSubmit={login}>

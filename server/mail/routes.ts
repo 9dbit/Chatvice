@@ -12,6 +12,8 @@ import { encryptMailField, decryptMailField, isMailEncryptionReady } from "./cry
 import { readableMailText } from "./message-text";
 import {mailAttachmentSizeError} from "../../shared/mail-policy";
 
+import {createStandaloneMailbox,registerMailOnboardingAdmin,OnboardingError} from "./onboarding";
+
 const email = z.string().email().max(320).transform(v => v.toLowerCase());
 const uuid = z.string().uuid();
 const small = z.string().max(250);
@@ -31,6 +33,7 @@ function principal(req: Request): Principal | null {
   return { tenantId: s.merchantId, userId: s.userId, isMerchant: s.userType === "merchant" };
 }
 function errors(res: Response, err: unknown) {
+  if(err instanceof OnboardingError)return res.status(err.status).json({error:err.message});
   if (err instanceof z.ZodError) return res.status(400).json({ error: "Invalid request", fields: err.flatten().fieldErrors });
   const code = (err as any)?.code;
   if (code === "23505") return res.status(409).json({ error: "Duplicate resource" });
@@ -461,6 +464,7 @@ export function registerMailRoutes(app: Express) {
   app.post("/api/mail/mailboxes",wrap(async(req,res)=>{
     const p=principal(req)!;
     if(!p.isMerchant)return res.sendStatus(403);
+    if(req.body?.accountMode==="standalone")return res.status(201).json(await createStandaloneMailbox(p.tenantId,req.body));
     const d=z.object({domainId:uuid,localPart:z.string().trim().toLowerCase()
       .regex(/^[a-z0-9][a-z0-9._+-]{0,63}$/),displayName:z.string().max(120).default("")}).parse(req.body);
     const c=await pool.connect();
@@ -477,5 +481,6 @@ export function registerMailRoutes(app: Express) {
     }catch(err){await c.query("ROLLBACK");throw err;}finally{c.release();}
   }));
   registerMailAdminRoutes(app);
+  registerMailOnboardingAdmin(app);
 }
 
