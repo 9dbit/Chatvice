@@ -1,9 +1,11 @@
-// 40 MB is the product-level combined upload budget (decimal bytes).
+// 38 MB is the product-level combined upload budget (decimal bytes).
 // Resend limits the entire email after encoding; oversized files are delivered
 // through authenticated-at-rest, expiring private download links instead.
-export const MAX_MAIL_MESSAGE_ATTACHMENT_BYTES=40_000_000;
-export const MAX_MAIL_ATTACHMENT_BYTES=MAX_MAIL_MESSAGE_ATTACHMENT_BYTES;
-export const MAIL_ATTACHMENT_LIMIT_LABEL="40 MB";
+export const MAX_MAIL_MESSAGE_ATTACHMENT_BYTES=38_000_000;
+// Keep the historic 40 MB private-object read cap so previously uploaded 38-40 MB
+// files remain downloadable. New drafts are capped at 38 MB by policy checks.
+export const MAX_MAIL_ATTACHMENT_BYTES=40_000_000;
+export const MAIL_ATTACHMENT_LIMIT_LABEL="38 MB";
 export const MAX_MAIL_NATIVE_ATTACHMENT_BYTES=25_000_000;
 export const MAX_MAIL_ENCODED_MESSAGE_BYTES=40_000_000;
 export const MAIL_SHARE_LINK_DAYS=7;
@@ -23,7 +25,7 @@ export function mailAttachmentSizeError(totalBytes:number,count:number,_textByte
   if(!Number.isSafeInteger(totalBytes)||totalBytes<0||!Number.isSafeInteger(count)||count<0)
     return "Invalid attachment size.";
   if(totalBytes>MAX_MAIL_MESSAGE_ATTACHMENT_BYTES)
-    return "Attachments exceed 40 MB total per email. Remove a file or choose smaller files.";
+    return "Attachments exceed 38 MB total per email. Remove a file or choose smaller files.";
   return null;
 }
 /** Only for files that will be serialized directly into Resend's email request. */
