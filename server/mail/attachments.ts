@@ -11,7 +11,7 @@ import {
 } from "./object-store";
 import type { IngestedMessageRef } from "./ingest";
 import { registerAttachment, MailAttachmentPolicyError } from "./attachment-quota";
-import {MAIL_SHARE_LINK_DAYS,MAIL_ATTACHMENT_LIMIT_LABEL} from "../../shared/mail-policy";
+import {MAIL_SHARE_LINK_DAYS,MAIL_ATTACHMENT_LIMIT_LABEL,MAX_MAIL_MESSAGE_ATTACHMENT_BYTES} from "../../shared/mail-policy";
 
 function principal(req:Request):{tenantId:string;userId:string;merchant:boolean}|null{
   const s=req.session as any;
@@ -108,7 +108,7 @@ export async function persistInboundMailAttachments(
   return {stored,duplicates};
 }
 const upload=multer({storage:multer.memoryStorage(),limits:{
-  fileSize:MAX_MAIL_ATTACHMENT_BYTES,files:1,fields:2,parts:3,fieldSize:2048
+  fileSize:MAX_MAIL_MESSAGE_ATTACHMENT_BYTES,files:1,fields:2,parts:3,fieldSize:2048
 }});
 // Per-worker burst guard. Mailbox quota is enforced transactionally in PostgreSQL.
 // A distributed limiter should replace this when deploying multiple replicas.
@@ -131,7 +131,7 @@ function uploadLimiter(req:Request,res:Response,next:NextFunction){
   }
   next();
 }
-// Limit simultaneous 40 MB in-memory transfers on this 500 MB single-replica
+// Limit simultaneous up to 40 MB legacy reads / 38 MB new uploads on this 500 MB single-replica
 // Mail service. Shared DB mailbox quotas still handle aggregate stored bytes.
 let activePrivateTransfers=0;
 function limitMailTransfers() {
