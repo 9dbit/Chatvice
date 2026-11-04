@@ -108,6 +108,7 @@ try{
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Reader overflow at ${width}`);
  }
  await page.setViewportSize({width:390,height:844});
+ await page.locator('.mail-ticker-preview').waitFor({state:'hidden'});
  await screenshot('mail-redesign-reader-mobile');
  await page.getByRole('button',{name:'Compose' ,exact:false}).click();
  await page.getByRole('dialog').waitFor();
