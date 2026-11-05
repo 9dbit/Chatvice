@@ -7,7 +7,7 @@
   "vars": {
     "CHATVICE_MAIL_APP_ORIGIN": "https://mail.chatvice.app",
     "CHATVICE_MAIL_ROUTER_DOMAINS": "chatvice.app",
-    "CHATVICE_MAIL_ROUTER_FORWARD_TO": "mail-router@qa-mail-staging.chatvice.app"
+    "CHATVICE_MAIL_ROUTER_FORWARD_TO": "mail-router@delirulo.resend.app"
   },
   "observability": { "enabled": true }
 }

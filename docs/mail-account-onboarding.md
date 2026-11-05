@@ -41,7 +41,7 @@ Mail app variables:
 | --- | --- |
 | `CHATVICE_MAIL_ONBOARDING_ENABLED` | `true` only after router deployment is ready |
 | `CHATVICE_MAIL_ROUTER_DOMAINS` | `chatvice.app` |
-| `CHATVICE_MAIL_ROUTER_FORWARD_TO` | `mail-router@qa-mail-staging.chatvice.app` |
+| `CHATVICE_MAIL_ROUTER_FORWARD_TO` | `mail-router@delirulo.resend.app` |
 | `CHATVICE_MAIL_ROUTER_SECRET` | Fresh 32-byte random secret encoded as 64 hex characters |
 
 The Worker uses the same router secret as a **secret binding**. Public Worker
@@ -88,8 +88,55 @@ Railway test deployment: `d9a656e4-c1ad-40ad-b021-0ea3dfb4cc74`, SUCCESS, with
 loopback PostgreSQL instance, no production database URL, no credentials, no
 public domain, and restart policy NEVER.
 
-Production onboarding is **not yet enabled or verified** at this checkpoint.
-The Resend transport address is verified in Cloudflare. The Worker shell exists;
-the actual router code still requires deployment authorization. Wrangler on the
-authorized SPARK device is not authenticated. No live Mail app source, schema,
-existing password, exact-address rule, or catch-all rule has been changed.
+## Live acceptance — 2026-11-05
+
+Independent onboarding is enabled and verified on https://mail.chatvice.app.
+The administrator creates the account, copies the single-use activation link,
+and gives it to the intended owner. No per-address Cloudflare/DNS configuration
+is required for subsequent managed addresses on `chatvice.app`. Other domains
+still require their own onboarding configuration before standalone creation.
+
+- App release `2abf86bd2288ede650cd26e40e4c346264404657`; final configuration
+  deployment `75c32645-e10d-43e3-889f-df8c7ec4f348`: SUCCESS.
+- Additive schema migration applied atomically; existing history is current.
+- Approved Cloudflare catch-all: active, `chatvice-mail-router`.
+- Existing exact `64cor`, `hello`, and `master` routes remain active and unchanged.
+- Worker version `0b0740a0-32d5-444d-b3d0-1cdf6ba313d7` forwards to verified
+  `mail-router@delirulo.resend.app`. The router secret remains a secret binding.
+
+The first transport destination under `qa-mail-staging.chatvice.app` hit
+Cloudflare's `cannot forward email to same worker` loop guard. Moving only the
+central destination to this team's Resend-provided receiving domain fixed
+forwarding. The existing subdomain MX and exact-address routes were retained.
+Use a receiving domain outside the routed Cloudflare zone for this central
+Worker transport; verify the destination before enabling traffic.
+
+Live tests used synthetic mailboxes created through the real admin dashboard,
+with activation/login tested through HTTPS API sessions. No production database,
+encryption key, or router secret was granted to the separate pilot service.
+
+| Check | Observed result |
+| --- | --- |
+| Account creation | Independent mailbox, one restricted member, one-time activation link |
+| Login before activation | HTTP 401 |
+| Activation and login | Success; non-admin identity |
+| Activation token replay | HTTP 410 |
+| Inbox isolation | Exactly one mailbox; 64COR access and admin APIs HTTP 403 |
+| Outbound | Gmail received message `1a1a9fef96ab63cd` |
+| External inbound | Message `d99cfaf8-cb43-4af4-ab2e-7422805c74d5` reached the correct pilot inbox |
+| Reply | Gmail received `1a1aa0f360941ffc` in thread `1a1a9fef96ab63cd`; In-Reply-To present |
+| Authentication | SPF, DKIM and DMARC passed in Gmail headers |
+| Attachments | 79-byte synthetic file matched exactly after outbound, inbound download, and final reply |
+| Fresh automatic setup | `onboarding-qa-fresh-20261105@chatvice.app` reached `Ready · Login activated` after the real returning probe |
+| Cleanup | Both QA mailboxes disabled; read and compose HTTP 403; logout then session HTTP 401; local test credentials removed |
+
+The initial pilot `onboarding-qa-20261105@chatvice.app` encountered an initial
+hard bounce and provider suppression during setup. Its suppression entry was
+removed after external delivery was verified. A separately named fresh pilot
+proved the normal automatic readiness path without that historical failure.
+Both QA mailboxes retain synthetic evidence but are disabled. Their login rows
+were not modified through a production database; mailbox access is blocked.
+
+The 40 MB application policy is unchanged. The live attachment test used a small
+synthetic file; it does not claim that a 40 MB attachment can traverse the
+Cloudflare inbound transport, whose complete-message limit remains 25 MiB.
