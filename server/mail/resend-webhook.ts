@@ -7,6 +7,9 @@ import { loadResendReceivedAttachments } from "./resend-attachments";
 import { persistInboundMailAttachments } from "./attachments";
 import {aggregateMailDeliveryStatus,mailDeliveryRecipientEvidence,MAIL_DELIVERY_STATES} from "./delivery";
 
+import {resolveRoutedRecipient} from "./router";
+import {acceptProvisioningProbe} from "./onboarding";
+
 type EventBody = {type?:unknown;data?:Record<string,unknown>};
 function safeAddresses(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((a):a is string=>typeof a==="string").slice(0,50) : [];
@@ -76,6 +79,11 @@ export function registerResendWebhook(app:Express):void {
         const key=process.env.RESEND_RECEIVING_API_KEY;
         if(!key) return res.sendStatus(503);
         const received=await fetchResendReceived(id,key) as Record<string,unknown>;
+        const routed=await resolveRoutedRecipient(received);
+        if(routed?.ignored)return res.json({accepted:true,saved:0});
+        const routedText=typeof received.text==="string"?received.text:"";
+        if(routed && !routed.ignored && await acceptProvisioningProbe(routed.mailbox.id,routedText))
+          return res.json({accepted:true,setupVerified:true});
         // Load provider attachment bytes with strict SSRF and size limits BEFORE
         // acknowledging the event. If storage is unavailable, returning 503
         // allows a provider retry instead of silently dropping customer files.
@@ -91,7 +99,8 @@ export function registerResendWebhook(app:Express):void {
         const text=typeof received.text==="string"?received.text:"";
         const html=typeof received.html==="string"?received.html:"";
         const result=await ingestIncomingMail({
-          eventId:"resend:"+id, from, to:safeAddresses(received.to??data.to),
+          eventId:routed && !routed.ignored?routed.eventId:"resend:"+id, from, to:safeAddresses(received.to??data.to),
+          envelopeRecipients:routed && !routed.ignored?[routed.recipient]:undefined,
           cc:safeAddresses(received.cc),bcc:safeAddresses(received.bcc),
           subject:typeof received.subject==="string"?received.subject:"",text,
           html, messageId:typeof received.message_id==="string"?received.message_id:null,
@@ -118,4 +127,5 @@ export function registerResendWebhook(app:Express):void {
     }
   });
 }
+
 

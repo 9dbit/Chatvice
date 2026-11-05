@@ -9,7 +9,7 @@ if(process.env.CHATVICE_MAIL_APP_ROLE!=='isolated-mail'||
   throw Error('Isolated Mail schema guard denied');
 const tenant=process.env.CHATVICE_MAIL_INITIAL_TENANT||'';
 if(!/^[a-zA-Z0-9_-]{1,32}$/.test(tenant))throw Error('Explicit initial Mail tenant required');
-const files=['20261026_chatvice_mail_v1.sql','20261026_chatvice_mail_attachments_v2.sql','20261027_chatvice_mail_login.sql','20261027_chatvice_mail_delivery_recipients_v3.sql','20261101_chatvice_mail_reminders_v4.sql'];
+const files=['20261026_chatvice_mail_v1.sql','20261026_chatvice_mail_attachments_v2.sql','20261027_chatvice_mail_login.sql','20261027_chatvice_mail_delivery_recipients_v3.sql','20261101_chatvice_mail_reminders_v4.sql','20261105_chatvice_mail_onboarding_v5.sql'];
 const immutablePrefix=[
   '663e18cdab839da45b98503c682dd6be5e4439e319fe65ce493086ef85557b91',
   'f981777a7ad9ab3d2da6f120c146e1e50110153a7c7a8dfdd33dc425dedb89cb',
@@ -28,7 +28,7 @@ try{
   await c.query('BEGIN');
   const expected=['merchants','supervisors','leads','mail_schema_migrations','mail_domains','mail_mailboxes',
     'mail_memberships','mail_aliases','mail_threads','mail_messages','mail_attachments','mail_delivery_events',
-    'mail_login_users','mail_login_sessions','mail_login_limits','mail_reminders'];
+    'mail_login_users','mail_login_sessions','mail_login_limits','mail_reminders','mail_mailbox_provisioning','mail_account_invitations'];
   const tables=await c.query(`SELECT table_schema,table_name FROM information_schema.tables
     WHERE table_schema NOT IN ('pg_catalog','information_schema') AND table_type='BASE TABLE'`);
   if(tables.rows.some(t=>t.table_schema!=='public'||!expected.includes(t.table_name)))
@@ -37,18 +37,20 @@ try{
     const applied=await c.query('SELECT name,sha256,initial_tenant FROM mail_schema_migrations');
     // Only the exact recorded three- or four-migration prefix may advance.
     // Gaps, unknown histories, edited files and tenant changes are never adopted.
-    if(![immutablePrefix.length,4,migrations.length].includes(applied.rowCount)||
+    if(![immutablePrefix.length,4,5,migrations.length].includes(applied.rowCount)||
        migrations.slice(0,applied.rowCount).some(m=>!applied.rows.some(a=>a.name===m.name&&a.sha256===m.sha&&a.initial_tenant===tenant)))
       throw Error('Schema history mismatch; manual review required');
-    for(const name of expected.filter(name=>name!=='mail_reminders'||applied.rowCount===migrations.length))
+    for(const name of expected.filter(name=>applied.rowCount>=({mail_reminders:5,mail_mailbox_provisioning:6,mail_account_invitations:6}[name]||3)))
       if(!tables.rows.some(t=>t.table_name===name))throw Error('Incomplete isolated Mail schema');
     if((await c.query('SELECT id FROM merchants WHERE id=$1',[tenant])).rowCount!==1)
       throw Error('Initial tenant mismatch');
     if(applied.rowCount===immutablePrefix.length&&(await c.query(`SELECT 1 FROM information_schema.columns
       WHERE table_schema='public' AND table_name='mail_delivery_events' AND column_name='recipient_keys'`)).rowCount)
       throw Error('Unrecorded delivery schema requires manual review');
-    if(applied.rowCount<migrations.length&&tables.rows.some(t=>t.table_name==='mail_reminders'))
+    if(applied.rowCount<5&&tables.rows.some(t=>t.table_name==='mail_reminders'))
       throw Error('Unrecorded reminder schema requires manual review');
+    if(applied.rowCount<6&&tables.rows.some(t=>['mail_mailbox_provisioning','mail_account_invitations'].includes(t.table_name)))
+      throw Error('Unrecorded onboarding schema requires manual review');
     for(const m of migrations.slice(applied.rowCount)){
       await c.query(m.sql);
       await c.query('INSERT INTO mail_schema_migrations(name,sha256,initial_tenant) VALUES($1,$2,$3)',[m.name,m.sha,tenant]);
