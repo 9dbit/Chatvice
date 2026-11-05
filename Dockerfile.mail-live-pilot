@@ -1,0 +1,11 @@
+FROM node:22-bookworm-slim
+WORKDIR /app
+ENV PUPPETEER_SKIP_DOWNLOAD=true PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
+COPY server ./server
+COPY shared ./shared
+COPY tsconfig.json ./
+COPY scripts/mail-onboarding-live-pilot.ts ./scripts/mail-onboarding-live-pilot.ts
+USER node
+CMD ["node","--import","tsx","scripts/mail-onboarding-live-pilot.ts"]
