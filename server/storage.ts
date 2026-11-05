@@ -1460,7 +1460,7 @@ export class DatabaseStorage implements IStorage {
   async getAllPlatformSettings(): Promise<Record<string, string>> {
     const settings = await db.select().from(platformSettings);
     return settings.reduce((acc, s) => {
-      if (s.value) acc[s.key] = s.value;
+      if (s.value && s.key !== "ai_provider_config_v1") acc[s.key] = s.value;
       return acc;
     }, {} as Record<string, string>);
   }

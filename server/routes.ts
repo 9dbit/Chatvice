@@ -1,5 +1,8 @@
+import { routedAI, aiCacheNamespace } from "./aiProvider";
+import { registerAIProviderRoutes } from "./aiProviderRoutes";
+import { AI_CONFIG_KEY } from "../shared/aiProviderConfig";
 import { mediaDirectory } from "./mediaPaths";
-import { openAIOptions, geminiOptions } from "./aiConfig";
+import { geminiOptions } from "./aiConfig";
 import { backgroundJobsEnabled } from "./backgroundJobs";
 import { getTopupJwtSecret } from "./topupTokenSecurity";
 import type { Express, Request, Response, NextFunction } from "express";
@@ -18,7 +21,6 @@ import {
   profileStep2Schema,
   profileStep3Schema,
 } from "@shared/schema";
-import OpenAI from "openai";
 import bcrypt from "bcryptjs";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
@@ -130,7 +132,7 @@ function getBaseUrl(req: Request): string {
   return `${protocol}://${host}`;
 }
 
-const openai = new OpenAI(openAIOptions());
+const openai = routedAI;
 
 // OpenAI public list pricing (USD per 1M tokens) — used for cost monitoring only.
 // Values intentionally conservative to avoid under-reporting. Update when pricing changes.
@@ -145,7 +147,8 @@ const OPENAI_MODEL_PRICING_PER_M_TOKENS: Record<string, { input: number; output:
 
 function calcOpenAiCostMicroUsd(model: string, promptTokens: number, completionTokens: number): number {
   const baseModel = model.split(":")[0]; // strip any version suffix
-  const pricing = OPENAI_MODEL_PRICING_PER_M_TOKENS[baseModel] ?? OPENAI_MODEL_PRICING_PER_M_TOKENS["gpt-4.1-mini"];
+  const pricing = OPENAI_MODEL_PRICING_PER_M_TOKENS[baseModel];
+  if (!pricing) return 0; // Unpriced models must not be billed at an unrelated OpenAI rate.
   const usd = (promptTokens / 1_000_000) * pricing.input + (completionTokens / 1_000_000) * pricing.output;
   return Math.round(usd * 1_000_000);
 }
@@ -2078,8 +2081,9 @@ ATURAN KETAT:
     
     // Cost-optimized: try FAQ cache for plain text questions (no vision, no signals).
     // Skips OpenAI entirely on repeat questions, saving ~$0.0006 per cache hit.
+    const aiCacheAgent = `${assignedAgentId || "default"}:${await aiCacheNamespace()}`;
     if (!useVision) {
-      const cached = getFaqCache(merchantId, assignedAgentId, message);
+      const cached = getFaqCache(merchantId, aiCacheAgent, message);
       if (cached) {
         console.log(`[CostOpt] FAQ cache hit merchant=${merchantId} agent=${assignedAgentId || "none"}`);
         return { answer: cached, mode: "AI", isNewSession };
@@ -2093,12 +2097,12 @@ ATURAN KETAT:
       max_completion_tokens: 800, // Increased from 500 for more comprehensive responses
       temperature: temperature,
     });
-    void recordOpenAiUsage(merchantId, chatModel, completion.usage);
+    void recordOpenAiUsage(merchantId, completion.model, completion.usage);
 
     const answer = completion.choices[0]?.message?.content || "I'm sorry, I couldn't process your request. Please try again.";
     // Cost-optimized: cache plain-text Q&A for repeat questions across all customers (per-agent).
     if (!useVision && answer && answer.length > 0) {
-      setFaqCache(merchantId, assignedAgentId, message, answer);
+      setFaqCache(merchantId, aiCacheAgent, message, answer);
     }
     return { answer, mode: "AI", isNewSession };
   } catch (error) {
@@ -2237,7 +2241,7 @@ ${conversationContext ? `Recent Conversation:\n${conversationContext}` : ""}`
         ],
         max_completion_tokens: 500,
       });
-      void recordOpenAiUsage(merchantId, visionModel, completion.usage);
+      void recordOpenAiUsage(merchantId, completion.model, completion.usage);
 
       return completion.choices[0]?.message?.content || 
         "Saya melihat gambar yang Anda kirim. Bagaimana saya bisa membantu Anda terkait ini?";
@@ -2286,7 +2290,7 @@ ${knowledgeContext || "No specific knowledge base configured yet."}`
             ],
             max_completion_tokens: 500,
           });
-          void recordOpenAiUsage(merchantId, docModel, completion.usage);
+          void recordOpenAiUsage(merchantId, completion.model, completion.usage);
           
           return completion.choices[0]?.message?.content || 
             `Saya sudah menerima dokumen "${filename}". Bagaimana saya bisa membantu Anda?`;
@@ -16326,6 +16330,8 @@ Rules:
     }
   });
 
+  registerAIProviderRoutes(app, requireAdmin);
+
   app.get("/api/admin/settings", requireAdmin, async (req, res) => {
     try {
       const settings = await storage.getAllPlatformSettings();
@@ -16341,6 +16347,7 @@ Rules:
       if (!key) {
         return res.status(400).json({ error: "Missing key" });
       }
+      if (key === AI_CONFIG_KEY) return res.status(400).json({ error: "Use AI provider settings" });
       await storage.setPlatformSetting(key, value || "");
       res.json({ success: true });
     } catch (error) {
@@ -17258,6 +17265,7 @@ Rules:
 
   app.get("/api/platform/settings/:key", async (req, res) => {
     try {
+      if (req.params.key === AI_CONFIG_KEY) return res.status(404).json({ error: "Not found" });
       const value = await storage.getPlatformSetting(req.params.key);
       res.json({ value });
     } catch (error) {
@@ -17421,6 +17429,7 @@ Rules:
       if (!key) {
         return res.status(400).json({ error: "Key is required" });
       }
+      if (key === AI_CONFIG_KEY) return res.status(400).json({ error: "Use AI provider settings" });
       await storage.setPlatformSetting(key, value);
       invalidateCache("platform-settings");
       
@@ -17444,6 +17453,7 @@ Rules:
       if (!settings || typeof settings !== 'object') {
         return res.status(400).json({ error: "Settings object is required" });
       }
+      if (Object.hasOwn(settings, AI_CONFIG_KEY)) return res.status(400).json({ error: "Use AI provider settings" });
       for (const [key, value] of Object.entries(settings)) {
         await storage.setPlatformSetting(key, String(value));
       }

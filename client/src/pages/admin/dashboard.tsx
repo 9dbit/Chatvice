@@ -1,3 +1,4 @@
+import { AdminAIProvider } from "@/components/admin-ai-provider";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { AdditionalServicesTab } from "@/components/admin/AdditionalServicesTab";
 import { PricingSimulator } from "@/components/admin/pricing-simulator";
@@ -10463,29 +10464,7 @@ function SettingsTab({ toast }: { toast: any }) {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5" />
-            System Configuration
-          </CardTitle>
-          <CardDescription>Advanced platform settings</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label>OpenAI API Model</Label>
-            <Input defaultValue="gpt-4.1-mini" className="mt-2" />
-          </div>
-          <div>
-            <Label>Default Session Timeout (seconds)</Label>
-            <Input type="number" defaultValue="300" className="mt-2" />
-          </div>
-          <Button onClick={handleSave} data-testid="button-save-config">
-            <Save className="w-4 h-4 mr-2" />
-            Save Configuration
-          </Button>
-        </CardContent>
-      </Card>
+      <AdminAIProvider />
     </div>
   );
 }
