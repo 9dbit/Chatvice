@@ -1,0 +1,22 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { beforeEach, expect, it, vi } from 'vitest';
+import { AdminAIProvider } from './admin-ai-provider';
+import { DEFAULT_AI_CONFIG } from '@shared/aiProviderConfig';
+const mocked = vi.hoisted(() => ({ request: vi.fn() }));
+vi.mock('@/lib/queryClient', () => ({ apiRequest: mocked.request, queryClient: { setQueryData: vi.fn() } }));
+beforeEach(() => mocked.request.mockReset());
+it('loads saved settings and submits a manual Qwen selection, then clears key input', async () => {
+ const data = { ...DEFAULT_AI_CONFIG, provider: 'openai', openaiKeyConfigured: true, qwenKeyConfigured: false, encryptionReady: true };
+ const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+ client.setQueryData(['/api/admin/ai-provider'], data);
+ mocked.request.mockResolvedValue({ json: async () => ({ ...data, provider: 'qwencloud', qwenKeyConfigured: true }) });
+ render(<QueryClientProvider client={client}><AdminAIProvider /></QueryClientProvider>);
+ fireEvent.change(screen.getByLabelText('Active provider'), { target: { value: 'qwencloud' } });
+ fireEvent.change(screen.getByLabelText('QwenCloud API key'), { target: { value: 'private-test-key' } });
+ fireEvent.change(screen.getByLabelText('Knowledge retrieval'), { target: { value: 'keyword' } });
+ fireEvent.click(screen.getByRole('button', { name: 'Save AI settings' }));
+ await waitFor(() => expect(mocked.request).toHaveBeenCalledWith('POST', '/api/admin/ai-provider', expect.objectContaining({ provider: 'qwencloud', knowledgeSearch: 'keyword', qwenApiKey: 'private-test-key' })));
+ await screen.findByText('Saved. New AI requests now use the selected provider.');
+ expect(screen.getByLabelText('QwenCloud API key')).toHaveValue('');
+});

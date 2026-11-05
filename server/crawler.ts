@@ -1,7 +1,6 @@
-import { openAIOptions } from "./aiConfig";
-import OpenAI from "openai";
+import { routedAI } from "./aiProvider";
 
-const openai = new OpenAI(openAIOptions());
+const openai = routedAI;
 
 const PRIVATE_IP_RANGES = [
   /^127\./,

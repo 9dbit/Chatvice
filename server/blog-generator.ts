@@ -1,15 +1,10 @@
-import { openAIOptions } from "./aiConfig";
+import { routedAI } from "./aiProvider";
 import OpenAI from "openai";
 import { storage } from "./storage";
 import { randomBytes } from "crypto";
 import { blogArticles } from "../client/src/pages/company/blog-data";
 
-function getOpenAI(): OpenAI {
-  const options = openAIOptions();
-  const apiKey = options.apiKey;
-  if (!apiKey) throw new Error("OpenAI API key not set");
-  return new OpenAI(options);
-}
+function getOpenAI(): OpenAI { return routedAI; }
 
 const CATEGORIES = ["Product", "Tutorial", "Industry", "Comparison", "Insights"];
 
