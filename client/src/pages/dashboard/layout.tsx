@@ -263,7 +263,7 @@ export default function DashboardLayout() {
             </Switch>
             </PageErrorBoundary>
           </main>
-          <AIHelpBubble showWelcomeOnLoad={false} />
+          {location !== "/dashboard/live-preview" && <AIHelpBubble showWelcomeOnLoad={false} />}
         </div>
       </div>
     </SidebarProvider>

@@ -19,11 +19,15 @@ export default function LivePreviewPage() {
   useEffect(() => {
     if (!merchantId) return;
 
-    // Remove any existing widget elements first
-    const existingScript = document.getElementById('chatvice-widget-script');
-    const existingContainer = document.getElementById('chatvice-widget');
-    if (existingScript) existingScript.remove();
-    if (existingContainer) existingContainer.remove();
+    // The embed mounts separate elements directly on body, not one container.
+    const cleanupWidget = () => {
+      for (const id of ["chatvice-widget-script", "chatvice-widget", "chatvice-widget-frame",
+        "chatvice-widget-button", "chatvice-eye-toggle", "chatvice-hidden-label",
+        "chatvice-welcome-bubble", "chatvice-animation-styles"]) {
+        document.getElementById(id)?.remove();
+      }
+    };
+    cleanupWidget();
 
     // Create and append the widget script
     const script = document.createElement('script');
@@ -33,12 +37,7 @@ export default function LivePreviewPage() {
     document.body.appendChild(script);
 
     // Cleanup on unmount
-    return () => {
-      const scriptEl = document.getElementById('chatvice-widget-script');
-      const containerEl = document.getElementById('chatvice-widget');
-      if (scriptEl) scriptEl.remove();
-      if (containerEl) containerEl.remove();
-    };
+    return cleanupWidget;
   }, [merchantId, widgetKey]);
 
   const handleRefresh = () => {
