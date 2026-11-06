@@ -1,11 +1,11 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { AdminAIProvider } from './admin-ai-provider';
 import { DEFAULT_AI_CONFIG } from '@shared/aiProviderConfig';
 const mocked = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock('@/lib/queryClient', () => ({ apiRequest: mocked.request, queryClient: { setQueryData: vi.fn() } }));
-beforeEach(() => mocked.request.mockReset());
+beforeEach(() => { cleanup(); mocked.request.mockReset(); });
 it('loads saved settings and submits a manual Qwen selection, then clears key input', async () => {
  const data = { ...DEFAULT_AI_CONFIG, provider: 'openai', openaiKeyConfigured: true, qwenKeyConfigured: false, encryptionReady: true };
  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -19,4 +19,33 @@ it('loads saved settings and submits a manual Qwen selection, then clears key in
  await waitFor(() => expect(mocked.request).toHaveBeenCalledWith('POST', '/api/admin/ai-provider', expect.objectContaining({ provider: 'qwencloud', knowledgeSearch: 'keyword', qwenApiKey: 'private-test-key' })));
  await screen.findByText('Saved. New AI requests now use the selected provider.');
  expect(screen.getByLabelText('QwenCloud API key')).toHaveValue('');
+});
+it('keeps OpenRouter and DeepSeek drafts separate and tests without activating', async () => {
+ const data = { ...DEFAULT_AI_CONFIG, provider: 'openai', openaiKeyConfigured: true, qwenKeyConfigured: false, openrouterKeyConfigured: false, deepseekKeyConfigured: false, encryptionReady: true };
+ const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+ client.setQueryData(['/api/admin/ai-provider'], data);
+ mocked.request.mockResolvedValue({ json: async () => ({ success: true, latencyMs: 123 }) });
+ render(<QueryClientProvider client={client}><AdminAIProvider /></QueryClientProvider>);
+ fireEvent.change(screen.getByLabelText('Active provider'), { target: { value: 'openrouter' } });
+ expect(screen.getByLabelText('Text / chat model')).toHaveValue('qwen/qwen3.8-flash');
+ expect(screen.queryByLabelText('QwenCloud region')).not.toBeInTheDocument();
+ fireEvent.change(screen.getByLabelText('OpenRouter API key'), { target: { value: 'router-private-key' } });
+ fireEvent.change(screen.getByLabelText('Active provider'), { target: { value: 'deepseek' } });
+ expect(screen.getByLabelText('DeepSeek API key')).toHaveValue('');
+ expect(screen.getByLabelText('Image understanding model')).toHaveValue('deepseek-flash');
+ fireEvent.change(screen.getByLabelText('Text / chat model'), { target: { value: 'deepseek-v4-pro' } });
+ fireEvent.change(screen.getByLabelText('DeepSeek API key'), { target: { value: 'deepseek-private-key' } });
+ fireEvent.click(screen.getByRole('button', { name: 'Test text & vision' }));
+ await screen.findByText('Text and vision connection passed (123 ms). Settings have not been saved.');
+ expect(mocked.request).toHaveBeenCalledWith('POST', '/api/admin/ai-provider/test', expect.objectContaining({ provider: 'deepseek', deepseekTextModel: 'deepseek-v4-pro', deepseekVisionModel: 'deepseek-flash', deepseekApiKey: 'deepseek-private-key', openrouterApiKey: 'router-private-key' }));
+ expect(mocked.request).toHaveBeenCalledTimes(1);
+ expect(client.getQueryData(['/api/admin/ai-provider'])).toEqual(data);
+ fireEvent.change(screen.getByLabelText('Active provider'), { target: { value: 'openrouter' } });
+ expect(screen.getByLabelText('OpenRouter API key')).toHaveValue('router-private-key');
+ expect(screen.queryByText(/connection passed/)).not.toBeInTheDocument();
+ mocked.request.mockResolvedValue({ json: async () => ({ ...data, provider: 'openrouter', openrouterKeyConfigured: true }) });
+ fireEvent.click(screen.getByRole('button', { name: 'Save AI settings' }));
+ await screen.findByText('Saved. New AI requests now use the selected provider.');
+ expect(mocked.request).toHaveBeenLastCalledWith('POST', '/api/admin/ai-provider', expect.objectContaining({ provider: 'openrouter', openrouterTextModel: 'qwen/qwen3.8-flash', openrouterApiKey: 'router-private-key' }));
+ expect(screen.getByLabelText('OpenRouter API key')).toHaveValue('');
 });

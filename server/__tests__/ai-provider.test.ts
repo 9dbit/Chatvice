@@ -21,6 +21,8 @@ beforeEach(() => {
   process.env.SESSION_SECRET = 'test-session-secret-at-least-32-characters';
   process.env.OPENAI_API_KEY = 'openai-test-key';
   delete process.env.QWENCLOUD_API_KEY;
+  delete process.env.OPENROUTER_API_KEY;
+  delete process.env.DEEPSEEK_API_KEY;
   process.env.APP_URL = 'https://chatvice.app';
 });
 describe('manual provider routing', () => {
@@ -79,6 +81,65 @@ describe('manual provider routing', () => {
     expect(mock.create.mock.calls[1][0].model).toBe('qwen3-vl-plus');
     expect(mock.value).toBeNull();
   });
+  it('loads existing two-provider settings without changing the selected provider or keys', async () => {
+    await saveAIConfig({ provider: 'qwencloud', qwenTextModel: 'qwen-plus', qwenApiKey: 'existing-qwen-key' });
+    const legacy = JSON.parse(mock.value!);
+    for (const key of ['openrouterTextModel', 'openrouterVisionModel', 'deepseekTextModel', 'deepseekVisionModel']) delete legacy.config[key];
+    mock.value = JSON.stringify(legacy);
+    expect(await publicAIConfig()).toMatchObject({ provider: 'qwencloud', qwenTextModel: 'qwen-plus', qwenKeyConfigured: true,
+      openrouterTextModel: 'qwen/qwen3.8-flash', deepseekTextModel: 'deepseek-flash', openrouterKeyConfigured: false, deepseekKeyConfigured: false });
+    await completeWithProvider(params);
+    expect(mock.options[0].apiKey).toBe('existing-qwen-key');
+  });
+  it('accepts namespaced OpenRouter IDs but rejects URLs and unknown endpoint fields', () => {
+    expect(aiConfigSchema.safeParse({ provider: 'openrouter', openrouterTextModel: 'qwen/qwen3.8-flash' }).success).toBe(true);
+    for (const id of ['https://evil.test/model', '../secret', 'qwen/model?key=secret', 'qwen/model/extra', 'qwen3.8-flash']) {
+      expect(aiConfigSchema.safeParse({ openrouterTextModel: id }).success).toBe(false);
+    }
+    expect(aiConfigSchema.safeParse({ provider: 'openrouter', baseURL: 'https://evil.test' }).success).toBe(false);
+  });
+  const providers = [
+    { provider: 'openrouter', key: 'openrouterApiKey', flag: 'openrouterKeyConfigured', env: 'OPENROUTER_API_KEY', baseURL: 'https://openrouter.ai/api/v1', model: 'qwen/qwen3.8-flash', vision: 'qwen/qwen3.8-flash', textField: 'openrouterTextModel', visionField: 'openrouterVisionModel', reasoning: { reasoning: { enabled: false } } },
+    { provider: 'deepseek', key: 'deepseekApiKey', flag: 'deepseekKeyConfigured', env: 'DEEPSEEK_API_KEY', baseURL: 'https://api.deepseek.com', model: 'deepseek-v4-pro', vision: 'deepseek-flash', textField: 'deepseekTextModel', visionField: 'deepseekVisionModel', reasoning: { thinking: { type: 'disabled' } } },
+  ] as const;
+  for (const p of providers) {
+    it(`${p.provider}: isolates encrypted keys, selects text/vision models and preserves tool continuations`, async () => {
+      const config = { ...DEFAULT_AI_CONFIG, provider: p.provider, [p.textField]: p.model, [p.visionField]: p.vision };
+      await saveAIConfig({ ...config, [p.key]: 'new-provider-private-key' });
+      expect(mock.value).not.toContain('new-provider-private-key');
+      const publicConfig = await publicAIConfig();
+      expect(publicConfig[p.flag]).toBe(true);
+      expect(JSON.stringify(publicConfig)).not.toContain('new-provider-private-key');
+      await saveAIConfig({ ...config, provider: 'openai' });
+      await saveAIConfig({ ...config, [p.key]: '' });
+      const toolParams = { ...params, tools: [{ type: 'function', function: { name: 'lookup' } }], messages: [
+        { role: 'assistant', content: null, tool_calls: [{ id: 'call1', type: 'function', function: { name: 'lookup', arguments: '{}' } }] },
+        { role: 'tool', tool_call_id: 'call1', content: 'found' },
+      ] };
+      await completeWithProvider(toolParams);
+      expect(mock.options[0]).toMatchObject({ apiKey: 'new-provider-private-key', baseURL: p.baseURL, maxRetries: 0 });
+      expect(mock.create.mock.calls[0][0]).toMatchObject({ model: p.model, max_tokens: 80, messages: toolParams.messages, tools: toolParams.tools, ...p.reasoning });
+      expect(mock.create.mock.calls[0][0]).not.toHaveProperty('enable_thinking');
+      expect(mock.create.mock.calls[0][0]).not.toHaveProperty('max_completion_tokens');
+      await completeWithProvider({ ...params, messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,test' } }] }] });
+      expect(mock.create.mock.calls[1][0].model).toBe(p.vision);
+      mock.create.mockRejectedValueOnce({ status: 429, message: 'new-provider-private-key', headers: { Authorization: 'new-provider-private-key' } });
+      await expect(completeWithProvider(params)).rejects.toThrow(`${p.provider} request failed (429)`);
+      expect(mock.create).toHaveBeenCalledTimes(3);
+    });
+    it(`${p.provider}: tests an environment key without activating settings and rejects missing keys`, async () => {
+      await expect(saveAIConfig({ ...DEFAULT_AI_CONFIG, provider: p.provider })).rejects.toThrow('no API key');
+      expect(mock.value).toBeNull();
+      process.env[p.env] = 'provider-env-test-key';
+      await saveAIConfig({ ...DEFAULT_AI_CONFIG, provider: 'openai' });
+      const saved = mock.value;
+      await testAIConfig({ ...DEFAULT_AI_CONFIG, provider: p.provider });
+      expect(mock.options[0]).toMatchObject({ apiKey: 'provider-env-test-key', baseURL: p.baseURL });
+      expect(mock.create).toHaveBeenCalledTimes(2);
+      expect(mock.value).toBe(saved);
+      expect((await publicAIConfig()).provider).toBe('openai');
+    });
+  }
 });
 describe('admin settings access', () => {
   function app() {
