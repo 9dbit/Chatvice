@@ -2061,7 +2061,7 @@ export default function KnowledgePage() {
         )}
 
         {entriesLoading ? (
-          <div className="grid grid-cols-1 2xl:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             <Skeleton className="h-40 w-full" />
             <Skeleton className="h-40 w-full" />
             <Skeleton className="h-40 w-full" />
@@ -2069,7 +2069,7 @@ export default function KnowledgePage() {
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={sortedEntries.map(e => e.id)} strategy={rectSortingStrategy}>
-              <div className={`grid grid-cols-1 gap-4 ${sortedEntries.length > 1 ? "2xl:grid-cols-2" : ""}`}>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {sortedEntries.map((entry) => {
                   const localContent = entryContents[entry.id] ?? entry.content;
                   const localName = entryNames[entry.id] ?? entry.name;
