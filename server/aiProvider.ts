@@ -6,7 +6,8 @@ import { openAIOptions } from './aiConfig';
 import { AI_CONFIG_KEY, AI_PROVIDERS, aiConfigSchema, aiConfigUpdateSchema, aiModelSchema, qwenBaseURL, type AIProviderConfig, type AIModelProfile, type AIModelCheck, type AIModelCatalog } from '../shared/aiProviderConfig';
 
 type StoredConfig = { config: AIProviderConfig; openaiKey?: string; qwenKey?: string; openrouterKey?: string; deepseekKey?: string;
-  models?: AIModelProfile[]; checks?: Record<string, AIModelCheck & { fingerprint: string }> };
+  models?: AIModelProfile[]; checks?: Record<string, AIModelCheck & { fingerprint: string }>;
+  liveChecks?: Record<string, AIModelCheck & { fingerprint: string }> };
 // Serialize settings writes, including tests finishing while an admin edits a model.
 let writeQueue: Promise<unknown> = Promise.resolve();
 function mutate<T>(action: () => Promise<T>): Promise<T> {
@@ -38,7 +39,7 @@ async function readStored(): Promise<StoredConfig> {
   const parsed = JSON.parse(raw);
   return { config: aiConfigSchema.parse(parsed.config), openaiKey: parsed.openaiKey, qwenKey: parsed.qwenKey,
     openrouterKey: parsed.openrouterKey, deepseekKey: parsed.deepseekKey,
-    models: parsed.models?.map((m: unknown) => aiModelSchema.parse(m)), checks: parsed.checks };
+    models: parsed.models?.map((m: unknown) => aiModelSchema.parse(m)), checks: parsed.checks, liveChecks: parsed.liveChecks };
 }
 export async function getAIConfig() { return (await readStored()).config; }
 export async function aiCacheNamespace() {
@@ -116,15 +117,40 @@ export function routeCompletion(config: AIProviderConfig, params: any) {
 }
 export async function completeWithProvider(params: any, options?: any) {
   const stored = await readStored();
+  const started = Date.now();
+  const vision = params.messages.some((m: any) => Array.isArray(m.content) && m.content.some((p: any) => p.type === 'image_url'));
+  const observed = async (check: AIModelCheck) => {
+    try { await recordLiveCheck(stored, { ...check, checkedAt: new Date(started).toISOString(), latencyMs: Date.now() - started }); }
+    catch { console.warn('Unable to save AI request status'); } // Telemetry must not break a valid reply.
+  };
   try {
-    return await clientFor(stored).chat.completions.create(routeCompletion(stored.config, params), options);
+    const result = await clientFor(stored).chat.completions.create(routeCompletion(stored.config, params), options);
+    // Opening a stream alone does not prove a completed reply.
+    if (!params.stream) {
+      const answered = result.choices?.some((c: any) => c.message?.content?.trim() || c.message?.tool_calls?.length);
+      await observed({ state: answered ? (vision ? 'image_connected' : 'text_connected') : 'failed',
+        message: answered ? `Latest ${vision ? 'image' : 'text'} request succeeded. This does not verify the other capability or measure the account balance.` : 'The provider returned no answer. Run Test connection to check again.',
+        text: vision ? 'not_tested' : answered ? 'passed' : 'failed', vision: vision ? answered ? 'passed' : 'failed' : 'not_tested' });
+    }
+    return result;
   } catch (error: any) {
+    const status = Number(error?.status) || undefined;
+    await observed({ ...failureReason(status, vision), httpStatus: status,
+      text: vision ? 'not_tested' : 'failed', vision: vision ? 'failed' : 'not_tested' });
     // Never bubble provider request headers or key-bearing SDK errors into logs.
     throw new Error(`${stored.config.provider} request failed (${Number(error?.status) || 'connection/configuration error'})`);
   }
 }
 // Existing integrations consume only this SDK surface, including tool-call continuations.
 export const routedAI = { chat: { completions: { create: completeWithProvider } } } as unknown as OpenAI;
+function failureReason(status: number | undefined, vision: boolean): Pick<AIModelCheck, 'state' | 'message'> {
+  return status === 402 ? { state: 'billing_error', message: 'The provider reported insufficient API balance. If you have topped up, run Test connection again.' }
+    : status === 401 || status === 403 ? { state: 'auth_error', message: 'API access rejected. Check the saved key and account access.' }
+    : status === 400 || status === 404 || status === 422 ? { state: 'model_error', message: `Check the ${vision ? 'image' : 'text'} model ID, account access and supported capabilities.` }
+    : status === 429 ? { state: 'rate_limited', message: 'Rate limit or quota reached. Check usage and billing, then retry.' }
+    : status && status >= 500 ? { state: 'unavailable', message: 'The provider is temporarily unavailable. Retry later.' }
+    : { state: 'failed', message: 'Connection failed or no answer returned. Check the model settings and retry.' };
+}
 async function probe(stored: StoredConfig): Promise<AIModelCheck> {
   const start = Date.now();
   const check: AIModelCheck = { state: 'connected', message: 'Text and image tests passed.', checkedAt: new Date().toISOString(), text: 'not_tested', vision: 'not_tested' };
@@ -142,14 +168,7 @@ async function probe(stored: StoredConfig): Promise<AIModelCheck> {
     } catch (error: any) {
       const status = Number(error?.status) || undefined;
       // Only controlled messages are persisted or returned; SDK errors may contain credentials.
-      const reason: Pick<AIModelCheck, 'state' | 'message'> = status === 402
-        ? { state: 'billing_error', message: 'Insufficient API balance. Top up this provider, then test again.' }
-        : status === 401 ? { state: 'auth_error', message: 'API key rejected. Update the key, then test again.' }
-        : status === 403 ? { state: 'auth_error', message: 'Access denied. Check account access and the API key region.' }
-        : status === 400 || status === 404 || status === 422 ? { state: 'model_error', message: `Check the ${vision ? 'image' : 'text'} model ID, account access and supported capabilities.` }
-        : status === 429 ? { state: 'rate_limited', message: 'Rate limit or quota reached. Check usage and billing, then retry.' }
-        : status && status >= 500 ? { state: 'unavailable', message: 'The provider is temporarily unavailable. Retry later.' }
-        : { state: 'failed', message: 'Connection failed or no answer returned. Check the model settings and retry.' };
+      const reason = failureReason(status, vision);
       return { ...check, ...reason, [vision ? 'vision' : 'text']: 'failed', httpStatus: status, latencyMs: Date.now() - start };
     }
   }
@@ -188,6 +207,22 @@ function fingerprint(stored: StoredConfig, model: AIModelProfile) {
   return createHash('sha256').update(JSON.stringify([model.provider, model.textModel, model.visionModel,
     model.provider === 'qwencloud' ? model.region : '', keyFor(stored, model.provider)])).digest('hex');
 }
+async function recordLiveCheck(snapshot: StoredConfig, check: AIModelCheck) {
+  const model = profiles(snapshot).find(m => sameModel(m, fromConfig(snapshot.config)))!;
+  const version = fingerprint(snapshot, model);
+  await mutate(async () => {
+    const latest = await readStored();
+    const current = profiles(latest).find(m => m.id === model.id);
+    if (!current || fingerprint(latest, current) !== version) return;
+    const previous = latest.liveChecks?.[model.id];
+    if (previous?.fingerprint === version) {
+      const elapsed = Date.parse(check.checkedAt!) - Date.parse(previous.checkedAt!);
+      if (elapsed < 0 || (elapsed < 60000 && previous.state === check.state && previous.text === check.text && previous.vision === check.vision && previous.httpStatus === check.httpStatus)) return;
+    }
+    latest.liveChecks = { ...latest.liveChecks, [model.id]: { ...check, fingerprint: version } };
+    await storage.setPlatformSetting(AI_CONFIG_KEY, JSON.stringify(latest));
+  });
+}
 function viewCatalog(stored: StoredConfig): AIModelCatalog {
   const active = fromConfig(stored.config);
   return { knowledgeSearch: stored.config.knowledgeSearch,
@@ -201,7 +236,13 @@ function viewCatalog(stored: StoredConfig): AIModelCatalog {
         check = result;
         if (check.state === 'connected' && Date.now() - Date.parse(check.checkedAt!) > 86400000) check = { ...check, state: 'untested', message: 'The previous test is over 24 hours old. Test again before activating.' };
       }
-      return { ...model, active: sameModel(model, active), keyConfigured, check };
+      const live = stored.liveChecks?.[model.id];
+      let liveCheck: AIModelCheck | undefined;
+      if (keyConfigured && live?.fingerprint === fingerprint(stored, model)) {
+        const { fingerprint: _private, ...result } = live;
+        liveCheck = result;
+      }
+      return { ...model, active: sameModel(model, active), keyConfigured, check, liveCheck };
     }) };
 }
 export async function publicAIModels() { return viewCatalog(await readStored()); }
@@ -270,6 +311,7 @@ export async function removeAIModel(input: unknown) {
     if (sameModel(model, fromConfig(stored.config))) throw new Error('Activate another model before removing the active model.');
     stored.models = profiles(stored).filter(m => m.id !== id);
     delete stored.checks?.[id];
+    delete stored.liveChecks?.[id];
     await storage.setPlatformSetting(AI_CONFIG_KEY, JSON.stringify(stored));
     return viewCatalog(stored);
   });

@@ -11,7 +11,7 @@ vi.mock('openai', () => ({ default: class {
   chat = { completions: { create: mock.create } };
   constructor(options: any) { mock.options.push(options); }
 } }));
-import { DEFAULT_AI_CONFIG, aiConfigSchema } from '../../shared/aiProviderConfig';
+import { DEFAULT_AI_CONFIG, aiConfigSchema, currentAIStatus } from '../../shared/aiProviderConfig';
 import { completeWithProvider, saveAIConfig, publicAIConfig, aiCacheNamespace, routeCompletion, testAIConfig, publicAIModels, saveAIModel, testAIModel, activateAIModel, removeAIModel, saveAIKnowledge } from '../aiProvider';
 import { registerAIProviderRoutes } from '../aiProviderRoutes';
 const params = { model: 'gpt-4.1-mini', messages: [{ role: 'user', content: 'hello' }], max_completion_tokens: 80 };
@@ -260,5 +260,78 @@ describe('model cards and persistent connection status', () => {
       await request(app).post('/api/admin/ai-models' + path).set('x-test-role', 'admin').set('Origin', 'https://evil.test').send({ id: 'default-openai' }).expect(403);
     }
     expect(mock.value).toBeNull();
+  });
+});
+
+
+describe('live request health', () => {
+  async function configured() {
+    await saveAIConfig({ ...DEFAULT_AI_CONFIG, provider: 'deepseek', deepseekApiKey: 'private-live-key' });
+  }
+  const active = async () => (await publicAIModels()).models.find(m => m.active)!;
+  it('recovers from a stored 402 using a real success and preserves manual test history', async () => {
+    await configured();
+    mock.create.mockRejectedValueOnce({ status: 402, message: 'private-live-key' });
+    await testAIModel({ id: 'default-deepseek' });
+    const old = JSON.parse(mock.value!); old.checks['default-deepseek'].checkedAt = new Date(Date.now() - 1000).toISOString(); mock.value = JSON.stringify(old);
+    const namespace = await aiCacheNamespace();
+    await completeWithProvider(params);
+    const model = await active();
+    expect(model.check.state).toBe('billing_error');
+    expect(currentAIStatus(model)).toMatchObject({ state: 'text_connected', text: 'passed', vision: 'not_tested' });
+    expect(mock.create).toHaveBeenCalledTimes(2); // No extra billable health probe.
+    expect(await aiCacheNamespace()).toBe(namespace);
+    expect(JSON.stringify(model)).not.toContain('private-live-key');
+    expect(JSON.stringify(model)).not.toContain('fingerprint');
+    await expect(activateAIModel({ id: model.id })).rejects.toThrow('successful text and image test');
+  });
+  it('records new failures and recovers immediately without waiting for throttling', async () => {
+    await configured(); await completeWithProvider(params);
+    mock.create.mockRejectedValueOnce({ status: 402, message: 'private-live-key' });
+    await expect(completeWithProvider(params)).rejects.toThrow('deepseek request failed (402)');
+    expect(currentAIStatus(await active())).toMatchObject({ state: 'billing_error', httpStatus: 402 });
+    await completeWithProvider(params);
+    expect(currentAIStatus(await active()).state).toBe('text_connected');
+  });
+  it('does not certify empty replies or stream handshakes as successful responses', async () => {
+    await configured(); mock.create.mockResolvedValueOnce({ choices: [] });
+    await completeWithProvider(params);
+    expect((await active()).liveCheck?.state).toBe('failed');
+    const saved = mock.value;
+    await completeWithProvider({ ...params, stream: true });
+    expect(mock.value).toBe(saved);
+  });
+  it('throttles repeated observations and invalidates them when credentials change', async () => {
+    await configured(); await completeWithProvider(params);
+    const saved = mock.value;
+    await completeWithProvider(params); expect(mock.value).toBe(saved);
+    await saveAIConfig({ ...DEFAULT_AI_CONFIG, provider: 'deepseek', deepseekApiKey: 'new-key' });
+    expect((await active()).liveCheck).toBeUndefined();
+  });
+  it('does not attach an in-flight response to a changed model configuration', async () => {
+    await configured(); let finish!: (v: any) => void;
+    mock.create.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const pending = completeWithProvider(params);
+    await vi.waitFor(() => expect(finish).toBeDefined());
+    await saveAIConfig({ ...DEFAULT_AI_CONFIG, provider: 'deepseek', deepseekApiKey: 'replacement-key' });
+    finish({ choices: [{ message: { content: 'OK' } }] }); await pending;
+    expect((await active()).liveCheck).toBeUndefined();
+  });
+  it('does not let telemetry storage failure discard a successful reply', async () => {
+    await configured();
+    const { storage } = await import('../storage');
+    vi.mocked(storage.setPlatformSetting).mockRejectedValueOnce(new Error('database unavailable'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect((await completeWithProvider(params)).choices[0].message.content).toBe('OK');
+    expect(warn).toHaveBeenCalledWith('Unable to save AI request status'); warn.mockRestore();
+  });
+  it('expires historical failures and keeps a newer manual test authoritative', () => {
+    const now = Date.now();
+    const check = { state: 'billing_error' as const, message: 'Historical failure', text: 'failed' as const, vision: 'not_tested' as const, checkedAt: new Date(now - 3600000).toISOString() };
+    expect(currentAIStatus({ check }, now).state).toBe('stale');
+    const liveCheck = { ...check, state: 'text_connected' as const, checkedAt: new Date(now - 120000).toISOString() };
+    expect(currentAIStatus({ check, liveCheck }, now).state).toBe('text_connected');
+    expect(currentAIStatus({ check: { ...check, checkedAt: new Date(now).toISOString() }, liveCheck }, now).state).toBe('billing_error');
+    expect(currentAIStatus({ check, liveCheck }, now + 3600000).state).toBe('stale');
   });
 });
