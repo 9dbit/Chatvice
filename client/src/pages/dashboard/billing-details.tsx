@@ -1,20 +1,14 @@
 import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Link, useLocation } from "wouter";
 import { QRCodeSVG } from "qrcode.react";
 import html2canvas from "html2canvas";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Receipt, Mail, Building2, CreditCard, History, FileText, Calendar, Zap, ArrowRight, Timer, Clock, Copy, XCircle, RefreshCw, Loader2, Eye, Download, X, AlertTriangle, Wallet, MessageSquare, Users, Bot, BookOpen, HelpCircle } from "lucide-react";
@@ -47,20 +41,14 @@ interface PendingPaymentDetails {
   uniqueCode?: string;
 }
 
-const billingDetailsSchema = z.object({
-  billingEmail: z.string().email("Please enter a valid email"),
-  taxId: z.string().optional(),
-  billingMethod: z.enum(["card", "bank_transfer", "invoice"]),
-});
-
-type BillingDetailsData = z.infer<typeof billingDetailsSchema>;
-
 interface BillingHistory {
   id: string;
-  date: string;
+  createdAt: string;
   amount: number;
+  amountFormatted: string;
   status: string;
-  description: string;
+  planName: string | null;
+  paymentMethod: string | null;
 }
 
 interface CustomPlanInvoice {
@@ -146,6 +134,7 @@ export default function BillingDetailsPage() {
     planName: string;
     billingInterval: string;
     currentPeriodEnd: string | null;
+    trialEndsAt: string | null;
   }>({
     queryKey: ["/api/billing/status"],
     enabled: !!merchantId,
@@ -494,48 +483,10 @@ export default function BillingDetailsPage() {
     }
   }, [pendingPaymentDetails, toast]);
 
-  const form = useForm<BillingDetailsData>({
-    resolver: zodResolver(billingDetailsSchema),
-    defaultValues: {
-      billingEmail: merchant?.email || "",
-      taxId: "",
-      billingMethod: "card",
-    },
+  const { data: billingHistory = [], isLoading: historyLoading, isError: historyError, refetch: refetchBillingHistory } = useQuery<BillingHistory[]>({
+    queryKey: ["/api/billing/transactions"],
+    enabled: !!merchantId,
   });
-
-  const updateBillingMutation = useMutation({
-    mutationFn: async (data: BillingDetailsData) => {
-      return apiRequest("POST", "/api/billing/update-details", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
-      toast({
-        title: t("dashboard.billing.billingUpdated"),
-        description: t("dashboard.billing.billingUpdatedDesc"),
-      });
-    },
-    onError: () => {
-      toast({
-        title: t("dashboard.billing.updateFailed"),
-        description: t("common.tryAgainDesc"),
-        variant: "destructive",
-      });
-    },
-  });
-
-  const onSubmit = (data: BillingDetailsData) => {
-    updateBillingMutation.mutate(data);
-  };
-
-  const billingHistory: BillingHistory[] = [
-    {
-      id: "1",
-      date: new Date().toISOString(),
-      amount: 0,
-      status: "paid",
-      description: t("dashboard.billing.trialPeriod"),
-    },
-  ];
 
   if (isLoading) {
     return (
@@ -990,129 +941,26 @@ export default function BillingDetailsPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Receipt className="w-5 h-5 text-primary" />
-              <CardTitle>{t("dashboard.billingDetails.billingInformation")}</CardTitle>
+              <CardTitle>Billing Contact</CardTitle>
             </div>
-            <CardDescription>
-              Update your billing contact and tax details.
-            </CardDescription>
+            <CardDescription>Payment receipts use your registered account email.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="billingEmail"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <Mail className="w-4 h-4" />
-                        Billing Email
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          type="email"
-                          placeholder="billing@company.com"
-                          data-testid="input-billing-email"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Invoices will be sent to this email address.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="taxId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4" />
-                        Tax ID (Optional)
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="e.g., VAT123456789"
-                          data-testid="input-tax-id"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Your company's tax identification number.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Button
-                  type="submit"
-                  disabled={updateBillingMutation.isPending}
-                  data-testid="button-save-billing"
-                >
-                  {updateBillingMutation.isPending ? "Saving..." : "Save Changes"}
-                </Button>
-              </form>
-            </Form>
+          <CardContent className="space-y-3">
+            <p className="font-medium break-all">{merchant?.email || "—"}</p>
+            <Button asChild variant="outline" size="sm"><Link href="/dashboard/profile">Manage account email</Link></Button>
+            <p className="text-xs text-muted-foreground">For tax details on an invoice, contact Chatvice support before payment.</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
               <CreditCard className="w-5 h-5 text-primary" />
-              <CardTitle>{t("dashboard.billingDetails.paymentMethod")}</CardTitle>
+              <CardTitle>Payment Method</CardTitle>
             </div>
-            <CardDescription>
-              Choose how you'd like to pay for your subscription.
-            </CardDescription>
+            <CardDescription>Choose an available method when you create a payment.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Form {...form}>
-              <FormField
-                control={form.control}
-                name="billingMethod"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="space-y-3"
-                      >
-                        <div className="flex items-center space-x-3 p-3 rounded-lg border hover-elevate cursor-pointer">
-                          <RadioGroupItem value="card" id="card" data-testid="radio-payment-card" />
-                          <label htmlFor="card" className="flex-1 cursor-pointer">
-                            <div className="font-medium">Credit/Debit Card</div>
-                            <p className="text-sm text-muted-foreground">Pay with Visa, Mastercard, or AMEX</p>
-                          </label>
-                          <CreditCard className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                        <div className="flex items-center space-x-3 p-3 rounded-lg border hover-elevate cursor-pointer">
-                          <RadioGroupItem value="bank_transfer" id="bank_transfer" data-testid="radio-payment-bank" />
-                          <label htmlFor="bank_transfer" className="flex-1 cursor-pointer">
-                            <div className="font-medium">Bank Transfer</div>
-                            <p className="text-sm text-muted-foreground">Pay via direct bank transfer</p>
-                          </label>
-                          <Building2 className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                        <div className="flex items-center space-x-3 p-3 rounded-lg border hover-elevate cursor-pointer">
-                          <RadioGroupItem value="invoice" id="invoice" data-testid="radio-payment-invoice" />
-                          <label htmlFor="invoice" className="flex-1 cursor-pointer">
-                            <div className="font-medium">Invoice</div>
-                            <p className="text-sm text-muted-foreground">Receive monthly invoices (Enterprise only)</p>
-                          </label>
-                          <FileText className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                      </RadioGroup>
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </Form>
+            <Button asChild variant="outline" size="sm"><Link href="/dashboard/plans">View plans and payment options</Link></Button>
           </CardContent>
         </Card>
       </div>
@@ -1128,7 +976,14 @@ export default function BillingDetailsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {billingHistory.length > 0 ? (
+          {historyLoading ? (
+            <Skeleton className="h-16 w-full" />
+          ) : historyError ? (
+            <div className="flex items-center justify-between gap-3 rounded-2xl bg-muted p-4">
+              <p className="text-sm">Could not load payment history.</p>
+              <Button size="sm" variant="outline" onClick={() => refetchBillingHistory()}>Retry</Button>
+            </div>
+          ) : billingHistory.length > 0 ? (
             <div className="space-y-3">
               {billingHistory.map((item) => (
                 <div
@@ -1141,18 +996,19 @@ export default function BillingDetailsPage() {
                       <FileText className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-medium">{item.description}</p>
+                      <p className="font-medium">{item.planName || "Subscription payment"}</p>
                       <div className="flex items-center gap-1 text-sm text-muted-foreground">
                         <Calendar className="w-3 h-3" />
-                        {new Date(item.date).toLocaleDateString()}
+                        {new Date(item.createdAt).toLocaleDateString()}
+                        {item.paymentMethod ? ` · ${item.paymentMethod}` : ""}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="font-medium">
-                      {item.amount === 0 ? "Free" : `$${item.amount.toFixed(2)}`}
+                      {item.amountFormatted}
                     </span>
-                    <Badge variant={item.status === "paid" ? "default" : "secondary"}>
+                    <Badge variant={item.status === "completed" ? "default" : "secondary"}>
                       {item.status}
                     </Badge>
                   </div>
@@ -1181,10 +1037,19 @@ export default function BillingDetailsPage() {
               <div>
                 <p className="font-medium">{billingStatus.planName}</p>
                 <p className="text-sm text-muted-foreground">
-                  Billed {billingStatus.billingInterval}
+                  {billingStatus.status === "trial"
+                    ? "Trial — no payment due yet"
+                    : billingStatus.status === "active"
+                      ? `Billed ${billingStatus.billingInterval}`
+                      : `Status: ${billingStatus.status}`}
                 </p>
               </div>
-              {billingStatus.currentPeriodEnd && (
+              {billingStatus.status === "trial" && billingStatus.trialEndsAt ? (
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Trial ends</p>
+                  <p className="font-medium">{new Date(billingStatus.trialEndsAt).toLocaleDateString()}</p>
+                </div>
+              ) : billingStatus.status === "active" && billingStatus.currentPeriodEnd && (
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Next billing date</p>
                   <p className="font-medium">

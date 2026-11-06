@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, ChevronRight, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock, Upload, CheckCircle2, Type, Table2, Zap, Pencil, Link2, Unlink, Power, Brain, TriangleAlert } from "lucide-react";
+import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, ChevronRight, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock, Upload, CheckCircle2, Type, Table2, Zap, Pencil, Link2, Unlink, Power, Brain, TriangleAlert, Maximize2 } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, rectSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -233,6 +233,7 @@ function SortableEntryCard({
   entry, localContent, localName, isSaving, currentStage, hasChanges,
   onNameChange, onContentChange, onSave, onDelete, onToggleActive, onToggleLink, onCheckClarity,
 }: SortableEntryCardProps) {
+  const [editorOpen, setEditorOpen] = useState(false);
   const {
     attributes,
     listeners,
@@ -299,7 +300,7 @@ function SortableEntryCard({
                     </Button>
                     <div className="flex items-center gap-1">
                       <Switch
-                        checked={entry.isActive}
+                        checked={entry.isActive === true}
                         onCheckedChange={onToggleActive}
                         className="h-4 w-7 [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-3"
                         data-testid={`switch-entry-active-${entry.id}`}
@@ -332,11 +333,18 @@ function SortableEntryCard({
           </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent className="pt-0">
+              <div className="mb-2 flex justify-end">
+                <Button type="button" variant="outline" size="sm" onClick={() => setEditorOpen(true)} aria-label={`Expand editor for ${localName}`} data-testid={`button-expand-entry-${entry.id}`}>
+                  <Maximize2 className="w-4 h-4 mr-2" /> View larger
+                </Button>
+              </div>
               <Textarea
                 placeholder="Enter knowledge content for this entry..."
                 value={localContent}
                 onChange={(e) => onContentChange(e.target.value)}
-                className="min-h-[300px] resize-none text-xs sm:text-sm"
+                rows={14}
+                style={{ minHeight: 340, resize: "vertical" }}
+                className="text-sm leading-relaxed"
                 disabled={!entry.isActive || isSaving}
                 data-testid={`textarea-entry-content-${entry.id}`}
               />
@@ -355,6 +363,32 @@ function SortableEntryCard({
               </div>
             </CardContent>
           </CollapsibleContent>
+          <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
+            <DialogContent className="flex flex-col gap-4" style={{ width: "96vw", maxWidth: "80rem", height: "90vh", maxHeight: "60rem" }}>
+              <DialogHeader>
+                <DialogTitle>Edit knowledge: {localName}</DialogTitle>
+                <DialogDescription>Changes stay in this entry until you save them.</DialogDescription>
+              </DialogHeader>
+              <Textarea
+                aria-label={`Knowledge content for ${localName}`}
+                value={localContent}
+                onChange={(e) => onContentChange(e.target.value)}
+                disabled={!entry.isActive || isSaving}
+                className="min-h-0 flex-1 text-sm leading-relaxed"
+                style={{ resize: "none" }}
+                data-testid={`textarea-expanded-entry-${entry.id}`}
+              />
+              <DialogFooter className="flex-row items-center justify-between gap-3">
+                <span className="text-xs text-muted-foreground">{localContent.length} characters</span>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={() => setEditorOpen(false)}>Close</Button>
+                  <Button type="button" onClick={onSave} disabled={isSaving || !hasChanges || !entry.isActive}>
+                    <SaveButtonContent stage={currentStage} />
+                  </Button>
+                </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </Card>
       </Collapsible>
     </div>
@@ -2027,7 +2061,7 @@ export default function KnowledgePage() {
         )}
 
         {entriesLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 2xl:grid-cols-2 gap-4">
             <Skeleton className="h-40 w-full" />
             <Skeleton className="h-40 w-full" />
             <Skeleton className="h-40 w-full" />
@@ -2035,7 +2069,7 @@ export default function KnowledgePage() {
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={sortedEntries.map(e => e.id)} strategy={rectSortingStrategy}>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className={`grid grid-cols-1 gap-4 ${sortedEntries.length > 1 ? "2xl:grid-cols-2" : ""}`}>
                 {sortedEntries.map((entry) => {
                   const localContent = entryContents[entry.id] ?? entry.content;
                   const localName = entryNames[entry.id] ?? entry.name;
