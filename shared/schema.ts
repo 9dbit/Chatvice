@@ -475,8 +475,8 @@ export const registerMerchantSchema = z.object({
     .regex(/[a-z]/, "Password must contain at least one lowercase letter")
     .regex(/[0-9]/, "Password must contain at least one number"),
   confirmPassword: z.string(),
-  businessCategory: z.string().min(1, "Please select a business category"),
-  staffCount: z.string().min(1, "Please select staff count"),
+  businessCategory: z.string().max(100).optional(),
+  staffCount: z.string().max(30).optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],

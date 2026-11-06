@@ -375,7 +375,10 @@ export default function KnowledgePage() {
   const [newAnswer, setNewAnswer] = useState("");
   
   // Help Articles state
-  const [activeTab, setActiveTab] = useState("training");
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return tab === "articles" || tab === "sources" ? tab : "training";
+  });
   const [articleSearchQuery, setArticleSearchQuery] = useState("");
   const [articleStatusFilter, setArticleStatusFilter] = useState<string>("all");
   
