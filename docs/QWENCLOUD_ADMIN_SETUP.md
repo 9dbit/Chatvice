@@ -42,3 +42,15 @@ Live provider validation requires the corresponding account key and quota. Do no
 - https://api-docs.deepseek.com/guides/vision/
 
 QwenCloud uses region-specific `https://{region}.maas.qwencloudapi.com/compatible-mode/v1`. Token Plan keys/endpoints are not interchangeable with pay-as-you-go.
+
+## AI model cards
+
+Settings now starts with an AI control center. Existing provider settings become four model cards without changing the live provider or keys. **Active** means selected for live requests; connection status is separately shown with the last test time and text/image outcomes.
+
+- **Add model** saves a named configuration with provider, exact text/image model IDs, Qwen region and an optional API key. Multiple model configurations per provider are supported (up to 40). OpenRouter IDs use `provider/model`. API endpoints remain fixed; no arbitrary server URLs are accepted.
+- **Edit** updates a model; editing the active model applies immediately and is called out in the dialog. Blank keys retain the existing key. Keys are encrypted and shared by cards of the same provider; replacing a key invalidates affected test results.
+- **Test connection** runs small synthetic text and image requests without switching the active model. Results survive reloads. Failed text tests leave image status as “not tested”. HTTP 402 displays “Insufficient balance” with a billing link; authentication, model, rate/quota and server errors have distinct statuses and next steps. No SDK headers or raw errors are returned.
+- **Set active** requires successful tests of the exact current models, region and API key within the past 24 hours. There is no automatic fallback. Status is the last manual test, not continuous monitoring or a balance estimate.
+- Inactive cards can be removed without deleting provider credentials. Knowledge retrieval has its own save action.
+
+Catalog and checks are kept inside the existing protected `ai_provider_config_v1` setting. There is no database migration or new public settings key. Legacy settings endpoints remain supported. Test results and edits to inactive cards do not invalidate live response caches. Admin authentication and same-origin checks protect every write under `/api/admin/ai-models`.
