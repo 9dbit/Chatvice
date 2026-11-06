@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { registerMerchantSchema } from "@shared/schema";
 import { RegisterPage } from "../auth";
+import ProfileWizardPage from "../profile-wizard";
 import SelectAgentPage from "../select-agent";
 import { GettingStartedChecklist } from "@/components/dashboard/getting-started-checklist";
 import { LanguageProvider } from "@/hooks/use-language";
@@ -83,4 +84,27 @@ it("selects the newly created agent, even when an older agent exists", async () 
   await waitFor(() => expect(screen.queryByTestId("input-new-agent-name")).not.toBeInTheDocument());
   await user.click(screen.getByTestId("button-continue-dashboard"));
   expect(apiRequest).toHaveBeenLastCalledWith("POST", "/api/merchant/select-agent", {agentId:"agent_new"});
+});
+
+it('does not mark empty knowledge or a preview chat as deployed', async () => {
+  setup(<GettingStartedChecklist merchant={{id:'m_test'} as any} agents={[{id:'a1'} as any]} hasReceivedMessage={true} disableAutoDismiss />, {
+    '/api/merchant/domains': {domains:[{domain:'example.test',isValidated:false}]},
+    '/api/knowledge-entries': [{content:'   ',isActive:true}],
+    '/api/sources': [],
+  });
+  await waitFor(() => expect(screen.getByTestId('badge-onboarding-progress')).toHaveTextContent('2/6'));
+  expect(screen.getByTestId('button-deeplink-knowledge')).toBeInTheDocument();
+  expect(screen.getByTestId('button-deeplink-deploy')).toBeInTheDocument();
+});
+
+
+it('keeps the verified cookie-session identity when finishing the profile', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({success:true, merchantId:'m_verified'}))));
+  setup(<ProfileWizardPage />, {
+    '/api/auth/me': {authenticated:true, merchantId:'m_verified', userType:'merchant'},
+    '/api/profile/current': {profileStep:3, data:{companyName:'Example', officialWebsiteName:'Example', officialDomain:'example.test', picName:'Tester', phone:'8123456789', country:'Indonesia'}},
+  });
+  await userEvent.click(await screen.findByTestId('button-complete-profile'));
+  await waitFor(() => expect(localStorage.getItem('merchantId')).toBe('m_verified'));
+  expect(localStorage.getItem('userType')).toBe('merchant');
 });

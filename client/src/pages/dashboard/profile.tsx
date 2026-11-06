@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { SiGoogle, SiGithub } from "react-icons/si";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import type { Merchant } from "@shared/schema";
+import type { Merchant, MerchantDomain } from "@shared/schema";
 
 const PHONE_VALIDATION_RULES: Record<string, { 
   pattern: RegExp; 
@@ -107,6 +107,11 @@ export default function ProfilePage() {
     queryKey: ["/api/merchant", merchantId],
     enabled: !!merchantId,
   });
+
+  const { data: domainsData } = useQuery<{ domains: MerchantDomain[] }>({
+    queryKey: ["/api/merchant/domains"], enabled: !!merchantId,
+  });
+  const officialDomainRecord = domainsData?.domains.find(d => d.domain.toLowerCase() === (merchant?.officialDomain || "").toLowerCase());
 
   const { data: authMethods, isLoading: authMethodsLoading } = useQuery<{
     email: string;
@@ -349,7 +354,7 @@ export default function ProfilePage() {
   };
 
   const formatDate = (dateString: string | Date | null | undefined) => {
-    if (!dateString) return "-";
+    if (!dateString || !Number.isFinite(new Date(dateString).getTime())) return "-";
     return new Date(dateString).toLocaleDateString("id-ID", {
       day: "numeric",
       month: "long",
@@ -475,8 +480,8 @@ export default function ProfilePage() {
                 </p>
                 {formData.officialDomain && (
                   <Badge variant="secondary" className="text-xs">
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                    Verified
+                    {officialDomainRecord?.isValidated && <CheckCircle className="w-3 h-3 mr-1" />}
+                    {officialDomainRecord?.isValidated ? "Verified" : officialDomainRecord ? "Pending validation" : "Not registered"}
                   </Badge>
                 )}
               </div>

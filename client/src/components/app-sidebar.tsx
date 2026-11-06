@@ -11,6 +11,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   Collapsible,
@@ -287,6 +288,8 @@ interface BillingStatus {
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
+  const { setOpenMobile } = useSidebar();
+  useEffect(() => { setOpenMobile(false); }, [location, setOpenMobile]);
   const merchantId = localStorage.getItem("merchantId") || "";
   const userType = localStorage.getItem("userType") || "merchant";
   const [online, setOnline] = useState(true);

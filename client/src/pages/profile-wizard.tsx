@@ -475,7 +475,10 @@ export default function ProfileWizardPage() {
       if (!res.ok) throw { ...responseData, status: res.status };
       return responseData;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Verification links establish a cookie session without the dashboard's local identity.
+      if (data.merchantId) localStorage.setItem("merchantId", data.merchantId);
+      localStorage.setItem("userType", "merchant");
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       toast({
         title: "Profile Complete!",
@@ -685,13 +688,13 @@ export default function ProfileWizardPage() {
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-[108px_minmax(0,1fr)] gap-3">
                   <FormField
                     control={step2Form.control}
                     name="phoneCountryCode"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-zinc-300">Country Code *</FormLabel>
+                        <FormLabel className="text-zinc-300">Code *</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white h-11" data-testid="select-step2-country-code">
@@ -714,7 +717,7 @@ export default function ProfileWizardPage() {
                     control={step2Form.control}
                     name="phone"
                     render={({ field }) => (
-                      <FormItem className="col-span-2">
+                      <FormItem className="min-w-0">
                         <FormLabel className="text-zinc-300">Phone Number *</FormLabel>
                         <FormControl>
                           <Input
@@ -753,7 +756,7 @@ export default function ProfileWizardPage() {
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField
                     control={step2Form.control}
                     name="city"

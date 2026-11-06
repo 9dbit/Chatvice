@@ -274,7 +274,7 @@ export default function WidgetPage() {
     onSuccess: () => {
       toast({
         title: t("dashboard.widget.domainAdded"),
-        description: t("dashboard.widget.domainValidateDesc"),
+        description: "Domain registered. Install the widget on your website, then validate it.",
       });
       setNewDomain("");
       refetchDomains();
@@ -818,6 +818,7 @@ export default function WidgetPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/profile"] });
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
       if (merchant?.activeAgentId) {
         queryClient.invalidateQueries({ queryKey: ["/api/agents", merchant.activeAgentId, "widget-settings"] });
@@ -842,6 +843,7 @@ export default function WidgetPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/profile"] });
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
       toast({
         title: t("dashboard.widget.agentSelected"),
@@ -877,6 +879,7 @@ export default function WidgetPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/profile"] });
       toast({
         title: t("dashboard.widget.socialSaved"),
         description: t("common.changesSaved"),
@@ -901,6 +904,7 @@ export default function WidgetPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/merchant", merchantId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/profile"] });
       toast({
         title: t("dashboard.widget.prechatSaved"),
         description: t("common.changesSaved"),
