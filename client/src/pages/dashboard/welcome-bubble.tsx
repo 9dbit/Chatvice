@@ -1,3 +1,4 @@
+import { preparePromoFile, uploadPromo } from "@/lib/promo-upload";
 import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -26,6 +27,8 @@ export default function WelcomeBubblePage() {
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState("");
+  const [promoNeedsSave, setPromoNeedsSave] = useState(false);
   const [form, setForm] = useState({
     headline: "Need help?",
     message: "I can guide you through our features.",
@@ -67,6 +70,7 @@ export default function WelcomeBubblePage() {
       return apiRequest("PUT", "/api/welcome-bubble", data);
     },
     onSuccess: () => {
+      setPromoNeedsSave(false);
       queryClient.invalidateQueries({ queryKey: ["/api/welcome-bubble"] });
       toast({ title: t("dashboard.welcomeBubble.saved") });
     },
@@ -79,54 +83,25 @@ export default function WelcomeBubblePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const allowedTypes = ['image/png', 'image/gif', 'image/jpeg', 'image/jpg', 'image/webp', 'video/mp4'];
-    if (!allowedTypes.includes(file.type)) {
-      toast({ title: t("dashboard.welcomeBubble.invalidFormat"), variant: "destructive" });
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: t("dashboard.welcomeBubble.fileTooLarge"), variant: "destructive" });
-      return;
-    }
-
+    if (isUploading) return;
+    const input = e.currentTarget;
     setIsUploading(true);
+    setUploadError("");
     setUploadProgress(0);
-    
-    const progressInterval = setInterval(() => {
-      setUploadProgress(prev => Math.min(prev + 10, 90));
-    }, 100);
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('type', 'welcome_bubble_promo');
-
     try {
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
-
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Upload failed');
-      }
-
-      const data = await response.json();
-      setForm({ ...form, promoImageUrl: data.url, promoImageEnabled: true });
-      toast({ title: t("dashboard.welcomeBubble.imageUploaded") });
+      const uploadFile = await preparePromoFile(file);
+      const url = await uploadPromo(uploadFile, file.name, setUploadProgress);
+      setForm(prev => ({ ...prev, promoImageUrl: url, promoImageEnabled: true }));
+      setPromoNeedsSave(true);
+      toast({ title: "Upload complete", description: "Click Save Changes to publish the promo to your website." });
     } catch (error: any) {
-      clearInterval(progressInterval);
-      toast({ title: error.message || "Failed to upload image", variant: "destructive" });
+      const message = error.message || "Failed to upload media";
+      setUploadError(message);
+      toast({ title: message, variant: "destructive" });
     } finally {
-      setTimeout(() => {
-        setIsUploading(false);
-        setUploadProgress(0);
-      }, 500);
+      setIsUploading(false);
+      setUploadProgress(0);
+      input.value = "";
     }
   };
 
@@ -177,7 +152,7 @@ export default function WelcomeBubblePage() {
         </div>
         <Button 
           onClick={() => saveMutation.mutate(form)}
-          disabled={saveMutation.isPending}
+          disabled={saveMutation.isPending || isUploading}
           data-testid="button-save-bubble"
         >
           <Save className="w-4 h-4 mr-2" />
@@ -273,7 +248,7 @@ export default function WelcomeBubblePage() {
                     <div className="flex gap-2">
                       <Input
                         type="file"
-                        accept="image/png,image/gif,image/jpeg,image/jpg,image/webp,video/mp4"
+                        accept=".png,.gif,.jpg,.jpeg,.webp,.mp4,image/png,image/gif,image/jpeg,image/webp,video/mp4"
                         onChange={handleImageUpload}
                         disabled={isUploading}
                         className="flex-1"
@@ -293,11 +268,13 @@ export default function WelcomeBubblePage() {
                     {isUploading && (
                       <div className="space-y-1">
                         <Progress value={uploadProgress} className="h-2" />
-                        <p className="text-xs text-muted-foreground text-center">Uploading... {uploadProgress}%</p>
+                        <p className="text-xs text-muted-foreground text-center">{uploadProgress < 100 ? `Uploading... ${uploadProgress}%` : "Processing upload…"}</p>
                       </div>
                     )}
                   </div>
                   
+                  {uploadError && <p role="alert" className="text-sm text-destructive">{uploadError}</p>}
+                  {promoNeedsSave && <p role="status" className="text-sm text-muted-foreground">Upload complete. Click Save Changes to publish this promo.</p>}
                   <div className="space-y-2">
                     <Label htmlFor="promoImageUrl">{t("dashboard.welcomeBubble.orEnterUrl")}</Label>
                     <Input
@@ -322,6 +299,8 @@ export default function WelcomeBubblePage() {
                             loop
                             muted
                             playsInline
+                            controls
+                            preload="metadata"
                             data-testid="video-promo-preview"
                           />
                         ) : (

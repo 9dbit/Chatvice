@@ -22,6 +22,6 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: npx vitest run server/__tests__/conversation-outcomes.test.ts server/__tests__/ai-provider.test.ts client/src/components/admin-ai-provider.test.tsx server/__tests__/topup-token-security.test.ts client/src/pages/__tests__/merchant-onboarding.test.tsx server/__tests__/merchant-function-routes.test.ts client/src/pages/__tests__/custom-data-source-feedback.test.tsx client/src/pages/__tests__/knowledge-card-actions.test.tsx server/__tests__/subscription-plan-routes.test.ts server/__tests__/custom-data-preset-routes.test.ts server/__tests__/custom-data-presets.test.ts
+      - run: npx vitest run client/src/lib/promo-upload.test.ts server/__tests__/conversation-outcomes.test.ts server/__tests__/ai-provider.test.ts client/src/components/admin-ai-provider.test.tsx server/__tests__/topup-token-security.test.ts client/src/pages/__tests__/merchant-onboarding.test.tsx server/__tests__/merchant-function-routes.test.ts client/src/pages/__tests__/custom-data-source-feedback.test.tsx client/src/pages/__tests__/knowledge-card-actions.test.tsx server/__tests__/subscription-plan-routes.test.ts server/__tests__/custom-data-preset-routes.test.ts server/__tests__/custom-data-presets.test.ts
       - run: node --experimental-strip-types --test server/__tests__/postcutover-security.node.test.mjs
       - run: npm run build
