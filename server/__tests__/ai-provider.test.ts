@@ -234,6 +234,7 @@ describe('model cards and persistent connection status', () => {
     const old = JSON.parse(mock.value!);
     old.checks['default-openai'].checkedAt = new Date(Date.now() - 90000000).toISOString();
     mock.value = JSON.stringify(old);
+    expect((await publicAIModels()).models.find(m => m.id === 'default-openai')?.check.state).toBe('connected');
     await expect(activateAIModel({ id: 'default-openai' })).rejects.toThrow('successful');
     const added = await saveAIModel({ model: profile });
     const id = added.models.find(m => m.name === profile.name)!.id;
@@ -328,10 +329,11 @@ describe('live request health', () => {
   it('expires historical failures and keeps a newer manual test authoritative', () => {
     const now = Date.now();
     const check = { state: 'billing_error' as const, message: 'Historical failure', text: 'failed' as const, vision: 'not_tested' as const, checkedAt: new Date(now - 3600000).toISOString() };
-    expect(currentAIStatus({ check }, now).state).toBe('stale');
+    expect(currentAIStatus({ check }, now).state).toBe('untested');
     const liveCheck = { ...check, state: 'text_connected' as const, checkedAt: new Date(now - 120000).toISOString() };
     expect(currentAIStatus({ check, liveCheck }, now).state).toBe('text_connected');
     expect(currentAIStatus({ check: { ...check, checkedAt: new Date(now).toISOString() }, liveCheck }, now).state).toBe('billing_error');
-    expect(currentAIStatus({ check, liveCheck }, now + 3600000).state).toBe('stale');
+    expect(currentAIStatus({ check, liveCheck }, now + 3 * 86400000).state).toBe('text_connected');
+    expect(currentAIStatus({ check: { ...check, state: 'connected', text: 'passed', vision: 'passed' } }, now + 3 * 86400000).state).toBe('connected');
   });
 });
