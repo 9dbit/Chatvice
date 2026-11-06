@@ -123,7 +123,7 @@ export default function CustomDataSourcePage() {
   const [previewIntent, setPreviewIntent] = useState<CustomDataIntent | null>(null);
   const previewForm = useDataEntryFormCard();
 
-  const { data: source, isLoading: srcLoading } = useQuery<CustomDataSource | null>({
+  const { data: source, isLoading: srcLoading, isError: srcError, refetch: refetchSource } = useQuery<CustomDataSource | null>({
     queryKey: ["/api/merchant/custom-data-source"],
   });
   const { data: _intents } = useQuery<CustomDataIntent[]>({
@@ -177,6 +177,7 @@ export default function CustomDataSourcePage() {
 
   const [form, setForm] = useState<Partial<CustomDataSource>>({});
   const merged: Partial<CustomDataSource> = { ...(source || {}), ...form };
+  const hasUnsavedChanges = Object.entries(form).some(([key, value]) => value !== source?.[key as keyof CustomDataSource]);
 
   // Audit filters
   const [auditIntentFilter, setAuditIntentFilter] = useState<string>("all");
@@ -196,6 +197,7 @@ export default function CustomDataSourcePage() {
     onSuccess: (data) => {
       toast({ title: t("dashboard.customDataSource.settings.saved"), description: t("dashboard.customDataSource.settings.savedDesc") });
       setForm({});
+      setTestResult(null);
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-source"] });
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/custom-data-intents"] });
       // Backend returns `apiKey` exactly once on first creation — show it now.
@@ -222,6 +224,7 @@ export default function CustomDataSourcePage() {
 
   const testConn = useMutation({
     mutationFn: async () => {
+      setTestResult(null);
       const res = await apiRequest("POST", "/api/merchant/custom-data-source/test", {});
       return res.json();
     },
@@ -232,6 +235,10 @@ export default function CustomDataSourcePage() {
         description: data.ok ? `Status ${data.status} • ${data.latencyMs}ms` : (data.error || `Status ${data.status}`),
         variant: data.ok ? "default" : "destructive",
       });
+    },
+    onError: (err: Error) => {
+      setTestResult({ ok: false, status: 0, latencyMs: 0, error: err.message });
+      toast({ title: t("dashboard.customDataSource.wizard.connFailed"), description: err.message, variant: "destructive" });
     },
   });
 
@@ -369,6 +376,13 @@ export default function CustomDataSourcePage() {
     setEditingIntent({ ...i, requiredFields: Array.isArray(i.requiredFields) ? i.requiredFields : [] });
     setIntentDialogOpen(true);
   };
+
+  if (srcError) {
+    return <Card className="max-w-2xl mx-auto"><CardContent className="p-6 space-y-4" role="alert">
+      <p>{language === "id" ? "Pengaturan sumber data gagal dimuat. Coba lagi sebelum mengubah konfigurasi." : "Data source settings could not be loaded. Retry before changing the configuration."}</p>
+      <Button onClick={() => refetchSource()}>{language === "id" ? "Coba lagi" : "Retry"}</Button>
+    </CardContent></Card>;
+  }
 
   if (srcLoading) {
     return (
@@ -578,10 +592,11 @@ export default function CustomDataSourcePage() {
                   {saveSource.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
                   {t("dashboard.customDataSource.settings.save")}
                 </Button>
-                <Button variant="outline" onClick={() => testConn.mutate()} disabled={testConn.isPending || !source} data-testid="button-test-connection">
+                <Button variant="outline" onClick={() => testConn.mutate()} disabled={testConn.isPending || saveSource.isPending || !source || hasUnsavedChanges} data-testid="button-test-connection">
                   {testConn.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
                   {t("dashboard.customDataSource.settings.test")}
                 </Button>
+                {hasUnsavedChanges && <p className="w-full text-sm text-muted-foreground" role="status">{language === "id" ? "Simpan perubahan sebelum menguji koneksi." : "Save your changes before testing the connection."}</p>}
               </div>
               {testResult && (
                 <div
