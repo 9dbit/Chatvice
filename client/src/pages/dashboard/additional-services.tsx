@@ -415,7 +415,7 @@ export default function AdditionalServicesPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <CardTitle className="text-base">{config.name}</CardTitle>
-                        <Button
+                        {canManage && <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleManageClick(config.addonType)}
@@ -426,7 +426,7 @@ export default function AdditionalServicesPage() {
                             : <CalendarDays className="w-3.5 h-3.5 mr-1.5" />
                           }
                           Manage
-                        </Button>
+                        </Button>}
                       </div>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className="text-sm font-semibold text-primary">
