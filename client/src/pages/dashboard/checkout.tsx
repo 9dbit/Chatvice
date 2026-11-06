@@ -1235,40 +1235,6 @@ export default function CheckoutPage() {
     toast({ title: t("dashboard.checkout.toast.copied"), description: t("dashboard.checkout.toast.copiedToClipboardDesc") });
   };
 
-  const handleDemoPayment = async () => {
-    const transactionId = qrisData?.transactionId || vaData?.transactionId;
-    if (!transactionId) return;
-    try {
-      const response = await fetch('/api/billing/demo-payment', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionId }),
-      });
-      const data = await response.json();
-      if (response.ok && data.success) {
-        toast({ 
-          title: t("dashboard.checkout.toast.paymentSuccessful"), 
-          description: t("dashboard.checkout.toast.yourSubscriptionHasBeenDesc") 
-        });
-        // Clear cache and redirect to billing
-        queryClient.invalidateQueries({ queryKey: ['/api/merchant/current'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/billing'] });
-        setTimeout(() => {
-          navigate('/dashboard/billing');
-        }, 1500);
-      } else {
-        toast({ 
-          title: t("dashboard.checkout.toast.demoPaymentTriggered"), 
-          description: data.message || "Processing..." 
-        });
-      }
-    } catch (err) {
-      console.error("Demo payment error:", err);
-      toast({ title: t("dashboard.checkout.toast.error"), description: t("dashboard.checkout.toast.failedToProcessDemoDesc"), variant: "destructive" });
-    }
-  };
-
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -2085,17 +2051,6 @@ export default function CheckoutPage() {
                       <Download className="w-3.5 h-3.5 mr-1.5" />
                       Save
                     </Button>
-                    {import.meta.env.DEV && (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="flex-1" 
-                        onClick={handleDemoPayment}
-                        data-testid="button-demo-payment"
-                      >
-                        Demo Pay
-                      </Button>
-                    )}
                   </div>
                 </div>
               </div>
@@ -2169,12 +2124,6 @@ export default function CheckoutPage() {
                 <Clock className="w-3 h-3" />
                 <span className="font-mono text-xs font-medium">{formatTime(timeRemaining)}</span>
               </div>
-
-              {import.meta.env.DEV && (
-                <Button variant="outline" size="sm" className="w-full h-7 text-[10px]" onClick={handleDemoPayment}>
-                  Demo Pay
-                </Button>
-              )}
             </CardContent>
           </Card>
 
@@ -2244,12 +2193,6 @@ export default function CheckoutPage() {
                 <Clock className="w-3 h-3" />
                 <span className="font-mono text-xs font-medium">{formatTime(timeRemaining)}</span>
               </div>
-
-              {import.meta.env.DEV && (
-                <Button variant="outline" size="sm" className="w-full h-7 text-[10px]" onClick={handleDemoPayment}>
-                  Demo Pay
-                </Button>
-              )}
             </CardContent>
           </Card>
 
@@ -2510,12 +2453,6 @@ export default function CheckoutPage() {
                 <Clock className="w-3 h-3" />
                 <span className="font-mono text-xs font-medium">{formatTime(timeRemaining)}</span>
               </div>
-
-              {import.meta.env.DEV && (
-                <Button variant="outline" size="sm" className="w-full h-7 text-[10px]" onClick={handleDemoPayment}>
-                  Demo Pay
-                </Button>
-              )}
             </CardContent>
           </Card>
 

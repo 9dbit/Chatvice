@@ -928,6 +928,7 @@ export default function AffiliateDashboardPage() {
                 placeholder={`Min: $${minimumPayout}`}
                 value={withdrawAmount}
                 onChange={(e) => setWithdrawAmount(e.target.value)}
+                step="0.01"
                 min={minimumPayout}
                 max={stats.pendingEarnings}
                 data-testid="input-withdraw-amount"
@@ -964,7 +965,8 @@ export default function AffiliateDashboardPage() {
               onClick={handleWithdraw}
               disabled={
                 createWithdrawalMutation.isPending || 
-                !withdrawAmount || 
+                !withdrawAmount ||
+                !Number.isFinite(Number(withdrawAmount)) ||
                 parseFloat(withdrawAmount) < minimumPayout ||
                 parseFloat(withdrawAmount) > stats.pendingEarnings ||
                 !selectedPaymentMethod

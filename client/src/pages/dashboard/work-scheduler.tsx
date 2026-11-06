@@ -152,6 +152,7 @@ export default function WorkSchedulerPage() {
       resetShiftForm();
       toast({ title: t("dashboard.scheduler.shiftUpdated") });
     },
+    onError: (err: Error) => toast({ title: t("common.updateFailed"), description: err.message, variant: "destructive" }),
   });
 
   const deleteShiftMutation = useMutation({
@@ -160,8 +161,10 @@ export default function WorkSchedulerPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/work-scheduler/shifts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/work-scheduler/assignments"] });
       toast({ title: t("dashboard.scheduler.shiftDeleted") });
     },
+    onError: (err: Error) => toast({ title: t("common.updateFailed"), description: err.message, variant: "destructive" }),
   });
 
   const assignMutation = useMutation({
@@ -173,6 +176,7 @@ export default function WorkSchedulerPage() {
       setIsAssignOpen(false);
       toast({ title: t("dashboard.scheduler.assignmentCreated") });
     },
+    onError: (err: Error) => toast({ title: t("common.updateFailed"), description: err.message, variant: "destructive" }),
   });
 
   const deleteAssignmentMutation = useMutation({
@@ -183,6 +187,7 @@ export default function WorkSchedulerPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/work-scheduler/assignments"] });
       toast({ title: t("dashboard.scheduler.assignmentDeleted") });
     },
+    onError: (err: Error) => toast({ title: t("common.updateFailed"), description: err.message, variant: "destructive" }),
   });
 
   function resetShiftForm() {
