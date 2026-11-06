@@ -278,6 +278,7 @@ export default function WidgetPage() {
       });
       setNewDomain("");
       refetchDomains();
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/domains/usage"] });
     },
     onError: (error: unknown) => {
       if (isPlanLimitError(error)) {
@@ -303,6 +304,7 @@ export default function WidgetPage() {
         description: t("dashboard.widget.domainRemovedDesc"),
       });
       refetchDomains();
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/domains/usage"] });
     },
     onError: () => {
       toast({
@@ -327,6 +329,7 @@ export default function WidgetPage() {
       setEditingDomainId(null);
       setEditingDomainValue("");
       refetchDomains();
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/domains/usage"] });
     },
     onError: (error: unknown) => {
       const msg = error instanceof Error ? error.message : undefined;
@@ -351,6 +354,7 @@ export default function WidgetPage() {
         variant: data.isValidated ? "default" : "destructive",
       });
       refetchDomains();
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/domains/usage"] });
     },
     onError: () => {
       setValidatingDomainId(null);
@@ -363,10 +367,14 @@ export default function WidgetPage() {
   });
 
   // Unknown domain attempts
-  const { data: unknownDomains = [], refetch: refetchUnknownDomains } = useQuery<UnknownDomainAttempt[]>({
+  const { data: unknownDomainAttempts = [], refetch: refetchUnknownDomains } = useQuery<UnknownDomainAttempt[]>({
     queryKey: ["/api/merchant/domains/unknown"],
     enabled: !!merchantId,
   });
+
+  // Historical attempts stop being unknown once this merchant has registered the domain.
+  const unknownDomains = unknownDomainAttempts.filter(attempt =>
+    !(domainsData?.domains || []).some(domain => domain.domain.toLowerCase() === attempt.domain.toLowerCase()));
 
   const approveDomainMutation = useMutation({
     mutationFn: async (id: string) => apiRequest("POST", `/api/merchant/domains/unknown/${id}/approve`, {}),
@@ -374,6 +382,7 @@ export default function WidgetPage() {
       toast({ title: "Domain approved", description: "The domain has been added to your allowed domains." });
       refetchUnknownDomains();
       refetchDomains();
+      queryClient.invalidateQueries({ queryKey: ["/api/merchant/domains/usage"] });
     },
     onError: (error: any) => {
       if (error?.requiresUpgrade) {
