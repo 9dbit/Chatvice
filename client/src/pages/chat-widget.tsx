@@ -2210,6 +2210,8 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                     loop
                     muted
                     playsInline
+                    controls
+                    preload="metadata"
                     data-testid="video-welcome-promo"
                   />
                 ) : (
