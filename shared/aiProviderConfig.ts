@@ -48,7 +48,7 @@ export const aiModelSchema = z.object({
   }
 });
 export type AIModelProfile = z.infer<typeof aiModelSchema>;
-export type AIConnectionState = 'connected' | 'text_connected' | 'image_connected' | 'stale' | 'missing_key' | 'untested' | 'billing_error' | 'auth_error' | 'model_error' | 'rate_limited' | 'unavailable' | 'failed';
+export type AIConnectionState = 'connected' | 'text_connected' | 'image_connected' | 'missing_key' | 'untested' | 'billing_error' | 'auth_error' | 'model_error' | 'rate_limited' | 'unavailable' | 'failed';
 export type AIModelCheck = {
   state: AIConnectionState;
   message: string;
@@ -59,17 +59,25 @@ export type AIModelCheck = {
   vision: 'passed' | 'failed' | 'not_tested';
 };
 export type PublicAIModel = AIModelProfile & { active: boolean; keyConfigured: boolean; check: AIModelCheck; liveCheck?: AIModelCheck };
-// A historical failure is not a current balance measurement. Live observations
-// never certify both capabilities or replace the manual activation test.
+export function isAIConnected(check: AIModelCheck): boolean {
+  return ['connected', 'text_connected', 'image_connected'].includes(check.state);
+}
+// Activation requires a recent full test; displaying an established connection
+// does not. A newer request or a configuration/key change can replace it.
+export function canActivateAIModel(check: AIModelCheck, now = Date.now()): boolean {
+  const age = now - Date.parse(check.checkedAt || '');
+  return check.state === 'connected' && Number.isFinite(age) && age <= 86400000;
+}
+// Historical failures are not current balance measurements. Keep their details
+// in test history, without claiming an unverified connection has recovered.
 export function currentAIStatus(model: Pick<PublicAIModel, 'check' | 'liveCheck'>, now = Date.now()): AIModelCheck {
   const manual = model.check;
   const live = model.liveCheck;
   const useLive = live && Date.parse(live.checkedAt || '') >= (Date.parse(manual.checkedAt || '') || 0);
   const latest = useLive ? live : manual;
   const age = now - Date.parse(latest.checkedAt || '');
-  const lifetime = !useLive && latest.state === 'connected' ? 86400000 : 900000;
-  if (latest.checkedAt && (!Number.isFinite(age) || age > lifetime)) {
-    return { state: 'stale', message: 'Previous result is outdated. Run Test connection to check the current status.', checkedAt: latest.checkedAt, text: 'not_tested', vision: 'not_tested' };
+  if (!isAIConnected(latest) && latest.checkedAt && (!Number.isFinite(age) || age > 900000)) {
+    return { state: 'untested', message: 'Run a connection test to verify this model.', text: 'not_tested', vision: 'not_tested' };
   }
   return latest;
 }

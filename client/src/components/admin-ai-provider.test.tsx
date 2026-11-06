@@ -74,17 +74,42 @@ it('replaces an old billing alert with verified live text success without claimi
  data.models[0].liveCheck = { state: 'text_connected', message: 'Latest text request succeeded.', checkedAt: new Date().toISOString(), text: 'passed', vision: 'not_tested' };
  setup(data);
  const card = within(screen.getByLabelText('DeepSeek model'));
- expect(card.getByText('Text responding')).toBeInTheDocument();
+ expect(card.getByText('Connected')).toBeInTheDocument();
  expect(card.queryByText('Insufficient balance')).not.toBeInTheDocument();
  expect(card.getByText('Image: not tested')).toBeInTheDocument();
  expect(card.queryByRole('link', { name: /Open provider billing/ })).not.toBeInTheDocument();
  expect(card.getByText(/Last manual test/)).toBeInTheDocument();
 });
-it('marks old failures as historical instead of recommending another top-up', () => {
+it('shows Active for the selected model with only an old failure, without claiming Connected', () => {
  const data = fixture(); data.models[0].check.checkedAt = new Date(Date.now() - 3600000).toISOString();
  setup(data);
  const card = within(screen.getByLabelText('DeepSeek model'));
- expect(card.getByText('Status outdated')).toBeInTheDocument();
+ expect(card.getByText('Active')).toBeInTheDocument();
+ expect(card.queryByText('Connected')).not.toBeInTheDocument();
+ expect(screen.queryByText(/outdated/i)).not.toBeInTheDocument();
  expect(card.queryByText('Insufficient balance')).not.toBeInTheDocument();
  expect(card.queryByRole('link', { name: /Open provider billing/ })).not.toBeInTheDocument();
+ expect(card.getByText(/Last manual test/).closest('details')).not.toHaveAttribute('open');
+});
+it('keeps an idle verified connection Connected and puts capability details in a closed disclosure', () => {
+ const data = fixture();
+ data.models[0].liveCheck = { state: 'text_connected', message: 'Latest text request succeeded.', checkedAt: new Date(Date.now() - 3 * 86400000).toISOString(), text: 'passed', vision: 'not_tested' };
+ data.models[0].check.checkedAt = new Date(Date.now() - 4 * 86400000).toISOString();
+ setup(data);
+ const card = within(screen.getByLabelText('DeepSeek model'));
+ expect(card.getByText('Connected')).toBeInTheDocument();
+ expect(card.getByText('Active')).toBeInTheDocument();
+ expect(card.getByText('Image: not tested').closest('details')).not.toHaveAttribute('open');
+ expect(card.getByText('Connection details')).toBeInTheDocument();
+ expect(screen.queryByText(/outdated/i)).not.toBeInTheDocument();
+});
+it('keeps a previously tested model Connected but requires a recent full test before switching', () => {
+ const data = fixture();
+ data.models[1].keyConfigured = true;
+ data.models[1].check = { state: 'connected', message: 'Text and image tests passed.', checkedAt: new Date(Date.now() - 2 * 86400000).toISOString(), text: 'passed', vision: 'passed' };
+ setup(data);
+ const card = within(screen.getByLabelText('OpenRouter model'));
+ expect(card.getByText('Connected')).toBeInTheDocument();
+ expect(card.getByRole('button', { name: 'Set active' })).toBeDisabled();
+ expect(card.getByRole('button', { name: 'Test connection' })).toBeEnabled();
 });

@@ -3,7 +3,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID }
 import { z } from 'zod';
 import { storage } from './storage';
 import { openAIOptions } from './aiConfig';
-import { AI_CONFIG_KEY, AI_PROVIDERS, aiConfigSchema, aiConfigUpdateSchema, aiModelSchema, qwenBaseURL, type AIProviderConfig, type AIModelProfile, type AIModelCheck, type AIModelCatalog } from '../shared/aiProviderConfig';
+import { AI_CONFIG_KEY, AI_PROVIDERS, aiConfigSchema, aiConfigUpdateSchema, aiModelSchema, canActivateAIModel, qwenBaseURL, type AIProviderConfig, type AIModelProfile, type AIModelCheck, type AIModelCatalog } from '../shared/aiProviderConfig';
 
 type StoredConfig = { config: AIProviderConfig; openaiKey?: string; qwenKey?: string; openrouterKey?: string; deepseekKey?: string;
   models?: AIModelProfile[]; checks?: Record<string, AIModelCheck & { fingerprint: string }>;
@@ -234,7 +234,6 @@ function viewCatalog(stored: StoredConfig): AIModelCatalog {
       if (keyConfigured && saved?.fingerprint === fingerprint(stored, model)) {
         const { fingerprint: _private, ...result } = saved;
         check = result;
-        if (check.state === 'connected' && Date.now() - Date.parse(check.checkedAt!) > 86400000) check = { ...check, state: 'untested', message: 'The previous test is over 24 hours old. Test again before activating.' };
       }
       const live = stored.liveChecks?.[model.id];
       let liveCheck: AIModelCheck | undefined;
@@ -273,7 +272,7 @@ export async function activateAIModel(input: unknown) {
     const stored = await readStored();
     const model = viewCatalog(stored).models.find(m => m.id === id);
     if (!model) throw new Error('Model not found. Refresh the page.');
-    if (model.check.state !== 'connected') throw new Error('Run a successful text and image test before activating this model.');
+    if (!canActivateAIModel(model.check)) throw new Error('Run a successful text and image test before activating this model.');
     const updated = modelConfig(stored, model);
     updated.models = profiles(stored);
     await storage.setPlatformSetting(AI_CONFIG_KEY, JSON.stringify(updated));

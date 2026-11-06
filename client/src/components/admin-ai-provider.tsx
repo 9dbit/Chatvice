@@ -7,14 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AI_PROVIDERS, QWEN_REGIONS, aiModelSchema, currentAIStatus, type AIModelCatalog, type AIModelProfile, type AIModelCheck, type PublicAIModel } from '@shared/aiProviderConfig';
+import { AI_PROVIDERS, QWEN_REGIONS, aiModelSchema, canActivateAIModel, currentAIStatus, isAIConnected, type AIModelCatalog, type AIModelProfile, type AIModelCheck, type PublicAIModel } from '@shared/aiProviderConfig';
 
 const QUERY = ['/api/admin/ai-models'];
 const STATUS: Record<AIModelCheck['state'], { label: string; color: string }> = {
   connected: { label: 'Connected', color: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' },
-  text_connected: { label: 'Text responding', color: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' },
-  image_connected: { label: 'Image responding', color: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' },
-  stale: { label: 'Status outdated', color: 'bg-muted text-muted-foreground' },
+  text_connected: { label: 'Connected', color: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' },
+  image_connected: { label: 'Connected', color: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' },
   untested: { label: 'Not tested', color: 'bg-muted text-muted-foreground' },
   missing_key: { label: 'API key needed', color: 'bg-amber-500/10 text-amber-700 dark:text-amber-400' },
   billing_error: { label: 'Insufficient balance', color: 'bg-red-500/10 text-red-700 dark:text-red-400' },
@@ -26,10 +25,10 @@ const STATUS: Record<AIModelCheck['state'], { label: string; color: string }> = 
 };
 const BRAND = { openai: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', qwencloud: 'bg-violet-500/10 text-violet-600 dark:text-violet-400', openrouter: 'bg-sky-500/10 text-sky-600 dark:text-sky-400', deepseek: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' };
 const selectClass = 'w-full rounded-xl border bg-background px-3 py-2.5 text-sm';
-function Status({ check, testing = false }: { check: AIModelCheck; testing?: boolean }) {
-  const status = STATUS[check.state];
+function Status({ check, active = false, testing = false }: { check: AIModelCheck; active?: boolean; testing?: boolean }) {
+  const status = active && check.state === 'untested' ? { label: 'Active', color: 'bg-primary/10 text-primary' } : STATUS[check.state];
   return <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${testing ? 'bg-primary/10 text-primary' : status.color}`}>
-    {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : check.state === 'connected' ? <Check className="h-3.5 w-3.5" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+    {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : isAIConnected(check) ? <Check className="h-3.5 w-3.5" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
     {testing ? 'Testing connection…' : status.label}
   </span>;
 }
@@ -96,11 +95,11 @@ export function AdminAIProvider() {
     </div>
     {isLoading && <div role="status" className="flex items-center gap-2 rounded-2xl bg-muted/40 p-6 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading AI models…</div>}
     {error && <p role="alert" className="rounded-2xl bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">Unable to load AI models. Refresh before editing.</p>}
-    {active && <div className={`flex flex-wrap items-center justify-between gap-4 rounded-2xl p-5 ${['connected', 'text_connected', 'image_connected', 'untested', 'stale'].includes(active.status.state) ? 'bg-primary/5' : 'bg-red-500/5'}`}>
+    {active && <div className={`flex flex-wrap items-center justify-between gap-4 rounded-2xl p-5 ${isAIConnected(active.status) || active.status.state === 'untested' ? 'bg-primary/5' : 'bg-red-500/5'}`}>
       <div className="flex min-w-0 items-center gap-3"><div className="rounded-xl bg-primary/10 p-3 text-primary"><Radio className="h-5 w-5" /></div>
         <div className="min-w-0"><p className="text-xs font-medium text-muted-foreground">ACTIVE FOR CHATVICE</p><p className="mt-0.5 break-words font-semibold">{active.name} <span className="font-normal text-muted-foreground">· {active.name === AI_PROVIDERS[active.provider].label ? active.textModel : AI_PROVIDERS[active.provider].label}</span></p>
-          <p className="mt-1 text-xs text-muted-foreground">{active.status.message} No automatic fallback.</p>
-        </div></div><Status check={active.status} testing={busy === `test:${active.id}`} />
+          <p className="mt-1 text-xs text-muted-foreground">{isAIConnected(active.status) || active.status.state === 'untested' ? 'Selected for Chatvice replies.' : 'Connection needs attention. Check the model below.'}</p>
+        </div></div><Status check={active.status} active testing={busy === `test:${active.id}`} />
     </div>}
     {notice && <p role={notice.error ? 'alert' : 'status'} aria-live="polite" className={`rounded-xl px-4 py-3 text-sm ${notice.error ? 'bg-red-500/10 text-red-700 dark:text-red-400' : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'}`}>{notice.text}</p>}
     <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
@@ -115,17 +114,23 @@ export function AdminAIProvider() {
             <div className="flex items-start gap-2"><Image className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" /><div className="min-w-0"><p className="text-[11px] uppercase tracking-wide text-muted-foreground">Image understanding</p><p className="break-all font-mono text-xs">{model.visionModel}</p></div></div>
             {model.provider === 'qwencloud' && <p className="text-xs text-muted-foreground">Region: {model.region}</p>}
           </div>
-          <div className="flex-1 space-y-2"><Status check={model.status} testing={busy === `test:${model.id}`} />
-            <p className="text-sm text-muted-foreground">{model.status.message}</p>
-            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground"><Outcome label="Text" value={model.status.text} /><Outcome label="Image" value={model.status.vision} /></div>
+          <div className="flex-1 space-y-3">
+            {(!model.active || model.status.state !== 'untested' || busy === `test:${model.id}`) && <Status check={model.status} active={model.active} testing={busy === `test:${model.id}`} />}
+            {!isAIConnected(model.status) && model.status.state !== 'untested' && <p className="text-sm text-muted-foreground">{model.status.message}</p>}
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><KeyRound className="h-3 w-3" />{model.keyConfigured ? 'API key saved' : 'No API key'}</p>
-            <p className="text-xs text-muted-foreground">{model.status.checkedAt ? `Status observed ${new Date(model.status.checkedAt).toLocaleString()}${model.status.latencyMs !== undefined ? ` · ${(model.status.latencyMs / 1000).toFixed(1)}s` : ''}${model.status.httpStatus ? ` · HTTP ${model.status.httpStatus}` : ''}` : 'No connection result yet'}</p>
             {['billing_error', 'rate_limited'].includes(model.status.state) && <a href={AI_PROVIDERS[model.provider].billing} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-primary">Open provider billing<ArrowUpRight className="h-3.5 w-3.5" /></a>}
-            {model.check.checkedAt && <details className="text-xs text-muted-foreground"><summary className="cursor-pointer">Last manual test · {new Date(model.check.checkedAt).toLocaleString()}</summary><p className="mt-2">Historical result: {model.check.message}{model.check.httpStatus ? ` (HTTP ${model.check.httpStatus})` : ''}</p></details>}
+            <details className="text-xs text-muted-foreground"><summary className="cursor-pointer">Connection details</summary>
+              <div className="mt-3 space-y-2">
+                <p>{model.status.message}</p>
+                <div className="flex flex-wrap gap-x-3 gap-y-1"><Outcome label="Text" value={model.status.text} /><Outcome label="Image" value={model.status.vision} /></div>
+                {model.liveCheck?.checkedAt && <p>Last request · {new Date(model.liveCheck.checkedAt).toLocaleString()} · {model.liveCheck.message}{model.liveCheck.httpStatus ? ` (HTTP ${model.liveCheck.httpStatus})` : ''}</p>}
+                {model.check.checkedAt && <p>Last manual test · {new Date(model.check.checkedAt).toLocaleString()} · {model.check.message}{model.check.httpStatus ? ` (HTTP ${model.check.httpStatus})` : ''}</p>}
+              </div>
+            </details>
           </div>
           <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" className="gap-1.5 rounded-full" disabled={!!busy} onClick={() => edit(model)}><Pencil className="h-3.5 w-3.5" />Edit</Button>
             <Button size="sm" variant="outline" className="gap-1.5 rounded-full" disabled={!!busy || !model.keyConfigured} onClick={() => perform('/test', { id: model.id }, `test:${model.id}`, '')}>{busy === `test:${model.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}Test connection</Button>
-            {!model.active && <Button size="sm" className="rounded-full" disabled={!!busy || model.check.state !== 'connected'} title={model.check.state !== 'connected' ? 'Pass a connection test before activating' : undefined} onClick={() => perform('/activate', { id: model.id }, `activate:${model.id}`, `${model.name} is now active for new Chatvice requests.`)}>Set active</Button>}
+            {!model.active && <Button size="sm" className="rounded-full" disabled={!!busy || !canActivateAIModel(model.check, now)} title={!canActivateAIModel(model.check, now) ? 'Pass a connection test within the last 24 hours before activating' : undefined} onClick={() => perform('/activate', { id: model.id }, `activate:${model.id}`, `${model.name} is now active for new Chatvice requests.`)}>Set active</Button>}
             {!model.active && <Button size="icon" variant="ghost" className="ml-auto h-8 w-8 rounded-full text-muted-foreground" aria-label={`Remove ${model.name}`} disabled={!!busy} onClick={() => setRemoveId(model.id)}><Trash2 className="h-3.5 w-3.5" /></Button>}
           </div>
         </CardContent>
@@ -134,7 +139,7 @@ export function AdminAIProvider() {
     {data && <details className="rounded-2xl bg-muted/30 p-4"><summary className="cursor-pointer text-sm font-medium">Knowledge & usage settings</summary>
       <div className="mt-4 space-y-3"><div className="max-w-xl"><Label htmlFor="knowledge-search">Knowledge retrieval</Label><select id="knowledge-search" className={`${selectClass} mt-1`} value={knowledge} onChange={e => setKnowledge(e.target.value as typeof knowledge)}><option value="keyword">Keyword search — no embedding API required</option><option value="openai">OpenAI embeddings + keyword fallback</option></select></div>
         <Button size="sm" variant="outline" className="rounded-full" disabled={!!busy || knowledge === data.knowledgeSearch} onClick={() => perform('/knowledge', { knowledgeSearch: knowledge }, 'knowledge', 'Knowledge retrieval updated.')}>Save knowledge settings</Button>
-        <p className="max-w-3xl text-xs text-muted-foreground">API keys are shared by models from the same provider and encrypted when saved. Status follows actual provider requests and manual tests, refreshing every 30 seconds. Old results are marked outdated. Cached or fallback replies do not count as provider recovery. Tests use a small amount of API credit. Model activation applies platform-wide.</p>
+        <p className="max-w-3xl text-xs text-muted-foreground">API keys are shared by models from the same provider and encrypted when saved. Connected confirms a successful provider request or test. Active identifies the model selected for Chatvice. Connection details show the last results. Tests use a small amount of API credit; switching models requires a successful test within the last 24 hours.</p>
         <p className="max-w-3xl text-xs text-muted-foreground">Existing knowledge vectors are preserved. Image generation continues to use Gemini. Token counts are recorded; check provider billing for charges outside the dashboard’s OpenAI price list.</p>
       </div></details>}
     <Dialog open={!!draft} onOpenChange={open => { if (!open && !busy) { setDraft(null); setApiKey(''); } }}>
