@@ -426,7 +426,7 @@ export default function AffiliateDashboardPage() {
                 </div>
               </div>
               <p className="text-sm text-muted-foreground mt-4">
-                By applying, you agree to our affiliate program terms.
+                Applications are reviewed before activation. <Link href="/affiliate" className="text-primary underline">Review program details</Link> before submitting.
               </p>
             </div>
             <DialogFooter>

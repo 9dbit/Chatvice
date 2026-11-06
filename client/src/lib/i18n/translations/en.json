@@ -1416,7 +1416,7 @@
       "saveFailed": "Save failed",
       "toast": {
         "desktopAlertsWithSoundDesc": "Desktop alerts with sound enabled.",
-        "receiveChatNotificationsViaDesc": "Receive chat notifications via browser.",
+        "receiveChatNotificationsViaDesc": "Receive chat notifications through your Telegram bot.",
         "receiveEscalationNotificationsAndDesc": "Receive escalation notifications and alerts.",
         "connectYourWhatsappBusinessDesc": "Connect your WhatsApp Business account.",
         "manageFacebookMessengerConversationsDesc": "Manage Facebook Messenger conversations.",
@@ -2113,7 +2113,7 @@
         "cardTitle": "Connection Settings",
         "cardDesc": "Manage credentials and basic parameters for your panel connection.",
         "enable": "Enable connection",
-        "monitor": "Auto health monitor (check every 5 min)",
+        "monitor": "Auto health monitor (check every 60 sec)",
         "name": "Name",
         "baseUrl": "Base URL",
         "authHeader": "Auth header name",

@@ -2482,7 +2482,7 @@ export default function BillingPage() {
                       disabled={checkoutMutation.isPending}
                       data-testid={`button-select-${plan.id}`}
                     >
-                      Get Started
+                      Switch to Free
                     </Button>
                   ) : (() => {
                     const currentPlanIndex = dbPlans.findIndex((p: any) => p.id === billingStatus?.planId);
