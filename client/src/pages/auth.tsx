@@ -926,6 +926,7 @@ export function VerifyEmailPage() {
   const { toast } = useToast();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
+  const [nextRoute, setNextRoute] = useState("/profile-wizard");
 
   useEffect(() => {
     const params = new URLSearchParams(searchString);
@@ -943,6 +944,9 @@ export function VerifyEmailPage() {
         const data = await res.json();
         
         if (res.ok && data.success) {
+          const destination = data.profileCompleted === true ? "/dashboard" : "/profile-wizard";
+          setNextRoute(destination);
+          queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
           setStatus("success");
           if (data.merchantId) {
             localStorage.setItem("merchantId", data.merchantId);
@@ -950,10 +954,10 @@ export function VerifyEmailPage() {
           }
           toast({
             title: "Email verified!",
-            description: "Your account has been verified. Redirecting to dashboard...",
+            description: "Your account has been verified. Continue setting up your workspace.",
           });
           setTimeout(() => {
-            setLocation("/dashboard");
+            setLocation(destination);
           }, 2000);
         } else {
           setStatus("error");
@@ -989,17 +993,17 @@ export function VerifyEmailPage() {
                 <div>
                   <p className="text-white text-sm font-medium">Email verified successfully!</p>
                   <p className="text-zinc-400 text-sm mt-1">
-                    Your account is now active. You will be redirected to the dashboard shortly.
+                    Your account is now active. Continue to set up your workspace.
                   </p>
                 </div>
               </div>
             </div>
             <Button
               className="w-full h-11"
-              onClick={() => setLocation("/dashboard")}
+              onClick={() => setLocation(nextRoute)}
               data-testid="button-go-dashboard"
             >
-              Go to Dashboard
+              {nextRoute === "/dashboard" ? "Go to Dashboard" : "Continue Setup"}
             </Button>
           </div>
         )}

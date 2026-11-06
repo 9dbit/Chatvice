@@ -1,5 +1,6 @@
 import { useLanguage } from "@/hooks/use-language";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +38,7 @@ interface Integration {
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   category: "messaging" | "crm" | "ecommerce" | "helpdesk" | "notifications" | "payment" | "ai";
-  status: "available" | "coming_soon" | "connected";
+  status: "available" | "coming_soon" | "connected" | "managed";
   popular?: boolean;
   configurable?: boolean;
 }
@@ -66,6 +67,7 @@ const categoryIconBg: Record<string, string> = {
 export default function IntegrationsPage() {
   const { t } = useLanguage();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [telegramDialogOpen, setTelegramDialogOpen] = useState(false);
@@ -117,7 +119,7 @@ export default function IntegrationsPage() {
       description: t("dashboard.integrations.toast.receiveEscalationNotificationsAndDesc"),
       icon: SiSlack,
       category: "messaging",
-      status: "available",
+      status: "coming_soon",
       popular: true,
     },
     {
@@ -152,7 +154,7 @@ export default function IntegrationsPage() {
       description: t("dashboard.integrations.toast.syncTicketsAndConversationsDesc"),
       icon: SiZendesk,
       category: "helpdesk",
-      status: "available",
+      status: "coming_soon",
       popular: true,
     },
     {
@@ -169,7 +171,7 @@ export default function IntegrationsPage() {
       description: t("dashboard.integrations.toast.connectHubspotCrmToDesc"),
       icon: SiHubspot,
       category: "crm",
-      status: "available",
+      status: "coming_soon",
     },
     {
       id: "intercom",
@@ -185,7 +187,7 @@ export default function IntegrationsPage() {
       description: t("dashboard.integrations.toast.accessOrderDataAndDesc"),
       icon: SiShopify,
       category: "ecommerce",
-      status: "available",
+      status: "coming_soon",
       popular: true,
     },
     {
@@ -211,7 +213,7 @@ export default function IntegrationsPage() {
       description: "Underlying AI engine powering your chatbot responses. Monitor usage and configure model settings.",
       icon: Sparkles,
       category: "ai",
-      status: "connected",
+      status: "managed",
       popular: true,
     },
     {
@@ -241,6 +243,10 @@ export default function IntegrationsPage() {
       setTelegramDialogOpen(true);
     } else if (integration.id === "push-notifications") {
       setPushDialogOpen(true);
+    } else if (integration.id === "google-sheets-ai") {
+      navigate("/dashboard/knowledge?tab=sources");
+    } else if (integration.id === "openai-gpt") {
+      navigate("/dashboard/agents");
     }
   }
 
@@ -296,6 +302,9 @@ export default function IntegrationsPage() {
         </Badge>
       );
     }
+    if (status === "managed") {
+      return <Badge variant="secondary" data-testid="badge-status-managed">Managed by Chatvice</Badge>;
+    }
     if (status === "coming_soon") {
       return (
         <Badge
@@ -324,6 +333,7 @@ export default function IntegrationsPage() {
     const iconBgClass = categoryIconBg[integration.category] ?? "bg-muted text-muted-foreground";
     const isConnected = integration.status === "connected";
     const isComingSoon = integration.status === "coming_soon";
+    const isManaged = integration.status === "managed";
 
     return (
       <Card
@@ -360,7 +370,11 @@ export default function IntegrationsPage() {
           <CardDescription className="text-xs mb-4 line-clamp-2 flex-1 leading-relaxed">
             {integration.description}
           </CardDescription>
-          {isConnected ? (
+          {isManaged ? (
+            <Button variant="secondary" size="sm" className="w-full" onClick={() => handleIntegrationClick(integration)} data-testid={`button-connect-${integration.id}`}>
+              Configure agents
+            </Button>
+          ) : isConnected ? (
             <Button
               variant="outline"
               size="sm"
@@ -471,8 +485,8 @@ export default function IntegrationsPage() {
                 We can build custom integrations for Enterprise customers. Contact our team to discuss your requirements.
               </p>
             </div>
-            <Button variant="outline" className="whitespace-nowrap" data-testid="button-request-integration">
-              Request Integration
+            <Button variant="outline" className="whitespace-nowrap" asChild data-testid="button-request-integration">
+              <a href="mailto:hello@chatvice.app?subject=Custom%20Integration%20Request">Request Integration</a>
             </Button>
           </div>
         </CardContent>
