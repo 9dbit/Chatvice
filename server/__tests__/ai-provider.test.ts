@@ -12,7 +12,7 @@ vi.mock('openai', () => ({ default: class {
   constructor(options: any) { mock.options.push(options); }
 } }));
 import { DEFAULT_AI_CONFIG, aiConfigSchema } from '../../shared/aiProviderConfig';
-import { completeWithProvider, saveAIConfig, publicAIConfig, aiCacheNamespace, routeCompletion, testAIConfig } from '../aiProvider';
+import { completeWithProvider, saveAIConfig, publicAIConfig, aiCacheNamespace, routeCompletion, testAIConfig, publicAIModels, saveAIModel, testAIModel, activateAIModel, removeAIModel, saveAIKnowledge } from '../aiProvider';
 import { registerAIProviderRoutes } from '../aiProviderRoutes';
 const params = { model: 'gpt-4.1-mini', messages: [{ role: 'user', content: 'hello' }], max_completion_tokens: 80 };
 beforeEach(() => {
@@ -158,5 +158,107 @@ describe('admin settings access', () => {
     expect(result.body.provider).toBe('qwencloud');
     expect(result.text).not.toContain('private-key');
     await request(app()).post('/api/admin/ai-provider').set('x-test-role', 'admin').set('Origin', 'https://chatvice.app').send({ provider: 'evil' }).expect(400);
+  });
+});
+
+
+describe('model cards and persistent connection status', () => {
+  const profile = { id: 'new', name: 'DeepSeek alternate', provider: 'deepseek', textModel: 'deepseek-v4-pro', visionModel: 'deepseek-flash', region: 'ap-southeast-1' };
+  it('imports current settings into four cards without changing the active selection', async () => {
+    await saveAIConfig({ ...DEFAULT_AI_CONFIG, provider: 'deepseek', deepseekApiKey: 'secret' });
+    const before = mock.value;
+    const catalog = await publicAIModels();
+    expect(catalog.models).toHaveLength(4);
+    expect(catalog.models.find(m => m.active)).toMatchObject({ id: 'default-deepseek', keyConfigured: true, check: { state: 'untested' } });
+    expect(catalog.models.find(m => m.provider === 'openrouter')?.check.state).toBe('missing_key');
+    expect(mock.value).toBe(before);
+  });
+  it('stores manual models without activating, tests then switches the live route', async () => {
+    await saveAIConfig({ ...DEFAULT_AI_CONFIG, provider: 'openai' });
+    const namespace = await aiCacheNamespace();
+    const added = await saveAIModel({ model: profile, apiKey: 'private-deepseek-key' });
+    const id = added.models.find(m => m.name === profile.name)!.id;
+    expect(added.models.find(m => m.active)?.provider).toBe('openai');
+    expect(mock.value).not.toContain('private-deepseek-key');
+    expect(await aiCacheNamespace()).toBe(namespace);
+    await expect(activateAIModel({ id })).rejects.toThrow('successful text and image test');
+    await testAIModel({ id });
+    expect((await publicAIModels()).models.find(m => m.id === id)?.check).toMatchObject({ state: 'connected', text: 'passed', vision: 'passed' });
+    expect(await aiCacheNamespace()).toBe(namespace);
+    await activateAIModel({ id });
+    await completeWithProvider(params);
+    expect(mock.create.mock.calls.at(-1)?.[0].model).toBe('deepseek-v4-pro');
+    expect((await publicAIModels()).models.find(m => m.active)?.id).toBe(id);
+    expect(await aiCacheNamespace()).not.toBe(namespace);
+  });
+  it('persists sanitized 402 billing errors across refresh and does not run vision or activate', async () => {
+    await saveAIConfig({ ...DEFAULT_AI_CONFIG, provider: 'deepseek', deepseekApiKey: 'secret-private-key' });
+    mock.create.mockRejectedValueOnce({ status: 402, message: 'secret-private-key', headers: { authorization: 'secret-private-key' } });
+    await testAIModel({ id: 'default-deepseek' });
+    const result = await publicAIModels();
+    expect(result.models.find(m => m.active)?.check).toMatchObject({ state: 'billing_error', httpStatus: 402, text: 'failed', vision: 'not_tested' });
+    expect(mock.create).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(result)).not.toContain('secret-private-key');
+    expect(JSON.stringify(result)).not.toContain('fingerprint');
+    expect(mock.value).not.toContain('secret-private-key');
+    await expect(activateAIModel({ id: 'default-deepseek' })).rejects.toThrow('successful');
+  });
+  it('distinguishes failed image support from a successful text test', async () => {
+    mock.create.mockResolvedValueOnce({ choices: [{ message: { content: 'OK' } }] }).mockRejectedValueOnce({ status: 400 });
+    await testAIModel({ id: 'default-openai' });
+    const model = (await publicAIModels()).models.find(m => m.id === 'default-openai')!;
+    expect(model.check).toMatchObject({ state: 'model_error', text: 'passed', vision: 'failed', httpStatus: 400 });
+  });
+  it('invalidates tests after shared API key changes, preserves blank keys and unrelated cards', async () => {
+    await saveAIConfig({ ...DEFAULT_AI_CONFIG, provider: 'openai' });
+    const added = await saveAIModel({ model: profile, apiKey: 'initial-key' });
+    const saved = added.models.find(m => m.name === profile.name)!;
+    const model = { ...profile, id: saved.id };
+    await testAIModel({ id: saved.id });
+    await testAIModel({ id: 'default-deepseek' });
+    await saveAIModel({ model, apiKey: '' });
+    expect((await publicAIModels()).models.find(m => m.id === saved.id)?.check.state).toBe('connected');
+    await saveAIModel({ model, apiKey: 'replacement-key' });
+    expect((await publicAIModels()).models.filter(m => m.provider === 'deepseek').every(m => m.check.state === 'untested')).toBe(true);
+    await saveAIConfig({ ...DEFAULT_AI_CONFIG, provider: 'openai' });
+    expect((await publicAIModels()).models.some(m => m.id === saved.id)).toBe(true);
+    await saveAIKnowledge({ knowledgeSearch: 'keyword' });
+    expect((await publicAIModels()).models.some(m => m.id === saved.id)).toBe(true);
+  });
+  it('rejects URLs, duplicate cards, active removal and stale connection tests', async () => {
+    await saveAIConfig({ ...DEFAULT_AI_CONFIG, provider: 'openai' });
+    await expect(saveAIModel({ model: { ...profile, textModel: 'https://localhost/private' } })).rejects.toThrow();
+    await expect(saveAIModel({ model: { ...profile, textModel: 'deepseek-flash' } })).rejects.toThrow('already has a card');
+    await expect(removeAIModel({ id: 'default-openai' })).rejects.toThrow('active model');
+    await testAIModel({ id: 'default-openai' });
+    const old = JSON.parse(mock.value!);
+    old.checks['default-openai'].checkedAt = new Date(Date.now() - 90000000).toISOString();
+    mock.value = JSON.stringify(old);
+    await expect(activateAIModel({ id: 'default-openai' })).rejects.toThrow('successful');
+    const added = await saveAIModel({ model: profile });
+    const id = added.models.find(m => m.name === profile.name)!.id;
+    await removeAIModel({ id });
+    expect((await publicAIModels()).models.some(m => m.id === id)).toBe(false);
+  });
+  it('does not overwrite a model or activate it when settings change during a test', async () => {
+    await saveAIConfig({ ...DEFAULT_AI_CONFIG, provider: 'openai' });
+    let finish!: (v: any) => void;
+    mock.create.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const pending = testAIModel({ id: 'default-openai' });
+    await vi.waitFor(() => expect(finish).toBeDefined());
+    await saveAIModel({ model: { id: 'default-openai', name: 'OpenAI', provider: 'openai', textModel: 'gpt-4.1', visionModel: 'gpt-4.1', region: 'ap-southeast-1' } });
+    finish({ choices: [{ message: { content: 'OK' } }] });
+    await expect(pending).rejects.toThrow('changed during the test');
+    expect((await publicAIModels()).models.find(m => m.active)?.check.state).toBe('untested');
+  });
+  it('protects every catalog mutation with admin authentication and same-origin checks', async () => {
+    const app = express(); app.use(express.json());
+    registerAIProviderRoutes(app, (req, res, next) => req.get('x-test-role') === 'admin' ? next() : void res.sendStatus(401));
+    await request(app).get('/api/admin/ai-models').expect(401);
+    for (const path of ['', '/test', '/activate', '/remove', '/knowledge']) {
+      await request(app).post('/api/admin/ai-models' + path).send({ id: 'default-openai' }).expect(401);
+      await request(app).post('/api/admin/ai-models' + path).set('x-test-role', 'admin').set('Origin', 'https://evil.test').send({ id: 'default-openai' }).expect(403);
+    }
+    expect(mock.value).toBeNull();
   });
 });

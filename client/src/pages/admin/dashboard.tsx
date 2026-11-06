@@ -10281,6 +10281,7 @@ function SettingsTab({ toast }: { toast: any }) {
 
   return (
     <div className="space-y-6">
+      <AdminAIProvider />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -10464,7 +10465,6 @@ function SettingsTab({ toast }: { toast: any }) {
         </CardContent>
       </Card>
 
-      <AdminAIProvider />
     </div>
   );
 }
