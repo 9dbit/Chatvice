@@ -1,3 +1,5 @@
+import { stripBase64Photos } from "./response-sanitizer";
+import { getConversationOutcomes } from "./conversation-outcomes";
 import { routedAI, aiCacheNamespace } from "./aiProvider";
 import { registerAIProviderRoutes } from "./aiProviderRoutes";
 import { AI_CONFIG_KEY } from "../shared/aiProviderConfig";
@@ -40,7 +42,7 @@ import { staticBlogMetaMap } from "@shared/static-blog-meta";
 import { buildOnboardingKnowledgeForGuide, buildOnboardingKnowledgePublic, buildOnboardingWorkflowGuidance } from "@shared/onboarding-content";
 import { buildFullDashboardKnowledge, buildSupervisorPanelKnowledge, buildFullDashboardKnowledgeEn, buildSupervisorPanelKnowledgeEn, detectEnglishFromContext } from "@shared/guide-knowledge";
 import { db, pool } from "./db";
-import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } from "drizzle-orm";
+import { inArray, eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } from "drizzle-orm";
 import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, blastCampaigns, supervisors } from "@shared/schema";
 import crypto from "crypto";
 import { encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup, executeFallbackSheetLookup, buildPostmanCollection, buildHtmlDocs, DEFAULT_INTENTS, PRESET_INTENTS, PRESET_META, getCustomDataHealthSummary, checkOneSourceHealth, maskValue, ConnectorResult } from "./customConnector";
@@ -2348,25 +2350,6 @@ function invalidateCache(keyPrefix: string): void {
   }
 }
 
-const BASE64_PRESERVE_KEYS = new Set(["iconUrl", "profilePhotoUrl", "photoUrl", "prechatBannerUrl", "agentPhotoUrl"]);
-
-function stripBase64Photos(obj: any, preserveKeys = false): any {
-  if (!obj) return obj;
-  if (Array.isArray(obj)) return obj.map(item => stripBase64Photos(item, preserveKeys));
-  if (typeof obj !== 'object') return obj;
-  const result: any = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === 'string' && value.startsWith('data:image') && value.length > 200) {
-      result[key] = (preserveKeys && BASE64_PRESERVE_KEYS.has(key)) ? value : '';
-    } else if (typeof value === 'object' && value !== null) {
-      result[key] = stripBase64Photos(value, preserveKeys);
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
-}
-
 // Cleanup stale visitor sessions that have no customer messages and haven't pinged in >3 minutes.
 // Called every 60s from server/index.ts. Handles cases where beforeunload didn't fire (e.g. crash, network loss).
 export async function cleanupStaleVisitorSessions(): Promise<void> {
@@ -3701,7 +3684,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       
       const domainCheck = await storage.checkDomainAvailability(normalized);
       
-      if (domainCheck.available) {
+      if (domainCheck.available || (req.session?.merchantId && (await storage.getDomainRegistration(normalized))?.merchantId === req.session.merchantId)) {
         return res.json({ 
           available: true, 
           domain: normalized,
@@ -4092,7 +4075,8 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       
       // Check domain availability
       const domainCheck = await storage.checkDomainAvailability(data.officialDomain);
-      if (!domainCheck.available) {
+      const ownRegistration = await storage.getDomainRegistration(data.officialDomain);
+      if (!domainCheck.available && ownRegistration?.merchantId !== merchantId) {
         return res.status(400).json({ 
           error: "This domain is already registered. Please use a different domain or subscribe to access.",
           errorCode: "DOMAIN_ALREADY_REGISTERED",
@@ -4139,20 +4123,35 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         return res.status(400).json({ error: "Please complete domain information first", step: 3 });
       }
       
-      // Register the domain
-      await storage.createDomainRegistration({
-        merchantId: merchant.id,
-        domain: merchant.officialDomain,
-        websiteName: merchant.officialWebsiteName,
-        source: "wizard",
-      });
+      // Reserve and register the same domain once. Registration is not installation validation.
+      const registration = await storage.getDomainRegistration(merchant.officialDomain);
+      if (registration && registration.merchantId !== merchant.id) {
+        return res.status(409).json({ error: "This domain is already registered", step: 3 });
+      }
+      const widgetDomain = merchant.officialDomain.toLowerCase().trim().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+      const existingDomain = await storage.getMerchantDomainByDomain(merchant.id, widgetDomain);
+      if (!existingDomain) {
+        const { limit } = await getEffectiveDomainLimit(merchant);
+        if (limit !== -1 && await storage.countMerchantDomains(merchant.id) >= limit) {
+          return res.status(403).json({ error: "Domain limit reached", step: 3 });
+        }
+        await storage.createMerchantDomain({ merchantId: merchant.id, domain: widgetDomain, isValidated: false });
+      }
+      if (!registration) {
+        await storage.createDomainRegistration({
+          merchantId: merchant.id,
+          domain: merchant.officialDomain,
+          websiteName: merchant.officialWebsiteName,
+          source: "wizard",
+        });
+      }
       
       await storage.updateMerchant(merchantId, {
         profileCompleted: true,
         profileStep: 4,
       });
       
-      res.json({ success: true, message: "Profile completed successfully!" });
+      res.json({ success: true, merchantId: merchant.id, message: "Profile completed successfully!" });
     } catch (error: any) {
       res.status(400).json({ error: error.message || "Failed to complete profile" });
     }
@@ -6875,7 +6874,14 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         return res.status(404).json({ error: "Merchant not found" });
       }
       
-      const updated = await storage.updateMerchant(merchantId, validConfig);
+      const setupFlags: Record<string, boolean> = {};
+      if (["welcomeDescription", "quickMessageOptions", "prechatBannerUrl", "requirePhone"].some(key => key in validConfig)) {
+        setupFlags.onboardingPrechatConfigured = true;
+      }
+      if (["primaryColor", "widgetTheme", "iconUrl", "iconWidth", "bubblePosition"].some(key => key in validConfig)) {
+        setupFlags.onboardingWidgetInstalled = true;
+      }
+      const updated = await storage.updateMerchant(merchantId, { ...validConfig, ...setupFlags });
       if (!updated) {
         return res.status(404).json({ error: "Merchant not found" });
       }
@@ -10979,7 +10985,7 @@ Rules:
   // "Estimated Savings This Month" widget. Formula:
   //   savingsIdr = aiDeflectedConversations * SUPERVISOR_HANDLE_COST_IDR
   // where aiDeflectedConversations = number of sessions started this month
-  // that the AI handled end-to-end (mode === "AI" / never escalated).
+  // with an ended, answered, error-free AI conversation (excluding visitors).
   app.get("/api/billing/ai-savings", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
@@ -10991,9 +10997,12 @@ Rules:
         const created = s.createdAt ? new Date(s.createdAt) : null;
         return created && created >= monthStart;
       });
-      const aiDeflected = monthSessions.filter(s => s.mode === "AI").length;
-      const humanHandled = monthSessions.filter(s => s.mode === "HUMAN").length;
-      const totalThisMonth = monthSessions.length;
+      const monthMessages = monthSessions.length ? await db.select().from(messages)
+        .where(inArray(messages.sessionId, monthSessions.map(s => s.id))) : [];
+      const outcomes = getConversationOutcomes(monthSessions, monthMessages);
+      const aiDeflected = outcomes.aiResolved;
+      const humanHandled = outcomes.conversations.filter(s => s.mode === "HUMAN").length;
+      const totalThisMonth = outcomes.conversations.length;
       const grossSavingsIdr = aiDeflected * SUPERVISOR_HANDLE_COST_IDR;
       res.json({
         monthStart: monthStart.toISOString(),
@@ -20263,7 +20272,10 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         });
       }
       
-      const { name, description, agentType, returnToAiMessage } = req.body;
+      const { name, description, agentType, returnToAiMessage, systemPrompt, photoUrl } = req.body;
+      if (systemPrompt !== undefined && typeof systemPrompt !== "string") {
+        return res.status(400).json({ error: "System prompt must be text" });
+      }
       
       // Default prompts based on agent type
       const defaultPrompts = {
@@ -20276,7 +20288,8 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         name,
         description: description || "",
         agentType: agentType || "support",
-        systemPrompt: defaultPrompts[agentType as keyof typeof defaultPrompts] || defaultPrompts.support,
+        systemPrompt: systemPrompt?.trim() || defaultPrompts[agentType as keyof typeof defaultPrompts] || defaultPrompts.support,
+        ...(typeof photoUrl === "string" ? { photoUrl } : {}),
         ...(returnToAiMessage ? { returnToAiMessage } : {}),
       });
       
@@ -20357,6 +20370,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       }
       
       const updated = await storage.updateAgent(req.params.id, updateData);
+      await storage.updateMerchant(merchantId, { onboardingWidgetInstalled: true });
       
       const merchant = await storage.getMerchant(merchantId);
       if (merchant && merchant.activeAgentId === req.params.id && updated) {
@@ -24184,9 +24198,7 @@ ${log.extractedKnowledge}` : ''}
         : "N/A";
 
       // ── Real resolution / satisfaction from session data ──
-      const totalSess = merchantSessions.length;
-      const aiResolved = merchantSessions.filter(s => s.mode === "AI").length;
-      const resolutionRate = totalSess > 0 ? Math.round((aiResolved / totalSess) * 100) : 0;
+      const resolutionRate = basicAnalytics.aiResolutionRate;
 
       res.json({
         ...basicAnalytics,
@@ -24195,7 +24207,7 @@ ${log.extractedKnowledge}` : ''}
         avgResponseTimeAI,
         avgResponseTimeHuman: "N/A",
         resolutionRate,
-        satisfactionRate: basicAnalytics.aiResolutionRate ?? resolutionRate,
+        satisfactionRate: basicAnalytics.satisfactionRate,
       });
     } catch (error) {
       console.error("Error fetching detailed analytics:", error);

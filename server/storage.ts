@@ -115,6 +115,7 @@ import {
   gamingIntegrationTasks, type GamingIntegrationTask, type InsertGamingIntegrationTask,
 } from "@shared/schema";
 import { db } from "./db";
+import { getConversationOutcomes, isFailedAIResponse } from "./conversation-outcomes";
 import { eq, desc, gte, gt, and, or, lt, isNull, isNotNull, sql, count, inArray, ne, SQL } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { extractHostnameFromUrl } from "./urlUtils";
@@ -127,6 +128,8 @@ export interface AnalyticsData {
   aiSessions: number;
   humanSessions: number;
   aiResolutionRate: number;
+  aiResolved: number;
+  satisfactionRate: number | null;
   dailyMessageCounts: { date: string; count: number }[];
   avgResponseTime: number;
   supervisorsOnline: number;
@@ -1192,8 +1195,12 @@ export class DatabaseStorage implements IStorage {
     const dayAgo = new Date(now);
     dayAgo.setDate(dayAgo.getDate() - 1);
 
-    const merchantSessions = await db.select().from(sessions)
+    const rawSessions = await db.select().from(sessions)
       .where(eq(sessions.merchantId, merchantId));
+    const rawMessages = rawSessions.length ? await db.select().from(messages)
+      .where(inArray(messages.sessionId, rawSessions.map(s => s.id))) : [];
+    const outcomes = getConversationOutcomes(rawSessions, rawMessages);
+    const merchantSessions = outcomes.conversations;
     
     if (merchantSessions.length === 0) {
       const dailyMessageCounts: { date: string; count: number }[] = [];
@@ -1213,13 +1220,18 @@ export class DatabaseStorage implements IStorage {
         aiSessions: 0,
         humanSessions: 0,
         aiResolutionRate: 0,
+        aiResolved: 0,
+        satisfactionRate: null,
+        supervisorsOnline: 0,
+        prevWeekAiResolutionRate: null,
+        prevWeekAvgResponseTime: null,
         dailyMessageCounts,
         avgResponseTime: 0,
       };
     }
     
     const activeSessions = merchantSessions.filter(s => {
-      if (!s.lastActivity) return false;
+      if (!s.lastActivity || s.status !== "active") return false;
       return new Date(s.lastActivity) > dayAgo;
     });
     
@@ -1228,8 +1240,8 @@ export class DatabaseStorage implements IStorage {
     
     const sessionIds = merchantSessions.map(s => s.id);
     
-    const allMessages = await db.select().from(messages)
-      .where(inArray(messages.sessionId, sessionIds));
+    const sessionIdSet = new Set(sessionIds);
+    const allMessages = rawMessages.filter(m => sessionIdSet.has(m.sessionId));
     
     const messagesToday = allMessages.filter(m => 
       m.timestamp && new Date(m.timestamp) >= todayStart
@@ -1257,7 +1269,7 @@ export class DatabaseStorage implements IStorage {
     }
     
     const totalSessions = merchantSessions.length;
-    const aiResolutionRate = Math.round((aiSessions / totalSessions) * 100);
+    const aiResolutionRate = outcomes.aiResolutionRate;
     
     let avgResponseTime = 0;
     const aiResponses: number[] = [];
@@ -1280,6 +1292,7 @@ export class DatabaseStorage implements IStorage {
         if (sorted[i].from === "customer") {
           for (let j = i + 1; j < sorted.length; j++) {
             if (sorted[j].from === "chatvice") {
+              if (isFailedAIResponse(sorted[j])) break;
               const customerTime = sorted[i].timestamp ? new Date(sorted[i].timestamp!).getTime() : 0;
               const aiTime = sorted[j].timestamp ? new Date(sorted[j].timestamp!).getTime() : 0;
               if (customerTime && aiTime) {
@@ -1322,7 +1335,7 @@ export class DatabaseStorage implements IStorage {
 
     let prevWeekAiResolutionRate: number | null = null;
     if (prevWeekSessions.length > 0) {
-      const prevAi = prevWeekSessions.filter(s => s.mode === "AI").length;
+      const prevAi = prevWeekSessions.filter(s => outcomes.resolvedIds.has(s.id)).length;
       prevWeekAiResolutionRate = Math.round((prevAi / prevWeekSessions.length) * 100);
     }
 
@@ -1341,6 +1354,7 @@ export class DatabaseStorage implements IStorage {
         if (sorted[i].from === "customer") {
           for (let j = i + 1; j < sorted.length; j++) {
             if (sorted[j].from === "chatvice") {
+              if (isFailedAIResponse(sorted[j])) break;
               const ct = sorted[i].timestamp ? new Date(sorted[i].timestamp!).getTime() : 0;
               const at = sorted[j].timestamp ? new Date(sorted[j].timestamp!).getTime() : 0;
               if (ct && at) {
@@ -1365,6 +1379,8 @@ export class DatabaseStorage implements IStorage {
       aiSessions,
       humanSessions,
       aiResolutionRate,
+      aiResolved: outcomes.aiResolved,
+      satisfactionRate: outcomes.satisfactionRate,
       dailyMessageCounts,
       avgResponseTime,
       supervisorsOnline,
