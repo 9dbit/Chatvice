@@ -48,7 +48,7 @@ export const aiModelSchema = z.object({
   }
 });
 export type AIModelProfile = z.infer<typeof aiModelSchema>;
-export type AIConnectionState = 'connected' | 'missing_key' | 'untested' | 'billing_error' | 'auth_error' | 'model_error' | 'rate_limited' | 'unavailable' | 'failed';
+export type AIConnectionState = 'connected' | 'text_connected' | 'image_connected' | 'stale' | 'missing_key' | 'untested' | 'billing_error' | 'auth_error' | 'model_error' | 'rate_limited' | 'unavailable' | 'failed';
 export type AIModelCheck = {
   state: AIConnectionState;
   message: string;
@@ -58,7 +58,21 @@ export type AIModelCheck = {
   text: 'passed' | 'failed' | 'not_tested';
   vision: 'passed' | 'failed' | 'not_tested';
 };
-export type PublicAIModel = AIModelProfile & { active: boolean; keyConfigured: boolean; check: AIModelCheck };
+export type PublicAIModel = AIModelProfile & { active: boolean; keyConfigured: boolean; check: AIModelCheck; liveCheck?: AIModelCheck };
+// A historical failure is not a current balance measurement. Live observations
+// never certify both capabilities or replace the manual activation test.
+export function currentAIStatus(model: Pick<PublicAIModel, 'check' | 'liveCheck'>, now = Date.now()): AIModelCheck {
+  const manual = model.check;
+  const live = model.liveCheck;
+  const useLive = live && Date.parse(live.checkedAt || '') >= (Date.parse(manual.checkedAt || '') || 0);
+  const latest = useLive ? live : manual;
+  const age = now - Date.parse(latest.checkedAt || '');
+  const lifetime = !useLive && latest.state === 'connected' ? 86400000 : 900000;
+  if (latest.checkedAt && (!Number.isFinite(age) || age > lifetime)) {
+    return { state: 'stale', message: 'Previous result is outdated. Run Test connection to check the current status.', checkedAt: latest.checkedAt, text: 'not_tested', vision: 'not_tested' };
+  }
+  return latest;
+}
 export type AIModelCatalog = {
   models: PublicAIModel[];
   knowledgeSearch: AIProviderConfig['knowledgeSearch'];

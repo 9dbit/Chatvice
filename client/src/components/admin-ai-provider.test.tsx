@@ -9,7 +9,7 @@ beforeEach(() => { cleanup(); mocked.request.mockReset(); });
 function fixture(): AIModelCatalog {
  return { encryptionReady: true, knowledgeSearch: 'keyword', models: [
   { id: 'default-deepseek', name: 'DeepSeek', provider: 'deepseek', textModel: 'deepseek-flash', visionModel: 'deepseek-flash', region: 'ap-southeast-1', active: true, keyConfigured: true,
-    check: { state: 'billing_error', message: 'Insufficient API balance. Top up this provider, then test again.', checkedAt: '2026-11-06T07:00:00Z', httpStatus: 402, text: 'failed', vision: 'not_tested' } },
+    check: { state: 'billing_error', message: 'Insufficient API balance. Top up this provider, then test again.', checkedAt: new Date(Date.now() - 1000).toISOString(), httpStatus: 402, text: 'failed', vision: 'not_tested' } },
   { id: 'default-openrouter', name: 'OpenRouter', provider: 'openrouter', textModel: 'qwen/qwen3.8-flash', visionModel: 'qwen/qwen3.8-flash', region: 'ap-southeast-1', active: false, keyConfigured: false,
     check: { state: 'missing_key', message: 'Add an API key to connect this provider.', text: 'not_tested', vision: 'not_tested' } },
  ] };
@@ -25,7 +25,7 @@ it('shows active and failed billing as distinct states with actionable last-test
  const card = screen.getByLabelText('DeepSeek model');
  expect(within(card).getByText('Active')).toBeInTheDocument();
  expect(within(card).getByText('Insufficient balance')).toBeInTheDocument();
- expect(within(card).getByText(/HTTP 402/)).toBeInTheDocument();
+ expect(within(card).getAllByText(/HTTP 402/).length).toBeGreaterThan(0);
  expect(within(card).getByText('Image: not tested')).toBeInTheDocument();
  expect(within(card).getByRole('link', { name: /Open provider billing/ })).toHaveAttribute('href', 'https://platform.deepseek.com/');
  expect(screen.getByRole('button', { name: 'Set active' })).toBeDisabled();
@@ -67,4 +67,24 @@ it('keeps saved keys when editing and shows the live impact for the active card'
  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
  await waitFor(() => expect(mocked.request).toHaveBeenCalledWith('POST', '/api/admin/ai-models', expect.objectContaining({ model: expect.objectContaining({ name: 'DeepSeek Flash' }) })));
  expect(mocked.request.mock.calls[0][2]).not.toHaveProperty('apiKey');
+});
+
+it('replaces an old billing alert with verified live text success without claiming image support', () => {
+ const data = fixture();
+ data.models[0].liveCheck = { state: 'text_connected', message: 'Latest text request succeeded.', checkedAt: new Date().toISOString(), text: 'passed', vision: 'not_tested' };
+ setup(data);
+ const card = within(screen.getByLabelText('DeepSeek model'));
+ expect(card.getByText('Text responding')).toBeInTheDocument();
+ expect(card.queryByText('Insufficient balance')).not.toBeInTheDocument();
+ expect(card.getByText('Image: not tested')).toBeInTheDocument();
+ expect(card.queryByRole('link', { name: /Open provider billing/ })).not.toBeInTheDocument();
+ expect(card.getByText(/Last manual test/)).toBeInTheDocument();
+});
+it('marks old failures as historical instead of recommending another top-up', () => {
+ const data = fixture(); data.models[0].check.checkedAt = new Date(Date.now() - 3600000).toISOString();
+ setup(data);
+ const card = within(screen.getByLabelText('DeepSeek model'));
+ expect(card.getByText('Status outdated')).toBeInTheDocument();
+ expect(card.queryByText('Insufficient balance')).not.toBeInTheDocument();
+ expect(card.queryByRole('link', { name: /Open provider billing/ })).not.toBeInTheDocument();
 });
