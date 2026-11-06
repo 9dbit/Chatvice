@@ -1092,8 +1092,8 @@ body[data-merchant-ui] .shadcn-card {
   box-shadow: none;
   background: hsl(var(--card));
 }
-body[data-merchant-ui] .merchant-page :is(section, div).border,
-body[data-merchant-ui] .merchant-page :is(section, div).border-border,
+body[data-merchant-ui] .merchant-page :is(section, div)[class~="border"],
+body[data-merchant-ui] .merchant-page :is(section, div)[class~="border-border"],
 body[data-merchant-ui] [data-sidebar="sidebar"] {
   border-color: transparent;
 }
