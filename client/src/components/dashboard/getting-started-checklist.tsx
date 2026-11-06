@@ -134,19 +134,6 @@ export function GettingStartedChecklist({
     },
   });
 
-  const autoOpenedRef = useRef(false);
-  useEffect(() => {
-    if (autoOpenedRef.current) return;
-    if (!merchant || dismissed || collapsed) return;
-    const firstUnseen = onboardingPhases.find(
-      (p) => !completionMap[p.id] && !tutorialsViewed.includes(p.id),
-    );
-    if (firstUnseen) {
-      autoOpenedRef.current = true;
-      setTutorialPhase(firstUnseen);
-    }
-  }, [merchant, dismissed, collapsed, tutorialsViewed.length]);
-
   function closeTutorial() {
     if (tutorialPhase && !tutorialsViewed.includes(tutorialPhase.id)) {
       markTutorialViewedMutation.mutate(tutorialPhase.id);

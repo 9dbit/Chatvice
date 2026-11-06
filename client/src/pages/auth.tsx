@@ -1,3 +1,5 @@
+import { registerMerchantSchema } from "@shared/schema";
+import { useMerchantUI } from "@/hooks/use-merchant-ui";
 import { useState, useEffect } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useForm } from "react-hook-form";
@@ -15,28 +17,13 @@ import { Link } from "wouter";
 import { SiGoogle, SiGithub, SiLinkedin, SiFacebook } from "react-icons/si";
 import chatviceLogoDark from "@assets/Chatvice-04_1769691434945.png";
 import chatviceBrandLogo from "@assets/chatvice-brand-logo.png";
-import authBgGif from "@assets/auth-background.gif";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
   password: z.string().min(1, "Password is required"),
 });
 
-const registerSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters").max(50).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
-  email: z.string().email("Please enter a valid email"),
-  password: z.string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-    .regex(/[0-9]/, "Password must contain at least one number"),
-  confirmPassword: z.string().min(1, "Please confirm your password"),
-  businessCategory: z.string().min(1, "Please select a business category"),
-  staffCount: z.string().min(1, "Please select staff count"),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+const registerSchema = registerMerchantSchema;
 
 const BUSINESS_CATEGORIES = [
   "E-commerce / Retail",
@@ -85,9 +72,10 @@ type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
 function AuthLayout({ children, title, subtitle }: { children: React.ReactNode; title: string; subtitle: string }) {
+  useMerchantUI("auth");
   return (
-    <div className="min-h-screen flex">
-      <div className="w-full lg:w-1/2 bg-zinc-950 flex flex-col justify-center px-8 md:px-16 lg:px-24">
+    <div className="merchant-auth min-h-screen flex">
+      <div className="w-full lg:w-1/2 bg-zinc-950 flex flex-col justify-center px-6 py-10 sm:px-8 md:px-16 lg:px-20">
         <div className="max-w-md mx-auto w-full">
           <Link href="/" className="flex items-center gap-3 mb-8 hover:opacity-80 transition-opacity" data-testid="link-auth-logo">
             <img src={chatviceLogoDark} alt="Chatvice" className="h-8 w-auto" />
@@ -100,16 +88,9 @@ function AuthLayout({ children, title, subtitle }: { children: React.ReactNode; 
         </div>
       </div>
       
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        <img 
-          src={authBgGif} 
-          alt="Chatvice AI" 
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
-        
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-violet-950">
         <div className="relative z-10 flex flex-col items-center justify-center w-full p-12">
-          <div className="w-16 h-16 bg-white/10 backdrop-blur-xl rounded-2xl flex items-center justify-center mb-8">
+          <div className="w-16 h-16 bg-violet-900 rounded-2xl flex items-center justify-center mb-8">
             <img src={chatviceBrandLogo} alt="Chatvice" className="w-10 h-10 object-contain" />
           </div>
           <h2 className="text-4xl font-bold text-white text-center mb-4">
@@ -121,7 +102,7 @@ function AuthLayout({ children, title, subtitle }: { children: React.ReactNode; 
             Deploy intelligent chatbots in minutes. Reduce response times, increase customer satisfaction, and scale your support effortlessly.
           </p>
           
-          <div className="mt-12 p-4 bg-white/10 backdrop-blur-xl rounded-xl max-w-sm w-full">
+          <div className="mt-12 p-4 bg-violet-900 rounded-xl max-w-sm w-full">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-8 h-8 rounded-full bg-white/20" />
               <div className="flex-1">
@@ -132,7 +113,7 @@ function AuthLayout({ children, title, subtitle }: { children: React.ReactNode; 
               <div className="p-3 bg-white/10 rounded-lg">
                 <p className="text-sm text-white/80">How do I build an AI chatbot?</p>
               </div>
-              <div className="p-3 bg-primary/30 rounded-lg ml-8">
+              <div className="p-3 bg-violet-800 rounded-xl ml-8">
                 <p className="text-sm text-white">It's easy! Just train Chatvice with your knowledge base and deploy to your website.</p>
               </div>
             </div>
@@ -397,6 +378,8 @@ export function LoginPage() {
                       />
                       <button
                         type="button"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-pressed={showPassword}
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
                       >
@@ -460,14 +443,6 @@ export function RegisterPage() {
     mode: "onChange",
   });
 
-  const watchedFields = form.watch();
-  const isFormComplete = watchedFields.username && 
-    watchedFields.email && 
-    watchedFields.password && 
-    watchedFields.confirmPassword && 
-    watchedFields.businessCategory && 
-    watchedFields.staffCount;
-
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterFormData) => {
       const res = await fetch("/api/auth/register", {
@@ -499,6 +474,7 @@ export function RegisterPage() {
     },
     onError: (error: any) => {
       if (error.errorCode === "EMAIL_ALREADY_REGISTERED") {
+        form.setError("email", { message: "This email is already registered. Sign in or use another email." }, { shouldFocus: true });
         toast({
           title: "Email Already Registered",
           description: "This email is already registered. Please sign in or use a different email.",
@@ -507,6 +483,7 @@ export function RegisterPage() {
         return;
       }
       if (error.errorCode === "USERNAME_TAKEN") {
+        form.setError("username", { message: "This username is already taken." }, { shouldFocus: true });
         toast({
           title: "Username Not Available",
           description: "This username is already taken. Please choose a different one.",
@@ -673,6 +650,8 @@ export function RegisterPage() {
                     <Input
                       placeholder="your_username"
                       className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-11"
+                      autoComplete="username"
+                      autoCapitalize="none"
                       data-testid="input-register-username"
                       {...field}
                     />
@@ -692,6 +671,7 @@ export function RegisterPage() {
                       type="email"
                       placeholder="you@company.com"
                       className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-11"
+                      autoComplete="email"
                       data-testid="input-register-email"
                       {...field}
                     />
@@ -706,24 +686,29 @@ export function RegisterPage() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-zinc-300">Password</FormLabel>
-                  <FormControl>
-                    <div className="relative">
+                  <div className="relative">
+                    <FormControl>
                       <Input
                         type={showPassword ? "text" : "password"}
-                        placeholder="Min 8 characters with uppercase, lowercase & number"
+                        placeholder="Create a strong password"
+                        aria-describedby="register-password-hint"
+                        autoComplete="new-password"
                         className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-11 pr-10"
                         data-testid="input-register-password"
                         {...field}
                       />
+                    </FormControl>
                       <button
                         type="button"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-pressed={showPassword}
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
-                    </div>
-                  </FormControl>
+                  </div>
+                  <p id="register-password-hint" className="text-xs text-zinc-400">At least 8 characters, with uppercase, lowercase and a number.</p>
                   <FormMessage />
                 </FormItem>
               )}
@@ -739,6 +724,7 @@ export function RegisterPage() {
                       type="password"
                       placeholder="Re-enter your password"
                       className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 h-11"
+                      autoComplete="new-password"
                       data-testid="input-register-confirm-password"
                       {...field}
                     />
@@ -747,6 +733,10 @@ export function RegisterPage() {
                 </FormItem>
               )}
             />
+            <details className="rounded-2xl bg-zinc-900 p-4">
+              <summary className="cursor-pointer text-sm font-medium text-zinc-200">Business details <span className="font-normal text-zinc-400">(optional)</span></summary>
+              <p className="mt-2 text-xs text-zinc-400">Help us tailor your workspace. You can skip this for now.</p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <FormField
               control={form.control}
               name="businessCategory"
@@ -801,11 +791,13 @@ export function RegisterPage() {
                 </FormItem>
               )}
             />
+              </div>
+            </details>
             
             <Button
               type="submit"
               className="w-full h-11"
-              disabled={registerMutation.isPending || !isFormComplete}
+              disabled={registerMutation.isPending}
               data-testid="button-register-submit"
             >
               {registerMutation.isPending ? "Creating account..." : "Create Account"}
@@ -1205,7 +1197,9 @@ export function ResetPasswordPage() {
                     />
                     <button
                       type="button"
-                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-pressed={showPassword}
+                        onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

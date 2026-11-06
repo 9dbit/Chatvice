@@ -1,3 +1,4 @@
+import { useMerchantUI } from "@/hooks/use-merchant-ui";
 import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -30,6 +31,7 @@ const agentSchema = z.object({
 type AgentFormData = z.infer<typeof agentSchema>;
 
 export default function SelectAgentPage() {
+  useMerchantUI();
   const merchantId = localStorage.getItem("merchantId") || "";
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -89,7 +91,8 @@ export default function SelectAgentPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: AgentFormData) => {
-      return apiRequest("POST", "/api/agents", { ...data, photoUrl });
+      const response = await apiRequest("POST", "/api/agents", { ...data, photoUrl });
+      return response.json();
     },
     onSuccess: (newAgent: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
@@ -162,17 +165,17 @@ export default function SelectAgentPage() {
     <>
       <div className="fixed inset-0 bg-white dark:bg-zinc-950 z-0" aria-hidden="true" />
       <SidebarProvider style={style as React.CSSProperties}>
-        <div className="flex h-screen w-full bg-white dark:bg-zinc-950 relative z-10">
+        <div className="merchant-dashboard flex h-screen w-full bg-white dark:bg-zinc-950 relative z-10">
           <AppSidebar />
           <div className="flex flex-col flex-1 overflow-hidden bg-white dark:bg-zinc-950">
-          <header className="flex items-center justify-between gap-4 px-4 border-b border-border h-14 bg-background">
+          <header className="flex items-center justify-between gap-4 px-4 h-14 bg-background">
             <div className="flex items-center gap-4">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
               <span className="font-medium">Your Agents</span>
             </div>
             <ThemeToggle />
           </header>
-          <main className="flex-1 overflow-auto bg-gradient-to-b from-background to-muted/30">
+          <main className="merchant-page flex-1 overflow-auto bg-background">
 
             <div className="p-4 sm:p-6" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 0px))' }}>
             {isLoading ? (
@@ -206,13 +209,19 @@ export default function SelectAgentPage() {
                       <ScrollArea className="max-h-[40vh] mb-4">
                         <div className="flex flex-col gap-2 pr-1">
                           {agents.map((agent) => {
-                            const isSelected = selectedAgentId === agent.id;
+                            const isSelected = (selectedAgentId || merchant?.activeAgentId || agents[0]?.id) === agent.id;
                             return (
                               <Card
                                 key={agent.id}
-                                className={`cursor-pointer transition-all hover-elevate bg-background/70 backdrop-blur-md border-white/20 ${
-                                  isSelected ? "border-primary ring-2 ring-primary/20" : ""
+                                className={`cursor-pointer transition-colors hover-elevate bg-card ${
+                                  isSelected ? "outline outline-2 outline-primary" : ""
                                 }`}
+                                role="button"
+                                tabIndex={0}
+                                aria-pressed={isSelected}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedAgentId(agent.id); }
+                                }}
                                 onClick={() => setSelectedAgentId(agent.id)}
                                 data-testid={`agent-select-card-${agent.id}`}
                               >

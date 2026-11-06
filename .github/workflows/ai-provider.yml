@@ -3,7 +3,8 @@ on:
   pull_request:
     paths:
       - 'server/**'
-      - 'shared/aiProviderConfig.ts'
+      - 'shared/**'
+      - 'client/src/**'
       - 'client/src/components/admin-ai-provider*'
       - 'client/src/pages/admin/dashboard.tsx'
       - '.github/workflows/ai-provider.yml'
@@ -21,6 +22,6 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: npx vitest run server/__tests__/ai-provider.test.ts client/src/components/admin-ai-provider.test.tsx server/__tests__/topup-token-security.test.ts
+      - run: npx vitest run server/__tests__/ai-provider.test.ts client/src/components/admin-ai-provider.test.tsx server/__tests__/topup-token-security.test.ts client/src/pages/__tests__/merchant-onboarding.test.tsx
       - run: node --experimental-strip-types --test server/__tests__/postcutover-security.node.test.mjs
       - run: npm run build

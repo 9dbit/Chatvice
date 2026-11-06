@@ -1,3 +1,4 @@
+import { parseMerchantMenuConfig, isMerchantRouteActive } from "@/lib/merchant-navigation";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -308,19 +309,10 @@ export function AppSidebar() {
     queryKey: ["/api/platform-settings"],
   });
 
-  const menuConfig = useMemo(() => {
-    if (platformSettings?.merchant_menu_order) {
-      try {
-        const savedConfig: MenuItemConfig[] = JSON.parse(platformSettings.merchant_menu_order);
-        if (Array.isArray(savedConfig) && savedConfig.length > 0) {
-          return savedConfig;
-        }
-      } catch (e) {
-        console.error("Failed to parse menu config:", e);
-      }
-    }
-    return null;
-  }, [platformSettings]);
+  const menuConfig = useMemo(
+    () => parseMerchantMenuConfig(platformSettings?.merchant_menu_order),
+    [platformSettings?.merchant_menu_order],
+  );
 
   const { mainItems, widgetItems, messageItems, managementItems } = useMemo(() => {
     if (!menuConfig) {
@@ -564,7 +556,7 @@ export function AppSidebar() {
   };
 
   const isItemActive = (url: string) => {
-    return location === url || (url !== "/dashboard" && location.startsWith(url));
+    return isMerchantRouteActive(location, url);
   };
 
   const isChatSessionsActive = location === "/dashboard/sessions" || location.startsWith("/dashboard/sessions/");
@@ -593,6 +585,8 @@ export function AppSidebar() {
                   <SidebarMenuItem key={item.id || item.title}>
                     <SidebarMenuButton
                       asChild
+                      isActive={isActive}
+                      aria-current={isActive ? "page" : undefined}
                       className={isActive ? "bg-sidebar-accent" : ""}
                     >
                       <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
@@ -631,7 +625,9 @@ export function AppSidebar() {
                         <SidebarMenuItem key={item.id || item.title} className="pl-4">
                           <SidebarMenuButton
                             asChild
-                            className={isActive ? "bg-sidebar-accent" : ""}
+                            isActive={isActive}
+                      aria-current={isActive ? "page" : undefined}
+                      className={isActive ? "bg-sidebar-accent" : ""}
                           >
                             <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
                               <item.icon className="w-4 h-4" />
@@ -671,7 +667,9 @@ export function AppSidebar() {
                         <SidebarMenuItem key={item.id || item.title} className="pl-4">
                           <SidebarMenuButton
                             asChild
-                            className={isActive ? "bg-sidebar-accent" : ""}
+                            isActive={isActive}
+                      aria-current={isActive ? "page" : undefined}
+                      className={isActive ? "bg-sidebar-accent" : ""}
                           >
                             <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
                               <item.icon className="w-4 h-4" />
@@ -693,6 +691,8 @@ export function AppSidebar() {
                   <SidebarMenuItem key={item.id || item.title}>
                     <SidebarMenuButton
                       asChild
+                      isActive={isActive}
+                      aria-current={isActive ? "page" : undefined}
                       className={isActive ? "bg-sidebar-accent" : ""}
                     >
                       <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
@@ -710,11 +710,13 @@ export function AppSidebar() {
               })}
 
               {/* Active addon items — shown below main menu when addon is purchased */}
-              {isAdmin && activeAddonTypes.includes("appointment_scheduling") && (() => {
+              {isAdmin && activeAddonTypes.includes("appointment_scheduling") && ![...filteredMainItems, ...filteredManagementItems, ...filteredWidgetItems, ...filteredMessageItems].some(item => item.url === "/dashboard/appointments") && (() => {
                 const isActive = isItemActive("/dashboard/appointments");
                 return (
                   <SidebarMenuItem key="appointments">
-                    <SidebarMenuButton asChild className={isActive ? "bg-sidebar-accent" : ""}>
+                    <SidebarMenuButton asChild isActive={isActive}
+                      aria-current={isActive ? "page" : undefined}
+                      className={isActive ? "bg-sidebar-accent" : ""}>
                       <Link href="/dashboard/appointments" data-testid="link-sidebar-janji-temu">
                         <Calendar className="w-4 h-4" />
                         <span className="flex-1">{t("dashboard.items.appointments")}</span>
@@ -723,11 +725,13 @@ export function AppSidebar() {
                   </SidebarMenuItem>
                 );
               })()}
-              {isAdmin && activeAddonTypes.includes("hospitality") && (() => {
+              {isAdmin && activeAddonTypes.includes("hospitality") && ![...filteredMainItems, ...filteredManagementItems, ...filteredWidgetItems, ...filteredMessageItems].some(item => item.url === "/dashboard/additional-services") && (() => {
                 const isActive = isItemActive("/dashboard/additional-services");
                 return (
                   <SidebarMenuItem key="hospitality-ai">
-                    <SidebarMenuButton asChild className={isActive ? "bg-sidebar-accent" : ""}>
+                    <SidebarMenuButton asChild isActive={isActive}
+                      aria-current={isActive ? "page" : undefined}
+                      className={isActive ? "bg-sidebar-accent" : ""}>
                       <Link href="/dashboard/additional-services" data-testid="link-sidebar-hospitality">
                         <Hotel className="w-4 h-4" />
                         <span className="flex-1">{t("dashboard.items.hospitalityAI")}</span>
@@ -758,7 +762,9 @@ export function AppSidebar() {
                         <SidebarMenuItem key={item.id || item.title} className="pl-4">
                           <SidebarMenuButton
                             asChild
-                            className={isActive ? "bg-sidebar-accent" : ""}
+                            isActive={isActive}
+                      aria-current={isActive ? "page" : undefined}
+                      className={isActive ? "bg-sidebar-accent" : ""}
                           >
                             <Link href={item.url} data-testid={`link-sidebar-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
                               <item.icon className="w-4 h-4" />

@@ -1,3 +1,4 @@
+import { useMerchantUI } from "@/hooks/use-merchant-ui";
 import { Component, type ReactNode } from "react";
 import { Route, Switch, useLocation, Redirect, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -126,7 +127,7 @@ function Breadcrumb({ location }: { location: string }) {
   const pathParts = location.replace("/dashboard", "").split("/").filter(Boolean);
   const currentPage = pathParts[0] || "";
   const tKey = pageTranslationKeys[currentPage];
-  const pageName = tKey ? t(tKey) : "Dashboard";
+  const pageName = currentPage === "custom-data-source" ? (pathParts[1] === "integration-checklist" ? "Integration Checklist" : "Custom Data Source") : tKey ? t(tKey) : "Page not found";
 
   return (
     <nav className="flex items-center gap-1 text-sm" data-testid="nav-breadcrumb">
@@ -145,10 +146,11 @@ function Breadcrumb({ location }: { location: string }) {
 }
 
 export default function DashboardLayout() {
+  useMerchantUI();
   const [location] = useLocation();
   const merchantId = localStorage.getItem("merchantId");
 
-  const { data: merchant, isLoading, isFetched } = useQuery<Merchant | null>({
+  const { data: merchant, isLoading, isFetched, isError, refetch } = useQuery<Merchant | null>({
     queryKey: ["/api/merchant", merchantId],
     enabled: !!merchantId,
   });
@@ -174,6 +176,17 @@ export default function DashboardLayout() {
     );
   }
 
+  if (isError) {
+    return <div className="min-h-screen grid place-items-center bg-background p-6">
+      <div role="alert" className="max-w-md rounded-3xl bg-card p-8 text-center space-y-4">
+        <h1 className="text-xl font-semibold">Unable to load your workspace</h1>
+        <p className="text-muted-foreground">Your connection may have been interrupted. Please try again.</p>
+        <button className="rounded-full bg-primary px-6 py-3 text-primary-foreground" onClick={() => refetch()}>Try again</button>
+        <Link href="/login" className="block text-sm text-primary">Back to sign in</Link>
+      </div>
+    </div>;
+  }
+
   if (merchant && !merchant.activeAgentId) {
     return <Redirect to="/select-agent" />;
   }
@@ -185,10 +198,10 @@ export default function DashboardLayout() {
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
-      <div className="flex h-screen w-full">
+      <div className="merchant-dashboard flex h-screen w-full">
         <AppSidebar />
-        <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="sticky top-0 z-50 shrink-0 flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4 border-b border-border bg-background h-12 sm:h-14">
+        <div className="flex min-w-0 flex-col flex-1 overflow-hidden">
+          <header className="sticky top-0 z-50 shrink-0 flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4 bg-background h-12 sm:h-14">
             <div className="flex items-center gap-2 sm:gap-4">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
               <Breadcrumb location={location} />
@@ -199,8 +212,8 @@ export default function DashboardLayout() {
               <ThemeToggle />
             </div>
           </header>
-          <main className="flex-1 overflow-auto p-3 sm:p-6 bg-background">
-            <PageErrorBoundary>
+          <main className="merchant-page flex-1 overflow-auto p-4 sm:p-6 lg:p-8 bg-background" data-page={location.split("/")[2] || "overview"}>
+            <PageErrorBoundary key={location}>
             <Switch>
               <Route path="/dashboard" component={DashboardOverview} />
               <Route path="/dashboard/profile" component={ProfilePage} />
@@ -238,12 +251,19 @@ export default function DashboardLayout() {
               <Route path="/dashboard/marketplace" component={MarketplacePage} />
               <Route path="/dashboard/appointments" component={AppointmentsPage} />
               <Route path="/dashboard/help-articles">
-                <Redirect to="/dashboard/knowledge" />
+                <Redirect to="/dashboard/knowledge?tab=articles" />
+              </Route>
+              <Route>
+                <div className="max-w-xl rounded-3xl bg-card p-8 space-y-4">
+                  <h1 className="text-2xl font-semibold">Page not found</h1>
+                  <p className="text-muted-foreground">This dashboard link may have changed. Choose a page from the menu or return to Overview.</p>
+                  <Link href="/dashboard" className="inline-flex rounded-full bg-primary px-5 py-3 text-primary-foreground">Back to Overview</Link>
+                </div>
               </Route>
             </Switch>
             </PageErrorBoundary>
           </main>
-          <AIHelpBubble />
+          <AIHelpBubble showWelcomeOnLoad={false} />
         </div>
       </div>
     </SidebarProvider>
