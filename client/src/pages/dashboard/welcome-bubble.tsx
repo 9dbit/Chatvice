@@ -248,7 +248,7 @@ export default function WelcomeBubblePage() {
                     <div className="flex gap-2">
                       <Input
                         type="file"
-                        accept=".png,.gif,.jpg,.jpeg,.webp,.mp4,image/png,image/gif,image/jpeg,image/webp,video/mp4"
+                        accept="video/*,.mp4,.mov,.m4v,.webm,.mkv,.avi,.wmv,.flv,.mpg,.mpeg,.mpe,.ts,.mts,.m2ts,.3gp,.3g2,.ogv,.vob,.png,.gif,.jpg,.jpeg,.webp,image/png,image/gif,image/jpeg,image/webp"
                         onChange={handleImageUpload}
                         disabled={isUploading}
                         className="flex-1"
@@ -268,15 +268,17 @@ export default function WelcomeBubblePage() {
                     {isUploading && (
                       <div className="space-y-1">
                         <Progress value={uploadProgress} className="h-2" />
-                        <p className="text-xs text-muted-foreground text-center">{uploadProgress < 100 ? `Uploading... ${uploadProgress}%` : "Processing upload…"}</p>
+                        <p className="text-xs text-muted-foreground text-center" role="status">{uploadProgress < 100 ? `Uploading... ${uploadProgress}%` : "Optimizing media… Videos are converted to silent MP4 under 300 KB."}</p>
                       </div>
                     )}
                   </div>
                   
+                  <p className="text-xs text-muted-foreground">Videos are automatically converted to MP4 under 300 KB, with audio removed for autoplay. Upload up to 50 MB / 2 minutes. Short clips keep more detail. Images: up to 5 MB.</p>
                   {uploadError && <p role="alert" className="text-sm text-destructive">{uploadError}</p>}
                   {promoNeedsSave && <p role="status" className="text-sm text-muted-foreground">Upload complete. Click Save Changes to publish this promo.</p>}
                   <div className="space-y-2">
                     <Label htmlFor="promoImageUrl">{t("dashboard.welcomeBubble.orEnterUrl")}</Label>
+                    <p className="text-xs text-muted-foreground">Automatic conversion applies to uploaded files. External video URLs must already be MP4.</p>
                     <Input
                       id="promoImageUrl"
                       value={form.promoImageUrl}

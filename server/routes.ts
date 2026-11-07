@@ -6,6 +6,7 @@ import { stripBase64Photos } from "./response-sanitizer";
 import { getConversationOutcomes } from "./conversation-outcomes";
 import { routedAI, aiCacheNamespace } from "./aiProvider";
 import { registerAIProviderRoutes } from "./aiProviderRoutes";
+import { registerPromoUploadRoutes } from "./promoUploadRoutes";
 import { AI_CONFIG_KEY } from "../shared/aiProviderConfig";
 import { mediaDirectory } from "./mediaPaths";
 import { geminiOptions } from "./aiConfig";
@@ -12859,6 +12860,16 @@ Rules:
     }
   });
 
+  registerPromoUploadRoutes(app, requireMerchant, async (data, filename, mime) => {
+    const objectStorage = new ObjectStorageService();
+    if (objectStorage.isConfigured()) {
+      try { return await objectStorage.uploadFile(data, filename, mime); }
+      catch { console.warn('Promo object storage unavailable; using persistent database storage'); }
+    }
+    await storage.storeFile({ id: filename, filename, mimeType: mime, size: data.length, content: data.toString('base64'), category: 'welcome_bubble_promo' });
+    return `/db-files/${filename}`;
+  });
+
   // POST /api/upload - General file upload endpoint for merchants
   app.post("/api/upload", requireMerchant, upload.single("file"), async (req, res) => {
     try {
@@ -18484,7 +18495,7 @@ Rules:
         promoUrl = baseUrl + promoUrl;
       }
       if (promoUrl.match(/\.mp4/i)) {
-        contentHtml += '<div style="width:100%;"><video src="' + promoUrl + '" style="width:100%;height:auto;display:block;" autoplay loop muted playsinline></video></div>';
+        contentHtml += '<div style="width:100%;"><video src="' + promoUrl + '" style="width:100%;height:auto;display:block;" autoplay loop muted playsinline preload="metadata" aria-label="Promotional video"></video></div>';
       } else {
         contentHtml += '<div style="width:100%;"><img src="' + promoUrl + '" style="width:100%;height:auto;display:block;" onerror="this.style.display=\\'none\\'" /></div>';
       }
@@ -18556,6 +18567,13 @@ Rules:
     contentHtml += '</div>'; // close full-content wrapper
     
     welcomeBubbleContent.innerHTML = contentHtml;
+    var promoVideo = welcomeBubbleContent.querySelector('video');
+    if (promoVideo) {
+      promoVideo.muted = true;
+      promoVideo.defaultMuted = true;
+      var playback = promoVideo.play();
+      if (playback && playback.catch) playback.catch(function() { promoVideo.controls = true; });
+    }
     welcomeBubble.appendChild(welcomeBubbleContent);
     
     // Attach event handlers
