@@ -4,15 +4,20 @@ import { preparePromoFile, uploadPromo } from './promo-upload';
 const mp4 = new Uint8Array([0,0,0,24,102,116,121,112,105,115,111,109,0,0,0,0,109,112,52,50,0,0,0,0]);
 afterEach(() => vi.unstubAllGlobals());
 describe('promo uploads', () => {
-  it.each(['video/mp4', 'video/quicktime', 'application/octet-stream', ''])('normalizes a real MP4 with MIME %s', async type => {
+  it.each(['video/mp4', 'video/quicktime', 'application/octet-stream', ''])('sends MP4 with MIME %s for server normalization', async type => {
     const prepared = await preparePromoFile(new File([mp4], 'promo.MP4', {type}));
-    expect(prepared.type).toBe('video/mp4');
+    expect(prepared.type).toBe(type);
     expect(new Uint8Array(await prepared.arrayBuffer())).toEqual(mp4);
   });
-  it('rejects renamed unsupported data and oversized files', async () => {
-    await expect(preparePromoFile(new File(['not a video'], 'promo.mp4'))).rejects.toThrow(/not a supported MP4/);
-    await expect(preparePromoFile(new File(['x'], 'promo.mov',{type:'video/quicktime'}))).rejects.toThrow(/Use PNG/);
-    await expect(preparePromoFile(new File([new Uint8Array(5*1024*1024+1)], 'promo.mp4'))).rejects.toThrow(/5 MB/);
+  it.each(['mov','webm','mkv','avi','wmv','flv','mpg','mts','3gp','ogv'])('accepts .%s for server decoding instead of demanding MP4 first', async ext => {
+    const file = new File(['video fixture'], `promo.${ext}`, {type:'application/octet-stream'});
+    expect(await preparePromoFile(file)).toBe(file);
+  });
+  it('rejects empty files, non-media types, and excessive source sizes', async () => {
+    await expect(preparePromoFile(new File([], 'promo.mov'))).rejects.toThrow(/non-empty/);
+    await expect(preparePromoFile(new File(['x'], 'document.pdf',{type:'application/pdf'}))).rejects.toThrow(/Choose a video/);
+    await expect(preparePromoFile(new File([new Uint8Array(50*1024*1024+1)], 'promo.mov'))).rejects.toThrow(/50 MB/);
+    await expect(preparePromoFile(new File([new Uint8Array(5*1024*1024+1)], 'promo.png', {type:'image/png'}))).rejects.toThrow(/5 MB/);
   });
   it('retains existing image support', async () => {
     const file = new File(['image fixture'], 'promo.webp', {type:'image/webp'});
@@ -29,6 +34,7 @@ describe('promo uploads', () => {
     xhr.upload.onprogress({lengthComputable:true,loaded:12,total:24});
     expect(progress).toHaveBeenCalledWith(50);
     expect(xhr.withCredentials).toBe(true);
+    expect(xhr.open).toHaveBeenCalledWith('POST', '/api/upload/promo');
     expect((xhr.send.mock.calls[0][0] as FormData).get('type')).toBe('welcome_bubble_promo');
     xhr.onload();
     await expect(result).resolves.toBe('/storage/promo.mp4');

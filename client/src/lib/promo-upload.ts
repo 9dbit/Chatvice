@@ -1,29 +1,24 @@
+import { PROMO_IMAGE_MAX_BYTES, PROMO_UPLOAD_MAX_BYTES, PROMO_VIDEO_EXTENSIONS } from '@shared/promoMedia';
 const imageTypes = ['image/png', 'image/gif', 'image/jpeg', 'image/jpg', 'image/webp'];
 
 export async function preparePromoFile(file: File): Promise<Blob> {
-  if (file.size > 5 * 1024 * 1024) throw new Error('Use a file smaller than 5 MB.');
-  if (imageTypes.includes(file.type.toLowerCase())) return file;
-  // iOS Files can report MP4 as QuickTime, octet-stream, or no MIME type.
-  // Check the container, rather than rejecting a valid file on MIME alone.
-  if (!/\.mp4$/i.test(file.name) && file.type !== 'video/mp4') {
-    throw new Error('Use PNG, GIF, JPEG, WebP or an MP4 video.');
+  if (!file.size) throw new Error('Choose a non-empty image or video.');
+  if (imageTypes.includes(file.type.toLowerCase())) {
+    if (file.size > PROMO_IMAGE_MAX_BYTES) throw new Error('Use an image smaller than 5 MB.');
+    return file;
   }
-  const bytes = new Uint8Array(await file.slice(0, 64).arrayBuffer());
-  const text = (offset: number) => String.fromCharCode(...bytes.slice(offset, offset + 4));
-  const brands = [text(8)];
-  for (let i = 16; i + 4 <= bytes.length; i += 4) brands.push(text(i));
-  if (text(4) !== 'ftyp' || !brands.some(b => /^(isom|iso[2-9]|mp4[12]|avc1|M4V |MSNV)$/.test(b))) {
-    throw new Error('This file is not a supported MP4. Export it as MP4 (H.264) and try again.');
-  }
-  return new Blob([file], { type: 'video/mp4' });
+  if (file.size > PROMO_UPLOAD_MAX_BYTES) throw new Error('Use a video smaller than 50 MB.');
+  // Server decodes the actual bytes and converts them, including iPhone MOV.
+  if (file.type.startsWith('video/') || PROMO_VIDEO_EXTENSIONS.test(file.name) || !file.type || file.type === 'application/octet-stream') return file;
+  throw new Error('Choose a video or a PNG, GIF, JPEG or WebP image.');
 }
 
 export function uploadPromo(file: Blob, filename: string, onProgress: (progress: number) => void): Promise<string> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/upload');
+    xhr.open('POST', '/api/upload/promo');
     xhr.withCredentials = true;
-    xhr.timeout = 120000;
+    xhr.timeout = 180000;
     xhr.upload.onprogress = event => {
       if (event.lengthComputable) onProgress(Math.round(event.loaded / event.total * 100));
     };
