@@ -1,3 +1,19 @@
+import { registerWelcomeBubbleRoutes } from "./welcomeBubbleRoutes";
+import { welcomeBubblePromoScript } from "./welcomeBubblePromoScript";
+import { registerRetiredBillingRoutes } from "./billingSafety";
+import { merchantBillingPlan, billingPeriodStart } from "./billingUsage";
+import { registerKnowledgeEntryRoutes } from "./knowledgeEntryRoutes";
+import { registerWorkSchedulerRoutes } from "./workSchedulerRoutes";
+import { stripBase64Photos } from "./response-sanitizer";
+import { getConversationOutcomes } from "./conversation-outcomes";
+import { routedAI, aiCacheNamespace } from "./aiProvider";
+import { registerAIProviderRoutes } from "./aiProviderRoutes";
+import { registerPromoUploadRoutes } from "./promoUploadRoutes";
+import { AI_CONFIG_KEY } from "../shared/aiProviderConfig";
+import { mediaDirectory } from "./mediaPaths";
+import { geminiOptions } from "./aiConfig";
+import { backgroundJobsEnabled } from "./backgroundJobs";
+import { getTopupJwtSecret } from "./topupTokenSecurity";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
@@ -14,7 +30,6 @@ import {
   profileStep2Schema,
   profileStep3Schema,
 } from "@shared/schema";
-import OpenAI from "openai";
 import bcrypt from "bcryptjs";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
@@ -34,7 +49,7 @@ import { staticBlogMetaMap } from "@shared/static-blog-meta";
 import { buildOnboardingKnowledgeForGuide, buildOnboardingKnowledgePublic, buildOnboardingWorkflowGuidance } from "@shared/onboarding-content";
 import { buildFullDashboardKnowledge, buildSupervisorPanelKnowledge, buildFullDashboardKnowledgeEn, buildSupervisorPanelKnowledgeEn, detectEnglishFromContext } from "@shared/guide-knowledge";
 import { db, pool } from "./db";
-import { eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } from "drizzle-orm";
+import { inArray, eq, desc, and, or, isNull, isNotNull, gte, lt, sql, not, like, lte } from "drizzle-orm";
 import { messages, sessions, merchants, chatLogs, paymentTransactions, customers, customerStoreChats, customerContacts, blastCampaigns, supervisors } from "@shared/schema";
 import crypto from "crypto";
 import { encryptApiKey, decryptApiKey, generateApiKey, executeIntentLookup, executeFallbackSheetLookup, buildPostmanCollection, buildHtmlDocs, DEFAULT_INTENTS, PRESET_INTENTS, PRESET_META, getCustomDataHealthSummary, checkOneSourceHealth, maskValue, ConnectorResult } from "./customConnector";
@@ -46,7 +61,7 @@ import sharp from "sharp";
 import { greetingDelayToMilliseconds, hasReplayableProactiveGreeting } from "./proactiveGreetingDelivery";
 import { canSessionRequireAttention, resolveSessionAttention } from "./sessionAttention";
 
-const uploadDir = path.join(process.cwd(), "uploads");
+const uploadDir = mediaDirectory("uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -112,9 +127,12 @@ declare module "express-session" {
 // Import subscription plan utility with caching
 import { getEffectiveSubscriptionPlan, getAllEffectiveSubscriptionPlans, clearPlanCache } from './subscriptionPlanUtils';
 import { extractHostnameFromUrl } from './urlUtils';
+import { getConfiguredAppUrl } from './appUrl';
 import { sendTelegramNotification, sendTelegramMessage, setTelegramWebhook, generateWebhookSecret, formatChatNotification, formatEscalationNotification, formatCustomerMessage } from './telegram';
 
 function getBaseUrl(req: Request): string {
+  const configured = getConfiguredAppUrl();
+  if (configured) return configured;
   if (process.env.REPLIT_DEV_DOMAIN) {
     return `https://${process.env.REPLIT_DEV_DOMAIN}`;
   }
@@ -123,10 +141,7 @@ function getBaseUrl(req: Request): string {
   return `${protocol}://${host}`;
 }
 
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-});
+const openai = routedAI;
 
 // OpenAI public list pricing (USD per 1M tokens) — used for cost monitoring only.
 // Values intentionally conservative to avoid under-reporting. Update when pricing changes.
@@ -141,7 +156,8 @@ const OPENAI_MODEL_PRICING_PER_M_TOKENS: Record<string, { input: number; output:
 
 function calcOpenAiCostMicroUsd(model: string, promptTokens: number, completionTokens: number): number {
   const baseModel = model.split(":")[0]; // strip any version suffix
-  const pricing = OPENAI_MODEL_PRICING_PER_M_TOKENS[baseModel] ?? OPENAI_MODEL_PRICING_PER_M_TOKENS["gpt-4.1-mini"];
+  const pricing = OPENAI_MODEL_PRICING_PER_M_TOKENS[baseModel];
+  if (!pricing) return 0; // Unpriced models must not be billed at an unrelated OpenAI rate.
   const usd = (promptTokens / 1_000_000) * pricing.input + (completionTokens / 1_000_000) * pricing.output;
   return Math.round(usd * 1_000_000);
 }
@@ -563,7 +579,9 @@ async function notifySupervisors(merchantId: string, sessionId: string, reason: 
     const recentMessages = await storage.getMessages(sessionId);
     const last3 = recentMessages.slice(-3).map(m => ({ from: m.from, content: m.content }));
 
-    const supervisorPanelUrl = process.env.REPLIT_DEV_DOMAIN
+    const supervisorPanelUrl = getConfiguredAppUrl()
+      ? `${getConfiguredAppUrl()}/supervisor`
+      : process.env.REPLIT_DEV_DOMAIN
       ? `https://${process.env.REPLIT_DEV_DOMAIN}/supervisor`
       : process.env.REPLIT_DOMAINS
         ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}/supervisor`
@@ -861,6 +879,7 @@ function mapSheetStatusToTicket(raw: string): "checking" | "rejected" | "solved"
 
 // Start the session-level poller (3s) — must run after WebSocket server is initialized
 function startPasswordRecoverySessionPoller() {
+  if (!backgroundJobsEnabled()) return;
   setInterval(async () => {
     if (passwordRecoveryPollRegistry.size === 0) return;
     const maxAge = 30 * 60 * 1000; // Auto-expire polls after 30 minutes
@@ -920,6 +939,7 @@ function startPasswordRecoverySessionPoller() {
 // in sync even after the customer's session is closed/archived (the per-session
 // registry above only covers freshly opened sessions).
 function startPasswordRecoveryStatusSweeper() {
+  if (!backgroundJobsEnabled()) return;
   const tick = async () => {
     try {
       const configs = await storage.getActivePasswordRecoveryConfigs();
@@ -1496,7 +1516,7 @@ This merchant uses an AI appointment scheduling system. When customers ask about
    Only use when customer explicitly asks to cancel and provides an appointment ID or booking code.
 
 5. BOOKING CALENDAR LINK — direct customer to the public calendar page:
-   [LINK:Buka Kalender Booking:https://${process.env.REPLIT_DOMAINS?.split(',')[0] || 'chatvice.app'}/cal/pub/${slug}]
+   [LINK:Buka Kalender Booking:${getConfiguredAppUrl() || `https://${process.env.REPLIT_DOMAINS?.split(',')[0] || 'chatvice.app'}`}/cal/pub/${slug}]
 
 KAPAN GUNAKAN:
 - "bisa booking?", "ada slot?", "kapan tersedia?", "mau janji temu" → [CHECK_AVAILABILITY]
@@ -2032,7 +2052,7 @@ ATURAN KETAT:
       const imagesToInclude = recentImages.slice(-3);
       for (const img of imagesToInclude) {
         if (img.url.startsWith('/')) {
-          const localPath = path.join(process.cwd(), "uploads", img.url.replace("/uploads/", ""));
+          const localPath = path.join(mediaDirectory("uploads"), img.url.replace("/uploads/", ""));
           try {
             const imgStats = await fs.promises.stat(localPath);
             if (imgStats.size > 4 * 1024 * 1024) throw new Error("Too large");
@@ -2045,9 +2065,9 @@ ATURAN KETAT:
               image_url: { url: `data:${mimeType};base64,${imgBuffer.toString('base64')}`, detail: "auto" }
             });
           } catch {
-            const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-              ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
-              : "https://chatvice.app";
+            const baseUrl = getConfiguredAppUrl() || (process.env.REPLIT_DEV_DOMAIN
+              ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+              : "https://chatvice.app");
             contentArray.push({
               type: "image_url",
               image_url: { url: `${baseUrl}${img.url}`, detail: "auto" }
@@ -2070,8 +2090,9 @@ ATURAN KETAT:
     
     // Cost-optimized: try FAQ cache for plain text questions (no vision, no signals).
     // Skips OpenAI entirely on repeat questions, saving ~$0.0006 per cache hit.
+    const aiCacheAgent = `${assignedAgentId || "default"}:${await aiCacheNamespace()}`;
     if (!useVision) {
-      const cached = getFaqCache(merchantId, assignedAgentId, message);
+      const cached = getFaqCache(merchantId, aiCacheAgent, message);
       if (cached) {
         console.log(`[CostOpt] FAQ cache hit merchant=${merchantId} agent=${assignedAgentId || "none"}`);
         return { answer: cached, mode: "AI", isNewSession };
@@ -2085,12 +2106,12 @@ ATURAN KETAT:
       max_completion_tokens: 800, // Increased from 500 for more comprehensive responses
       temperature: temperature,
     });
-    void recordOpenAiUsage(merchantId, chatModel, completion.usage);
+    void recordOpenAiUsage(merchantId, completion.model, completion.usage);
 
     const answer = completion.choices[0]?.message?.content || "I'm sorry, I couldn't process your request. Please try again.";
     // Cost-optimized: cache plain-text Q&A for repeat questions across all customers (per-agent).
     if (!useVision && answer && answer.length > 0) {
-      setFaqCache(merchantId, assignedAgentId, message, answer);
+      setFaqCache(merchantId, aiCacheAgent, message, answer);
     }
     return { answer, mode: "AI", isNewSession };
   } catch (error) {
@@ -2161,7 +2182,7 @@ async function analyzeMediaWithAI(
 
   try {
     if (mediaType === "photo") {
-      const localFilePath = path.join(process.cwd(), "uploads", fileUrl.replace("/uploads/", ""));
+      const localFilePath = path.join(mediaDirectory("uploads"), fileUrl.replace("/uploads/", ""));
       let imageUrl: string;
       
       try {
@@ -2180,11 +2201,11 @@ async function analyzeMediaWithAI(
         if (fileErr.message !== "Image too large for base64") {
           console.error("[Media Analysis] Failed to read local file, trying URL fallback:", fileErr);
         }
-        const baseUrl = requestHost 
+        const baseUrl = getConfiguredAppUrl() || (requestHost
           ? `https://${requestHost}`
-          : process.env.REPLIT_DEV_DOMAIN 
+          : process.env.REPLIT_DEV_DOMAIN
             ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-            : "https://chatvice.app";
+            : "https://chatvice.app");
         imageUrl = `${baseUrl}${fileUrl}`;
       }
 
@@ -2229,7 +2250,7 @@ ${conversationContext ? `Recent Conversation:\n${conversationContext}` : ""}`
         ],
         max_completion_tokens: 500,
       });
-      void recordOpenAiUsage(merchantId, visionModel, completion.usage);
+      void recordOpenAiUsage(merchantId, completion.model, completion.usage);
 
       return completion.choices[0]?.message?.content || 
         "Saya melihat gambar yang Anda kirim. Bagaimana saya bisa membantu Anda terkait ini?";
@@ -2247,7 +2268,7 @@ ${conversationContext ? `Recent Conversation:\n${conversationContext}` : ""}`
       }
       
       if (ext === "txt" || ext === "csv") {
-        const filePath = path.join(process.cwd(), "uploads", fileUrl.replace("/uploads/", ""));
+        const filePath = path.join(mediaDirectory("uploads"), fileUrl.replace("/uploads/", ""));
         try {
           const stats = await fs.promises.stat(filePath);
           if (stats.size > 100 * 1024) {
@@ -2278,7 +2299,7 @@ ${knowledgeContext || "No specific knowledge base configured yet."}`
             ],
             max_completion_tokens: 500,
           });
-          void recordOpenAiUsage(merchantId, docModel, completion.usage);
+          void recordOpenAiUsage(merchantId, completion.model, completion.usage);
           
           return completion.choices[0]?.message?.content || 
             `Saya sudah menerima dokumen "${filename}". Bagaimana saya bisa membantu Anda?`;
@@ -2334,25 +2355,6 @@ function invalidateCache(keyPrefix: string): void {
   for (const key of responseCache.keys()) {
     if (key.startsWith(keyPrefix)) responseCache.delete(key);
   }
-}
-
-const BASE64_PRESERVE_KEYS = new Set(["iconUrl", "profilePhotoUrl", "photoUrl", "prechatBannerUrl", "agentPhotoUrl"]);
-
-function stripBase64Photos(obj: any, preserveKeys = false): any {
-  if (!obj) return obj;
-  if (Array.isArray(obj)) return obj.map(item => stripBase64Photos(item, preserveKeys));
-  if (typeof obj !== 'object') return obj;
-  const result: any = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === 'string' && value.startsWith('data:image') && value.length > 200) {
-      result[key] = (preserveKeys && BASE64_PRESERVE_KEYS.has(key)) ? value : '';
-    } else if (typeof value === 'object' && value !== null) {
-      result[key] = stripBase64Photos(value, preserveKeys);
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
 }
 
 // Cleanup stale visitor sessions that have no customer messages and haven't pinged in >3 minutes.
@@ -3689,7 +3691,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       
       const domainCheck = await storage.checkDomainAvailability(normalized);
       
-      if (domainCheck.available) {
+      if (domainCheck.available || (req.session?.merchantId && (await storage.getDomainRegistration(normalized))?.merchantId === req.session.merchantId)) {
         return res.json({ 
           available: true, 
           domain: normalized,
@@ -4080,7 +4082,8 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       
       // Check domain availability
       const domainCheck = await storage.checkDomainAvailability(data.officialDomain);
-      if (!domainCheck.available) {
+      const ownRegistration = await storage.getDomainRegistration(data.officialDomain);
+      if (!domainCheck.available && ownRegistration?.merchantId !== merchantId) {
         return res.status(400).json({ 
           error: "This domain is already registered. Please use a different domain or subscribe to access.",
           errorCode: "DOMAIN_ALREADY_REGISTERED",
@@ -4127,20 +4130,35 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         return res.status(400).json({ error: "Please complete domain information first", step: 3 });
       }
       
-      // Register the domain
-      await storage.createDomainRegistration({
-        merchantId: merchant.id,
-        domain: merchant.officialDomain,
-        websiteName: merchant.officialWebsiteName,
-        source: "wizard",
-      });
+      // Reserve and register the same domain once. Registration is not installation validation.
+      const registration = await storage.getDomainRegistration(merchant.officialDomain);
+      if (registration && registration.merchantId !== merchant.id) {
+        return res.status(409).json({ error: "This domain is already registered", step: 3 });
+      }
+      const widgetDomain = merchant.officialDomain.toLowerCase().trim().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+      const existingDomain = await storage.getMerchantDomainByDomain(merchant.id, widgetDomain);
+      if (!existingDomain) {
+        const { limit } = await getEffectiveDomainLimit(merchant);
+        if (limit !== -1 && await storage.countMerchantDomains(merchant.id) >= limit) {
+          return res.status(403).json({ error: "Domain limit reached", step: 3 });
+        }
+        await storage.createMerchantDomain({ merchantId: merchant.id, domain: widgetDomain, isValidated: false });
+      }
+      if (!registration) {
+        await storage.createDomainRegistration({
+          merchantId: merchant.id,
+          domain: merchant.officialDomain,
+          websiteName: merchant.officialWebsiteName,
+          source: "wizard",
+        });
+      }
       
       await storage.updateMerchant(merchantId, {
         profileCompleted: true,
         profileStep: 4,
       });
       
-      res.json({ success: true, message: "Profile completed successfully!" });
+      res.json({ success: true, merchantId: merchant.id, message: "Profile completed successfully!" });
     } catch (error: any) {
       res.status(400).json({ error: error.message || "Failed to complete profile" });
     }
@@ -6863,7 +6881,14 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
         return res.status(404).json({ error: "Merchant not found" });
       }
       
-      const updated = await storage.updateMerchant(merchantId, validConfig);
+      const setupFlags: Record<string, boolean> = {};
+      if (["welcomeDescription", "quickMessageOptions", "prechatBannerUrl", "requirePhone"].some(key => key in validConfig)) {
+        setupFlags.onboardingPrechatConfigured = true;
+      }
+      if (["primaryColor", "widgetTheme", "iconUrl", "iconWidth", "bubblePosition"].some(key => key in validConfig)) {
+        setupFlags.onboardingWidgetInstalled = true;
+      }
+      const updated = await storage.updateMerchant(merchantId, { ...validConfig, ...setupFlags });
       if (!updated) {
         return res.status(404).json({ error: "Merchant not found" });
       }
@@ -7399,13 +7424,7 @@ Sitemap: ${sitemapBaseUrl}/sitemap-index.xml`;
       }
 
       const { GoogleGenAI, Modality } = await import("@google/genai");
-      const ai = new GoogleGenAI({
-        apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-        httpOptions: {
-          apiVersion: "",
-          baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
-        },
-      });
+      const ai = new GoogleGenAI(geminiOptions());
 
       // Extract base64 data from data URL or fetch from URL
       let base64Data: string;
@@ -9359,196 +9378,7 @@ Respond ONLY with valid JSON, no markdown or other formatting.`;
     }
   });
 
-  app.get("/api/knowledge-entries", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const agentId = req.query.agentId as string | undefined;
-      let entries = await storage.getKnowledgeEntries(merchantId, agentId || undefined);
-
-      if (entries.length === 0 && agentId) {
-        const agent = await storage.getAgent(agentId);
-        if (!agent || agent.merchantId !== merchantId) {
-          return res.json([]);
-        }
-        let initialContent = "";
-        const oldKnowledge = await storage.getKnowledgeByAgent(agentId);
-        if (oldKnowledge && oldKnowledge.content && oldKnowledge.content.trim()) {
-          initialContent = oldKnowledge.content;
-        }
-        const id = "ke_" + crypto.randomBytes(8).toString("hex");
-        await storage.createKnowledgeEntry({
-          id,
-          merchantId,
-          agentId,
-          name: "General Knowledge",
-          content: initialContent,
-          isActive: true,
-          isLinked: false,
-          sortOrder: 0,
-        });
-        entries = await storage.getKnowledgeEntries(merchantId, agentId);
-      }
-
-      res.json(entries);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  app.post("/api/knowledge-entries", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const { name, agentId, isLinked } = req.body;
-      if (!name || typeof name !== "string" || !name.trim()) {
-        return res.status(400).json({ error: "Name is required" });
-      }
-      const maxSort = await storage.getMaxSortOrder(merchantId, isLinked ? undefined : (agentId || undefined));
-      const id = "ke_" + crypto.randomBytes(8).toString("hex");
-      const entry = await storage.createKnowledgeEntry({
-        id,
-        merchantId,
-        agentId: isLinked ? null : (agentId || null),
-        name: name.trim(),
-        content: "",
-        isActive: true,
-        isLinked: !!isLinked,
-        sortOrder: maxSort + 1,
-      });
-      res.json(entry);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  app.patch("/api/knowledge-entries/:id", requireMerchant, async (req, res) => {
-    try {
-      const entry = await storage.getKnowledgeEntry(req.params.id);
-      if (!entry || entry.merchantId !== req.session.merchantId) {
-        return res.status(404).json({ error: "Entry not found" });
-      }
-      const updates: any = {};
-      if (req.body.name !== undefined) updates.name = req.body.name;
-      if (req.body.content !== undefined) updates.content = req.body.content;
-      if (req.body.isActive !== undefined) updates.isActive = req.body.isActive;
-      if (req.body.sortOrder !== undefined) updates.sortOrder = req.body.sortOrder;
-      const updated = await storage.updateKnowledgeEntry(req.params.id, updates);
-
-      if (req.body.isActive !== undefined) {
-        const merchantId = entry.merchantId;
-        const allAgents = await storage.getAgents(merchantId);
-        for (const agent of allAgents) {
-          const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
-          await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
-          processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(() => {});
-        }
-      }
-
-      res.json(updated);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  app.post("/api/knowledge-entries/:id/toggle-link", requireMerchant, async (req, res) => {
-    try {
-      const entry = await storage.getKnowledgeEntry(req.params.id);
-      if (!entry || entry.merchantId !== req.session.merchantId) {
-        return res.status(404).json({ error: "Entry not found" });
-      }
-      const newLinked = !entry.isLinked;
-      const { agentId } = req.body;
-      const updated = await storage.updateKnowledgeEntry(req.params.id, {
-        isLinked: newLinked,
-        agentId: newLinked ? null : (agentId || entry.agentId),
-      });
-
-      const merchantId = entry.merchantId;
-      const allAgents = await storage.getAgents(merchantId);
-      for (const agent of allAgents) {
-        const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
-        await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
-        processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(() => {});
-      }
-
-      res.json(updated);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  app.post("/api/knowledge-entries/:id/save", requireMerchant, async (req, res) => {
-    try {
-      const entry = await storage.getKnowledgeEntry(req.params.id);
-      if (!entry || entry.merchantId !== req.session.merchantId) {
-        return res.status(404).json({ error: "Entry not found" });
-      }
-      const merchantId = entry.merchantId;
-      if (req.body.content !== undefined) {
-        await storage.updateKnowledgeEntry(req.params.id, { content: req.body.content });
-      }
-      if (req.body.name !== undefined) {
-        await storage.updateKnowledgeEntry(req.params.id, { name: req.body.name });
-      }
-
-      if (!req.body.skipEmbeddings) {
-        const allAgents = await storage.getAgents(merchantId);
-        for (const agent of allAgents) {
-          const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
-          await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
-          processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(err => {
-            console.error("[knowledge-entries] Error processing embeddings:", err);
-          });
-        }
-      }
-
-      const updated = await storage.getKnowledgeEntry(req.params.id);
-      res.json({ success: true, entry: updated });
-    } catch (error) {
-      console.error("Knowledge entry save error:", error);
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  app.delete("/api/knowledge-entries/:id", requireMerchant, async (req, res) => {
-    try {
-      const entry = await storage.getKnowledgeEntry(req.params.id);
-      if (!entry || entry.merchantId !== req.session.merchantId) {
-        return res.status(404).json({ error: "Entry not found" });
-      }
-      await storage.deleteKnowledgeEntry(req.params.id);
-
-      const merchantId = entry.merchantId;
-      const allAgents = await storage.getAgents(merchantId);
-      for (const agent of allAgents) {
-        const combinedContent = await storage.getAllActiveKnowledgeContent(merchantId, agent.id);
-        await storage.setKnowledge(merchantId, combinedContent || "", agent.id);
-        processKnowledgeBase(merchantId, combinedContent || "", agent.id).catch(() => {});
-      }
-
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  app.post("/api/knowledge-entries/reorder", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const { orders } = req.body;
-      if (!Array.isArray(orders)) {
-        return res.status(400).json({ error: "orders array is required" });
-      }
-      for (const { id, sortOrder } of orders) {
-        const entry = await storage.getKnowledgeEntry(id);
-        if (entry && entry.merchantId === merchantId) {
-          await storage.updateKnowledgeEntry(id, { sortOrder });
-        }
-      }
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
+  registerKnowledgeEntryRoutes(app, { storage, requireMerchant, processKnowledgeBase });
 
   app.post("/api/knowledge-entries/:id/format", requireMerchant, async (req, res) => {
     try {
@@ -10973,7 +10803,7 @@ Rules:
   // "Estimated Savings This Month" widget. Formula:
   //   savingsIdr = aiDeflectedConversations * SUPERVISOR_HANDLE_COST_IDR
   // where aiDeflectedConversations = number of sessions started this month
-  // that the AI handled end-to-end (mode === "AI" / never escalated).
+  // with an ended, answered, error-free AI conversation (excluding visitors).
   app.get("/api/billing/ai-savings", requireMerchantOrSupervisor, async (req, res) => {
     try {
       const merchantId = req.session.merchantId!;
@@ -10985,9 +10815,12 @@ Rules:
         const created = s.createdAt ? new Date(s.createdAt) : null;
         return created && created >= monthStart;
       });
-      const aiDeflected = monthSessions.filter(s => s.mode === "AI").length;
-      const humanHandled = monthSessions.filter(s => s.mode === "HUMAN").length;
-      const totalThisMonth = monthSessions.length;
+      const monthMessages = monthSessions.length ? await db.select().from(messages)
+        .where(inArray(messages.sessionId, monthSessions.map(s => s.id))) : [];
+      const outcomes = getConversationOutcomes(monthSessions, monthMessages);
+      const aiDeflected = outcomes.aiResolved;
+      const humanHandled = outcomes.conversations.filter(s => s.mode === "HUMAN").length;
+      const totalThisMonth = outcomes.conversations.length;
       const grossSavingsIdr = aiDeflected * SUPERVISOR_HANDLE_COST_IDR;
       res.json({
         monthStart: monthStart.toISOString(),
@@ -11045,7 +10878,7 @@ Rules:
       }
       
       // Use effective plan with custom pricing from database
-      const plan = await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId) || await getEffectiveSubscriptionPlan('free');
+      const plan = merchantBillingPlan((await getEffectiveSubscriptionPlan(merchant.subscriptionPlanId) || await getEffectiveSubscriptionPlan('free'))!, merchant);
       const isTrialExpired = merchant.trialEndsAt && new Date(merchant.trialEndsAt) < new Date();
       
       // Check for pending transaction - only fetch external API when refresh=true query param is set
@@ -11114,13 +10947,7 @@ Rules:
         const allMerchantSessions = await storage.getSessionsByMerchant(merchant.id);
         if (merchant.currentPeriodEnd) {
           const periodEnd = new Date(merchant.currentPeriodEnd);
-          const periodStart = new Date(periodEnd);
-          if (merchant.billingInterval === "yearly") {
-            periodStart.setFullYear(periodStart.getFullYear() - 1);
-          } else {
-            // monthly (default)
-            periodStart.setMonth(periodStart.getMonth() - 1);
-          }
+          const periodStart = billingPeriodStart(periodEnd, merchant.billingInterval);
           conversationsUsed = allMerchantSessions.filter(s => {
             if (!s.createdAt) return true; // include if no timestamp
             return new Date(s.createdAt) >= periodStart;
@@ -12388,11 +12215,11 @@ Rules:
       // Always keep the in-process cache warm
       paypalPlanIdCache.set(cacheKey, paypalPlanId);
 
-      const baseUrl = process.env.REPLIT_DEPLOYMENT_ID
+      const baseUrl = getConfiguredAppUrl() || (process.env.REPLIT_DEPLOYMENT_ID
         ? 'https://chatvice.app'
         : process.env.REPLIT_DEV_DOMAIN
           ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-          : 'http://localhost:5000';
+          : 'http://localhost:5000');
 
       const subscription = await createPaypalSubscription(
         paypalPlanId,
@@ -13033,6 +12860,16 @@ Rules:
         feePercent: 3,
       });
     }
+  });
+
+  registerPromoUploadRoutes(app, requireMerchant, async (data, filename, mime) => {
+    const objectStorage = new ObjectStorageService();
+    if (objectStorage.isConfigured()) {
+      try { return await objectStorage.uploadFile(data, filename, mime); }
+      catch { console.warn('Promo object storage unavailable; using persistent database storage'); }
+    }
+    await storage.storeFile({ id: filename, filename, mimeType: mime, size: data.length, content: data.toString('base64'), category: 'welcome_bubble_promo' });
+    return `/db-files/${filename}`;
   });
 
   // POST /api/upload - General file upload endpoint for merchants
@@ -13850,138 +13687,7 @@ Rules:
     }
   });
 
-  // Test endpoint for 12Pay API (development only)
-  app.post("/api/billing/test-twelvepay", async (req, res) => {
-    try {
-      if (!isTwelvePayConfigured()) {
-        return res.status(503).json({ error: "12Pay not configured" });
-      }
-      
-      // Use production URL for callback
-      const callbackUrl = `https://chatvice.app/api/payment/webhook`;
-      const orderId = `TEST_${Date.now()}`;
-      
-      console.log("Testing 12Pay API...");
-      
-      const qrisResult = await createQRISPayment({
-        merchantId: "test",
-        orderId,
-        amount: 10000, // IDR 10,000 for testing
-        customerName: "Test Customer",
-        customerEmail: "test@example.com",
-        description: "Test QRIS Payment",
-        expiryMinutes: 5,
-        callbackUrl,
-      });
-      
-      console.log("12Pay test result:", qrisResult);
-      
-      res.json(qrisResult);
-    } catch (error: any) {
-      console.error("12Pay test error:", error);
-      res.status(500).json({ error: error.message || "Test failed" });
-    }
-  });
-
-  app.post("/api/billing/demo-checkout", requireMerchant, async (req, res) => {
-    try {
-      const { planId, billingInterval } = req.body;
-      const merchantId = req.session.merchantId!;
-      
-      const plan = subscriptionPlans[planId as SubscriptionPlanId];
-      if (!plan) {
-        return res.status(400).json({ error: "Invalid plan" });
-      }
-      
-      const periodEnd = billingInterval === 'annual' 
-        ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      
-      await storage.updateMerchantSubscription(merchantId, {
-        subscriptionPlanId: planId,
-        subscriptionStatus: 'active',
-        paymentSubscriptionId: `demo_sub_${Date.now()}`,
-        currentPeriodEnd: periodEnd,
-        billingInterval: billingInterval,
-        conversationsUsed: 0,
-        conversationsResetAt: new Date(),
-        expiryReminder7dSentAt: null,
-        expiryReminder3dSentAt: null,
-      });
-
-      await storage.clearSessionLimitFallback(merchantId);
-      
-      res.json({ success: true, message: "Demo subscription activated" });
-    } catch (error: any) {
-      console.error("Demo checkout error:", error);
-      res.status(500).json({ error: error.message || "Failed to process demo checkout" });
-    }
-  });
-
-  // Demo Payment - Simulate successful payment for testing
-  app.post("/api/billing/demo-payment", requireMerchant, async (req, res) => {
-    try {
-      const { transactionId } = req.body;
-      const merchantId = req.session.merchantId!;
-      
-      console.log("Demo payment triggered:", { merchantId, transactionId });
-      
-      const merchant = await storage.getMerchant(merchantId);
-      if (!merchant) {
-        return res.status(404).json({ error: "Merchant not found" });
-      }
-      
-      // Extract plan info from transaction ID format: SUB_{merchantId}_{planId}_{interval}_{timestamp}
-      const parts = transactionId.split('_');
-      const planId = parts[2] as SubscriptionPlanId;
-      const billingInterval = parts[3] || 'monthly';
-      
-      console.log("Demo payment processing:", { planId, billingInterval });
-      
-      if (!planId || !subscriptionPlans[planId]) {
-        // If can't parse, just mark as paid without changing plan
-        console.log("Cannot parse plan from transactionId, just acknowledging payment");
-        return res.json({ success: true, message: "Demo payment acknowledged" });
-      }
-      
-      const periodEnd = new Date();
-      if (billingInterval === 'annual') {
-        periodEnd.setFullYear(periodEnd.getFullYear() + 1);
-      } else {
-        periodEnd.setMonth(periodEnd.getMonth() + 1);
-      }
-      
-      // Update subscription directly (bypass external gateway status check)
-      await storage.updateMerchantSubscription(merchantId, {
-        subscriptionPlanId: planId,
-        subscriptionStatus: 'active',
-        paymentSubscriptionId: transactionId,
-        lastInvoiceId: transactionId,
-        currentPeriodEnd: periodEnd,
-        billingInterval,
-        pendingTransactionId: null,
-        conversationsUsed: 0,
-        conversationsResetAt: new Date(),
-        expiryReminder7dSentAt: null,
-        expiryReminder3dSentAt: null,
-      });
-
-      await storage.clearSessionLimitFallback(merchantId);
-      
-      console.log("Demo payment success - subscription updated:", { merchantId, planId, periodEnd });
-      
-      res.json({ 
-        success: true, 
-        message: "Demo payment successful - subscription activated",
-        planId,
-        billingInterval,
-        currentPeriodEnd: periodEnd.toISOString(),
-      });
-    } catch (error: any) {
-      console.error("Demo payment error:", error);
-      res.status(500).json({ error: error.message || "Failed to process demo payment" });
-    }
-  });
+  registerRetiredBillingRoutes(app, { requireMerchant, requireAdmin });
 
   app.get("/api/billing/payment-status/:transactionId", requireMerchant, async (req, res) => {
     try {
@@ -15553,8 +15259,8 @@ Rules:
       
       const { amount, paymentMethodId, paymentDetails, methodType } = req.body;
       
-      if (!amount || amount <= 0) {
-        return res.status(400).json({ error: "Invalid withdrawal amount" });
+      if (!Number.isSafeInteger(amount) || amount <= 0) {
+        return res.status(400).json({ error: "Withdrawal amount must be a positive integer in cents" });
       }
       
       // Get affiliate settings for minimum payout
@@ -16324,6 +16030,8 @@ Rules:
     }
   });
 
+  registerAIProviderRoutes(app, requireAdmin);
+
   app.get("/api/admin/settings", requireAdmin, async (req, res) => {
     try {
       const settings = await storage.getAllPlatformSettings();
@@ -16339,6 +16047,7 @@ Rules:
       if (!key) {
         return res.status(400).json({ error: "Missing key" });
       }
+      if (key === AI_CONFIG_KEY) return res.status(400).json({ error: "Use AI provider settings" });
       await storage.setPlatformSetting(key, value || "");
       res.json({ success: true });
     } catch (error) {
@@ -16622,7 +16331,7 @@ Rules:
       
       // Get payment settings from platform settings
       const gatewayName = await storage.getPlatformSetting("payment_gateway_name") || "12Pay";
-      const webhookUrl = `${process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://chatvice.app"}/api/payment/webhook`;
+      const webhookUrl = `${getConfiguredAppUrl() || (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}` : "https://chatvice.app")}/api/payment/webhook`;
       const apiBaseUrl = dbConfig.apiBaseUrl || dbConfig.baseUrl || 'https://api.12pay.id';
       
       res.json({
@@ -17256,6 +16965,7 @@ Rules:
 
   app.get("/api/platform/settings/:key", async (req, res) => {
     try {
+      if (req.params.key === AI_CONFIG_KEY) return res.status(404).json({ error: "Not found" });
       const value = await storage.getPlatformSetting(req.params.key);
       res.json({ value });
     } catch (error) {
@@ -17419,6 +17129,7 @@ Rules:
       if (!key) {
         return res.status(400).json({ error: "Key is required" });
       }
+      if (key === AI_CONFIG_KEY) return res.status(400).json({ error: "Use AI provider settings" });
       await storage.setPlatformSetting(key, value);
       invalidateCache("platform-settings");
       
@@ -17442,6 +17153,7 @@ Rules:
       if (!settings || typeof settings !== 'object') {
         return res.status(400).json({ error: "Settings object is required" });
       }
+      if (Object.hasOwn(settings, AI_CONFIG_KEY)) return res.status(400).json({ error: "Use AI provider settings" });
       for (const [key, value] of Object.entries(settings)) {
         await storage.setPlatformSetting(key, String(value));
       }
@@ -18719,6 +18431,8 @@ Rules:
   var socialIconSize = isMobile ? 26 : 26;
   var socialSvgSize = isMobile ? 13 : 13;
   
+  ${welcomeBubblePromoScript}
+
   function createWelcomeBubble(config, merchantConfig) {
     bubbleConfig = config;
     
@@ -18778,18 +18492,8 @@ Rules:
     // Full content wrapper (visible by default)
     contentHtml += '<div id="chatvice-full-content">';
     
-    // Promo image
-    if (config.promoImageEnabled && config.promoImageUrl) {
-      var promoUrl = config.promoImageUrl;
-      if (promoUrl && !promoUrl.startsWith("http") && !promoUrl.startsWith("data:")) {
-        promoUrl = baseUrl + promoUrl;
-      }
-      if (promoUrl.match(/\.mp4/i)) {
-        contentHtml += '<div style="width:100%;"><video src="' + promoUrl + '" style="width:100%;height:auto;display:block;" autoplay loop muted playsinline></video></div>';
-      } else {
-        contentHtml += '<div style="width:100%;"><img src="' + promoUrl + '" style="width:100%;height:auto;display:block;" onerror="this.style.display=\\'none\\'" /></div>';
-      }
-    }
+    // Promo media is built with DOM properties after the content is mounted.
+    contentHtml += '<div id="chatvice-promo-media"></div>';
     
     // Title row with minimize/close buttons
     contentHtml += '<div style="padding:' + basePadding + 'px;padding-bottom:0;">';
@@ -18811,7 +18515,7 @@ Rules:
     contentHtml += '<div style="padding:0 ' + basePadding + 'px ' + basePadding + 'px ' + basePadding + 'px;">';
     
     // Main CTA button
-    contentHtml += '<button id="chatvice-cta-btn" style="width:100%;padding:' + buttonPadding + ';background:' + (config.buttonColor || "#7c3aed") + ';color:' + (config.buttonTextColor || "#fff") + ';border:none;border-radius:6px;font-size:' + buttonFontSize + 'px;font-weight:500;cursor:pointer;">' + (config.buttonLabel || "Chat with us") + '</button>';
+    contentHtml += '<button type="button" id="chatvice-cta-btn" style="width:100%;padding:' + buttonPadding + ';background:' + (config.buttonColor || "#7c3aed") + ';color:' + (config.buttonTextColor || "#fff") + ';border:none;border-radius:9999px;font-size:' + buttonFontSize + 'px;font-weight:500;cursor:pointer;">' + (config.buttonLabel || "Chat with us") + '</button>';
     
     // Action buttons
     if (config.actionButtons && config.actionButtons.length > 0) {
@@ -18859,10 +18563,12 @@ Rules:
     welcomeBubbleContent.innerHTML = contentHtml;
     welcomeBubble.appendChild(welcomeBubbleContent);
     
-    // Attach event handlers
+    function openBubbleChat() { openWidget(); hideWelcomeBubble(); }
+    renderWelcomePromo(welcomeBubbleContent.querySelector("#chatvice-promo-media"), config, baseUrl, openBubbleChat);
+    // The promo and main CTA share exactly the same chat-opening behavior.
     var ctaBtn = welcomeBubbleContent.querySelector("#chatvice-cta-btn");
     if (ctaBtn) {
-      ctaBtn.onclick = function(e) { e.stopPropagation(); openWidget(); hideWelcomeBubble(); };
+      ctaBtn.onclick = function(e) { e.stopPropagation(); openBubbleChat(); };
     }
     
     var minimizeBtn = welcomeBubbleContent.querySelector("#chatvice-minimize-btn");
@@ -20251,7 +19957,10 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         });
       }
       
-      const { name, description, agentType, returnToAiMessage } = req.body;
+      const { name, description, agentType, returnToAiMessage, systemPrompt, photoUrl } = req.body;
+      if (systemPrompt !== undefined && typeof systemPrompt !== "string") {
+        return res.status(400).json({ error: "System prompt must be text" });
+      }
       
       // Default prompts based on agent type
       const defaultPrompts = {
@@ -20264,7 +19973,8 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
         name,
         description: description || "",
         agentType: agentType || "support",
-        systemPrompt: defaultPrompts[agentType as keyof typeof defaultPrompts] || defaultPrompts.support,
+        systemPrompt: systemPrompt?.trim() || defaultPrompts[agentType as keyof typeof defaultPrompts] || defaultPrompts.support,
+        ...(typeof photoUrl === "string" ? { photoUrl } : {}),
         ...(returnToAiMessage ? { returnToAiMessage } : {}),
       });
       
@@ -20345,6 +20055,7 @@ Use buttons for choices and links when mentioning pages. Be helpful, friendly, a
       }
       
       const updated = await storage.updateAgent(req.params.id, updateData);
+      await storage.updateMerchant(merchantId, { onboardingWidgetInstalled: true });
       
       const merchant = await storage.getMerchant(merchantId);
       if (merchant && merchant.activeAgentId === req.params.id && updated) {
@@ -23596,7 +23307,7 @@ ${log.extractedKnowledge}` : ''}
   // Start blast scheduler — checks every 60s for due scheduled blasts
   // Uses atomic claim: UPDATE status='sending' WHERE status='scheduled' AND scheduled_for<=now
   // to prevent duplicate execution across restarts or overlapping intervals.
-  setInterval(async () => {
+  if (backgroundJobsEnabled()) setInterval(async () => {
     try {
       const now = new Date();
       // Find due campaigns without claiming yet
@@ -24172,9 +23883,7 @@ ${log.extractedKnowledge}` : ''}
         : "N/A";
 
       // ── Real resolution / satisfaction from session data ──
-      const totalSess = merchantSessions.length;
-      const aiResolved = merchantSessions.filter(s => s.mode === "AI").length;
-      const resolutionRate = totalSess > 0 ? Math.round((aiResolved / totalSess) * 100) : 0;
+      const resolutionRate = basicAnalytics.aiResolutionRate;
 
       res.json({
         ...basicAnalytics,
@@ -24183,7 +23892,7 @@ ${log.extractedKnowledge}` : ''}
         avgResponseTimeAI,
         avgResponseTimeHuman: "N/A",
         resolutionRate,
-        satisfactionRate: basicAnalytics.aiResolutionRate ?? resolutionRate,
+        satisfactionRate: basicAnalytics.satisfactionRate,
       });
     } catch (error) {
       console.error("Error fetching detailed analytics:", error);
@@ -24490,189 +24199,7 @@ ${log.extractedKnowledge}` : ''}
     }
   });
 
-  // ============== WORK SCHEDULER ROUTES ==============
-
-  // Get merchant work timezone
-  app.get("/api/work-scheduler/timezone", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const merchant = await storage.getMerchant(merchantId);
-      res.json({ timezone: merchant?.workTimezone || "Asia/Jakarta" });
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Update merchant work timezone
-  app.patch("/api/work-scheduler/timezone", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const { timezone } = req.body;
-      if (!timezone || typeof timezone !== "string") {
-        return res.status(400).json({ error: "Invalid timezone" });
-      }
-      await storage.updateMerchant(merchantId, { workTimezone: timezone });
-      res.json({ success: true, timezone });
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-  
-  // Get all shifts for merchant
-  app.get("/api/work-scheduler/shifts", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const shifts = await storage.getWorkShifts(merchantId);
-      res.json(shifts);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Create shift
-  app.post("/api/work-scheduler/shifts", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const { name, dayType, startTime, endTime, isNightShift } = req.body;
-      
-      if (!name || !startTime || !endTime) {
-        return res.status(400).json({ error: "Name, start time, and end time are required" });
-      }
-      
-      const shift = await storage.createWorkShift({
-        merchantId,
-        name,
-        dayType: dayType || "weekday",
-        startTime,
-        endTime,
-        isNightShift: isNightShift || false,
-        isActive: true,
-      });
-      
-      res.json(shift);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Update shift
-  app.patch("/api/work-scheduler/shifts/:id", requireMerchant, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const shift = await storage.updateWorkShift(id, req.body);
-      if (!shift) {
-        return res.status(404).json({ error: "Shift not found" });
-      }
-      res.json(shift);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Delete shift
-  app.delete("/api/work-scheduler/shifts/:id", requireMerchant, async (req, res) => {
-    try {
-      const { id } = req.params;
-      await storage.deleteWorkShift(id);
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Get shift assignments
-  app.get("/api/work-scheduler/assignments", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const assignments = await storage.getShiftAssignments(merchantId);
-      res.json(assignments);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Create shift assignment
-  app.post("/api/work-scheduler/assignments", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const { shiftId, assigneeId, assigneeType } = req.body;
-      
-      if (!shiftId || !assigneeId || !assigneeType) {
-        return res.status(400).json({ error: "Shift ID, assignee ID, and assignee type are required" });
-      }
-      
-      const assignment = await storage.createShiftAssignment({
-        merchantId,
-        shiftId,
-        assigneeId,
-        assigneeType,
-      });
-      
-      res.json(assignment);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Delete shift assignment
-  app.delete("/api/work-scheduler/assignments/:id", requireMerchant, async (req, res) => {
-    try {
-      const { id } = req.params;
-      await storage.deleteShiftAssignment(id);
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Get work reports
-  app.get("/api/work-scheduler/reports", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const reports = await storage.getWorkReports(merchantId);
-      res.json(reports);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Create work report
-  app.post("/api/work-scheduler/reports", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const { assigneeId, assigneeType, date, clockIn, clockOut, hoursWorked, minutesWorked, status } = req.body;
-      
-      const report = await storage.createWorkReport({
-        merchantId,
-        assigneeId,
-        assigneeType,
-        date: new Date(date),
-        clockIn: clockIn ? new Date(clockIn) : null,
-        clockOut: clockOut ? new Date(clockOut) : null,
-        hoursWorked: hoursWorked || 0,
-        minutesWorked: minutesWorked || 0,
-        status: status || "pending",
-      });
-      
-      res.json(report);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Update work report
-  app.patch("/api/work-scheduler/reports/:id", requireMerchant, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const report = await storage.updateWorkReport(id, req.body);
-      if (!report) {
-        return res.status(404).json({ error: "Report not found" });
-      }
-      res.json(report);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
+  registerWorkSchedulerRoutes(app, { storage, requireMerchant });
 
   // ============== QUICK REPLIES ROUTES ==============
   
@@ -25748,51 +25275,7 @@ ${pageHtml.substring(0, 50000)}`
 
   // ============== WELCOME BUBBLE ROUTES ==============
   
-  app.get("/api/welcome-bubble", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const bubble = await storage.getWelcomeBubble(merchantId);
-      res.json(bubble || {
-        headline: "Need help?",
-        message: "I can guide you through our features.",
-        buttonLabel: "Chat with us",
-        buttonColor: "#7c3aed",
-        promoImageEnabled: false,
-        promoImageUrl: "",
-        isEnabled: true,
-        actionButtons: [],
-        socialIconsEnabled: false,
-      });
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  app.put("/api/welcome-bubble", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const bubble = await storage.upsertWelcomeBubble(merchantId, req.body);
-      res.json(bubble);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Public endpoint for widget
-  app.get("/api/widget/:merchantId/welcome-bubble", async (req, res) => {
-    try {
-      const merchant = await resolveMerchant(req.params.merchantId);
-      if (!merchant) return res.json({ isEnabled: false });
-      const merchantId = merchant.id;
-      const bubble = await storage.getWelcomeBubble(merchantId);
-      if (!bubble || !bubble.isEnabled) {
-        return res.json({ isEnabled: false });
-      }
-      res.json(bubble);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
+  registerWelcomeBubbleRoutes(app, { storage, requireMerchant, resolveMerchant });
 
   // ============== NOTIFICATION SETTINGS ROUTES ==============
   
@@ -26510,7 +25993,8 @@ Your Telegram integration is working correctly!`;
       
       // Generate JWT token for payment flow with proper expiration
       const jwt = await import("jsonwebtoken");
-      const JWT_SECRET = process.env.JWT_SECRET || "chatvice_topup_secret_key_2024";
+      const JWT_SECRET = getTopupJwtSecret();
+      if (!JWT_SECRET) return res.status(503).json({ error: "Top-up temporarily unavailable" });
       
       const payload = {
         type: "topup_session", // Token type identifier
@@ -26523,7 +26007,7 @@ Your Telegram integration is working correctly!`;
       };
       
       // Sign with expiration (30 minutes)
-      const token = jwt.default.sign(payload, JWT_SECRET, { expiresIn: "30m" });
+      const token = jwt.default.sign(payload, JWT_SECRET, { expiresIn: "30m", algorithm: "HS256" });
       
       // Generate redirect URL - using same domain for now (will be pay.chatvice.com later)
       const baseUrl = process.env.PAYMENT_BASE_URL || `https://${req.get("host")}`;
@@ -26551,10 +26035,11 @@ Your Telegram integration is working correctly!`;
       }
       
       const jwt = await import("jsonwebtoken");
-      const JWT_SECRET = process.env.JWT_SECRET || "chatvice_topup_secret_key_2024";
+      const JWT_SECRET = getTopupJwtSecret();
+      if (!JWT_SECRET) return res.status(503).json({ error: "Top-up temporarily unavailable" });
       
       try {
-        const decoded = jwt.default.verify(token, JWT_SECRET) as {
+        const decoded = jwt.default.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as {
           type?: string;
           merchant_id: string;
           site_id: string;
@@ -26647,7 +26132,8 @@ Your Telegram integration is working correctly!`;
       }
       
       const jwt = await import("jsonwebtoken");
-      const JWT_SECRET = process.env.JWT_SECRET || "chatvice_topup_secret_key_2024";
+      const JWT_SECRET = getTopupJwtSecret();
+      if (!JWT_SECRET) return res.status(503).json({ error: "Top-up temporarily unavailable" });
       
       let decoded: {
         type?: string;
@@ -26660,7 +26146,7 @@ Your Telegram integration is working correctly!`;
       };
       
       try {
-        decoded = jwt.default.verify(token, JWT_SECRET) as typeof decoded;
+        decoded = jwt.default.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as typeof decoded;
       } catch (jwtError) {
         return res.status(401).json({ error: "Invalid or expired token" });
       }
@@ -32634,18 +32120,18 @@ Please create a comprehensive help center article that would be useful for custo
   });
 
   // ─── Auto-register Telegram webhooks on startup for configured merchants ───
-  (async () => {
+  if (backgroundJobsEnabled()) (async () => {
     try {
       const allMerchants = await storage.getAllMerchants();
       for (const merchant of allMerchants) {
         try {
           const ns = await storage.getNotificationSettings(merchant.id);
           if (ns?.telegramEnabled && ns?.telegramBotToken) {
-            const baseUrl = process.env.REPLIT_DEV_DOMAIN
+            const baseUrl = getConfiguredAppUrl() || (process.env.REPLIT_DEV_DOMAIN
               ? `https://${process.env.REPLIT_DEV_DOMAIN}`
               : process.env.REPLIT_DOMAINS
                 ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
-                : null;
+                : null);
             if (baseUrl) {
               const webhookUrl = `${baseUrl}/api/telegram/webhook/${merchant.id}`;
               const secretToken = generateWebhookSecret(merchant.id);
@@ -32669,7 +32155,7 @@ Please create a comprehensive help center article that would be useful for custo
     try {
       const filename = EXPORT_TOKENS[req.params.token];
       if (!filename) return res.status(404).json({ error: "Invalid or expired token" });
-      const filePath = path.join(process.cwd(), "exports", filename);
+      const filePath = path.join(mediaDirectory("exports"), filename);
       if (!fs.existsSync(filePath)) return res.status(404).json({ error: "File not found" });
       res.download(filePath, filename, (err) => {
         if (err && !res.headersSent) res.status(500).json({ error: "Download error" });

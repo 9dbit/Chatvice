@@ -1,11 +1,8 @@
-import OpenAI from "openai";
+import { getAIConfig, embeddingClient } from "./aiProvider";
 import { storage } from "./storage";
 import type { KnowledgeChunk } from "@shared/schema";
 
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || undefined,
-});
+
 
 let embeddingsSupported: boolean | null = null;
 
@@ -39,12 +36,12 @@ function splitIntoChunks(content: string, maxChunkSize: number = 500): string[] 
 }
 
 async function generateEmbedding(text: string): Promise<number[] | null> {
-  if (embeddingsSupported === false) {
+  if ((await getAIConfig()).knowledgeSearch === "keyword" || embeddingsSupported === false) {
     return null;
   }
   
   try {
-    const response = await openai.embeddings.create({
+    const response = await (await embeddingClient()).embeddings.create({
       model: "text-embedding-3-small",
       input: text,
     });

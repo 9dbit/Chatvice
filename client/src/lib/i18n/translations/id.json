@@ -1416,7 +1416,7 @@
       "saveFailed": "Penyimpanan gagal",
       "toast": {
         "desktopAlertsWithSoundDesc": "Notifikasi desktop dengan suara diaktifkan.",
-        "receiveChatNotificationsViaDesc": "Terima notifikasi obrolan melalui browser.",
+        "receiveChatNotificationsViaDesc": "Terima notifikasi obrolan melalui bot Telegram.",
         "receiveEscalationNotificationsAndDesc": "Terima notifikasi eskalasi dan peringatan.",
         "connectYourWhatsappBusinessDesc": "Hubungkan akun WhatsApp Business Anda.",
         "manageFacebookMessengerConversationsDesc": "Kelola percakapan Facebook Messenger.",
@@ -2113,7 +2113,7 @@
         "cardTitle": "Pengaturan Koneksi",
         "cardDesc": "Atur kredensial dan parameter dasar koneksi panel Anda.",
         "enable": "Aktifkan koneksi",
-        "monitor": "Monitor kesehatan otomatis (cek tiap 5 menit)",
+        "monitor": "Monitor kesehatan otomatis (cek tiap 60 detik)",
         "name": "Nama",
         "baseUrl": "URL Dasar",
         "authHeader": "Nama header autentikasi",

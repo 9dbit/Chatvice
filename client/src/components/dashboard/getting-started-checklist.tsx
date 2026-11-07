@@ -93,16 +93,16 @@ export function GettingStartedChecklist({
   const hasAgent = (agents ?? []).length > 0;
   const hasValidatedDomain = (domainsData?.domains || []).some((d) => d.isValidated);
   const hasKnowledge =
-    (sources || []).some((s) => s.isActive !== false) ||
-    (knowledgeEntries || []).some((e) => e.isActive !== false);
+    (sources || []).some((s) => s.isActive !== false && !!s.content?.trim()) ||
+    (knowledgeEntries || []).some((e) => e.isActive !== false && !!e.content?.trim());
 
   const completionMap: Record<OnboardingCheckpointId, boolean> = {
     agent: hasAgent,
     "widget-settings": merchant?.onboardingWidgetInstalled ?? false,
     prechat: merchant?.onboardingPrechatConfigured ?? false,
-    domain: hasValidatedDomain || (merchant?.onboardingDomainRegistered ?? false),
+    domain: (domainsData?.domains || []).length > 0,
     knowledge: hasKnowledge || (merchant?.onboardingKnowledgeConfigured ?? false),
-    deploy: hasReceivedMessage || (merchant?.onboardingDeployed ?? false),
+    deploy: (hasValidatedDomain && hasReceivedMessage) || (merchant?.onboardingDeployed ?? false),
   };
 
   const totalPhases = onboardingPhases.length;
@@ -133,19 +133,6 @@ export function GettingStartedChecklist({
       queryClient.invalidateQueries({ queryKey: ["/api/merchant/profile"] });
     },
   });
-
-  const autoOpenedRef = useRef(false);
-  useEffect(() => {
-    if (autoOpenedRef.current) return;
-    if (!merchant || dismissed || collapsed) return;
-    const firstUnseen = onboardingPhases.find(
-      (p) => !completionMap[p.id] && !tutorialsViewed.includes(p.id),
-    );
-    if (firstUnseen) {
-      autoOpenedRef.current = true;
-      setTutorialPhase(firstUnseen);
-    }
-  }, [merchant, dismissed, collapsed, tutorialsViewed.length]);
 
   function closeTutorial() {
     if (tutorialPhase && !tutorialsViewed.includes(tutorialPhase.id)) {
@@ -261,11 +248,7 @@ export function GettingStartedChecklist({
                   return (
                     <div
                       key={phase.id}
-                      className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
-                        completed
-                          ? "bg-muted/30 border-border/40 opacity-70"
-                          : "bg-muted/40 border-border/50"
-                      }`}
+                      className={`grid grid-cols-[2rem_minmax(0,1fr)] sm:grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-3 p-3 rounded-2xl transition-colors ${completed ? "bg-muted opacity-70" : "bg-muted"}`}
                       data-testid={`checklist-step-${phase.id}`}
                     >
                       <div
@@ -307,7 +290,7 @@ export function GettingStartedChecklist({
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-7 px-2 text-xs text-primary gap-1 font-normal"
+                              className="h-auto min-h-7 px-2 py-1 text-xs text-primary gap-1 font-normal whitespace-normal text-left"
                               onClick={() => navigate(phase.deepLinkHref)}
                               data-testid={`button-deeplink-${phase.id}`}
                             >
@@ -321,7 +304,7 @@ export function GettingStartedChecklist({
                         <Button
                           size="sm"
                           variant="outline"
-                          className="flex-shrink-0 gap-1.5 text-xs"
+                          className="col-start-2 sm:col-start-3 sm:row-start-1 justify-self-start gap-1.5 text-xs"
                           onClick={() => completeCheckpointMutation.mutate(phase.id)}
                           disabled={completeCheckpointMutation.isPending}
                           data-testid={`button-mark-done-${phase.id}`}

@@ -475,8 +475,8 @@ export const registerMerchantSchema = z.object({
     .regex(/[a-z]/, "Password must contain at least one lowercase letter")
     .regex(/[0-9]/, "Password must contain at least one number"),
   confirmPassword: z.string(),
-  businessCategory: z.string().min(1, "Please select a business category"),
-  staffCount: z.string().min(1, "Please select staff count"),
+  businessCategory: z.string().max(100).optional(),
+  staffCount: z.string().max(30).optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -1274,6 +1274,8 @@ export const welcomeBubbles = pgTable("welcome_bubbles", {
   buttonTextColor: text("button_text_color").default("#ffffff"),
   promoImageEnabled: boolean("promo_image_enabled").default(false),
   promoImageUrl: text("promo_image_url").default(""),
+  promoClickAction: text("promo_click_action").notNull().default("none"),
+  promoClickUrl: text("promo_click_url").notNull().default(""),
   reappearInterval: integer("reappear_interval").default(60),
   isEnabled: boolean("is_enabled").default(true),
   actionButtons: jsonb("action_buttons").default([]), // Array of {label: string, url: string}, max 5

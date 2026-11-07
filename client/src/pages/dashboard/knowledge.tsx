@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, ChevronRight, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock, Upload, CheckCircle2, Type, Table2, Zap, Pencil, Link2, Unlink, Power, Brain, TriangleAlert } from "lucide-react";
+import { Database, Save, Globe, Loader2, Plus, Bot, Trash2, ExternalLink, Check, X, RefreshCw, Copy, ChevronDown, ChevronRight, Sparkles, HelpCircle, Edit2, GripVertical, MessageSquare, Lock, Crown, BookOpen, Eye, Search, Filter, FileText, Tag, Clock, Upload, CheckCircle2, Type, Table2, Zap, Pencil, Link2, Unlink, Power, Brain, TriangleAlert, Maximize2 } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, rectSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -229,10 +229,11 @@ interface SortableEntryCardProps {
   onCheckClarity: () => void;
 }
 
-function SortableEntryCard({
+export function SortableEntryCard({
   entry, localContent, localName, isSaving, currentStage, hasChanges,
   onNameChange, onContentChange, onSave, onDelete, onToggleActive, onToggleLink, onCheckClarity,
 }: SortableEntryCardProps) {
+  const [editorOpen, setEditorOpen] = useState(false);
   const {
     attributes,
     listeners,
@@ -253,99 +254,93 @@ function SortableEntryCard({
     <div ref={setNodeRef} style={style}>
       <Collapsible defaultOpen={true} asChild>
         <Card className={`transition-opacity ${!entry.isActive ? "opacity-60" : ""} flex flex-col`} data-testid={`card-entry-${entry.id}`}>
-          <CollapsibleTrigger asChild>
-            <CardHeader className="pb-2 cursor-pointer group px-3 pt-3">
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <div
-                    {...attributes}
-                    {...listeners}
-                    className="cursor-grab active:cursor-grabbing shrink-0 touch-none"
-                    onClick={(e) => e.stopPropagation()}
-                    data-testid={`drag-handle-${entry.id}`}
-                  >
-                    <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
-                  </div>
-                  <ChevronRight className="w-3.5 h-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90 sm:hidden" />
-                  <Input
-                    value={localName}
-                    onChange={(e) => onNameChange(e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="font-medium border-none shadow-none focus-visible:ring-1 h-7 text-xs sm:text-sm"
-                    data-testid={`input-entry-name-${entry.id}`}
-                  />
-                </div>
-                <div className="flex items-center justify-between gap-1" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center gap-1 flex-wrap">
-                    <Badge variant="outline" className="text-[9px] gap-0.5 px-1.5 py-0 text-primary border-primary/30">
-                      <Database className="w-2.5 h-2.5" />
-                      Training Data
-                    </Badge>
-                    {entry.isLinked && (
-                      <Badge variant="secondary" className="text-[9px] gap-0.5 px-1.5 py-0">
-                        <Link2 className="w-2.5 h-2.5" />
-                        All Agents
-                      </Badge>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={onToggleLink}
-                      title={entry.isLinked ? "Unlink from all agents (make agent-specific)" : "Link to all agents (share across all)"}
-                      data-testid={`button-toggle-link-${entry.id}`}
-                    >
-                      {entry.isLinked ? <Link2 className="w-3 h-3 text-primary" /> : <Unlink className="w-3 h-3 text-muted-foreground" />}
-                    </Button>
-                    <div className="flex items-center gap-1">
-                      <Switch
-                        checked={entry.isActive}
-                        onCheckedChange={onToggleActive}
-                        className="h-4 w-7 [&>span]:h-3 [&>span]:w-3 [&>span]:data-[state=checked]:translate-x-3"
-                        data-testid={`switch-entry-active-${entry.id}`}
-                      />
-                      <span className="text-[10px] text-muted-foreground">{entry.isActive ? "Active" : "Off"}</span>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={(e) => { e.stopPropagation(); onCheckClarity(); }}
-                    title="Check clarity of this entry"
-                    data-testid={`button-check-clarity-${entry.id}`}
-                  >
-                    <Sparkles className="w-3 h-3 text-muted-foreground" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={onDelete}
-                    data-testid={`button-delete-entry-${entry.id}`}
-                  >
-                    <Trash2 className="w-3 h-3 text-muted-foreground" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-          </CollapsibleTrigger>
+          <CardHeader className="space-y-3 p-4 pb-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Button
+                type="button" variant="ghost" size="icon"
+                {...attributes} {...listeners}
+                aria-label={`Reorder ${localName}`}
+                className="h-8 w-6 shrink-0 cursor-grab active:cursor-grabbing touch-none rounded-full"
+                data-testid={`drag-handle-${entry.id}`}
+              >
+                <GripVertical className="text-muted-foreground" />
+              </Button>
+              <Input
+                value={localName}
+                onChange={(e) => onNameChange(e.target.value)}
+                aria-label="Knowledge entry name"
+                className="min-w-0 h-10 font-medium border-none shadow-none focus-visible:ring-1 text-sm"
+                data-testid={`input-entry-name-${entry.id}`}
+              />
+              <CollapsibleTrigger asChild>
+                <Button type="button" variant="ghost" size="icon" className="group h-8 w-8 shrink-0 rounded-full" aria-label={`Toggle ${localName}`}>
+                  <ChevronDown className="text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90" />
+                </Button>
+              </CollapsibleTrigger>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+                <Database className="w-3.5 h-3.5" /> Training Data
+              </span>
+              <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                <Switch
+                  checked={entry.isActive === true}
+                  onCheckedChange={onToggleActive}
+                  aria-label={`Enable ${localName}`}
+                  className="h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
+                  data-testid={`switch-entry-active-${entry.id}`}
+                />
+                {entry.isActive ? "Active" : "Off"}
+              </label>
+            </div>
+          </CardHeader>
           <CollapsibleContent>
-            <CardContent className="pt-0">
+            <CardContent className="px-4 pb-4 pt-0 space-y-3">
+              <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.25rem] items-center gap-2" role="group" aria-label="Knowledge entry actions">
+                <Button
+                  type="button" variant="secondary" size="sm"
+                  className="h-9 rounded-full border-0 px-3"
+                  onClick={onToggleLink} aria-pressed={!!entry.isLinked}
+                  title={entry.isLinked ? "Unlink from all agents (make agent-specific)" : "Link to all agents (share across all)"}
+                  data-testid={`button-toggle-link-${entry.id}`}
+                >
+                  {entry.isLinked ? <Link2 className="text-primary" /> : <Unlink />}
+                  {entry.isLinked ? "Shared" : "Share"}
+                </Button>
+                <Button
+                  type="button" variant="secondary" size="sm"
+                  className="h-9 rounded-full border-0 px-3"
+                  onClick={onCheckClarity} title="Check clarity of this entry"
+                  data-testid={`button-check-clarity-${entry.id}`}
+                >
+                  <Sparkles /> Clarity
+                </Button>
+                <Button
+                  type="button" variant="secondary" size="icon"
+                  className="ml-auto h-9 w-9 shrink-0 rounded-full border-0 text-muted-foreground hover:text-destructive"
+                  onClick={onDelete} aria-label={`Delete ${localName}`} title="Delete entry"
+                  data-testid={`button-delete-entry-${entry.id}`}
+                >
+                  <Trash2 />
+                </Button>
+              </div>
               <Textarea
                 placeholder="Enter knowledge content for this entry..."
                 value={localContent}
                 onChange={(e) => onContentChange(e.target.value)}
-                className="min-h-[300px] resize-none text-xs sm:text-sm"
+                rows={14}
+                style={{ minHeight: 340, resize: "vertical" }}
+                className="text-sm leading-relaxed"
                 disabled={!entry.isActive || isSaving}
                 data-testid={`textarea-entry-content-${entry.id}`}
               />
-              <div className="flex items-center justify-between mt-2">
-                <p className="text-xs text-muted-foreground">
-                  {localContent.length} characters
-                </p>
+              <p className="text-xs text-muted-foreground">{localContent.length} characters</p>
+              <div className="flex items-center justify-between gap-3">
+                <Button type="button" variant="secondary" size="sm" className="h-9 rounded-full border-0 px-3" onClick={() => setEditorOpen(true)} aria-label={`Expand editor for ${localName}`} data-testid={`button-expand-entry-${entry.id}`}>
+                  <Maximize2 /> View larger
+                </Button>
                 <Button
-                  size="sm"
+                  type="button" size="sm" className="h-9 min-w-24 rounded-full border-0 px-4"
                   onClick={onSave}
                   disabled={isSaving || !hasChanges}
                   data-testid={`button-save-entry-${entry.id}`}
@@ -355,6 +350,32 @@ function SortableEntryCard({
               </div>
             </CardContent>
           </CollapsibleContent>
+          <Dialog open={editorOpen} onOpenChange={setEditorOpen}>
+            <DialogContent className="flex flex-col gap-4" style={{ width: "96vw", maxWidth: "80rem", height: "90vh", maxHeight: "60rem" }}>
+              <DialogHeader>
+                <DialogTitle>Edit knowledge: {localName}</DialogTitle>
+                <DialogDescription>Changes stay in this entry until you save them.</DialogDescription>
+              </DialogHeader>
+              <Textarea
+                aria-label={`Knowledge content for ${localName}`}
+                value={localContent}
+                onChange={(e) => onContentChange(e.target.value)}
+                disabled={!entry.isActive || isSaving}
+                className="min-h-0 flex-1 text-sm leading-relaxed"
+                style={{ resize: "none" }}
+                data-testid={`textarea-expanded-entry-${entry.id}`}
+              />
+              <DialogFooter className="flex-row items-center justify-between gap-3">
+                <span className="text-xs text-muted-foreground">{localContent.length} characters</span>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={() => setEditorOpen(false)}>Close</Button>
+                  <Button type="button" onClick={onSave} disabled={isSaving || !hasChanges || !entry.isActive}>
+                    <SaveButtonContent stage={currentStage} />
+                  </Button>
+                </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </Card>
       </Collapsible>
     </div>
@@ -375,7 +396,10 @@ export default function KnowledgePage() {
   const [newAnswer, setNewAnswer] = useState("");
   
   // Help Articles state
-  const [activeTab, setActiveTab] = useState("training");
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return tab === "articles" || tab === "sources" ? tab : "training";
+  });
   const [articleSearchQuery, setArticleSearchQuery] = useState("");
   const [articleStatusFilter, setArticleStatusFilter] = useState<string>("all");
   

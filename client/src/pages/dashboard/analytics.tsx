@@ -294,29 +294,21 @@ export default function AnalyticsPage() {
       title: t("dashboard.analytics.totalSessions"),
       value: analytics?.totalSessions || 0,
       icon: MessageSquare,
-      change: "+12%",
-      trend: "up",
     },
     {
       title: t("dashboard.analytics.aiResolutionRate"),
       value: `${analytics?.aiResolutionRate || 0}%`,
       icon: Bot,
-      change: "+5%",
-      trend: "up",
     },
     {
       title: t("dashboard.analytics.toast.avgResponseTimeAi"),
-      value: analytics?.avgResponseTimeAI || "1.2s",
+      value: analytics?.avgResponseTimeAI || "N/A",
       icon: Clock,
-      change: "-0.3s",
-      trend: "up",
     },
     {
-      title: t("dashboard.analytics.satisfactionRate"),
-      value: `${analytics?.satisfactionRate || 0}%`,
+      title: t("dashboard.overview.activeSessions"),
+      value: analytics?.activeSessions ?? 0,
       icon: TrendingUp,
-      change: "+2%",
-      trend: "up",
     },
   ];
 
@@ -384,12 +376,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold tracking-tight">{stat.value}</div>
-              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                <span className={`font-medium ${stat.trend === "up" ? "text-green-500" : "text-red-500"}`}>
-                  {stat.change}
-                </span>
-                from last week
-              </p>
+
             </CardContent>
           </Card>
         ))}
@@ -1380,9 +1367,8 @@ export default function AnalyticsPage() {
                       <Bot className="w-4 h-4 text-primary" />
                       <span className="font-medium">AI Response</span>
                     </div>
-                    <span className="text-2xl font-bold">{analytics?.avgResponseTimeAI || "1.2s"}</span>
+                    <span className="text-2xl font-bold">{analytics?.avgResponseTimeAI || "N/A"}</span>
                   </div>
-                  <Progress value={95} className="h-2" />
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -1390,9 +1376,8 @@ export default function AnalyticsPage() {
                       <HeadphonesIcon className="w-4 h-4 text-primary" />
                       <span className="font-medium">Human Response</span>
                     </div>
-                    <span className="text-2xl font-bold">{analytics?.avgResponseTimeHuman || "2m 15s"}</span>
+                    <span className="text-2xl font-bold">{analytics?.avgResponseTimeHuman || "N/A"}</span>
                   </div>
-                  <Progress value={65} className="h-2" />
                 </div>
               </CardContent>
             </Card>
@@ -1406,7 +1391,7 @@ export default function AnalyticsPage() {
                 <div className="flex items-center justify-center h-32">
                   <div className="text-center">
                     <Clock className="w-12 h-12 text-primary mx-auto mb-2" />
-                    <p className="text-4xl font-bold">{analytics?.avgChatDuration || "4m 32s"}</p>
+                    <p className="text-4xl font-bold">{analytics?.avgChatDuration || "N/A"}</p>
                     <p className="text-sm text-muted-foreground mt-1">Average duration</p>
                   </div>
                 </div>

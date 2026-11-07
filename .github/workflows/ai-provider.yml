@@ -1,0 +1,44 @@
+name: AI provider integration
+on:
+  pull_request:
+    paths:
+      - 'server/**'
+      - 'shared/**'
+      - 'railpack.json'
+      - 'client/src/**'
+      - 'client/src/components/admin-ai-provider*'
+      - 'client/src/pages/admin/dashboard.tsx'
+      - '.github/workflows/ai-provider.yml'
+  push:
+    branches: ['feat/qwencloud-manual-provider-20261106', 'feat/openrouter-deepseek-20261106']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-test-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 5
+    env:
+      TEST_WELCOME_DATABASE_URL: postgresql://postgres:ci-test-only@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npx vitest run server/__tests__/welcome-bubble.test.ts server/__tests__/welcome-bubble-migration.test.ts client/src/pages/__tests__/welcome-bubble-actions.test.tsx
+      - run: npx vitest run server/__tests__/promo-video.test.ts server/__tests__/promo-upload-routes.test.ts
+      - run: npx playwright install --with-deps chromium
+      - run: npx vitest run server/__tests__/promo-autoplay.test.ts
+      - run: npx vitest run client/src/lib/promo-upload.test.ts server/__tests__/conversation-outcomes.test.ts server/__tests__/ai-provider.test.ts client/src/components/admin-ai-provider.test.tsx server/__tests__/topup-token-security.test.ts client/src/pages/__tests__/merchant-onboarding.test.tsx server/__tests__/merchant-function-routes.test.ts client/src/pages/__tests__/custom-data-source-feedback.test.tsx client/src/pages/__tests__/knowledge-card-actions.test.tsx server/__tests__/subscription-plan-routes.test.ts server/__tests__/custom-data-preset-routes.test.ts server/__tests__/custom-data-presets.test.ts
+      - run: node --experimental-strip-types --test server/__tests__/postcutover-security.node.test.mjs
+      - run: npm run build

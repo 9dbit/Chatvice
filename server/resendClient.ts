@@ -1,9 +1,22 @@
 // Resend email client integration
 import { Resend } from 'resend';
+import { getConfiguredAppUrl } from './appUrl';
 
 let connectionSettings: any;
 
+// Railway validation must use its own URL; preserve existing Replit defaults.
+export function getEmailBaseUrl(): string {
+  const configured = getConfiguredAppUrl();
+  if (configured) return configured;
+  if (process.env.REPLIT_DEPLOYMENT_ID) return "https://chatvice.app";
+  if (process.env.REPLIT_DEV_DOMAIN) return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+  return "http://localhost:5000";
+}
+
 async function getCredentials() {
+  if (process.env.RESEND_API_KEY) {
+    return { apiKey: process.env.RESEND_API_KEY, fromEmail: process.env.RESEND_FROM_EMAIL };
+  }
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const xReplitToken = process.env.REPL_IDENTITY 
     ? 'repl ' + process.env.REPL_IDENTITY 
@@ -11,8 +24,8 @@ async function getCredentials() {
     ? 'depl ' + process.env.WEB_REPL_RENEWAL 
     : null;
 
-  if (!xReplitToken) {
-    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
+  if (!hostname || !xReplitToken) {
+    throw new Error('Configure RESEND_API_KEY or the existing Replit Resend connector');
   }
 
   connectionSettings = await fetch(
@@ -46,11 +59,7 @@ export async function sendVerificationEmail(toEmail: string, verificationToken: 
     const { client, fromEmail } = await getUncachableResendClient();
     
     // Use production domain for verification URL
-    const baseUrl = process.env.REPLIT_DEPLOYMENT_ID 
-      ? 'https://chatvice.app'
-      : process.env.REPLIT_DEV_DOMAIN 
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
-        : 'http://localhost:5000';
+    const baseUrl = getEmailBaseUrl();
     const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`;
     
     console.log('Sending verification email:', { to: toEmail, from: fromEmail, url: verificationUrl });
@@ -110,11 +119,7 @@ export async function sendPasswordResetEmail(toEmail: string, resetToken: string
     const { client, fromEmail } = await getUncachableResendClient();
     
     // Use production domain for reset URL
-    const baseUrl = process.env.REPLIT_DEPLOYMENT_ID 
-      ? 'https://chatvice.app'
-      : process.env.REPLIT_DEV_DOMAIN 
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
-        : 'http://localhost:5000';
+    const baseUrl = getEmailBaseUrl();
     const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
     
     console.log('Sending password reset email:', { to: toEmail, from: fromEmail, url: resetUrl });
@@ -471,11 +476,7 @@ export async function sendInvoiceEmail(data: InvoiceSentData): Promise<boolean> 
       }).format(new Date(date));
     };
     
-    const baseUrl = process.env.REPLIT_DEPLOYMENT_ID 
-      ? 'https://chatvice.app'
-      : process.env.REPLIT_DEV_DOMAIN 
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
-        : 'http://localhost:5000';
+    const baseUrl = getEmailBaseUrl();
     const billingUrl = `${baseUrl}/dashboard/billing`;
     
     console.log('Sending invoice email:', { to: data.merchantEmail, invoice: data.invoiceNumber });
@@ -595,11 +596,7 @@ export async function sendSubscriptionActivatedEmail(data: SubscriptionActivated
       }).format(new Date(date));
     };
     
-    const baseUrl = process.env.REPLIT_DEPLOYMENT_ID 
-      ? 'https://chatvice.app'
-      : process.env.REPLIT_DEV_DOMAIN 
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
-        : 'http://localhost:5000';
+    const baseUrl = getEmailBaseUrl();
     const dashboardUrl = `${baseUrl}/dashboard`;
     
     console.log('Sending subscription activated email:', { to: data.merchantEmail, plan: data.planName });
@@ -712,11 +709,7 @@ export async function sendSubscriptionExpiringEmail(data: SubscriptionExpiringDa
       }).format(new Date(date));
     };
     
-    const baseUrl = process.env.REPLIT_DEPLOYMENT_ID 
-      ? 'https://chatvice.app'
-      : process.env.REPLIT_DEV_DOMAIN 
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
-        : 'http://localhost:5000';
+    const baseUrl = getEmailBaseUrl();
     const billingUrl = `${baseUrl}/dashboard/billing`;
 
     const isExpired = data.daysRemaining === 0;
@@ -923,11 +916,7 @@ export async function sendQuota80Email(
   try {
     const { client, fromEmail } = await getUncachableResendClient();
 
-    const baseUrl = process.env.REPLIT_DEPLOYMENT_ID
-      ? 'https://chatvice.app'
-      : process.env.REPLIT_DEV_DOMAIN
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-        : 'http://localhost:5000';
+    const baseUrl = getEmailBaseUrl();
     const plansUrl = `${baseUrl}/dashboard/plans`;
 
     const usagePercent = Math.round((conversationsUsed / conversationsLimit) * 100);
@@ -992,11 +981,7 @@ export async function sendQuota100Email(
   try {
     const { client, fromEmail } = await getUncachableResendClient();
 
-    const baseUrl = process.env.REPLIT_DEPLOYMENT_ID
-      ? 'https://chatvice.app'
-      : process.env.REPLIT_DEV_DOMAIN
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-        : 'http://localhost:5000';
+    const baseUrl = getEmailBaseUrl();
     const plansUrl = `${baseUrl}/dashboard/plans`;
 
     const { error } = await client.emails.send({
@@ -1064,11 +1049,7 @@ export async function sendPanelHealthAlertEmail(opts: {
 }): Promise<boolean> {
   try {
     const { client, fromEmail } = await getUncachableResendClient();
-    const baseUrl = process.env.REPLIT_DEPLOYMENT_ID
-      ? 'https://chatvice.app'
-      : process.env.REPLIT_DEV_DOMAIN
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-        : 'http://localhost:5000';
+    const baseUrl = getEmailBaseUrl();
     const dashUrl = `${baseUrl}/dashboard/custom-data-source`;
     const escape = (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 

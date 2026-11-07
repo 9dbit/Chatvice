@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, PiggyBank, Bot } from "lucide-react";
 
 interface BillingStatus {
   planId: string;
+  status?: string;
   billingInterval?: string | null;
   monthlyPriceIdr?: number;
   annualPriceIdr?: number;
@@ -39,7 +40,7 @@ export function AiSavingsCard() {
 
   const aiDeflected = savings.aiDeflected;
   const totalHandled = savings.totalThisMonth;
-  if (totalHandled === 0) return null;
+  if (totalHandled === 0 || aiDeflected === 0) return null;
 
   const supervisorRate = savings.supervisorHandleCostIdr;
   const estimatedSavings = savings.estimatedSavingsIdr; // Month-scoped: aiDeflected × Rp 87,500
@@ -48,9 +49,10 @@ export function AiSavingsCard() {
   const isAnnual = billing?.billingInterval === "annual";
   const annualPlanIdr = billing?.annualPriceIdr ?? 0;
   const monthlyPlanIdr = billing?.monthlyPriceIdr ?? 0;
-  const planCostMonthly = isAnnual && annualPlanIdr > 0
+  const regularPlanCostMonthly = isAnnual && annualPlanIdr > 0
     ? Math.round(annualPlanIdr / 12)
     : monthlyPlanIdr;
+  const planCostMonthly = billing?.status === "trial" ? 0 : regularPlanCostMonthly;
 
   const netSavings = estimatedSavings - planCostMonthly;
   const roi = planCostMonthly > 0 ? Math.round((netSavings / planCostMonthly) * 100) : null;
@@ -114,7 +116,7 @@ export function AiSavingsCard() {
           {" "}{aiDeflected.toLocaleString("id-ID")} chat AI = {formatIdr(estimatedSavings)}.
           {planCostMonthly > 0
             ? ` Setelah biaya plan (${formatIdr(planCostMonthly)}/bulan${isAnnual ? ", dari paket tahunan" : ""}): ${formatIdr(netSavings)}.`
-            : " Tidak ada biaya plan (Free)."}
+            : billing?.status === "trial" ? " Masih dalam masa trial; belum ada biaya plan." : " Tidak ada biaya plan (Free)."}
         </p>
       </CardContent>
     </Card>

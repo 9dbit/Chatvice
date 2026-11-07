@@ -1,3 +1,5 @@
+import { promoClickSettings, type PromoClickAction } from "@shared/welcomeBubble";
+import { preparePromoFile, uploadPromo } from "@/lib/promo-upload";
 import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -26,6 +28,8 @@ export default function WelcomeBubblePage() {
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState("");
+  const [promoNeedsSave, setPromoNeedsSave] = useState(false);
   const [form, setForm] = useState({
     headline: "Need help?",
     message: "I can guide you through our features.",
@@ -34,6 +38,8 @@ export default function WelcomeBubblePage() {
     buttonTextColor: "#ffffff",
     promoImageEnabled: false,
     promoImageUrl: "",
+    promoClickAction: "none" as PromoClickAction,
+    promoClickUrl: "",
     reappearInterval: 60,
     isEnabled: true,
     actionButtons: [] as ActionButton[],
@@ -54,6 +60,8 @@ export default function WelcomeBubblePage() {
         buttonTextColor: bubble.buttonTextColor || "#ffffff",
         promoImageEnabled: bubble.promoImageEnabled ?? false,
         promoImageUrl: bubble.promoImageUrl || "",
+        promoClickAction: (bubble.promoClickAction || "none") as PromoClickAction,
+        promoClickUrl: bubble.promoClickUrl || "",
         reappearInterval: bubble.reappearInterval ?? 60,
         isEnabled: bubble.isEnabled ?? true,
         actionButtons: (bubble.actionButtons as ActionButton[]) || [],
@@ -64,14 +72,17 @@ export default function WelcomeBubblePage() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: typeof form) => {
-      return apiRequest("PUT", "/api/welcome-bubble", data);
+      const click = promoClickSettings.safeParse(data);
+      if (!click.success) throw new Error(click.error.issues[0].message);
+      return apiRequest("PUT", "/api/welcome-bubble", { ...data, ...click.data });
     },
     onSuccess: () => {
+      setPromoNeedsSave(false);
       queryClient.invalidateQueries({ queryKey: ["/api/welcome-bubble"] });
       toast({ title: t("dashboard.welcomeBubble.saved") });
     },
-    onError: () => {
-      toast({ title: t("dashboard.welcomeBubble.saveFailed"), variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ title: t("dashboard.welcomeBubble.saveFailed"), description: error.message, variant: "destructive" });
     },
   });
 
@@ -79,54 +90,25 @@ export default function WelcomeBubblePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const allowedTypes = ['image/png', 'image/gif', 'image/jpeg', 'image/jpg', 'image/webp', 'video/mp4'];
-    if (!allowedTypes.includes(file.type)) {
-      toast({ title: t("dashboard.welcomeBubble.invalidFormat"), variant: "destructive" });
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: t("dashboard.welcomeBubble.fileTooLarge"), variant: "destructive" });
-      return;
-    }
-
+    if (isUploading) return;
+    const input = e.currentTarget;
     setIsUploading(true);
+    setUploadError("");
     setUploadProgress(0);
-    
-    const progressInterval = setInterval(() => {
-      setUploadProgress(prev => Math.min(prev + 10, 90));
-    }, 100);
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('type', 'welcome_bubble_promo');
-
     try {
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
-
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Upload failed');
-      }
-
-      const data = await response.json();
-      setForm({ ...form, promoImageUrl: data.url, promoImageEnabled: true });
-      toast({ title: t("dashboard.welcomeBubble.imageUploaded") });
+      const uploadFile = await preparePromoFile(file);
+      const url = await uploadPromo(uploadFile, file.name, setUploadProgress);
+      setForm(prev => ({ ...prev, promoImageUrl: url, promoImageEnabled: true }));
+      setPromoNeedsSave(true);
+      toast({ title: "Upload complete", description: "Click Save Changes to publish the promo to your website." });
     } catch (error: any) {
-      clearInterval(progressInterval);
-      toast({ title: error.message || "Failed to upload image", variant: "destructive" });
+      const message = error.message || "Failed to upload media";
+      setUploadError(message);
+      toast({ title: message, variant: "destructive" });
     } finally {
-      setTimeout(() => {
-        setIsUploading(false);
-        setUploadProgress(0);
-      }, 500);
+      setIsUploading(false);
+      setUploadProgress(0);
+      input.value = "";
     }
   };
 
@@ -166,7 +148,7 @@ export default function WelcomeBubblePage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2" data-testid="text-page-title">
@@ -177,7 +159,7 @@ export default function WelcomeBubblePage() {
         </div>
         <Button 
           onClick={() => saveMutation.mutate(form)}
-          disabled={saveMutation.isPending}
+          disabled={saveMutation.isPending || isUploading}
           data-testid="button-save-bubble"
         >
           <Save className="w-4 h-4 mr-2" />
@@ -273,7 +255,7 @@ export default function WelcomeBubblePage() {
                     <div className="flex gap-2">
                       <Input
                         type="file"
-                        accept="image/png,image/gif,image/jpeg,image/jpg,image/webp,video/mp4"
+                        accept="video/*,.mp4,.mov,.m4v,.webm,.mkv,.avi,.wmv,.flv,.mpg,.mpeg,.mpe,.ts,.mts,.m2ts,.3gp,.3g2,.ogv,.vob,.png,.gif,.jpg,.jpeg,.webp,image/png,image/gif,image/jpeg,image/webp"
                         onChange={handleImageUpload}
                         disabled={isUploading}
                         className="flex-1"
@@ -293,13 +275,17 @@ export default function WelcomeBubblePage() {
                     {isUploading && (
                       <div className="space-y-1">
                         <Progress value={uploadProgress} className="h-2" />
-                        <p className="text-xs text-muted-foreground text-center">Uploading... {uploadProgress}%</p>
+                        <p className="text-xs text-muted-foreground text-center" role="status">{uploadProgress < 100 ? `Uploading... ${uploadProgress}%` : "Optimizing media… Videos are converted to silent MP4 under 300 KB."}</p>
                       </div>
                     )}
                   </div>
                   
+                  <p className="text-xs text-muted-foreground">Videos are automatically converted to MP4 under 300 KB, with audio removed for autoplay. Upload up to 50 MB / 2 minutes. Short clips keep more detail. Images: up to 5 MB.</p>
+                  {uploadError && <p role="alert" className="text-sm text-destructive">{uploadError}</p>}
+                  {promoNeedsSave && <p role="status" className="text-sm text-muted-foreground">Upload complete. Click Save Changes to publish this promo.</p>}
                   <div className="space-y-2">
-                    <Label htmlFor="promoImageUrl">{t("dashboard.welcomeBubble.orEnterUrl")}</Label>
+                    <Label htmlFor="promoImageUrl">Image / video source URL</Label>
+                    <p className="text-xs text-muted-foreground">Automatic conversion applies to uploaded files. External video URLs must already be MP4.</p>
                     <Input
                       id="promoImageUrl"
                       value={form.promoImageUrl}
@@ -309,10 +295,35 @@ export default function WelcomeBubblePage() {
                     />
                   </div>
 
+                  <div className="space-y-2">
+                    <Label id="promo-click-label">When someone taps the image or video</Label>
+                    <div role="group" aria-labelledby="promo-click-label" className="flex flex-wrap gap-2">
+                      {([{ value: "none", label: "No action" }, { value: "chat", label: "Open chat" }, { value: "url", label: "Open URL" }] as const).map(option => (
+                        <Button key={option.value} type="button" className="rounded-full"
+                          variant={form.promoClickAction === option.value ? "default" : "secondary"}
+                          aria-pressed={form.promoClickAction === option.value}
+                          onClick={() => setForm({ ...form, promoClickAction: option.value })}>
+                          {option.label}
+                        </Button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Applies to both images and videos. The Chat with us button always opens chat.</p>
+                  </div>
+                  {form.promoClickAction === "url" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="promoClickUrl">Destination URL</Label>
+                      <Input id="promoClickUrl" type="url" inputMode="url" className="rounded-full"
+                        value={form.promoClickUrl} onChange={e => setForm({ ...form, promoClickUrl: e.target.value })}
+                        placeholder="https://your-website.com/promotion"
+                        aria-describedby="promo-click-hint" data-testid="input-promo-click-url" />
+                      <p id="promo-click-hint" className="text-xs text-muted-foreground">Opens in a new tab when the promo is tapped. Enter a complete https:// or http:// URL.</p>
+                    </div>
+                  )}
+
                   {form.promoImageUrl && (
                     <div className="relative max-w-[200px]">
                       <Label className="mb-2 block">Preview (Full Width)</Label>
-                      <p className="text-xs text-muted-foreground mb-2">Supports GIF, JPEG, PNG, WebP & MP4 (max 5MB).</p>
+                      <p className="text-xs text-muted-foreground mb-2">Images and videos use the same tap action. Save changes to update Live Preview.</p>
                       <div className="bg-muted rounded-t-xl border overflow-hidden">
                         {form.promoImageUrl.match(/\.mp4/i) ? (
                           <video
@@ -322,6 +333,8 @@ export default function WelcomeBubblePage() {
                             loop
                             muted
                             playsInline
+                            controls
+                            preload="metadata"
                             data-testid="video-promo-preview"
                           />
                         ) : (

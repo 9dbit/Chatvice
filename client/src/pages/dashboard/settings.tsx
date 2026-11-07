@@ -527,7 +527,7 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Skeleton className="h-64" />
@@ -550,7 +550,7 @@ export default function SettingsPage() {
         <TabsList className="grid w-full max-w-2xl grid-cols-5">
           <TabsTrigger value="profile" data-testid="tab-profile">
             <User className="w-4 h-4 mr-2" />
-            Profile
+            Account
           </TabsTrigger>
           <TabsTrigger value="chat" data-testid="tab-chat">
             <MessageSquare className="w-4 h-4 mr-2" />
@@ -625,11 +625,12 @@ export default function SettingsPage() {
 
                 <div className="space-y-2">
                   <Label>{t("common.email")}</Label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <Input value={merchant?.email || ""} disabled className="bg-muted flex-1" data-testid="input-email-readonly" />
                     <Button 
                       variant="outline" 
                       onClick={() => setEmailDialogOpen(true)}
+                      className="self-start shrink-0"
                       data-testid="button-change-email"
                     >
                       <Mail className="w-4 h-4 mr-2" />

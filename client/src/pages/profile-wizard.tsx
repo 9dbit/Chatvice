@@ -1,5 +1,6 @@
+import { useMerchantUI } from "@/hooks/use-merchant-ui";
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Redirect } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -273,6 +274,7 @@ const steps = [
 ];
 
 export default function ProfileWizardPage() {
+  useMerchantUI("auth");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
@@ -395,7 +397,12 @@ export default function ProfileWizardPage() {
       return responseData;
     },
     onSuccess: () => {
-      setProfileData(prev => ({ ...prev, ...step1Form.getValues() }));
+      const business = step1Form.getValues();
+      let suggestedDomain = "";
+      try {
+        if (business.websiteUrl) suggestedDomain = new URL(business.websiteUrl.includes("://") ? business.websiteUrl : `https://${business.websiteUrl}`).hostname;
+      } catch { /* Leave invalid URLs to the domain step's validation. */ }
+      setProfileData(prev => ({ ...prev, ...business, officialDomain: prev.officialDomain || suggestedDomain }));
       setCurrentStep(2);
     },
     onError: (error: any) => {
@@ -468,7 +475,10 @@ export default function ProfileWizardPage() {
       if (!res.ok) throw { ...responseData, status: res.status };
       return responseData;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Verification links establish a cookie session without the dashboard's local identity.
+      if (data.merchantId) localStorage.setItem("merchantId", data.merchantId);
+      localStorage.setItem("userType", "merchant");
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       toast({
         title: "Profile Complete!",
@@ -546,18 +556,16 @@ export default function ProfileWizardPage() {
   }
 
   if (!(authData as any)?.authenticated) {
-    setLocation("/login");
-    return null;
+    return <Redirect to="/login" />;
   }
 
   if ((authData as any)?.profileCompleted) {
-    setLocation("/dashboard");
-    return null;
+    return <Redirect to="/dashboard" />;
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="merchant-auth min-h-screen bg-zinc-950">
+      <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="flex items-center justify-center mb-8">
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <img src={chatviceLogoDark} alt="Chatvice" className="h-8 w-auto" />
@@ -566,41 +574,20 @@ export default function ProfileWizardPage() {
 
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-white mb-2">Complete Your Profile</h1>
-          <p className="text-zinc-400">Just a few steps to get you started with Chatvice</p>
+          <p className="text-zinc-400">Your progress is saved after each step.</p>
         </div>
 
-        <div className="flex justify-center mb-8">
-          <div className="flex items-center gap-2">
-            {steps.map((step, index) => (
-              <div key={step.id} className="flex items-center">
-                <div
-                  className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
-                    currentStep > step.id
-                      ? "bg-primary border-primary text-white"
-                      : currentStep === step.id
-                      ? "border-primary text-primary"
-                      : "border-zinc-700 text-zinc-500"
-                  }`}
-                >
-                  {currentStep > step.id ? (
-                    <Check className="w-5 h-5" />
-                  ) : (
-                    <step.icon className="w-5 h-5" />
-                  )}
-                </div>
-                {index < steps.length - 1 && (
-                  <div
-                    className={`w-12 h-0.5 mx-2 ${
-                      currentStep > step.id ? "bg-primary" : "bg-zinc-700"
-                    }`}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+        <nav aria-label="Profile setup progress" className="mb-6 flex flex-wrap justify-center gap-2">
+          {steps.map(step => (
+            <div key={step.id} aria-current={currentStep === step.id ? "step" : undefined}
+              className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm ${currentStep === step.id ? "bg-primary text-white" : currentStep > step.id ? "bg-zinc-800 text-white" : "bg-zinc-900 text-zinc-400"}`}>
+              {currentStep > step.id ? <Check className="h-4 w-4" /> : <span>{step.id}</span>}
+              <span>{step.title}</span>
+            </div>
+          ))}
+        </nav>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 md:p-8">
+        <div className="bg-zinc-900 border-0 rounded-3xl p-6 md:p-8">
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-white">{steps[currentStep - 1].title}</h2>
             <p className="text-zinc-400 text-sm">{steps[currentStep - 1].description}</p>
@@ -621,6 +608,10 @@ export default function ProfileWizardPage() {
                           className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 h-11"
                           data-testid="input-step1-company"
                           {...field}
+                          onBlur={() => {
+                            field.onBlur();
+                            if (!step1Form.getValues("officialWebsiteName")) step1Form.setValue("officialWebsiteName", field.value, { shouldValidate: true });
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -697,13 +688,13 @@ export default function ProfileWizardPage() {
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-[108px_minmax(0,1fr)] gap-3">
                   <FormField
                     control={step2Form.control}
                     name="phoneCountryCode"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-zinc-300">Country Code *</FormLabel>
+                        <FormLabel className="text-zinc-300">Code *</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white h-11" data-testid="select-step2-country-code">
@@ -726,7 +717,7 @@ export default function ProfileWizardPage() {
                     control={step2Form.control}
                     name="phone"
                     render={({ field }) => (
-                      <FormItem className="col-span-2">
+                      <FormItem className="min-w-0">
                         <FormLabel className="text-zinc-300">Phone Number *</FormLabel>
                         <FormControl>
                           <Input
@@ -765,7 +756,7 @@ export default function ProfileWizardPage() {
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField
                     control={step2Form.control}
                     name="city"

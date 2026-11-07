@@ -1,3 +1,4 @@
+import { routedAI } from "./aiProvider";
 /**
  * Chatvice Guide Knowledge Refresher
  * Runs every 24 hours to use GPT-4.1-mini to synthesize an up-to-date,
@@ -9,11 +10,7 @@ import OpenAI from "openai";
 import { storage } from "./storage";
 import { buildFullDashboardKnowledge } from "../shared/guide-knowledge";
 
-function getOpenAI(): OpenAI | null {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-  if (!apiKey) return null;
-  return new OpenAI({ apiKey });
-}
+function getOpenAI(): OpenAI { return routedAI; }
 
 /**
  * Uses GPT-4.1-mini to synthesize a fresh, concise, teaching-oriented

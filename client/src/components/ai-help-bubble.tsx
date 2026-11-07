@@ -182,6 +182,7 @@ function safeSetItem(key: string, value: string): void {
 }
 
 interface AIHelpBubbleProps {
+  showWelcomeOnLoad?: boolean;
   publicMode?: boolean;
   supervisorMode?: boolean;
 }
@@ -248,7 +249,7 @@ Or type any question about the Supervisor Panel.`;
 
 const SUPERVISOR_INITIAL_MESSAGE = isIndonesianBrowser() ? SUPERVISOR_INITIAL_MESSAGE_ID : SUPERVISOR_INITIAL_MESSAGE_EN;
 
-export function AIHelpBubble({ publicMode = false, supervisorMode = false }: AIHelpBubbleProps) {
+export function AIHelpBubble({ publicMode = false, supervisorMode = false, showWelcomeOnLoad = true }: AIHelpBubbleProps) {
   const storageKeySuffix = publicMode ? "-public" : supervisorMode ? "-supervisor" : "-dashboard";
   const STORAGE_KEY = `chatvice-guide-position${storageKeySuffix}`;
   const HIDDEN_KEY = `chatvice-guide-hidden${storageKeySuffix}`;
@@ -293,7 +294,7 @@ export function AIHelpBubble({ publicMode = false, supervisorMode = false }: AIH
     const saved = safeGetItem(HIDDEN_KEY);
     return saved === "true";
   });
-  const [showWelcomeBubble, setShowWelcomeBubble] = useState(true);
+  const [showWelcomeBubble, setShowWelcomeBubble] = useState(showWelcomeOnLoad);
   const [bubbleCollapsed, setBubbleCollapsed] = useState(false);
   const [bubbleTranslateY, setBubbleTranslateY] = useState(0);
   const bubbleTouchStart = useRef<{ y: number; time: number } | null>(null);

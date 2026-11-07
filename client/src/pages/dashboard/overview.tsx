@@ -34,6 +34,8 @@ interface AnalyticsData {
   aiSessions: number;
   humanSessions: number;
   aiResolutionRate: number;
+  aiResolved: number;
+  satisfactionRate: number | null;
   dailyMessageCounts: { date: string; count: number }[];
   avgResponseTime: number;
   supervisorsOnline: number;
@@ -258,7 +260,7 @@ export default function DashboardOverview() {
       trendLabel: aiResolutionTrend !== null ? "vs. previous 7 days" : "",
       accentClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
       metric: "ai-resolution",
-      info: "Percentage of all sessions fully handled by AI without escalation to a human supervisor. Trend compares the current 7-day window vs. the previous 7 days.",
+      info: "Percentage of customer conversations that ended with AI answers, no unanswered question, no provider error, and no human handoff. Active sessions are not resolved.",
     },
     {
       title: t("dashboard.overview.avgResponse"),
@@ -282,8 +284,10 @@ export default function DashboardOverview() {
 
   const queuedSessions = sessions?.filter(s => s.status === "waiting" || s.status === "escalated") || [];
   const activeChats = activeSessions.filter(s => s.status === "active");
-  // Real: show AI resolution rate directly (it IS the satisfaction proxy — no derived formula)
-  const satisfactionRate = stats?.aiResolutionRate ?? 0;
+  // Satisfaction requires actual customer ratings; handling mode is a separate metric.
+  const satisfactionRate = stats?.satisfactionRate;
+  const aiHandlingRate = stats?.totalSessions ? Math.round(stats.aiSessions / stats.totalSessions * 100) : 0;
+  const humanHandlingRate = stats?.totalSessions ? Math.round(stats.humanSessions / stats.totalSessions * 100) : 0;
 
   const displayName = merchant?.companyName || merchant?.username || "Dashboard";
   const planId = merchant?.subscriptionPlanId || "free";
@@ -387,7 +391,7 @@ export default function DashboardOverview() {
                 data-testid="button-empty-create-agent"
               >
                 <Bot className="w-4 h-4" />
-                {t("dashboard.overview.emptyStateCreateAgent")}
+                {activeAgent ? "Manage agent" : t("dashboard.overview.emptyStateCreateAgent")}
               </Button>
               <Button
                 onClick={() => {
@@ -631,18 +635,18 @@ export default function DashboardOverview() {
                 <Target className="w-3 h-3 mx-auto mb-1 text-blue-500" />
                 <p className="text-[10px] text-muted-foreground mb-1 flex items-center justify-center gap-0.5">
                   {t("dashboard.overview.goals")}
-                  <InfoTip text="Total sessions handled end-to-end by AI (all-time). Each session counted once." />
+                  <InfoTip text="Completed customer conversations answered by AI without provider errors, unanswered questions, or human handoff." />
                 </p>
-                <p className="text-xl font-bold" data-testid="text-goals">{stats?.aiSessions || 0}</p>
+                <p className="text-xl font-bold" data-testid="text-goals">{stats?.aiResolved || 0}</p>
               </div>
               <div className="rounded-lg p-3 bg-muted/40 border border-border/50 text-center">
                 <ThumbsUp className="w-3 h-3 mx-auto mb-1 text-emerald-500" />
                 <p className="text-[10px] text-muted-foreground mb-1 flex items-center justify-center gap-0.5">
                   {t("dashboard.overview.satisfaction")}
-                  <InfoTip text="Equals AI Resolution Rate — the percentage of sessions the AI handled without human escalation. A reliable proxy for automated service quality." />
+                  <InfoTip text="Percentage of customer ratings that are 4 or 5 stars. N/A means no customer ratings are available." />
                 </p>
                 <p className="text-xl font-bold" data-testid="text-satisfaction">
-                  {satisfactionRate}<span className="text-xs font-normal">%</span>
+                  {satisfactionRate == null ? "N/A" : `${satisfactionRate}%`}
                 </p>
               </div>
             </div>
@@ -736,14 +740,13 @@ export default function DashboardOverview() {
                       {t("dashboard.overview.aiHandled")}
                     </span>
                     <div className="flex items-center gap-2">
-                      <TrendBadge pct={aiResolutionTrend} />
-                      <span className="font-semibold tabular-nums">{stats?.aiResolutionRate ?? 0}%</span>
+                      <span className="font-semibold tabular-nums">{aiHandlingRate}%</span>
                     </div>
                   </div>
                   <div className="h-2.5 bg-muted rounded-full overflow-hidden">
                     <div
                       className="h-full bg-primary rounded-full transition-all duration-700 ease-out"
-                      style={{ width: `${stats?.aiResolutionRate ?? 0}%` }}
+                      style={{ width: `${aiHandlingRate}%` }}
                     />
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-1">{stats?.aiSessions ?? 0} {t("dashboard.overview.sessionsHandledByAi")}</p>
@@ -756,12 +759,12 @@ export default function DashboardOverview() {
                       <HeadphonesIcon className="w-4 h-4 text-chart-2" />
                       {t("dashboard.overview.humanEscalated")}
                     </span>
-                    <span className="font-semibold tabular-nums">{100 - (stats?.aiResolutionRate ?? 0)}%</span>
+                    <span className="font-semibold tabular-nums">{humanHandlingRate}%</span>
                   </div>
                   <div className="h-2.5 bg-muted rounded-full overflow-hidden">
                     <div
                       className="h-full bg-chart-2 rounded-full transition-all duration-700 ease-out"
-                      style={{ width: `${100 - (stats?.aiResolutionRate ?? 0)}%` }}
+                      style={{ width: `${humanHandlingRate}%` }}
                     />
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-1">{stats?.humanSessions ?? 0} {t("dashboard.overview.sessionsEscalatedToHuman")}</p>

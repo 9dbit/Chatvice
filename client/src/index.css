@@ -1078,3 +1078,127 @@ html {
 @media (prefers-reduced-motion: reduce) {
   .pro-frosted-card { animation: none; }
 }
+
+/* Merchant workspace: solid surfaces, compact forms and pill navigation.
+   Scoped so admin, Mail and embedded customer widgets retain their own theme. */
+body[data-merchant-ui] .merchant-page > div {
+  max-width: 100rem;
+  margin-inline: auto;
+  min-width: 0;
+}
+body[data-merchant-ui] .shadcn-card {
+  border: 0;
+  border-radius: 1.5rem;
+  box-shadow: none;
+  background: hsl(var(--card));
+}
+body[data-merchant-ui] .merchant-page :is(section, div)[class~="border"],
+body[data-merchant-ui] .merchant-page :is(section, div)[class~="border-border"],
+body[data-merchant-ui] [data-sidebar="sidebar"] {
+  border-color: transparent;
+}
+body[data-merchant-ui] .merchant-page :is(.border-b, .border-t) {
+  border-color: transparent;
+}
+body[data-merchant-ui] .merchant-page :is(.bg-muted\/30, .bg-muted\/40, .bg-muted\/50, .bg-card\/50) {
+  background-color: hsl(var(--muted));
+}
+body[data-merchant-ui] :is([role="tablist"], [data-sidebar="menu-button"], button[role="combobox"], [data-radix-collection-item][role="menuitem"], [role="option"]) {
+  border-radius: 9999px;
+}
+body[data-merchant-ui] [role="tablist"] {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  height: auto;
+  min-height: 2.75rem;
+  gap: .25rem;
+  overflow-x: auto;
+  padding: .375rem;
+  background: hsl(var(--muted));
+  border: 0;
+}
+body[data-merchant-ui] [role="tab"] {
+  flex: 0 0 auto;
+  min-height: 2.125rem;
+  padding-inline: 1rem;
+  border-radius: 9999px;
+  box-shadow: none;
+}
+body[data-merchant-ui] [role="tab"][data-state="active"],
+body[data-merchant-ui] [data-sidebar="menu-button"][data-active="true"] {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+body[data-merchant-ui] [data-sidebar="menu-button"] {
+  min-height: 2.5rem;
+  padding-inline: .875rem;
+}
+body[data-merchant-ui] [data-sidebar="header"],
+body[data-merchant-ui] [data-sidebar="footer"] {
+  border: 0;
+}
+body[data-merchant-ui] :is(.merchant-page, .merchant-auth) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]), textarea, button[role="combobox"]) {
+  border-color: transparent;
+  box-shadow: none;
+  min-height: 2.75rem;
+}
+body[data-merchant-ui] .merchant-page :is(input, textarea, button[role="combobox"]) {
+  background-color: hsl(var(--muted));
+}
+body[data-merchant-ui] :is(.merchant-page, .merchant-auth) :is(input, textarea)[aria-invalid="true"] {
+  outline: 2px solid hsl(var(--destructive));
+  outline-offset: 2px;
+}
+body[data-merchant-ui] .merchant-auth button:not([role="checkbox"]),
+body[data-merchant-ui] .merchant-page button:not([role="switch"]):not([role="checkbox"]):not([role="slider"]) {
+  border-radius: 9999px;
+}
+body[data-merchant-ui] .merchant-auth input { border-radius: 1rem; }
+body[data-merchant-ui] .merchant-auth [class*="border-zinc"] { border-color: transparent; }
+body[data-merchant-ui] .merchant-page[data-page="profile"] > div,
+body[data-merchant-ui] .merchant-page[data-page="settings"] > div,
+body[data-merchant-ui] .merchant-page[data-page="welcome-bubble"] > div,
+body[data-merchant-ui] .merchant-page[data-page="proactive-chat"] > div,
+body[data-merchant-ui] .merchant-page[data-page="widget"] > div {
+  max-width: 72rem;
+  margin-inline: 0;
+}
+body[data-merchant-ui] .merchant-page[data-page="settings"] [role="tabpanel"] > .shadcn-card,
+body[data-merchant-ui] .merchant-page[data-page="proactive-chat"] .shadcn-card {
+  max-width: 48rem;
+}
+@media (max-width: 639px) {
+  body[data-merchant-ui] .shadcn-card { border-radius: 1.25rem; }
+  body[data-merchant-ui] [role="tablist"] { width: 100%; }
+  body[data-merchant-ui] [role="tab"] { padding-inline: .875rem; }
+}
+body[data-merchant-ui] :is(.merchant-page, .merchant-auth) :is(input, textarea, button[role="combobox"]):focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+body[data-merchant-ui] [data-sidebar="content"] { overflow-x: hidden; }
+body[data-merchant-ui] [data-sidebar="menu"] { min-width: 0; }
+body[data-merchant-ui] [data-sidebar="menu-button"] { max-width: 100%; }
+body[data-merchant-ui] [data-sidebar="footer"] :is(a, button) { border-radius: 9999px; }
+body[data-merchant-ui] .merchant-page :is(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]), textarea) { border-radius: 1rem; }
+body[data-merchant-ui] [role="tablist"] { justify-content: flex-start; }
+body[data-merchant-ui] .merchant-page > div.p-6 { padding: 0; }
+body[data-merchant-ui] [role="dialog"],
+body[data-merchant-ui] [role="listbox"],
+body[data-merchant-ui] [role="menu"] {
+  border: 0;
+  border-radius: 1.5rem;
+  background: hsl(var(--popover));
+  backdrop-filter: none;
+}
+body[data-merchant-ui] [role="tablist"] { scrollbar-width: none; }
+body[data-merchant-ui] [role="tablist"]::-webkit-scrollbar { display: none; }
+body[data-merchant-ui] [data-sidebar="content"] {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / .35) transparent;
+}
+body[data-merchant-ui="auth"] :is([role="dialog"], [role="listbox"], [role="menu"]) {
+  background: #18181b;
+  color: #fafafa;
+}

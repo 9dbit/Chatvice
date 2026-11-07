@@ -849,32 +849,6 @@ export default function BillingPage() {
     },
   });
 
-  const demoCheckoutMutation = useMutation({
-    mutationFn: async ({ planId, billingInterval }: { planId: string; billingInterval: string }) => {
-      const res = await apiRequest("POST", "/api/billing/demo-checkout", { planId, billingInterval });
-      return res.json();
-    },
-    onSuccess: () => {
-      setPaymentStep('success');
-      queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
-      setTimeout(() => {
-        setQrisPaymentOpen(false);
-        toast({
-          title: t("dashboard.billing.subscriptionActivated"),
-          description: t("dashboard.billing.toast.yourDemoSubscriptionIsDesc"),
-        });
-      }, 2000);
-    },
-    onError: (error: Error) => {
-      setPaymentStep('error');
-      toast({
-        title: t("dashboard.billing.toast.checkoutFailed"),
-        description: error.message || "Failed to process checkout.",
-        variant: "destructive",
-      });
-    },
-  });
-
   // Check if there's any pending payment (standard transaction or custom invoice)
   const hasPendingPayments = pendingPaymentDetails?.hasPendingPayment || customInvoices.filter(inv => inv.status === 'pending').length > 0;
   
@@ -1176,18 +1150,6 @@ export default function BillingPage() {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleDemoPayment = () => {
-    if (selectedPlan) {
-      setPaymentStep('checking');
-      setTimeout(() => {
-        demoCheckoutMutation.mutate({
-          planId: selectedPlan.id,
-          billingInterval: isAnnual ? 'annual' : 'monthly',
-        });
-      }, 2000);
-    }
   };
 
   const plans = dbPlans.map((plan: any) => ({
@@ -2482,7 +2444,7 @@ export default function BillingPage() {
                       disabled={checkoutMutation.isPending}
                       data-testid={`button-select-${plan.id}`}
                     >
-                      Get Started
+                      Switch to Free
                     </Button>
                   ) : (() => {
                     const currentPlanIndex = dbPlans.findIndex((p: any) => p.id === billingStatus?.planId);
@@ -3192,14 +3154,6 @@ export default function BillingPage() {
                   >
                     <Download className="w-4 h-4 mr-2" />
                     Save
-                  </Button>
-                  <Button 
-                    className="flex-1"
-                    onClick={handleDemoPayment}
-                    data-testid="button-demo-pay"
-                  >
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    Demo Pay
                   </Button>
                 </div>
 
