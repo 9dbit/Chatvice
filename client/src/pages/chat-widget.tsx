@@ -1,3 +1,4 @@
+import { WelcomePromoMedia } from "@/components/welcome-promo-media";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -2201,33 +2202,9 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
             onTouchStart={(e) => e.stopPropagation()}
           >
             {welcomeBubble.promoImageEnabled && welcomeBubble.promoImageUrl && (
-              <div className="relative z-20" style={{ marginBottom: '-16px' }}>
-                {welcomeBubble.promoImageUrl.match(/\.mp4/i) ? (
-                  <video
-                    src={welcomeBubble.promoImageUrl}
-                    className="w-full h-auto object-contain rounded-t-xl"
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    controls
-                    preload="metadata"
-                    data-testid="video-welcome-promo"
-                  />
-                ) : (
-                  <img 
-                    src={welcomeBubble.promoImageUrl} 
-                    alt="Promotion" 
-                    className="w-full h-auto object-contain rounded-t-xl"
-                    onLoad={() => console.log('[Widget] Promo image loaded:', welcomeBubble.promoImageUrl)}
-                    onError={(e) => {
-                      console.error('[Widget] Promo image failed to load:', welcomeBubble.promoImageUrl);
-                      (e.target as HTMLImageElement).parentElement!.style.display = 'none';
-                    }}
-                    data-testid="img-welcome-promo"
-                  />
-                )}
-              </div>
+              <WelcomePromoMedia src={welcomeBubble.promoImageUrl} action={welcomeBubble.promoClickAction}
+                destination={welcomeBubble.promoClickUrl}
+                onOpenChat={() => { dismissWelcomeBubble(); handleWidgetOpen(); }} />
             )}
             <div 
               className={`shadow-xl px-4 pt-3 pb-4 border relative z-10 ${welcomeBubble.promoImageEnabled && welcomeBubble.promoImageUrl ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}
@@ -2274,7 +2251,7 @@ export default function ChatWidget({ merchantId, sessionId: initialSessionId, em
                 </p>
               </div>
               <Button
-                className="w-full rounded-md"
+                className="w-full rounded-full"
                 style={{ backgroundColor: welcomeBubble.buttonColor || primaryColor, color: welcomeBubble.buttonTextColor || "#ffffff" }}
                 onClick={(e) => {
                   e.stopPropagation();

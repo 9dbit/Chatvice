@@ -18,7 +18,8 @@ import { fetchGoogleSheet } from './fileParser';
 import { generateDailyBlogPosts, seedBlogPostsFromStaticData } from './blog-generator';
 import { scheduleGuideKnowledgeRefresh } from './guideKnowledgeRefresher';
 import { seedMasterAdminFromEnv } from './seedMasterAdmin';
-import { db } from './db';
+import { db, pool } from './db';
+import { ensureWelcomeBubblePromoColumns } from './welcomeBubbleMigration';
 import { sql } from 'drizzle-orm';
 
 process.on('uncaughtException', (err) => {
@@ -249,6 +250,7 @@ app.use((req, res, next) => {
     await seedMasterAdminFromEnv();
   }
 
+  await ensureWelcomeBubblePromoColumns(pool);
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
