@@ -26,7 +26,7 @@ export function registerPromoUploadRoutes(app: Express, requireMerchant: Request
     res.once('close', cancel);
     try {
       workDir = await mkdtemp(path.join(tmpdir(), 'chatvice-promo-'));
-      const upload = multer({ dest: workDir, limits: { fileSize: PROMO_UPLOAD_MAX_BYTES, files: 1, fields: 1, parts: 2 } }).single('file');
+      const upload = multer({ dest: workDir, limits: { fileSize: PROMO_UPLOAD_MAX_BYTES, files: 1, fields: 1, parts: 3 } }).single('file');
       await new Promise<void>((resolve, reject) => upload(req, res, error => error ? reject(error) : resolve()));
       if (!req.file || !req.file.size) throw new PromoMediaError('Choose an image or video to upload.', 400);
       if (controller.signal.aborted) return;

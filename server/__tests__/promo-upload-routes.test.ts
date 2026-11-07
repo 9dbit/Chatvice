@@ -33,7 +33,7 @@ it('requires merchant authentication and same-origin before decoding', async () 
 it('accepts iPhone MOV with a generic MIME, publishes only the converted MP4 and cleans private inputs', async () => {
   const {app,save} = setup();
   const before = (await readdir(tmpdir())).filter(s=>s.startsWith('chatvice-promo-'));
-  const res = await upload(app).attach('file',video,{filename:'iPhone.mov',contentType:'application/octet-stream'}).expect(200);
+  const res = await upload(app).attach('file',video,{filename:'iPhone.mov',contentType:'application/octet-stream'}).field('type','welcome_bubble_promo').expect(200);
   expect(res.body).toMatchObject({mimeType:'video/mp4',muted:true});
   expect(res.body.bytes).toBeLessThan(300000);
   expect(res.body.url).toMatch(/^\/db-files\/welcome_bubble_promo_[a-f0-9-]+\.mp4$/);
