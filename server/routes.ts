@@ -1,3 +1,5 @@
+import { registerWelcomeBubbleRoutes } from "./welcomeBubbleRoutes";
+import { welcomeBubblePromoScript } from "./welcomeBubblePromoScript";
 import { registerRetiredBillingRoutes } from "./billingSafety";
 import { merchantBillingPlan, billingPeriodStart } from "./billingUsage";
 import { registerKnowledgeEntryRoutes } from "./knowledgeEntryRoutes";
@@ -18429,6 +18431,8 @@ Rules:
   var socialIconSize = isMobile ? 26 : 26;
   var socialSvgSize = isMobile ? 13 : 13;
   
+  ${welcomeBubblePromoScript}
+
   function createWelcomeBubble(config, merchantConfig) {
     bubbleConfig = config;
     
@@ -18488,18 +18492,8 @@ Rules:
     // Full content wrapper (visible by default)
     contentHtml += '<div id="chatvice-full-content">';
     
-    // Promo image
-    if (config.promoImageEnabled && config.promoImageUrl) {
-      var promoUrl = config.promoImageUrl;
-      if (promoUrl && !promoUrl.startsWith("http") && !promoUrl.startsWith("data:")) {
-        promoUrl = baseUrl + promoUrl;
-      }
-      if (promoUrl.match(/\.mp4/i)) {
-        contentHtml += '<div style="width:100%;"><video src="' + promoUrl + '" style="width:100%;height:auto;display:block;" autoplay loop muted playsinline preload="metadata" aria-label="Promotional video"></video></div>';
-      } else {
-        contentHtml += '<div style="width:100%;"><img src="' + promoUrl + '" style="width:100%;height:auto;display:block;" onerror="this.style.display=\\'none\\'" /></div>';
-      }
-    }
+    // Promo media is built with DOM properties after the content is mounted.
+    contentHtml += '<div id="chatvice-promo-media"></div>';
     
     // Title row with minimize/close buttons
     contentHtml += '<div style="padding:' + basePadding + 'px;padding-bottom:0;">';
@@ -18521,7 +18515,7 @@ Rules:
     contentHtml += '<div style="padding:0 ' + basePadding + 'px ' + basePadding + 'px ' + basePadding + 'px;">';
     
     // Main CTA button
-    contentHtml += '<button id="chatvice-cta-btn" style="width:100%;padding:' + buttonPadding + ';background:' + (config.buttonColor || "#7c3aed") + ';color:' + (config.buttonTextColor || "#fff") + ';border:none;border-radius:6px;font-size:' + buttonFontSize + 'px;font-weight:500;cursor:pointer;">' + (config.buttonLabel || "Chat with us") + '</button>';
+    contentHtml += '<button type="button" id="chatvice-cta-btn" style="width:100%;padding:' + buttonPadding + ';background:' + (config.buttonColor || "#7c3aed") + ';color:' + (config.buttonTextColor || "#fff") + ';border:none;border-radius:9999px;font-size:' + buttonFontSize + 'px;font-weight:500;cursor:pointer;">' + (config.buttonLabel || "Chat with us") + '</button>';
     
     // Action buttons
     if (config.actionButtons && config.actionButtons.length > 0) {
@@ -18567,19 +18561,14 @@ Rules:
     contentHtml += '</div>'; // close full-content wrapper
     
     welcomeBubbleContent.innerHTML = contentHtml;
-    var promoVideo = welcomeBubbleContent.querySelector('video');
-    if (promoVideo) {
-      promoVideo.muted = true;
-      promoVideo.defaultMuted = true;
-      var playback = promoVideo.play();
-      if (playback && playback.catch) playback.catch(function() { promoVideo.controls = true; });
-    }
     welcomeBubble.appendChild(welcomeBubbleContent);
     
-    // Attach event handlers
+    function openBubbleChat() { openWidget(); hideWelcomeBubble(); }
+    renderWelcomePromo(welcomeBubbleContent.querySelector("#chatvice-promo-media"), config, baseUrl, openBubbleChat);
+    // The promo and main CTA share exactly the same chat-opening behavior.
     var ctaBtn = welcomeBubbleContent.querySelector("#chatvice-cta-btn");
     if (ctaBtn) {
-      ctaBtn.onclick = function(e) { e.stopPropagation(); openWidget(); hideWelcomeBubble(); };
+      ctaBtn.onclick = function(e) { e.stopPropagation(); openBubbleChat(); };
     }
     
     var minimizeBtn = welcomeBubbleContent.querySelector("#chatvice-minimize-btn");
@@ -25286,51 +25275,7 @@ ${pageHtml.substring(0, 50000)}`
 
   // ============== WELCOME BUBBLE ROUTES ==============
   
-  app.get("/api/welcome-bubble", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const bubble = await storage.getWelcomeBubble(merchantId);
-      res.json(bubble || {
-        headline: "Need help?",
-        message: "I can guide you through our features.",
-        buttonLabel: "Chat with us",
-        buttonColor: "#7c3aed",
-        promoImageEnabled: false,
-        promoImageUrl: "",
-        isEnabled: true,
-        actionButtons: [],
-        socialIconsEnabled: false,
-      });
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  app.put("/api/welcome-bubble", requireMerchant, async (req, res) => {
-    try {
-      const merchantId = req.session.merchantId!;
-      const bubble = await storage.upsertWelcomeBubble(merchantId, req.body);
-      res.json(bubble);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-
-  // Public endpoint for widget
-  app.get("/api/widget/:merchantId/welcome-bubble", async (req, res) => {
-    try {
-      const merchant = await resolveMerchant(req.params.merchantId);
-      if (!merchant) return res.json({ isEnabled: false });
-      const merchantId = merchant.id;
-      const bubble = await storage.getWelcomeBubble(merchantId);
-      if (!bubble || !bubble.isEnabled) {
-        return res.json({ isEnabled: false });
-      }
-      res.json(bubble);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
+  registerWelcomeBubbleRoutes(app, { storage, requireMerchant, resolveMerchant });
 
   // ============== NOTIFICATION SETTINGS ROUTES ==============
   

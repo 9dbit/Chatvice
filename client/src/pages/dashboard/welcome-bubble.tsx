@@ -1,3 +1,4 @@
+import { promoClickSettings, type PromoClickAction } from "@shared/welcomeBubble";
 import { preparePromoFile, uploadPromo } from "@/lib/promo-upload";
 import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect } from "react";
@@ -37,6 +38,8 @@ export default function WelcomeBubblePage() {
     buttonTextColor: "#ffffff",
     promoImageEnabled: false,
     promoImageUrl: "",
+    promoClickAction: "none" as PromoClickAction,
+    promoClickUrl: "",
     reappearInterval: 60,
     isEnabled: true,
     actionButtons: [] as ActionButton[],
@@ -57,6 +60,8 @@ export default function WelcomeBubblePage() {
         buttonTextColor: bubble.buttonTextColor || "#ffffff",
         promoImageEnabled: bubble.promoImageEnabled ?? false,
         promoImageUrl: bubble.promoImageUrl || "",
+        promoClickAction: (bubble.promoClickAction || "none") as PromoClickAction,
+        promoClickUrl: bubble.promoClickUrl || "",
         reappearInterval: bubble.reappearInterval ?? 60,
         isEnabled: bubble.isEnabled ?? true,
         actionButtons: (bubble.actionButtons as ActionButton[]) || [],
@@ -67,15 +72,17 @@ export default function WelcomeBubblePage() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: typeof form) => {
-      return apiRequest("PUT", "/api/welcome-bubble", data);
+      const click = promoClickSettings.safeParse(data);
+      if (!click.success) throw new Error(click.error.issues[0].message);
+      return apiRequest("PUT", "/api/welcome-bubble", { ...data, ...click.data });
     },
     onSuccess: () => {
       setPromoNeedsSave(false);
       queryClient.invalidateQueries({ queryKey: ["/api/welcome-bubble"] });
       toast({ title: t("dashboard.welcomeBubble.saved") });
     },
-    onError: () => {
-      toast({ title: t("dashboard.welcomeBubble.saveFailed"), variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ title: t("dashboard.welcomeBubble.saveFailed"), description: error.message, variant: "destructive" });
     },
   });
 
@@ -277,7 +284,7 @@ export default function WelcomeBubblePage() {
                   {uploadError && <p role="alert" className="text-sm text-destructive">{uploadError}</p>}
                   {promoNeedsSave && <p role="status" className="text-sm text-muted-foreground">Upload complete. Click Save Changes to publish this promo.</p>}
                   <div className="space-y-2">
-                    <Label htmlFor="promoImageUrl">{t("dashboard.welcomeBubble.orEnterUrl")}</Label>
+                    <Label htmlFor="promoImageUrl">Image / video source URL</Label>
                     <p className="text-xs text-muted-foreground">Automatic conversion applies to uploaded files. External video URLs must already be MP4.</p>
                     <Input
                       id="promoImageUrl"
@@ -288,10 +295,35 @@ export default function WelcomeBubblePage() {
                     />
                   </div>
 
+                  <div className="space-y-2">
+                    <Label id="promo-click-label">When someone taps the image or video</Label>
+                    <div role="group" aria-labelledby="promo-click-label" className="flex flex-wrap gap-2">
+                      {([{ value: "none", label: "No action" }, { value: "chat", label: "Open chat" }, { value: "url", label: "Open URL" }] as const).map(option => (
+                        <Button key={option.value} type="button" className="rounded-full"
+                          variant={form.promoClickAction === option.value ? "default" : "secondary"}
+                          aria-pressed={form.promoClickAction === option.value}
+                          onClick={() => setForm({ ...form, promoClickAction: option.value })}>
+                          {option.label}
+                        </Button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Applies to both images and videos. The Chat with us button always opens chat.</p>
+                  </div>
+                  {form.promoClickAction === "url" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="promoClickUrl">Destination URL</Label>
+                      <Input id="promoClickUrl" type="url" inputMode="url" className="rounded-full"
+                        value={form.promoClickUrl} onChange={e => setForm({ ...form, promoClickUrl: e.target.value })}
+                        placeholder="https://your-website.com/promotion"
+                        aria-describedby="promo-click-hint" data-testid="input-promo-click-url" />
+                      <p id="promo-click-hint" className="text-xs text-muted-foreground">Opens in a new tab when the promo is tapped. Enter a complete https:// or http:// URL.</p>
+                    </div>
+                  )}
+
                   {form.promoImageUrl && (
                     <div className="relative max-w-[200px]">
                       <Label className="mb-2 block">Preview (Full Width)</Label>
-                      <p className="text-xs text-muted-foreground mb-2">Supports GIF, JPEG, PNG, WebP & MP4 (max 5MB).</p>
+                      <p className="text-xs text-muted-foreground mb-2">Images and videos use the same tap action. Save changes to update Live Preview.</p>
                       <div className="bg-muted rounded-t-xl border overflow-hidden">
                         {form.promoImageUrl.match(/\.mp4/i) ? (
                           <video

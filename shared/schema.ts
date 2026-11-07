@@ -1274,6 +1274,8 @@ export const welcomeBubbles = pgTable("welcome_bubbles", {
   buttonTextColor: text("button_text_color").default("#ffffff"),
   promoImageEnabled: boolean("promo_image_enabled").default(false),
   promoImageUrl: text("promo_image_url").default(""),
+  promoClickAction: text("promo_click_action").notNull().default("none"),
+  promoClickUrl: text("promo_click_url").notNull().default(""),
   reappearInterval: integer("reappear_interval").default(60),
   isEnabled: boolean("is_enabled").default(true),
   actionButtons: jsonb("action_buttons").default([]), // Array of {label: string, url: string}, max 5
