@@ -10,6 +10,7 @@ import MailLanding,{MailBrand} from "./pages/mail-landing";
 import MailArt from "./components/mail-art";
 import MailTheme from "./components/mail-theme";
 import {queryClient} from "./lib/queryClient";
+import {MAIL_SESSION_EXPIRED_EVENT} from "./lib/mail-session";
 import "./mail-qa.css";
 import "./mail-site.css";
 type Identity={email:string;admin:boolean};
@@ -18,6 +19,12 @@ function App(){
  const [email,setEmail]=useState(""),[password,setPassword]=useState("");
  const [error,setError]=useState(""),[busy,setBusy]=useState(false),[showPassword,setShowPassword]=useState(false);
  const [location,navigate]=useLocation();
+ // A revoked or expired Mail cookie must never leave the old identity mounted.
+ useEffect(()=>{
+  const expired=()=>{queryClient.clear();setIdentity(null);setPassword("");setError("Your Mail session has expired. Please sign in again.");navigate("/login");};
+  window.addEventListener(MAIL_SESSION_EXPIRED_EVENT,expired);
+  return()=>window.removeEventListener(MAIL_SESSION_EXPIRED_EVENT,expired);
+ },[navigate]);
  useEffect(()=>{fetch("/api/mail-auth/session",{credentials:"same-origin"}).then(async r=>{
   if(r.ok)setIdentity(await r.json());else if(r.status!==401)setError("Mail service is temporarily unavailable.");
  }).catch(()=>setError("Unable to connect to Mail.")).finally(()=>setReady(true));},[]);

@@ -8,6 +8,7 @@ import MailAttachments from "./mail-attachments";
 import {useDesktopMail,useMailParallax} from "@/components/mail-motion";
 import "../../mail-motion.css";
 import MailActivity from "./mail-activity";
+import {mailFetch, preferredMailboxId} from "@/lib/mail-session";
 import MailMessageBody from "./mail-message-body";
 import { mailReplyRecipients, parseMailRecipients } from "@shared/mail-recipients";
 import "./mail-workspace.css";
@@ -28,7 +29,7 @@ const PAGE_SIZE=40;
 const blankEditor=():Editor=>({to:"",cc:"",bcc:"",subject:"",body:""});
 const snapshot=(e:Editor)=>JSON.stringify([e.to,e.cc,e.bcc,e.subject,e.body]);
 async function request<T>(url:string,method="GET",data?:unknown,signal?:AbortSignal):Promise<T>{
- const response=await fetch(url,{method,credentials:"same-origin",cache:"no-store",signal,
+ const response=await mailFetch(url,{method,signal,
   headers:data===undefined?undefined:{"Content-Type":"application/json"},
   body:data===undefined?undefined:JSON.stringify(data)});
  if(!response.ok){
@@ -51,6 +52,7 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
  const [threads,setThreads]=useState<Thread[]>([]),[hasNext,setHasNext]=useState(false),[stats,setStats]=useState<Stat[]>([]);
  const [selected,setSelected]=useState<Thread|null>(null),[messages,setMessages]=useState<Message[]>([]),[context,setContext]=useState<Context|null>(null);
  const [loading,setLoading]=useState(true),[reading,setReading]=useState(false),[initializing,setInitializing]=useState(true);
+  const [mailboxesFailed,setMailboxesFailed]=useState(false),[mailboxRetry,setMailboxRetry]=useState(0);
  const [error,setError]=useState(""),[notice,setNotice]=useState(""),[search,setSearch]=useState("");
  const [editor,setEditor]=useState<Editor|null>(null),[savedSnapshot,setSavedSnapshot]=useState("");
  const [saving,setSaving]=useState(false),[acting,setActing]=useState(false),[aiLoading,setAiLoading]=useState(false);
@@ -87,11 +89,11 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
  useEffect(()=>{
   const abort=new AbortController();
   Promise.all([request<Box[]>("/api/mail/mailboxes","GET",undefined,abort.signal),request<Capabilities>("/api/mail/capabilities","GET",undefined,abort.signal)])
-   .then(([b,c])=>{setBoxes(b);setCap(c);setBox(b.find(x=>x.enabled)?.id||"");})
-   .catch(e=>{if(!abort.signal.aborted)setError(e.message);})
+   .then(([b,c])=>{if(!abort.signal.aborted){setMailboxesFailed(false);setError("");setBoxes(b);setCap(c);setBox(preferredMailboxId(b,accountEmail));}})
+   .catch(e=>{if(!abort.signal.aborted){setMailboxesFailed(true);setError(e.message);setBoxes([]);setBox("");}})
    .finally(()=>{if(!abort.signal.aborted){setInitializing(false);setLoading(false);}});
   return()=>abort.abort();
- },[]);
+ },[accountEmail,mailboxRetry]);
  useEffect(()=>{
   if(!box)return;
   const abort=new AbortController();setLoading(true);setThreads([]);setHasNext(false);
@@ -248,9 +250,9 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
  const navigation=()=>(<nav id={desktop?"mail-desktop-menu":"mail-mobile-menu"} className={`mail-sidebar ${desktop?"mail-desktop-sidebar":"mail-menu-sidebar"} ${desktop&&collapsed?"is-collapsed":""}`} aria-label="Mail folders">
     {desktop&&<div className="mail-sidebar-heading"><span>WORKSPACE</span><button ref={menuRef} className="mail-icon-btn" aria-label={collapsed?"Expand sidebar":"Collapse sidebar"} title={collapsed?"Expand sidebar":"Collapse sidebar"} aria-expanded={!collapsed} aria-controls="mail-desktop-menu" onClick={()=>setCollapsed(value=>!value)}>{collapsed?<PanelLeftOpen size={18}/>:<PanelLeftClose size={18}/>}</button></div>}
     {desktop&&collapsed?<button className="mail-folder mail-workspace-picker" aria-label="Choose workspace" title={currentBox?`${currentBox.local_part}@${currentBox.domain}`:"Choose workspace"} onClick={()=>{focusWorkspace.current=true;setCollapsed(false);}}><Boxes size={18}/></button>:<div className="mail-account"><label htmlFor="mailbox-select">WORKSPACE</label><select ref={workspaceRef} id="mailbox-select" value={box} disabled={saving||uploading||acting||initializing} onChange={e=>changeMailbox(e.target.value)}>
-     {!box&&<option value="">{initializing?"Loading…":"No active mailbox"}</option>}
+     {!box&&<option value="">{initializing?"Loading…":mailboxesFailed?"Mailbox unavailable":"No active mailbox"}</option>}
      {boxes.map(b=><option key={b.id} value={b.id} disabled={!b.enabled}>{b.local_part}@{b.domain}{!b.enabled?" (disabled)":""}</option>)}
-    </select><span className={`mail-access ${box&&!canWrite?"mail-readonly":""}`}>{box?(canWrite?"Mailbox member":"Read-only access"):"Assign a mailbox to get started"}</span></div>}
+    </select><span className={`mail-access ${box&&!canWrite?"mail-readonly":""}`}>{box?(canWrite?"Mailbox member":"Read-only access"):mailboxesFailed?"Mailbox service unavailable":"Assign a mailbox to get started"}</span></div>}
     <div className="mail-folder-links">{folders.map(f=>{
      const stat=stats.find(s=>s.folder===f.name);
      return <button key={f.name} aria-label={f.label} title={collapsed&&desktop?`${f.label}${stats.find(s=>s.folder===f.name)?.total?` (${stats.find(s=>s.folder===f.name)?.total})`:""}`:undefined} disabled={acting} onClick={()=>navigate(f.name,"all")} aria-current={folder===f.name?"page":undefined} className={`mail-folder ${folder===f.name?"active":""}`}><f.icon size={17}/><span>{f.label}</span>{Boolean(stat?.total)&&<span className="mail-folder-count">{stat?.total}</span>}</button>;
@@ -276,7 +278,7 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
     </div></div>
     {searchOpen&&<div id="mail-search-panel" className="mail-search-drawer" role="region" aria-label="Search conversations" onKeyDown={event=>{if(event.key==="Escape"){event.preventDefault();event.stopPropagation();closeSearch();}}}><label className="mail-search"><Search size={15}/><input ref={searchRef} aria-label="Search this page" placeholder="Search this page" value={search} onChange={e=>setSearch(e.target.value)}/>{search&&<button aria-label="Clear search" onClick={()=>setSearch("")}>×</button>}<button aria-label="Close search" onClick={closeSearch}><X size={15}/></button></label><small>Searches conversations on this page.</small></div>}
     <div ref={listScrollRef} className="mail-thread-scroll" aria-busy={loading} onScroll={event=>{updateHeader(event.currentTarget.scrollTop);}}>
-     {loading?<div className="mail-skeletons" aria-label="Loading conversations">{[1,2,3,4].map(x=><div key={x}><span/><span/><span/></div>)}</div>:!visible.length?<div className="mail-empty-list"><MailArt kind="inbox" className="mail-list-art"/><h3>{search?"No matches on this page":!box?"Your mailbox starts here":"You're all caught up"}</h3><p>{search?"Try another term or clear the search to browse more pages.":!box?"Ask your administrator to assign a mailbox.":`No ${filter==="all"?"":filter+" "}conversations in ${folderLabel.toLowerCase()}.`}</p>{search&&<button className="mail-button" onClick={()=>setSearch("")}>Clear search</button>}</div>:visible.map(t=><div key={t.id} className={`mail-thread ${selected?.id===t.id?"selected":""} ${!t.is_read?"unread":""}`}>
+     {loading?<div className="mail-skeletons" aria-label="Loading conversations">{[1,2,3,4].map(x=><div key={x}><span/><span/><span/></div>)}</div>:mailboxesFailed?<div className="mail-empty-list" role="status"><AlertCircle size={28}/><h3>Mailbox unavailable</h3><p>We could not load your mailboxes. Your messages have not been deleted.</p><button className="mail-button" onClick={()=>{setInitializing(true);setMailboxesFailed(false);setMailboxRetry(n=>n+1);}}>Retry connection</button></div>:!visible.length?<div className="mail-empty-list"><MailArt kind="inbox" className="mail-list-art"/><h3>{search?"No matches on this page":!box?"Your mailbox starts here":"You're all caught up"}</h3><p>{search?"Try another term or clear the search to browse more pages.":!box?"Ask your administrator to assign a mailbox.":`No ${filter==="all"?"":filter+" "}conversations in ${folderLabel.toLowerCase()}.`}</p>{search&&<button className="mail-button" onClick={()=>setSearch("")}>Clear search</button>}</div>:visible.map(t=><div key={t.id} className={`mail-thread ${selected?.id===t.id?"selected":""} ${!t.is_read?"unread":""}`}>
        <button type="button" className="mail-thread-open" disabled={acting} aria-pressed={selected?.id===t.id}
         aria-label={`${t.from_email.split("@")[0]} · ${t.subject||"(No subject)"}`}
         onClick={()=>{setSelected(t);setError("");setNotice("");}}>

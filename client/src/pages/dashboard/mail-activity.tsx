@@ -1,11 +1,12 @@
 import {useEffect,useState,type ReactNode,type RefObject} from "react";
 import {Check,Plus,Inbox,ShieldAlert,FileText,Pause,Play,Bell,ArrowUpRight} from "lucide-react";
 import {Dialog,DialogContent,DialogTitle,DialogDescription} from "@/components/mail-dialog";
+import {mailFetch} from "@/lib/mail-session";
 export type ActivityMail={id:string;thread_id:string;subject:string;from_email:string;text_body:string;created_at:string};
 type Activity={counts:{unread:number;spam:number;drafts:number};unread:ActivityMail[];drafts:{id:string;subject:string}[];reminders:{id:string;title:string;due_date:string}[]};
 type Props={desktop:boolean;open:boolean;onOpenChange:(open:boolean)=>void;returnFocusRef:RefObject<HTMLButtonElement>;mailboxId:string;canWrite:boolean;reload:number;onFolder:(folder:string,filter?:string)=>void;onMessage:(message:ActivityMail)=>void;onDraft:(id:string)=>void;pagination?:ReactNode};
 async function api(path:string,method="GET",data?:unknown,signal?:AbortSignal){
- const r=await fetch(path,{method,credentials:"same-origin",cache:"no-store",signal,headers:data?{"Content-Type":"application/json"}:undefined,body:data?JSON.stringify(data):undefined});
+ const r=await mailFetch(path,{method,signal,headers:data?{"Content-Type":"application/json"}:undefined,body:data?JSON.stringify(data):undefined});
  if(!r.ok){const problem=await r.json().catch(()=>null);throw Error(problem?.error||"Activity is unavailable. Try again.");}return r.json();
 }
 function dateText(value:string){const today=new Date();today.setHours(0,0,0,0);const due=new Date(value+"T00:00:00"),days=Math.round((due.getTime()-today.getTime())/86400000);return days<0?`Overdue · ${due.toLocaleDateString()}`:days===0?"Due today":`Due ${due.toLocaleDateString()}`;}
