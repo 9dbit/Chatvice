@@ -506,7 +506,8 @@ test("workspace capabilities expose booleans only and mailbox roles match write 
  const viewer=await supertest(server).get("/api/mail/capabilities").set("x-ci-subject","viewerA");
  assert.equal(owner.status,200);assert.equal(owner.body.admin,true);assert.equal(owner.body.outbound,false);
  assert.equal(viewer.body.admin,false);
- assert.deepEqual(Object.keys(owner.body).sort(),["admin","ai","attachments","outbound"]);
+ assert.deepEqual(Object.keys(owner.body).sort(),["admin","ai","attachments","crm","outbound"]);
+  assert.equal(owner.body.crm,true);assert.equal(viewer.body.crm,true);
  assert.ok(Object.values(owner.body).every(value=>typeof value==="boolean"));
  const boxes=await supertest(server).get("/api/mail/mailboxes").set("x-ci-subject","viewerA");
  assert.equal(boxes.body[0].can_write,false);
