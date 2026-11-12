@@ -8,7 +8,7 @@ import MailAttachments from "./mail-attachments";
 import {useDesktopMail,useMailParallax} from "@/components/mail-motion";
 import "../../mail-motion.css";
 import MailActivity from "./mail-activity";
-import {mailFetch} from "@/lib/mail-session";
+import {mailFetch, preferredMailboxId} from "@/lib/mail-session";
 import MailMessageBody from "./mail-message-body";
 import { mailReplyRecipients, parseMailRecipients } from "@shared/mail-recipients";
 import "./mail-workspace.css";
@@ -89,11 +89,11 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
  useEffect(()=>{
   const abort=new AbortController();
   Promise.all([request<Box[]>("/api/mail/mailboxes","GET",undefined,abort.signal),request<Capabilities>("/api/mail/capabilities","GET",undefined,abort.signal)])
-   .then(([b,c])=>{if(!abort.signal.aborted){setMailboxesFailed(false);setError("");setBoxes(b);setCap(c);setBox(b.find(x=>x.enabled)?.id||"");}})
+   .then(([b,c])=>{if(!abort.signal.aborted){setMailboxesFailed(false);setError("");setBoxes(b);setCap(c);setBox(preferredMailboxId(b,accountEmail));}})
    .catch(e=>{if(!abort.signal.aborted){setMailboxesFailed(true);setError(e.message);setBoxes([]);setBox("");}})
    .finally(()=>{if(!abort.signal.aborted){setInitializing(false);setLoading(false);}});
   return()=>abort.abort();
- },[]);
+ },[accountEmail,mailboxRetry]);
  useEffect(()=>{
   if(!box)return;
   const abort=new AbortController();setLoading(true);setThreads([]);setHasNext(false);
