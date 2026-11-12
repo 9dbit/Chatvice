@@ -19,7 +19,7 @@ type Box = {id:string;local_part:string;domain:string;display_name:string;enable
 type Thread = {id:string;subject:string;from_email:string;text_body:string;created_at:string;is_read:boolean;is_starred:boolean;message_count:number};
 type Message = {id:string;status:string;direction:string;from_email:string;to_emails:string[];cc_emails?:string[];subject:string;text_body:string;created_at:string;is_read:boolean;is_starred:boolean};
 type Context = {sender:string|null;lead:{id:string;customer_name:string|null;customer_email:string;stage:string;score:number;source:string}|null};
-type Capabilities = {admin:boolean;outbound:boolean;ai:boolean;attachments:boolean};
+type Capabilities = {admin:boolean;outbound:boolean;ai:boolean;attachments:boolean;crm?:boolean};
 type Stat = {folder:string;total:number;unread:number};
 type Editor = {to:string;cc:string;bcc:string;subject:string;body:string;draftId?:string;replyToId?:string};
 type SavedDraft = {id:string;mailboxId:string;to:string[];cc:string[];bcc:string[];subject:string;text:string};
@@ -316,7 +316,7 @@ export default function MailPage({accountEmail,onSignOut,signingOut=false}:MailP
        {m.status==="draft"&&canWrite&&<button className="mail-button" disabled={openingDraft} onClick={()=>openDraft(m.id)}><FileText size={15}/>{openingDraft?"Opening draft…":"Continue editing"}</button>}
       </section>)}
       {!reading&&incoming&&canWrite&&<div className="mail-reply-actions"><button className="mail-button mail-reply" onClick={()=>reply()}><Reply size={17}/> Reply to {incoming.from_email.split("@")[0]}</button>{hasReplyAll&&<button className="mail-button mail-reply" onClick={()=>reply("",true)}><ReplyAll size={17}/> Reply all</button>}</div>}
-      {context?.sender&&<aside className="mail-contact"><div><span className="mail-eyebrow">CUSTOMER 360</span><h3>{context.lead?.customer_name||context.sender}</h3><p>{context.lead?`${context.lead.stage} · Lead score ${context.lead.score??0}/100`:"Connect this conversation with your customer records."}</p></div>{context.lead?<span className="mail-linked"><Check size={13}/> CRM linked</span>:canWrite&&<button className="mail-button" disabled={acting} onClick={convertLead}><UserRoundPlus size={15}/> Add to CRM</button>}</aside>}
+      {cap.crm!==false&&context?.sender&&<aside className="mail-contact"><div><span className="mail-eyebrow">CUSTOMER 360</span><h3>{context.lead?.customer_name||context.sender}</h3><p>{context.lead?`${context.lead.stage} · Lead score ${context.lead.score??0}/100`:"Connect this conversation with your customer records."}</p></div>{context.lead?<span className="mail-linked"><Check size={13}/> CRM linked</span>:canWrite&&<button className="mail-button" disabled={acting} onClick={convertLead}><UserRoundPlus size={15}/> Add to CRM</button>}</aside>}
      </div>
     </>:<div className="mail-reader-empty"><MailArt kind="inbox" depth={1} className="mail-empty-art"/><span className="mail-eyebrow">MAKE ROOM FOR FOCUS</span><h2>Good conversations<br/>start here.</h2><p>Select a conversation to read, reply,<br/>and keep your customers connected.</p><div><span><LockKeyhole size={13}/> Private mailboxes</span><span><UserRoundPlus size={13}/> Connected to CRM</span></div>{canWrite&&<button className="mail-button" onClick={()=>openEditor(blankEditor())}><Plus size={16}/> Start a conversation</button>}</div>}
    </article>
