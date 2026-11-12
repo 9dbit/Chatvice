@@ -128,6 +128,12 @@ test("public signup protects unverified identity, creates isolated mailbox, limi
   const draftId=(await draft.json()).id;
   assert.equal((await api("/api/mail/drafts/"+draftId+"/send",{}, {cookie})).status,429);
   assert.equal((await pool.query("SELECT status FROM mail_messages WHERE id=$1",[draftId])).rows[0].status,"draft");
+  process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED="true";
+  try{
+    assert.equal((await api("/api/mail/messages/"+draftId+"/attachments",{}, {cookie})).status,403,
+      "public trial upload must be denied before multipart storage");
+  }finally{process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED="false";}
+
   assert.equal((await api("/api/mail-auth/signup/request",{...newSignup,localPart:"another-user"})).status,202);
   assert.equal(outbound.length,1,"one external contact cannot create a second public mailbox");
   assert.equal((await api("/api/mail-auth/signup/request",{...newSignup,localPart:"studio-guest",contactEmail:"other@external.example"})).status,202);
