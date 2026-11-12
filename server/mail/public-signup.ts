@@ -90,10 +90,11 @@ export async function requestPublicSignup(data:unknown,ip:string){
   const q=await pool.query(`SELECT id FROM mail_domains WHERE tenant_id=$1 AND domain=$2 AND status='verified'`,[tenant,domainName()]);
   if(q.rowCount!==1)throw new OnboardingError(503,"Mail domain is temporarily unavailable.");
   const domainId=q.rows[0].id,contactDigest=contactKey(contact);
+  // Contact email can verify any number of different, unclaimed mailbox names.
+  // Keep generic responses for taken addresses to prevent enumeration.
   const taken=await pool.query(`SELECT 1 WHERE
     EXISTS(SELECT 1 FROM mail_mailboxes WHERE domain_id=$1 AND local_part=$2) OR
-    EXISTS(SELECT 1 FROM mail_aliases WHERE domain_id=$1 AND local_part=$2) OR
-    EXISTS(SELECT 1 FROM mail_public_signups WHERE contact_key=$3 AND completed_at IS NOT NULL)`,[domainId,value.localPart,contactDigest]);
+    EXISTS(SELECT 1 FROM mail_aliases WHERE domain_id=$1 AND local_part=$2)`,[domainId,value.localPart]);
   // Do not enumerate existing addresses or contact registrations.
   if(taken.rowCount)return {accepted:true};
   const token=randomBytes(32).toString("hex"),id=randomUUID(),digest=tokenHash(token);
@@ -130,8 +131,6 @@ export async function completePublicSignup(input:unknown,ip:string){
       FOR UPDATE`,[tokenHash(value.token)]);
     if(!q.rowCount)throw new OnboardingError(410,"Verification link expired or already used. Please sign up again.");
     const row=q.rows[0];
-    const used=await c.query("SELECT 1 FROM mail_public_signups WHERE contact_key=$1 AND completed_at IS NOT NULL",[row.contact_key]);
-    if(used.rowCount)throw new OnboardingError(409,"This contact already has a mailbox.");
     const created=await createStandaloneMailboxInTransaction(c,row.tenant_id,{
       domainId:row.domain_id,localPart:row.local_part,displayName:row.display_name,
     });
@@ -159,16 +158,22 @@ export async function isPublicMailbox(mailboxId:string){
 }
 /** Bound to a verified-public mailbox, not every account sharing the Mail tenant. */
 export async function consumePublicSendAllowance(c:PoolClient,mailboxId:string,recipientCount:number,attachments:number){
-  const q=await c.query(`SELECT token_hash FROM mail_public_signups
+  const q=await c.query(`SELECT contact_key FROM mail_public_signups
     WHERE mailbox_id=$1 AND completed_at IS NOT NULL FOR UPDATE`,[mailboxId]);
   if(!q.rowCount)return;
   if(recipientCount>3)throw new OnboardingError(429,"Public accounts can send to at most 3 recipients per message.");
   if(attachments>0)throw new OnboardingError(409,"Attachments are not available for public trial accounts.");
-  const r=await c.query(`INSERT INTO mail_public_send_limits(mailbox_id,window_start,used)
-    VALUES($1,(now() AT TIME ZONE 'UTC')::date,1)
-    ON CONFLICT(mailbox_id,window_start) DO UPDATE SET used=mail_public_send_limits.used+1
-    WHERE mail_public_send_limits.used<10 RETURNING used`,[mailboxId]);
-  if(!r.rowCount)throw new OnboardingError(429,"Public trial daily sending limit reached (10 messages).");
+  // No daily or lifetime outgoing quota. A short anti-abuse burst guard applies
+  // to the verified CONTACT across all its mailboxes, not to each mailbox in
+  // isolation. The provider may independently apply throughput / policy limits.
+  const minuteStart=new Date(Math.floor(Date.now()/60_000)*60_000);
+  const bucket=createHmac("sha256",secret())
+    .update("mail-public-send-minute|"+q.rows[0].contact_key).digest("hex");
+  const r=await c.query(`INSERT INTO mail_login_limits(key_hash,window_start,attempts) VALUES($1,$2,1)
+    ON CONFLICT(key_hash,window_start) DO UPDATE SET attempts=mail_login_limits.attempts+1
+    RETURNING attempts`,[bucket,minuteStart]);
+  if(Number(r.rows[0].attempts)>12)
+    throw new OnboardingError(429,"Too many messages in a short period. Please retry shortly.");
 }
 const safe=(fn:(req:Request,res:Response)=>Promise<unknown>)=>(req:Request,res:Response)=>{
   void fn(req,res).catch(error=>{
