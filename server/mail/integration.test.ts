@@ -38,8 +38,11 @@ before(async()=>{
   await pool.query("CREATE TABLE leads (id varchar(32) PRIMARY KEY, merchant_id varchar(32) NOT NULL, customer_name text, customer_email text, stage text, score integer, source text, last_contact_at timestamp, created_at timestamp DEFAULT now(), updated_at timestamp DEFAULT now())");
   await pool.query(readFileSync("migrations/20261026_chatvice_mail_v1.sql","utf8"));
   await pool.query(readFileSync("migrations/20261026_chatvice_mail_attachments_v2.sql","utf8"));
+  await pool.query(readFileSync("migrations/20261027_chatvice_mail_login.sql","utf8"));
   await pool.query(readFileSync("migrations/20261027_chatvice_mail_delivery_recipients_v3.sql","utf8"));
   await pool.query(readFileSync("migrations/20261101_chatvice_mail_reminders_v4.sql","utf8"));
+  await pool.query(readFileSync("migrations/20261105_chatvice_mail_onboarding_v5.sql","utf8"));
+  await pool.query(readFileSync("migrations/20261112_chatvice_mail_public_signup_v6.sql","utf8"));
   await pool.query("INSERT INTO merchants(id) VALUES($1),($2)",[fixture.tenantA,fixture.tenantB]);
   await pool.query("INSERT INTO supervisors(id,merchant_id) VALUES ($1,$2)",[fixture.supervisor,fixture.tenantA]);
   await pool.query(`INSERT INTO mail_domains(id,tenant_id,domain,verification_token,status) VALUES
@@ -77,7 +80,6 @@ after(async()=>{
 });
 
 test("isolated login uses host-only sessions, live mailbox permissions and immediate revocation",async()=>{
-  await pool.query(readFileSync("migrations/20261027_chatvice_mail_login.sql","utf8"));
   const loginId=randomUUID(),otherId=randomUUID(),password="Synthetic-password-for-ci-12345";
   const hash=await hashMailPassword(password);
   await pool.query(`INSERT INTO mail_login_users(id,tenant_id,user_id,email,password_hash,is_admin)
