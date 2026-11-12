@@ -115,7 +115,8 @@ export function registerMailRoutes(app: Express) {
       admin:principal(req)!.isMerchant,
       outbound:process.env.CHATVICE_MAIL_OUTBOUND_ENABLED==="true" &&
         process.env.CHATVICE_MAIL_PROVIDER==="resend" && Boolean(process.env.RESEND_API_KEY),
-      ai:process.env.CHATVICE_MAIL_AI_ENABLED==="true" && Boolean(process.env.CHATVICE_MAIL_AI_API_KEY),
+      ai:!publicTrial&&process.env.CHATVICE_MAIL_AI_ENABLED==="true" && Boolean(process.env.CHATVICE_MAIL_AI_API_KEY),
+      crm:!publicTrial,
       attachments:process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED==="true"&&!publicTrial
     });
   }));
@@ -427,6 +428,7 @@ export function registerMailRoutes(app: Express) {
     if(!q.rowCount || !await canAccess(p,q.rows[0].mailbox_id))return res.sendStatus(404);
     const sender=q.rows[0].sender;
     if(!sender)return res.json({sender:null,lead:null});
+    if(!p.isMerchant&&await isPublicLoginAccount(p.tenantId,p.userId))return res.json({sender,lead:null});
     const lead=await pool.query(`SELECT id,customer_name,customer_email,stage,score,source,last_contact_at,
       created_at FROM leads WHERE merchant_id=$1 AND lower(customer_email)=$2
       ORDER BY updated_at DESC NULLS LAST LIMIT 1`,[p.tenantId,sender]);
@@ -434,6 +436,7 @@ export function registerMailRoutes(app: Express) {
   }));
   app.post("/api/mail/threads/:id/convert-to-lead",wrap(async(req,res)=>{
     const p=principal(req)!;
+    if(!p.isMerchant&&await isPublicLoginAccount(p.tenantId,p.userId))return res.sendStatus(403);
     const thread=uuid.parse(req.params.id);
     const t=await pool.query(`SELECT t.mailbox_id,
       (SELECT m.from_email FROM mail_messages m WHERE m.thread_id=t.id
