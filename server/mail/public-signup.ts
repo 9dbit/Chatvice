@@ -144,6 +144,14 @@ export async function completePublicSignup(input:unknown,ip:string){
     throw e;
   }finally{c.release();}
 }
+/** Hide the upload control for a restricted public trial identity. */
+export async function isPublicLoginAccount(tenant:string,user:string){
+  const q=await pool.query(`SELECT 1 FROM mail_public_signups s
+    JOIN mail_mailbox_provisioning p ON p.mailbox_id=s.mailbox_id
+    JOIN mail_login_users u ON u.id=p.login_id AND u.tenant_id=s.tenant_id
+    WHERE s.completed_at IS NOT NULL AND u.tenant_id=$1 AND u.user_id=$2 LIMIT 1`,[tenant,user]);
+  return !!q.rowCount;
+}
 /** Public accounts cannot upload attachments, even to drafts. */
 export async function isPublicMailbox(mailboxId:string){
   const q=await pool.query("SELECT 1 FROM mail_public_signups WHERE mailbox_id=$1 AND completed_at IS NOT NULL",[mailboxId]);
