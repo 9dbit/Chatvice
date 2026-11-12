@@ -18,7 +18,7 @@ if(process.env.CHATVICE_MAIL_APP_ROLE!=="isolated-mail" ||
   throw new Error("Isolated Mail application configuration required");
 const app=express();
 app.disable("x-powered-by");app.set("trust proxy",1);
-const csp=["default-src 'none'","base-uri 'none'","object-src 'none'","script-src 'self'",
+const csp=["default-src 'none'","base-uri 'none'","object-src 'none'","script-src 'self' https://challenges.cloudflare.com",
   "style-src 'self' 'unsafe-inline'","connect-src 'self' https://challenges.cloudflare.com","img-src 'self' https://challenges.cloudflare.com data: blob:","media-src 'self' blob:","worker-src 'self'","frame-src https://challenges.cloudflare.com",
   "font-src 'self' data:","frame-ancestors 'none'","form-action 'self'"].join("; ");
 app.use((_req,res,next)=>{
