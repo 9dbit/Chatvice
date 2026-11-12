@@ -70,6 +70,7 @@ on:
       - ".github/workflows/chatvice-mail-ci.yml"
   push:
     branches:
+      - "fix/mail-session-recovery-20261112"
       - "feature/chatvice-mail-engine-20261026"
       - "fix/chatvice-mail-forwarding-20261101"
       - "feat/chatvice-mail-redesign-20261101"
