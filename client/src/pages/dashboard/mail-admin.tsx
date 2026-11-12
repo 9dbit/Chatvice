@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState} from "react";
 import {Link} from "wouter";
 import {ArrowLeft, ArrowUpRight, Check, Copy, Plus, RefreshCw, ShieldCheck, Mail, Settings, Users, Globe, ChevronRight} from "lucide-react";
-import {apiRequest} from "@/lib/queryClient";
+import {mailApiRequest as apiRequest} from "@/lib/mail-session";
 import {Dialog, DialogContent, DialogTitle, DialogDescription, useMailConfirm} from "@/components/mail-dialog";
 import MailArt from "@/components/mail-art";
 import "./mail-workspace.css";
