@@ -168,10 +168,10 @@ test("disabled attachment feature rejects uploads before reading multipart bytes
   }
 });
 
-test("fresh migrations create all twelve mail tables without touching unrelated data",async()=>{
+test("fresh migrations create all sixteen Mail tables without touching unrelated data",async()=>{
   const q=await pool.query(`SELECT count(*)::integer AS count FROM information_schema.tables
     WHERE table_schema='public' AND table_name LIKE 'mail_%'`);
-  assert.equal(q.rows[0].count,12);
+  assert.equal(q.rows[0].count,16);
 });
 test("encryption is mandatory and mail API fails closed if master key disappears",async()=>{
   const key=process.env.CHATVICE_MAIL_ENCRYPTION_KEY;
