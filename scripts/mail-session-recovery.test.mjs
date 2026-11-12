@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MAIL_SESSION_EXPIRED_EVENT, mailFetch, mailApiRequest } from "../client/src/lib/mail-session.ts";
+import { MAIL_SESSION_EXPIRED_EVENT, mailFetch, mailApiRequest, preferredMailboxId } from "../client/src/lib/mail-session.ts";
 
 const originalFetch = globalThis.fetch;
 const originalWindow = globalThis.window;
@@ -55,4 +55,16 @@ test("mailFetch respects the request abort signal", async () => {
   const response = await mailFetch("/api/mail/mailboxes", { signal: controller.signal });
   assert.equal(response.status, 200);
   assert.deepEqual(events, []);
+});
+
+test("prefers the signed-in mailbox over the first alphabetic mailbox", () => {
+  const boxes = [
+    {id:"64cor",local_part:"64cor",domain:"chatvice.app",enabled:true},
+    {id:"hello",local_part:"hello",domain:"chatvice.app",enabled:true},
+    {id:"archived",local_part:"old",domain:"chatvice.app",enabled:false},
+  ];
+  assert.equal(preferredMailboxId(boxes, "HELLO@CHATVICE.APP"), "hello");
+  assert.equal(preferredMailboxId(boxes, "unassigned@chatvice.app"), "64cor");
+  assert.equal(preferredMailboxId(boxes, "old@chatvice.app"), "64cor");
+  assert.equal(preferredMailboxId([],"hello@chatvice.app"), "");
 });
