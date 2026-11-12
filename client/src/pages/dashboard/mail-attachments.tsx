@@ -1,6 +1,6 @@
 import {lazy,Suspense,useEffect,useRef,useState} from "react";
 import {Paperclip,FileDown,FileText,RefreshCcw,ShieldAlert,Upload,ChevronRight,Image as ImageIcon,Film,Trash2,Maximize2,X,Check} from "lucide-react";
-import {apiRequest} from "@/lib/queryClient";
+import {mailApiRequest as apiRequest, mailFetch, notifyMailSessionExpired} from "@/lib/mail-session";
 import {MAX_MAIL_ATTACHMENT_BYTES,MAX_MAIL_NATIVE_ATTACHMENT_BYTES,MAIL_SHARE_LINK_DAYS,MAIL_ATTACHMENT_LIMIT_LABEL,mailAttachmentSizeError} from "@shared/mail-policy";
 import {mailPreviewType} from "@shared/mail-preview";
 import {Dialog,DialogContent,DialogTitle,DialogDescription} from "@/components/mail-dialog";
@@ -32,6 +32,7 @@ function postAttachmentWithProgress(
       let response:any=null;
       try{response=JSON.parse(xhr.responseText);}catch{}
       if(xhr.status>=200&&xhr.status<300){resolve({id:response?.id});return;}
+      if(xhr.status===401)notifyMailSessionExpired();
       reject(new Error(typeof response?.error==="string"?response.error.slice(0,240):`Could not upload ${file.name}`));
     });
     xhr.addEventListener("error",()=>{setActive(null);reject(new Error(`Network error uploading ${file.name}`));});
@@ -81,7 +82,7 @@ export default function MailAttachments({messageId,allowUpload=false,compact=fal
   if(a.scan_status!=="clean"||life.pending.has(a.id))return;
   life.pending.add(a.id);
   try{
-   const r=await fetch(`/api/mail/attachments/${encodeURIComponent(a.id)}/download`,{credentials:"same-origin",cache:"no-store",signal:life.abort.signal});
+   const r=await mailFetch(`/api/mail/attachments/${encodeURIComponent(a.id)}/download`,{signal:life.abort.signal});
    if(!r.ok)throw Error("Preview unavailable");
    const bytes=new Uint8Array(await r.arrayBuffer());
    if(life.abort.signal.aborted||!previewableIds.current.has(a.id))return;
