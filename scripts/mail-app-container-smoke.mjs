@@ -62,18 +62,18 @@ try{
  catch(error){refused=String(error.stderr).includes('Isolated Mail schema guard denied');}
  assert.equal(refused,true,'wrong database host must be refused before installation');
  run(['node','scripts/mail-app-schema.mjs']);
- inspectSchema(`assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,7);
+ inspectSchema(`assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,8);
   assert.equal((await pool.query("SELECT count(*)::int n FROM information_schema.tables WHERE table_name IN ('mail_public_signups','mail_public_send_limits')")).rows[0].n,2);
   await pool.query("UPDATE mail_schema_migrations SET sha256=$1 WHERE name='20261026_chatvice_mail_v1.sql'",['0'.repeat(64)]);`);
  let historyRefused=false;
  try{run(['node','scripts/mail-app-schema.mjs']);}catch{historyRefused=true;}
  assert.equal(historyRefused,true,'packaged installer must reject edited migration history');
  inspectSchema(`assert.equal((await pool.query("SELECT count(*)::integer AS n FROM information_schema.columns WHERE table_name='mail_delivery_events' AND column_name='recipient_keys'")).rows[0].n,1);
-  assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,7);
+  assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,8);
   const sha=createHash('sha256').update(readFileSync('migrations/20261026_chatvice_mail_v1.sql','utf8')).digest('hex');
   await pool.query("UPDATE mail_schema_migrations SET sha256=$1 WHERE name='20261026_chatvice_mail_v1.sql'",[sha]);`);
  run(['node','scripts/mail-app-schema.mjs']);
- inspectSchema(`assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,7);
+ inspectSchema(`assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,8);
   const result=await pool.query("SELECT udt_name,is_nullable FROM information_schema.columns WHERE table_name='mail_delivery_events' AND column_name='recipient_keys'");
   assert.deepEqual(result.rows,[{udt_name:'_text',is_nullable:'NO'}]);`);
  run(['node','scripts/mail-app-schema.mjs']); // verifies packaged migration history on repeat
