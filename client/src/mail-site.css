@@ -8,3 +8,18 @@
 
 .cm-login-card form{display:grid;gap:20px}.cm-login-mobile-art{display:none}.cm-login-lock{color:var(--mail-link)}.cm-login-card h2{font-family:var(--mail-display);font-weight:400}.cm-login-card>p{margin:0}.cm-login-card .cm-login-help{display:block;font-size:10px}.cm-site button,.cm-login button{font-family:inherit}
 .cm-nav nav a{color:inherit}
+
+/* Public enrollment keeps the existing monochrome terminal design and responsive layout. */
+.cm-public-signup .cm-public-signup-card{max-width:540px}
+.cm-public-signup-card form{display:flex;flex-direction:column;gap:15px}
+.cm-public-signup-card .cm-mail-address{display:flex;align-items:center;gap:8px}
+.cm-public-signup-card .cm-mail-address input{min-width:0;flex:1}
+.cm-public-signup-card .cm-mail-address strong{flex:none;font:600 12px var(--mail-font);color:var(--mail-muted)}
+.cm-public-signup-card .cm-mail-captcha{min-height:65px;max-width:100%;overflow:hidden}
+.cm-public-signup-card .cm-button{width:100%;border-radius:999px}
+.cm-public-signup-card .cm-login-help{display:flex;align-items:center;gap:7px;line-height:1.6}
+@media (max-width:650px){
+  .cm-public-signup .cm-login-layout{padding-top:18px}
+  .cm-public-signup .cm-login-intro h1{font-size:clamp(42px,11vw,65px)}
+  .cm-public-signup .cm-mail-address{flex-wrap:wrap}
+}
