@@ -110,6 +110,31 @@ test("public signup protects unverified identity, creates isolated mailbox, limi
   const boxes=await (await api("/api/mail/mailboxes",undefined,{cookie})).json();
   assert.equal(boxes.length,1);
   assert.equal(boxes[0].local_part,"studio-guest");
+  // Every public member shares an isolated Mail tenant, but must not see or edit CRM records.
+  const leadId="lead_public_ci";
+  const senderEmail="crm-contact@example.invalid";
+  await pool.query("INSERT INTO leads(id,merchant_id,customer_name,customer_email,stage,source) VALUES($1,'public_signup_ci','Private CRM Name',$2,'hot','internal')",[leadId,senderEmail]);
+  const threadId=randomUUID(),incomingId=randomUUID();
+  await pool.query("INSERT INTO mail_threads(id,tenant_id,mailbox_id,subject) VALUES($1,'public_signup_ci',$2,'synthetic')",[threadId,boxes[0].id]);
+  await pool.query(`INSERT INTO mail_messages(id,tenant_id,mailbox_id,thread_id,direction,folder,status,from_email,to_emails,subject,text_body)
+    VALUES($1,'public_signup_ci',$2,$3,'inbound','inbox','received',$4,'[]'::jsonb,'synthetic','synthetic')`,[incomingId,boxes[0].id,threadId,senderEmail]);
+  const mailContext=await api("/api/mail/threads/"+threadId+"/context",undefined,{cookie});
+  assert.equal(mailContext.status,200);
+  assert.deepEqual(await mailContext.json(),{sender:senderEmail,lead:null},"public inbox must not leak shared tenant CRM data");
+  assert.equal((await api("/api/mail/threads/"+threadId+"/convert-to-lead",{}, {cookie})).status,403);
+  process.env.CHATVICE_MAIL_AI_ENABLED="true";
+  process.env.CHATVICE_MAIL_AI_API_KEY="synthetic-key-no-provider-request";
+  try{
+    const trialCaps=await (await api("/api/mail/capabilities",undefined,{cookie})).json();
+    assert.equal(trialCaps.ai,false);assert.equal(trialCaps.crm,false);
+    assert.equal((await api("/api/mail/threads/"+threadId+"/ai",
+      {task:"summary",acknowledgeExternalProcessing:true},{cookie})).status,403,
+      "public accounts cannot consume shared AI token budget");
+  }finally{
+    process.env.CHATVICE_MAIL_AI_ENABLED="false";
+    delete process.env.CHATVICE_MAIL_AI_API_KEY;
+  }
+  assert.equal((await pool.query("SELECT customer_name FROM leads WHERE id=$1",[leadId])).rows[0].customer_name,"Private CRM Name");
   const badSend=await api("/api/mail/compose",{mailboxId:boxes[0].id,to:[
     "one@example.invalid","two@example.invalid","three@example.invalid","four@example.invalid"],
     text:"No bulk mail",draft:false},{cookie});
