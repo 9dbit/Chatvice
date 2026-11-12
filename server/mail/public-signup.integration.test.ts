@@ -130,6 +130,8 @@ test("public signup protects unverified identity, creates isolated mailbox, limi
   assert.equal((await pool.query("SELECT status FROM mail_messages WHERE id=$1",[draftId])).rows[0].status,"draft");
   process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED="true";
   try{
+    const capabilities=await (await api("/api/mail/capabilities",undefined,{cookie})).json();
+    assert.equal(capabilities.attachments,false,"do not advertise uploads to public accounts");
     assert.equal((await api("/api/mail/messages/"+draftId+"/attachments",{}, {cookie})).status,403,
       "public trial upload must be denied before multipart storage");
   }finally{process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED="false";}
