@@ -13,7 +13,7 @@ import { readableMailText } from "./message-text";
 import {mailAttachmentSizeError} from "../../shared/mail-policy";
 
 import {createStandaloneMailbox,registerMailOnboardingAdmin,OnboardingError} from "./onboarding";
-import {consumePublicSendAllowance} from "./public-signup";
+import {consumePublicSendAllowance,isPublicLoginAccount} from "./public-signup";
 
 const email = z.string().email().max(320).transform(v => v.toLowerCase());
 const uuid = z.string().uuid();
@@ -109,12 +109,14 @@ export function registerMailRoutes(app: Express) {
   registerMailAIRoutes(app);
   registerMailAttachmentRoutes(app);
   app.get("/api/mail/capabilities",wrap(async(req,res)=>{
+    const p=principal(req)!;
+    const publicTrial=!p.isMerchant&&await isPublicLoginAccount(p.tenantId,p.userId);
     res.json({
       admin:principal(req)!.isMerchant,
       outbound:process.env.CHATVICE_MAIL_OUTBOUND_ENABLED==="true" &&
         process.env.CHATVICE_MAIL_PROVIDER==="resend" && Boolean(process.env.RESEND_API_KEY),
       ai:process.env.CHATVICE_MAIL_AI_ENABLED==="true" && Boolean(process.env.CHATVICE_MAIL_AI_API_KEY),
-      attachments:process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED==="true"
+      attachments:process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED==="true"&&!publicTrial
     });
   }));
   app.get("/api/mail/mailboxes",wrap(async(req,res)=>{
