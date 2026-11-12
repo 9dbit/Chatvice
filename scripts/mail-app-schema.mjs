@@ -9,7 +9,7 @@ if(process.env.CHATVICE_MAIL_APP_ROLE!=='isolated-mail'||
   throw Error('Isolated Mail schema guard denied');
 const tenant=process.env.CHATVICE_MAIL_INITIAL_TENANT||'';
 if(!/^[a-zA-Z0-9_-]{1,32}$/.test(tenant))throw Error('Explicit initial Mail tenant required');
-const files=['20261026_chatvice_mail_v1.sql','20261026_chatvice_mail_attachments_v2.sql','20261027_chatvice_mail_login.sql','20261027_chatvice_mail_delivery_recipients_v3.sql','20261101_chatvice_mail_reminders_v4.sql','20261105_chatvice_mail_onboarding_v5.sql','20261112_chatvice_mail_public_signup_v6.sql'];
+const files=['20261026_chatvice_mail_v1.sql','20261026_chatvice_mail_attachments_v2.sql','20261027_chatvice_mail_login.sql','20261027_chatvice_mail_delivery_recipients_v3.sql','20261101_chatvice_mail_reminders_v4.sql','20261105_chatvice_mail_onboarding_v5.sql','20261112_chatvice_mail_public_signup_v6.sql','20261113_chatvice_mail_unlimited_public_v7.sql'];
 const immutablePrefix=[
   '663e18cdab839da45b98503c682dd6be5e4439e319fe65ce493086ef85557b91',
   'f981777a7ad9ab3d2da6f120c146e1e50110153a7c7a8dfdd33dc425dedb89cb',
@@ -37,7 +37,7 @@ try{
     const applied=await c.query('SELECT name,sha256,initial_tenant FROM mail_schema_migrations');
     // Only the exact recorded three- or four-migration prefix may advance.
     // Gaps, unknown histories, edited files and tenant changes are never adopted.
-    if(![immutablePrefix.length,4,5,6,migrations.length].includes(applied.rowCount)||
+    if(![immutablePrefix.length,4,5,6,7,migrations.length].includes(applied.rowCount)||
        migrations.slice(0,applied.rowCount).some(m=>!applied.rows.some(a=>a.name===m.name&&a.sha256===m.sha&&a.initial_tenant===tenant)))
       throw Error('Schema history mismatch; manual review required');
     for(const name of expected.filter(name=>applied.rowCount>=({mail_reminders:5,mail_mailbox_provisioning:6,mail_account_invitations:6,mail_public_signups:7,mail_public_send_limits:7}[name]||3)))
@@ -53,6 +53,15 @@ try{
       throw Error('Unrecorded onboarding schema requires manual review');
     if(applied.rowCount<7&&tables.rows.some(t=>['mail_public_signups','mail_public_send_limits'].includes(t.table_name)))
       throw Error('Unrecorded public signup schema requires manual review');
+    // A missing/present unique-contact index must agree with the recorded
+    // migration version. Never silently adopt edits on an existing Mail DB.
+    if(applied.rowCount>=7){
+      const index=await c.query(`SELECT 1 FROM pg_indexes WHERE schemaname='public'
+        AND tablename='mail_public_signups' AND indexname='mail_public_signups_one_contact_idx'`);
+      if((applied.rowCount===7&&!index.rowCount)||
+         (applied.rowCount>=8&&index.rowCount))
+        throw Error('Public signup uniqueness index does not match reviewed history');
+    }
     for(const m of migrations.slice(applied.rowCount)){
       await c.query(m.sql);
       await c.query('INSERT INTO mail_schema_migrations(name,sha256,initial_tenant) VALUES($1,$2,$3)',[m.name,m.sha,tenant]);
