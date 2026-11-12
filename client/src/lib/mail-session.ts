@@ -31,3 +31,13 @@ export async function mailApiRequest(method: string, url: string, data?: unknown
   }
   return response;
 }
+
+/** On login, favor the user's own address over the first alphabetic mailbox. */
+export function preferredMailboxId<T extends { id: string; local_part: string; domain: string; enabled: boolean }>(
+  mailboxes: readonly T[], accountEmail?: string,
+): string {
+  const enabled = mailboxes.filter(box => box.enabled);
+  const address = accountEmail?.trim().toLowerCase() ?? "";
+  const matching = enabled.find(box => (box.local_part + "@" + box.domain).toLowerCase() === address);
+  return (matching ?? enabled[0])?.id ?? "";
+}
