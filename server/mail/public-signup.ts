@@ -144,6 +144,11 @@ export async function completePublicSignup(input:unknown,ip:string){
     throw e;
   }finally{c.release();}
 }
+/** Public accounts cannot upload attachments, even to drafts. */
+export async function isPublicMailbox(mailboxId:string){
+  const q=await pool.query("SELECT 1 FROM mail_public_signups WHERE mailbox_id=$1 AND completed_at IS NOT NULL",[mailboxId]);
+  return !!q.rowCount;
+}
 /** Bound to a verified-public mailbox, not every account sharing the Mail tenant. */
 export async function consumePublicSendAllowance(c:PoolClient,mailboxId:string,recipientCount:number,attachments:number){
   const q=await c.query(`SELECT token_hash FROM mail_public_signups
