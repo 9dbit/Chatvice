@@ -1,3 +1,4 @@
+import {isPublicMailbox} from "./public-signup";
 import type { Express, Request, Response, NextFunction } from "express";
 import {createHmac,timingSafeEqual} from "node:crypto";
 import multer from "multer";
@@ -207,6 +208,8 @@ export function registerMailAttachmentRoutes(app:Express):void{
     try{auth=await checkMessage(req,req.params.id,true);}
     catch{return reportError(res);}
     if(!auth)return res.sendStatus(404);
+    try{if(await isPublicMailbox(auth.boxId))return res.status(403).json({error:"Attachments are not available for public trial accounts"});}
+    catch{return reportError(res);}
     if(auth.status!=="draft")return res.status(409).json({error:"Attachments may only be added to drafts"});
     if(!isMailObjectStorageConfigured())return reportError(res);
     upload.single("file")(req,res,async err=>{

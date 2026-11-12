@@ -24,6 +24,7 @@ try{
   const data=()=>req.postDataJSON();
   if(path==='/api/mail-auth/session')return respond({email:'owner@example.invalid',admin:true});
   if(path==='/api/mail/capabilities')return respond({admin:true,outbound:true,ai:true,attachments:true});
+  if(path==='/api/mail/onboarding/status')return respond({enabled:false,domains:[],mailboxes:[]});
   if(path==='/api/mail/domains'){if(method==='POST')domains.push({id:'domain2',domain:data().domain,status:'pending'});return respond(domains);}
   if(path==='/api/mail/mailboxes'){if(method==='POST'){createCalls++;boxes.push({id:'box2',local_part:data().localPart,display_name:data().displayName,domain:'example.invalid',enabled:true,can_write:true});}return respond(boxes);}
   if(path==='/api/mail/mailboxes/box1'&&method==='PATCH'){Object.assign(boxes[0],data().displayName!==undefined?{display_name:data().displayName}:{enabled:data().enabled});return respond(boxes[0]);}

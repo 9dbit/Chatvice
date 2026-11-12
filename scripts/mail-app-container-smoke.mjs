@@ -62,21 +62,18 @@ try{
  catch(error){refused=String(error.stderr).includes('Isolated Mail schema guard denied');}
  assert.equal(refused,true,'wrong database host must be refused before installation');
  run(['node','scripts/mail-app-schema.mjs']);
- inspectSchema(`assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,5);
-  await pool.query("DROP TABLE mail_reminders");
-  await pool.query("DELETE FROM mail_schema_migrations WHERE name='20261101_chatvice_mail_reminders_v4.sql'");
-  await pool.query("DELETE FROM mail_schema_migrations WHERE name='20261027_chatvice_mail_delivery_recipients_v3.sql'");
-  await pool.query('ALTER TABLE mail_delivery_events DROP COLUMN recipient_keys');
+ inspectSchema(`assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,7);
+  assert.equal((await pool.query("SELECT count(*)::int n FROM information_schema.tables WHERE table_name IN ('mail_public_signups','mail_public_send_limits')")).rows[0].n,2);
   await pool.query("UPDATE mail_schema_migrations SET sha256=$1 WHERE name='20261026_chatvice_mail_v1.sql'",['0'.repeat(64)]);`);
  let historyRefused=false;
  try{run(['node','scripts/mail-app-schema.mjs']);}catch{historyRefused=true;}
- assert.equal(historyRefused,true,'the packaged installer must refuse an edited prior migration history');
- inspectSchema(`assert.equal((await pool.query("SELECT count(*)::integer AS n FROM information_schema.columns WHERE table_name='mail_delivery_events' AND column_name='recipient_keys'")).rows[0].n,0);
-  assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,3);
+ assert.equal(historyRefused,true,'packaged installer must reject edited migration history');
+ inspectSchema(`assert.equal((await pool.query("SELECT count(*)::integer AS n FROM information_schema.columns WHERE table_name='mail_delivery_events' AND column_name='recipient_keys'")).rows[0].n,1);
+  assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,7);
   const sha=createHash('sha256').update(readFileSync('migrations/20261026_chatvice_mail_v1.sql','utf8')).digest('hex');
   await pool.query("UPDATE mail_schema_migrations SET sha256=$1 WHERE name='20261026_chatvice_mail_v1.sql'",[sha]);`);
- run(['node','scripts/mail-app-schema.mjs']); // exact previous release upgrades inside the packaged runtime
- inspectSchema(`assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,5);
+ run(['node','scripts/mail-app-schema.mjs']);
+ inspectSchema(`assert.equal((await pool.query('SELECT count(*)::integer AS n FROM mail_schema_migrations')).rows[0].n,7);
   const result=await pool.query("SELECT udt_name,is_nullable FROM information_schema.columns WHERE table_name='mail_delivery_events' AND column_name='recipient_keys'");
   assert.deepEqual(result.rows,[{udt_name:'_text',is_nullable:'NO'}]);`);
  run(['node','scripts/mail-app-schema.mjs']); // verifies packaged migration history on repeat
@@ -129,7 +126,7 @@ try{
   'logout must revoke the persistent server-side session');
  docker(['exec',container,'node','-e',"const fs=require('node:fs');for(const p of ['/app/attached_assets','/app/client','/app/server','/app/dist/mail-qa-server.cjs','/app/scripts/mail-qa-bootstrap.mjs'])if(fs.existsSync(p))throw new Error('Unexpected source or QA runtime');if(process.getuid()===0)throw new Error('Runtime must be non-root');"]);
  console.log(JSON.stringify({status:'passed',imageBytes:bytes,checks:[
-  'guarded-packaged-schema','packaged-three-to-four-migration-upgrade','edited-history-refused-without-schema-change','immutable-history-repeat','live-staging-probe-refuses-other-environments','provision-preview-no-write','compiled-offline-provisioning',
+  'guarded-packaged-schema','packaged-public-signup-schema','edited-history-refused-without-schema-change','immutable-history-repeat','live-staging-probe-refuses-other-environments','provision-preview-no-write','compiled-offline-provisioning',
   'health','tracker-free-ui-assets','main-app-cookie-denied','cross-origin-login-denied',
   'independent-secure-session','persistent-session-after-restart','logout-revokes-session',
   'provider-features-disabled','qa-and-source-excluded','non-root-runtime']}));

@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import OpenAI from "openai";
 import { pool } from "../db";
+import {isPublicLoginAccount} from "./public-signup";
 import { z } from "zod";
 import { decryptMailField, isMailEncryptionReady } from "./crypto";
 
@@ -28,6 +29,7 @@ export function registerMailAIRoutes(app:Express):void {
     if(!s?.merchantId || !s?.userId || !["merchant","supervisor"].includes(s.userType)) return res.sendStatus(401);
     const isMerchant=s.userType==="merchant" && s.userId===s.merchantId;
     try {
+      if(!isMerchant&&await isPublicLoginAccount(s.merchantId,s.userId))return res.sendStatus(403);
       const q=await pool.query<{id:string;text_body:string;subject:string;direction:string}>(`
         SELECT m.id,m.text_body,m.subject,m.direction FROM mail_messages m
         JOIN mail_threads t ON t.id=m.thread_id AND t.tenant_id=m.tenant_id

@@ -31,34 +31,38 @@ async function invite(c:PoolClient,tenant:string,box:string,login:string){
     VALUES($1,$2,$3,$4,now()+interval '24 hours') RETURNING expires_at`,[tokenHash(token),tenant,box,login]);
   return {activationUrl:process.env.CHATVICE_MAIL_APP_ORIGIN+"/activate#token="+token,expiresAt:q.rows[0].expires_at};
 }
+// Shared transaction boundary for administrator and verified public enrollment.
+export async function createStandaloneMailboxInTransaction(c:PoolClient,tenant:string,input:unknown){
+  const d=creation.parse(input);
+  const q=await c.query("SELECT domain,status FROM mail_domains WHERE id=$1 AND tenant_id=$2 FOR UPDATE",[d.domainId,tenant]);
+  if(!q.rowCount)throw new OnboardingError(404,"Domain not found");
+  const domain=q.rows[0];
+  if(domain.status!=="verified"||!onboardingConfigured(domain.domain))throw new OnboardingError(409,"Automatic setup is not connected for this domain yet");
+  const address=d.localPart+"@"+domain.domain;
+  const duplicate=await c.query(`SELECT 1 FROM mail_aliases WHERE domain_id=$1 AND local_part=$2
+    UNION ALL SELECT 1 FROM mail_mailboxes WHERE domain_id=$1 AND local_part=$2
+    UNION ALL SELECT 1 FROM mail_login_users WHERE email=$3 LIMIT 1`,[d.domainId,d.localPart,address]);
+  if(duplicate.rowCount)throw new OnboardingError(409,"This address already exists; no duplicate was created");
+  const id=randomUUID(),login=randomUUID(),user="mail-"+randomUUID(),p=probe(tenant);
+  await c.query("INSERT INTO mail_mailboxes(id,tenant_id,domain_id,local_part,display_name) VALUES($1,$2,$3,$4,$5)",[id,tenant,d.domainId,d.localPart,d.displayName]);
+  await c.query("INSERT INTO supervisors(id,merchant_id) VALUES($1,$2)",[user,tenant]);
+  await c.query(`INSERT INTO mail_login_users(id,tenant_id,user_id,email,password_hash,is_admin,enabled)
+    VALUES($1,$2,$3,$4,'scrypt1.pending',false,false)`,[login,tenant,user,address]);
+  await c.query("INSERT INTO mail_memberships(id,tenant_id,mailbox_id,user_id,role) VALUES($1,$2,$3,$4,'member')",[randomUUID(),tenant,id,user]);
+  await c.query(`INSERT INTO mail_mailbox_provisioning(mailbox_id,tenant_id,login_id,probe_id,probe_hash,probe_secret)
+    VALUES($1,$2,$3,$4,$5,$6)`,[id,tenant,login,p.id,p.hash,p.secret]);
+  const invitation=await invite(c,tenant,id,login);
+  return {id,address,enabled:true,accountMode:"standalone",status:"pending",...invitation};
+}
 export async function createStandaloneMailbox(tenant:string,input:unknown){
-  const d=creation.parse(input),c=await pool.connect();
+  const c=await pool.connect();
   try{
     await c.query("BEGIN");
-    const q=await c.query("SELECT domain,status FROM mail_domains WHERE id=$1 AND tenant_id=$2 FOR UPDATE",[d.domainId,tenant]);
-    if(!q.rowCount)throw new OnboardingError(404,"Domain not found");
-    const domain=q.rows[0];
-    if(domain.status!=="verified"||!onboardingConfigured(domain.domain))throw new OnboardingError(409,"Automatic setup is not connected for this domain yet");
-    const address=d.localPart+"@"+domain.domain;
-    const duplicate=await c.query(`SELECT 1 FROM mail_aliases WHERE domain_id=$1 AND local_part=$2
-      UNION ALL SELECT 1 FROM mail_mailboxes WHERE domain_id=$1 AND local_part=$2
-      UNION ALL SELECT 1 FROM mail_login_users WHERE email=$3 LIMIT 1`,[d.domainId,d.localPart,address]);
-    if(duplicate.rowCount)throw new OnboardingError(409,"This address already exists; no duplicate was created");
-    const id=randomUUID(),login=randomUUID(),user="mail-"+randomUUID(),p=probe(tenant);
-    await c.query("INSERT INTO mail_mailboxes(id,tenant_id,domain_id,local_part,display_name) VALUES($1,$2,$3,$4,$5)",[id,tenant,d.domainId,d.localPart,d.displayName]);
-    await c.query("INSERT INTO supervisors(id,merchant_id) VALUES($1,$2)",[user,tenant]);
-    // This deliberately invalid password hash cannot authenticate. The owner sets the first password.
-    await c.query(`INSERT INTO mail_login_users(id,tenant_id,user_id,email,password_hash,is_admin,enabled)
-      VALUES($1,$2,$3,$4,'scrypt1.pending',false,false)`,[login,tenant,user,address]);
-    await c.query("INSERT INTO mail_memberships(id,tenant_id,mailbox_id,user_id,role) VALUES($1,$2,$3,$4,'member')",[randomUUID(),tenant,id,user]);
-    await c.query(`INSERT INTO mail_mailbox_provisioning(mailbox_id,tenant_id,login_id,probe_id,probe_hash,probe_secret)
-      VALUES($1,$2,$3,$4,$5,$6)`,[id,tenant,login,p.id,p.hash,p.secret]);
-    const invitation=await invite(c,tenant,id,login);
+    const result=await createStandaloneMailboxInTransaction(c,tenant,input);
     await c.query("COMMIT");
-    return {id,address,enabled:true,accountMode:"standalone",status:"pending",...invitation};
+    return result;
   }catch(e){await c.query("ROLLBACK");throw e;}finally{c.release();}
 }
-
 // The admin routes are registered after Mail session authentication and origin protection.
 function admin(req:Request){const s=req.session as any;return s?.userType==="merchant"&&s.userId===s.merchantId?s.merchantId:null;}
 const safe=(fn:(req:Request,res:Response)=>Promise<unknown>)=>(req:Request,res:Response)=>{void fn(req,res).catch(e=>{

@@ -5,6 +5,7 @@ import {QueryClientProvider} from "@tanstack/react-query";
 import {ArrowRight,ArrowLeft,LockKeyhole,Eye,EyeOff} from "lucide-react";
 import MailPage from "./pages/dashboard/mail";
 import MailActivate from "./pages/mail-activate";
+import MailSignup,{MailSignupVerify} from "./pages/mail-signup";
 import MailAdminPage from "./pages/dashboard/mail-admin";
 import MailLanding,{MailBrand} from "./pages/mail-landing";
 import MailArt from "./components/mail-art";
@@ -45,6 +46,8 @@ function App(){
   }catch{setError("Unable to sign out. Please try again.");}finally{setBusy(false);}
  }
  if(location==="/activate")return <MailActivate/>;
+ if(location==="/signup")return <MailSignup/>;
+ if(location==="/signup/verify")return <MailSignupVerify/>;
  if(location==="/")return <MailLanding/>;
  if(!ready)return <main className="cm-loading" role="status">Opening your workspace…</main>;
  if(!identity)return <main className="cm-login"><header><MailBrand/><MailTheme/></header><div className="cm-login-layout"><section className="cm-login-intro"><span className="cm-eyebrow">WELCOME BACK</span><h1>HELLO, MAIL.<br/><em>WELCOME BACK_</em></h1><MailArt kind="hero" eager className="cm-login-art"/><p>A familiar place for your business conversations.<br/>Pick up right where you left off.</p><Link href="/" className="cm-text-link"><ArrowLeft size={16}/> Back to overview</Link></section><section className="cm-login-card"><span className="cm-login-lock"><LockKeyhole size={24}/></span><MailArt kind="secure" className="cm-login-mobile-art"/><h2>SIGN IN_</h2><p>Sign in to your private mailboxes.</p><form onSubmit={login}>
@@ -52,7 +55,7 @@ function App(){
   <label>Password<span className="cm-password-field"><input type={showPassword?"text":"password"} autoComplete="current-password" maxLength={256} value={password} onChange={e=>setPassword(e.target.value)} placeholder="Your password" required/><button type="button" aria-label={showPassword?"Hide password":"Show password"} onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={18}/>:<Eye size={18}/>}</button></span></label>
   {error&&<p role="alert" className="mail-alert">{error}</p>}
   <button className="cm-button cm-primary" disabled={busy}>{busy?"Signing in…":"Sign in"}<ArrowRight size={18}/></button>
- </form><p className="cm-login-help">Need access or a password reset?<br/>Contact your workspace administrator.</p></section></div></main>;
+ </form><p className="cm-login-help">New to Chatvice Mail? <Link href="/signup">Create an account</Link></p><p className="cm-login-help">Need a password reset? Contact your workspace administrator.</p></section></div></main>;
  return <main className="mail-standalone">
   {error&&<p role="alert" className="mail-alert">{error}</p>}
   <Switch><Route path="/dashboard/mail/admin">{identity.admin?<div className="cm-admin-shell"><header><MailBrand/><MailTheme/><button onClick={logout} disabled={busy} className="mail-button">Sign out</button></header><MailAdminPage/></div>:<Redirect to="/dashboard/mail"/>}</Route>

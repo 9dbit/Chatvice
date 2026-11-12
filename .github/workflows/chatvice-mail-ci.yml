@@ -25,7 +25,12 @@ on:
       - "client/mail-app.html"
       - "client/src/mail-app-main.tsx"
       - "client/src/lib/mail-session.ts"
+      - "client/src/pages/mail-signup.tsx"
+      - "migrations/20261112_chatvice_mail_public_signup_v6.sql"
+      - "server/mail/public-signup.ts"
+      - "server/mail/public-signup.integration.test.ts"
       - "scripts/mail-session-recovery.test.mjs"
+      - "scripts/mail-signup-browser-smoke.mjs"
       - "client/src/mail-site.css"
       - "client/src/mail-glass.css"
       - "client/src/mail-retro.css"
@@ -43,7 +48,7 @@ on:
       - "client/src/components/mail-art.tsx"
       - "client/src/components/mail-dialog.tsx"
       - "scripts/mail-glass-smoke.mjs"
-      - "client/src/pages/mail-landing.tsx"
+      - "client/src/pages/mail-(landing|signup).tsx"
       - "client/src/components/mail-theme.tsx"
       - "scripts/mail-redesign-smoke.mjs"
       - "vite.mail-app.config.ts"
@@ -71,6 +76,7 @@ on:
   push:
     branches:
       - "fix/mail-session-recovery-20261112"
+      - "feat/mail-public-self-signup-20261112"
       - "feature/chatvice-mail-engine-20261026"
       - "fix/chatvice-mail-forwarding-20261101"
       - "feat/chatvice-mail-redesign-20261101"
@@ -117,6 +123,8 @@ jobs:
         run: npx tsx --test server/mail/qa-login.test.ts server/mail/qa-auth.test.ts server/mail/security.test.ts server/mail/delivery.test.ts server/mail/message-text.test.ts scripts/mail-links.test.mjs server/mail/privacy.test.ts server/mail/attachment-security.test.ts server/mail/crypto.test.ts server/mail/binary-crypto.test.ts server/mail/password.test.ts server/mail/backup.test.ts server/mail/recipients.test.ts server/mail/preview.test.ts
       - name: Test Mail session recovery on 401/403 without live credentials
         run: node --import tsx --test scripts/mail-session-recovery.test.mjs
+      - name: Verify public signup, contact proof, permissions, and sending quotas
+        run: npx tsx --test server/mail/public-signup.integration.test.ts
       - name: Test mail tenant isolation on disposable PostgreSQL
         run: npx tsx --test server/mail/integration.test.ts
       - name: Rehearse encrypted PostgreSQL backup and restore on disposable CI
@@ -136,7 +144,7 @@ jobs:
       - name: Typecheck mail files (report existing app baseline separately)
         run: |
           npm run check > /tmp/chatvice-typecheck.log 2>&1 || TYPECHECK_FAILED=1
-          if grep -E '(server/mail/|shared/mail-|client/src/pages/mail-landing|client/src/components/mail-(theme|dialog|art)|client/src/mail-(app|qa)-main\.tsx|script/build-mail-|vite.mail-|client/src/pages/dashboard/mail(-admin|-attachments|-message-body|-activity|-pdf-preview)?\.tsx)' /tmp/chatvice-typecheck.log; then
+          if grep -E '(server/mail/|shared/mail-|client/src/pages/mail-(landing|signup)|client/src/components/mail-(theme|dialog|art)|client/src/mail-(app|qa)-main\.tsx|script/build-mail-|vite.mail-|client/src/pages/dashboard/mail(-admin|-attachments|-message-body|-activity|-pdf-preview)?\.tsx)' /tmp/chatvice-typecheck.log; then
             echo "::error::New mail TypeScript diagnostics detected"
             exit 1
           fi
@@ -156,6 +164,8 @@ jobs:
         env:
           CHATVICE_MAIL_SMOKE_OUTPUT: ${{ runner.temp }}/mail-workspace-preview
         run: node --import tsx scripts/mail-workspace-smoke.mjs
+      - name: Verify public Mail signup browser flow on desktop and mobile
+        run: node scripts/mail-signup-browser-smoke.mjs
       - name: Verify landing parallax, responsive sidebar, themes and home navigation
         env:
           CHATVICE_MAIL_SMOKE_OUTPUT: ${{ runner.temp }}/mail-workspace-preview

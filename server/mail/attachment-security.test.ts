@@ -10,13 +10,13 @@ import { scanMailAttachment } from "./scanner";
 import { MAX_MAIL_MESSAGE_ATTACHMENT_BYTES, MAIL_ATTACHMENT_LIMIT_LABEL, mailAttachmentSizeError, shouldUseSecureMailLinks } from "../../shared/mail-policy";
 import { loadResendReceivedAttachments, cleanMailFilename } from "./resend-attachments";
 
-test("38 MB is the combined outgoing upload cap; old 40 MB attachments remain readable",()=>{
-  assert.equal(MAX_MAIL_MESSAGE_ATTACHMENT_BYTES,38_000_000);
+test("40 MB is the combined outgoing upload cap, with private links when needed",()=>{
+  assert.equal(MAX_MAIL_MESSAGE_ATTACHMENT_BYTES,40_000_000);
   assert.equal(MAX_MAIL_ATTACHMENT_BYTES,40_000_000);
-  assert.equal(MAIL_ATTACHMENT_LIMIT_LABEL,"38 MB");
-  assert.equal(mailAttachmentSizeError(38_000_000,2),null);
-  assert.match(mailAttachmentSizeError(38_000_001,2)||"",/38 MB/);
-  assert.equal(shouldUseSecureMailLinks(38_000_000,1),true);
+  assert.equal(MAIL_ATTACHMENT_LIMIT_LABEL,"40 MB");
+  assert.equal(mailAttachmentSizeError(40_000_000,2),null);
+  assert.match(mailAttachmentSizeError(40_000_001,2)||"",/40 MB/);
+  assert.equal(shouldUseSecureMailLinks(40_000_000,1),true);
 });
 
 const vars=[
