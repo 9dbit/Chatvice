@@ -68,7 +68,7 @@ const api=(path:string,body?:unknown,opts:{cookie?:string;origin?:string}={})=>o
 });
 const newSignup={contactEmail:"owner@external.example",localPart:"studio-guest",displayName:"Studio Guest",
   turnstileToken:"synthetic-human-token"};
-test("public signup protects unverified identity, creates isolated mailbox, limits outbound and preserves other mailboxes",async()=>{
+test("public signup verifies contacts, creates independently isolated mailboxes, and sends without a daily quota",async()=>{
   const config=await (await api("/api/mail-auth/signup/config")).json();
   assert.deepEqual(config,{enabled:true,domain:"chatvice.app",siteKey:"site-key-fixture"});
   assert.equal((await api("/api/mail-auth/signup/request",{...newSignup,turnstileToken:"invalid-human-token"})).status,403);
@@ -139,14 +139,16 @@ test("public signup protects unverified identity, creates isolated mailbox, limi
     "one@example.invalid","two@example.invalid","three@example.invalid","four@example.invalid"],
     text:"No bulk mail",draft:false},{cookie});
   assert.equal(badSend.status,429);
-  for(let i=0;i<10;i++){
+  for(let i=0;i<12;i++){
     const sent=await api("/api/mail/compose",{mailboxId:boxes[0].id,to:["recipient@example.invalid"],
-      subject:"Synthetic "+i,text:"Quota test",draft:false},{cookie});
-    assert.equal(sent.status,201,"public account sending 1 through 10");
+      subject:"Synthetic "+i,text:"No fixed daily quota",draft:false},{cookie});
+    assert.equal(sent.status,201,"public send allowed below minute burst threshold");
   }
   assert.equal((await api("/api/mail/compose",{mailboxId:boxes[0].id,to:["recipient@example.invalid"],
-    subject:"Over limit",text:"No",draft:false},{cookie})).status,429);
-  assert.equal((await pool.query("SELECT used FROM mail_public_send_limits WHERE mailbox_id=$1",[boxes[0].id])).rows[0].used,10);
+    subject:"Rate-control test",text:"No",draft:false},{cookie})).status,429,
+    "short burst safety is independent of the removed daily limit");
+  assert.equal((await pool.query("SELECT count(*)::int n FROM mail_public_send_limits WHERE mailbox_id=$1",[boxes[0].id])).rows[0].n,0,
+    "legacy fixed daily quota is never written");
   const draft=await api("/api/mail/compose",{mailboxId:boxes[0].id,to:["recipient@example.invalid"],
     text:"Draft can be saved",draft:true},{cookie});
   assert.equal(draft.status,201);
@@ -161,10 +163,40 @@ test("public signup protects unverified identity, creates isolated mailbox, limi
       "public trial upload must be denied before multipart storage");
   }finally{process.env.CHATVICE_MAIL_ATTACHMENTS_ENABLED="false";}
 
+  // The SAME verified contact can register an additional independent mailbox.
   assert.equal((await api("/api/mail-auth/signup/request",{...newSignup,localPart:"another-user"})).status,202);
-  assert.equal(outbound.length,1,"one external contact cannot create a second public mailbox");
+  assert.equal(outbound.length,2,"the same external contact must receive another verification email");
+  const secondLink=outbound[1].text.match(/https:\/\/mail\.example\.invalid\/signup\/verify#token=[0-9a-f]{64}/)?.[0];
+  assert.ok(secondLink);
+  const token2=new URL(secondLink).hash.slice("#token=".length);
+  const verified2=await api("/api/mail-auth/signup/verify",{token:token2});
+  assert.equal(verified2.status,200);
+  const data2=await verified2.json();
+  assert.equal(data2.address,"another-user@chatvice.app");
+  const password2="Second independent mailbox strong secret 2026";
+  const activation2=new URL(data2.activationUrl).hash.slice("#token=".length);
+  assert.equal((await api("/api/mail-auth/activate",{token:activation2,password:password2})).status,200);
+  const login2=await api("/api/mail-auth/login",{email:data2.address,password:password2});
+  assert.equal(login2.status,200);
+  const cookie2=login2.headers.get("set-cookie")!.split(";")[0];
+  const boxes2=await (await api("/api/mail/mailboxes",undefined,{cookie:cookie2})).json();
+  assert.equal(boxes2.length,1,"new mailbox account cannot see first mailbox");
+  assert.equal(boxes2[0].local_part,"another-user");
+  assert.equal((await (await api("/api/mail/mailboxes",undefined,{cookie})).json()).length,1,
+    "first account still sees only its own mailbox");
+  assert.notEqual(boxes2[0].id,boxes[0].id);
+  assert.equal((await api("/api/mail/compose",{mailboxId:boxes[0].id,
+    to:["recipient@example.invalid"],text:"Unauthorized mailbox",draft:false},{cookie:cookie2})).status,403);
+  // Shared contact-level burst control is enforced even across its many mailboxes.
+  assert.equal((await api("/api/mail/compose",{mailboxId:boxes2[0].id,
+    to:["recipient@example.invalid"],text:"Rate probe",draft:false},{cookie:cookie2})).status,429);
+  // Advancing the one-minute burst window removes the restriction. There is
+  // deliberately NO daily counter or fixed count of outgoing messages.
+  await pool.query("DELETE FROM mail_login_limits WHERE attempts>=12");
+  assert.equal((await api("/api/mail/compose",{mailboxId:boxes2[0].id,
+    to:["recipient@example.invalid"],text:"Allowed after burst window",draft:false},{cookie:cookie2})).status,201);
   assert.equal((await api("/api/mail-auth/signup/request",{...newSignup,localPart:"studio-guest",contactEmail:"other@external.example"})).status,202);
-  assert.equal(outbound.length,1,"existing username must not trigger another verification email");
+  assert.equal(outbound.length,2,"existing username must not trigger another verification email");
   process.env.CHATVICE_MAIL_PUBLIC_SIGNUP_ENABLED="false";
   assert.equal((await (await api("/api/mail-auth/signup/config")).json()).enabled,false);
   assert.equal((await api("/api/mail-auth/signup/request",newSignup)).status,503);
