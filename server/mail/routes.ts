@@ -13,6 +13,7 @@ import { readableMailText } from "./message-text";
 import {mailAttachmentSizeError} from "../../shared/mail-policy";
 
 import {createStandaloneMailbox,registerMailOnboardingAdmin,OnboardingError} from "./onboarding";
+import {consumePublicSendAllowance} from "./public-signup";
 
 const email = z.string().email().max(320).transform(v => v.toLowerCase());
 const uuid = z.string().uuid();
@@ -290,6 +291,7 @@ export function registerMailRoutes(app: Express) {
     const client=await pool.connect();
     try {
       await client.query("BEGIN");
+      if(!d.draft)await consumePublicSendAllowance(client,d.mailboxId,d.to.length+d.cc.length+d.bcc.length,0);
       if(!d.replyToId) await client.query("INSERT INTO mail_threads(id,tenant_id,mailbox_id,subject) VALUES($1,$2,$3,$4)",[threadId,p.tenantId,d.mailboxId,encryptMailField(p.tenantId,threadId,"thread-subject",d.subject)]);
       const id=randomUUID();
       await client.query(`INSERT INTO mail_messages(id,tenant_id,mailbox_id,thread_id,direction,folder,status,from_email,to_emails,cc_emails,bcc_emails,subject,text_body,in_reply_to)
@@ -361,7 +363,7 @@ export function registerMailRoutes(app: Express) {
     const c=await pool.connect();
     try{
       await c.query("BEGIN");
-      const q=await c.query(`SELECT m.id,m.mailbox_id,m.to_emails,m.text_body FROM mail_messages m
+      const q=await c.query(`SELECT m.id,m.mailbox_id,m.to_emails,m.cc_emails,m.bcc_emails,m.text_body FROM mail_messages m
         JOIN mail_mailboxes b ON b.id=m.mailbox_id AND b.tenant_id=m.tenant_id
         JOIN mail_domains d ON d.id=b.domain_id AND d.tenant_id=m.tenant_id
         WHERE m.id=$1 AND m.tenant_id=$2 AND m.direction='outbound'
@@ -390,6 +392,8 @@ export function registerMailRoutes(app: Express) {
       const sizeError=mailAttachmentSizeError(Number(pending.rows[0].bytes),count,
         Buffer.byteLength(decryptMailField(p.tenantId,id,"message-text",q.rows[0].text_body),"utf8"));
       if(sizeError){await c.query("ROLLBACK");return res.status(409).json({error:sizeError});}
+      await consumePublicSendAllowance(c,q.rows[0].mailbox_id,
+        q.rows[0].to_emails.length+q.rows[0].cc_emails.length+q.rows[0].bcc_emails.length,count);
       await c.query(`UPDATE mail_messages SET status='queued',folder='sent',
         queued_at=now(),next_attempt_at=now(),retry_count=0,lock_acquired_at=NULL
         WHERE id=$1 AND tenant_id=$2`,[id,p.tenantId]);
