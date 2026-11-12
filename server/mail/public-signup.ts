@@ -84,7 +84,8 @@ export async function requestPublicSignup(data:unknown,ip:string){
     throw new OnboardingError(403,"Human verification failed. Please retry.");
   await limit("ip-hour|"+ip,3,"hour");
   await limit("ip-day|"+ip,10,"day");
-  await limit("contact-day|"+contactKey(contact),3,"day");
+  // Throttle verification storms without limiting lifetime mailbox count or imposing a per-contact daily registration quota.
+  await limit("contact-hour|"+contactKey(contact),3,"hour");
   await limit("name-hour|"+value.localPart,5,"hour");
   const tenant=process.env.CHATVICE_MAIL_INITIAL_TENANT!;
   const q=await pool.query(`SELECT id FROM mail_domains WHERE tenant_id=$1 AND domain=$2 AND status='verified'`,[tenant,domainName()]);
