@@ -12,11 +12,33 @@ export default {
     if(!domains.includes(recipient.split("@")[1]))return message.setReject("Unknown mail domain");
     // Never allow an incoming sender to smuggle a second routing envelope.
     if(message.headers.has(header))return message.setReject("Reserved mail routing header");
+    // Deliver hello directly over authenticated HTTPS. Forwarding its alias
+    // is rejected by Cloudflare as a same-Worker loop, before Resend is reached.
+    if(recipient==="hello@chatvice.app"){
+      // The raw MIME stream is single-use; buffer once for safe retry.
+      if(message.rawSize>25*1024*1024)throw new Error("Raw mail exceeds inbound limit");
+      const raw=await new Response(message.raw).arrayBuffer();
+      if(!raw.byteLength||raw.byteLength>25*1024*1024)throw new Error("Invalid raw mail size");
+      for(let attempt=0;attempt<2;attempt++){
+        try{
+          const response=await fetch(env.CHATVICE_MAIL_APP_ORIGIN+"/api/mail/router/raw",{
+            method:"POST",headers:{"Authorization":"Bearer "+env.CHATVICE_MAIL_ROUTER_SECRET,
+              "Content-Type":"message/rfc822","X-Chatvice-Recipient":recipient},
+            body:raw,redirect:"manual",signal:AbortSignal.timeout(25000)
+          });
+          if(response.ok&&(await response.json()).accepted===true){
+            console.info("Raw mail accepted");return;
+          }
+          console.error("Raw mail ingress rejected",response.status);
+        }catch{ console.error("Raw mail ingress request failed"); }
+      }
+      throw new Error("Raw mail delivery unavailable");
+    }
     let lookup;
     try{
       lookup=await fetch(env.CHATVICE_MAIL_APP_ORIGIN+"/api/mail/router/recipient",{
         method:"POST",headers:{"Authorization":"Bearer "+env.CHATVICE_MAIL_ROUTER_SECRET,"Content-Type":"application/json"},
-        body:JSON.stringify({address:recipient}),redirect:"error",signal:AbortSignal.timeout(5000)
+        body:JSON.stringify({address:recipient}),redirect:"manual",signal:AbortSignal.timeout(5000)
       });
     }catch{ /* Preserve mail in Resend during an app outage; its webhook will retry. */ }
     if(lookup?.status===404)return message.setReject("Mailbox does not exist or is disabled");

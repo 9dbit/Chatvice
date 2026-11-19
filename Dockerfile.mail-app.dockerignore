@@ -34,3 +34,5 @@
 **/.env.*
 **/.git
 **/dist
+
+!migrations/20261113_chatvice_mail_unlimited_public_v7.sql

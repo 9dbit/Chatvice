@@ -111,7 +111,7 @@ export default function MailSignup(){
               {busy?"Sending verification…":"Continue with email verification"}<ArrowRight size={17}/>
             </button>
           </form>
-          <p className="cm-login-help">One starter mailbox per verified contact email. Outbound sends are limited during the initial public pilot.</p>
+          <p className="cm-login-help">Create as many independent mailboxes as you need using your verified contact email. No fixed daily outgoing limit; anti-spam speed checks and provider policies still apply.</p>
         </>}
       </section>
     </div>
