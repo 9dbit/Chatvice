@@ -24,7 +24,7 @@ export default {
           const response=await fetch(env.CHATVICE_MAIL_APP_ORIGIN+"/api/mail/router/raw",{
             method:"POST",headers:{"Authorization":"Bearer "+env.CHATVICE_MAIL_ROUTER_SECRET,
               "Content-Type":"message/rfc822","X-Chatvice-Recipient":recipient},
-            body:raw,redirect:"error",signal:AbortSignal.timeout(25000)
+            body:raw,redirect:"manual",signal:AbortSignal.timeout(25000)
           });
           if(response.ok&&(await response.json()).accepted===true){
             console.info("Raw mail accepted");return;
@@ -38,7 +38,7 @@ export default {
     try{
       lookup=await fetch(env.CHATVICE_MAIL_APP_ORIGIN+"/api/mail/router/recipient",{
         method:"POST",headers:{"Authorization":"Bearer "+env.CHATVICE_MAIL_ROUTER_SECRET,"Content-Type":"application/json"},
-        body:JSON.stringify({address:recipient}),redirect:"error",signal:AbortSignal.timeout(5000)
+        body:JSON.stringify({address:recipient}),redirect:"manual",signal:AbortSignal.timeout(5000)
       });
     }catch{ /* Preserve mail in Resend during an app outage; its webhook will retry. */ }
     if(lookup?.status===404)return message.setReject("Mailbox does not exist or is disabled");

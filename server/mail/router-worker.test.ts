@@ -11,7 +11,7 @@ test("worker signs the SMTP recipient for the backend and forwards only to its f
   const m=message();let request:any;
   globalThis.fetch=(async(url:any,init:any)=>{request={url,...init};return new Response(null,{status:204});}) as any;
   try{await worker.email(m,env);}finally{globalThis.fetch=actual;}
-  assert.equal(request.url,env.CHATVICE_MAIL_APP_ORIGIN+"/api/mail/router/recipient");assert.equal(request.redirect,"error");
+  assert.equal(request.url,env.CHATVICE_MAIL_APP_ORIGIN+"/api/mail/router/recipient");assert.equal(request.redirect,"manual");
   assert.deepEqual(JSON.parse(request.body),{address:m.to});
   const r=m.result();assert.equal(r.rejected,"");assert.equal(r.forwarded.to,env.CHATVICE_MAIL_ROUTER_FORWARD_TO);
   assert.equal(verifyRouteEnvelope(r.forwarded.headers.get("X-Chatvice-Route-V1"),"<worker@example.invalid>",env.CHATVICE_MAIL_ROUTER_SECRET)?.to,m.to);

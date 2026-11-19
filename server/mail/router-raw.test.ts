@@ -31,7 +31,7 @@ test('raw ingress rejects unauthenticated and wrong-mailbox requests before pars
 test('hello uses authenticated raw ingress without attempting same-Worker SMTP forwarding',async()=>{
  const original=globalThis.fetch;let calls=0;
  globalThis.fetch=(async(url:any,init:any)=>{calls++;assert.equal(url,env.CHATVICE_MAIL_APP_ORIGIN+'/api/mail/router/raw');
-  assert.equal(init.headers.Authorization,'Bearer '+secret);assert.equal(init.redirect,'error');
+  assert.equal(init.headers.Authorization,'Bearer '+secret);assert.equal(init.redirect,'manual');
   assert.equal(init.headers['X-Chatvice-Recipient'],'hello@chatvice.app');assert.deepEqual(Buffer.from(init.body),raw);
   return Response.json({accepted:true});}) as any;
  try{await worker.email(message(),env);assert.equal(calls,1);
