@@ -12,6 +12,32 @@ export default {
     if(!domains.includes(recipient.split("@")[1]))return message.setReject("Unknown mail domain");
     // Never allow an incoming sender to smuggle a second routing envelope.
     if(message.headers.has(header))return message.setReject("Reserved mail routing header");
+    // Keep hello's original transport for normal messages. Resend's SMTP
+    // receiver rejects some otherwise authenticated messages (e.g. Dreamina)
+    // with 5.2.3 line too long; preserve the MIME bytes over authenticated HTTPS.
+    if(recipient==="hello@chatvice.app"){
+      // Capture before forward: the raw MIME stream is single-use.
+      if(message.rawSize>25*1024*1024)throw new Error("Raw mail exceeds inbound limit");
+      const raw=await new Response(message.raw).arrayBuffer();
+      if(!raw.byteLength||raw.byteLength>25*1024*1024)throw new Error("Invalid raw mail size");
+      try{
+        await message.forward("hello-route@qa-mail-staging.chatvice.app");
+        return;
+      }catch(error){
+        if(!/line too long/i.test(String(error?.message||error)))throw error;
+      }
+      for(let attempt=0;attempt<2;attempt++){
+        try{
+          const response=await fetch(env.CHATVICE_MAIL_APP_ORIGIN+"/api/mail/router/raw",{
+            method:"POST",headers:{"Authorization":"Bearer "+env.CHATVICE_MAIL_ROUTER_SECRET,
+              "Content-Type":"message/rfc822","X-Chatvice-Recipient":recipient},
+            body:raw,redirect:"error",signal:AbortSignal.timeout(25000)
+          });
+          if(response.ok&&(await response.json()).accepted===true)return;
+        }catch{ /* Retry once; never acknowledge mail that was not stored. */ }
+      }
+      throw new Error("Raw mail delivery unavailable");
+    }
     let lookup;
     try{
       lookup=await fetch(env.CHATVICE_MAIL_APP_ORIGIN+"/api/mail/router/recipient",{

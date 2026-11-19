@@ -8,6 +8,7 @@ import {startMailOutboxWorker} from "./outbox";
 import {registerMailActivation,startMailProvisioningWorker} from "./onboarding";
 import {registerMailPublicSignup,publicSignupConfigured} from "./public-signup";
 import {registerMailRouterLookup} from "./router";
+import {registerMailRouterRaw} from "./router-raw";
 const origin=process.env.CHATVICE_MAIL_APP_ORIGIN||"";
 if(process.env.CHATVICE_MAIL_APP_ROLE!=="isolated-mail" ||
    !/^https:\/\/[a-z0-9.-]+$/.test(origin) ||
@@ -42,6 +43,7 @@ app.get("/health",async(_req,res)=>{
   }catch{res.status(503).json({status:"unavailable",service:"chatvice-mail"});}
 });
 registerMailRouterLookup(app);
+registerMailRouterRaw(app);
 app.use(express.json({limit:"2mb",verify:(req,_res,buf)=>{req.rawBody=Buffer.from(buf)}}));
 registerMailLogin(app,pool,origin,process.env.CHATVICE_MAIL_SESSION_SECRET||"");
 registerMailActivation(app);
